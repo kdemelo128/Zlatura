@@ -1,5 +1,52 @@
 # Changelog
 
+## 4.7.2: the master plan in the repository, and the tracking checked against it (on the development branch; not merged or deployed)
+
+The app itself doesn't change: this release is documents only, plus the
+version number.
+
+- **The master plan** is in the repository root as
+  `ZLATURA_MASTER_PROMPT_v2.md`, exactly as you pasted it. It is never edited.
+- **`docs/PLAN_STATUS.md`** was rebuilt against it, section by section:
+  - every phase of Part 22, and every deliverable in Parts 0 to 24, each
+    numbered by its section and marked done, partial, in progress, not
+    started or blocked, with the module, test or version as evidence. That is
+    374 items: 94 done, 125 partial, 4 in progress, 143 not started and 8
+    blocked;
+  - "synthetic only" wherever an item was tested only with invented files;
+  - the 15 pillars of Part 2;
+  - Part 7.5, operating statement normalization, broken out bullet by
+    bullet, showing what the 4.7.0 T-12 import covers and what it doesn't;
+  - the pro forma against T-12 bridge (Parts 6.3 and 7.9) as its own item;
+  - where a Part isn't named in Part 22, the phase it was placed in, and why;
+  - your later instructions kept first: the setup, the three bugs, the two
+    proposals, the "New look" revamp, the feature map, the Data QC panel and
+    the typing tests;
+  - ten questions where the master plan and your later instructions differ.
+- **`docs/acceptance-matrix.md`** has 77 new rows, each marked "Added 4.7.2"
+  with its section number, for features of the master plan it didn't list.
+  Two statuses were wrong and are corrected:
+  - **mutation tests:** was "Not implemented", now "Partially implemented".
+    Deliberate breaks are run on each PR, and 24 unit mix-ups are checked in
+    every `npm test`;
+  - **performance with 500 leases:** was "Partially implemented", now
+    "Implemented, not fully tested". Its "works but slow" was true only
+    before 4.2.0.
+
+  One row was relabelled: "NOI bridge" is the potential-rent-to-NOI tool, not
+  the master plan's 7.9 bridge, which now has its own row. Two notes were
+  brought up to date with the 4.3.0 history.
+- **`CLAUDE.md`**:
+  - points at the master plan in the repository, and says to re-read its
+    Part 0 and Part 23 at the start of every phase and before every report;
+  - adds Part 0's rules: decide or ask, nothing merged or deployed without
+    authorization, and a smaller honest version over a feature that can't be
+    trusted;
+  - adds the Part 21.2 prohibitions and Part 23's status words and
+    truthfulness rules;
+  - every report now ends with what was verified, what was not, what was
+    assumed, and what is needed from you.
+
 ## 4.7.1: how the rest of the plan is built and tracked (on the development branch; not merged or deployed)
 
 The app itself doesn't change. This release sets up the way the rest of the
