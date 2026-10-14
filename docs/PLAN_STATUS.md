@@ -25,8 +25,14 @@ Last updated: 4.7.2, reconciled against the master plan (2026-10-14).
 
 ## Now
 
-- **Current step:** Part 1, Bug C (in progress).
-- **Bugs A and B:** diagnosed; waiting on the owner's decisions.
+- **Current step:** Part 1, Bug A (next: designer's approved fix, then the
+  builder). Bug C is built (4.7.3), PR open for merge.
+- **Bugs A and B:** diagnosed; all recommendations approved 2026-10-14.
+- **Usage rules (2026-10-14):** one agent at a time, never parallel Opus;
+  routine work in the main session; read big files by section or grep; run
+  only the affected tests while developing and the full suites once before
+  each PR; no polling check-ins; short reports; on a usage limit, write a
+  short state note here first.
 - **Next gate:** the three bug-fix PRs, open for merge.
 - **Questions for the owner:** where the master plan and the later
   instructions differ, at the end of this file.
@@ -35,12 +41,12 @@ Last updated: 4.7.2, reconciled against the master plan (2026-10-14).
 
 | Group | Done | Partial | In progress | Not started | Blocked | Items |
 |---|---|---|---|---|---|---|
-| The owner's directive | 3 | 2 | 3 | 10 | 0 | 18 |
+| The owner's directive | 5 | 1 | 1 | 11 | 0 | 18 |
 | Rules and process (Parts 0, 1.3, 22, 23, 24) | 19 | 7 | 1 | 0 | 0 | 27 |
 | The 15 pillars (Part 2) | 1 | 8 | 0 | 6 | 0 | 15 |
 | Phase 0: audit and baseline | 9 | 0 | 0 | 0 | 0 | 9 |
 | Phase 1: foundations | 18 | 21 | 0 | 5 | 0 | 44 |
-| Phase 2: underwriting and documents | 14 | 49 | 0 | 44 | 0 | 107 |
+| Phase 2: underwriting and documents | 14 | 47 | 0 | 46 | 0 | 107 |
 | Phase 3: firm templates | 6 | 5 | 0 | 4 | 1 | 16 |
 | Phase 4: comps and capital markets | 8 | 12 | 0 | 18 | 0 | 38 |
 | Phase 5: marketing, diligence, buyers | 6 | 7 | 0 | 31 | 0 | 44 |
@@ -48,7 +54,7 @@ Last updated: 4.7.2, reconciled against the master plan (2026-10-14).
 | Phase 7: workspaces and integrations | 1 | 4 | 0 | 9 | 0 | 14 |
 | Phase 8: final audit | 1 | 2 | 0 | 7 | 1 | 11 |
 | Real-world validation | 0 | 0 | 0 | 0 | 5 | 5 |
-| **All** | **94** | **125** | **4** | **143** | **8** | **374** |
+| **All** | **96** | **123** | **2** | **145** | **8** | **374** |
 
 The pillars are counted on their own as well as through the items of the
 phases that build them.
@@ -67,11 +73,18 @@ These came after the master plan and are worked first.
   are Chromium at iPhone size.
 
 ### Part 1: three bugs
-- [>] Bug C: date inputs lose what is typed at the year (in progress)
+- [x] Bug C: date inputs lose what is typed at the year. Built in 4.7.3
+  (`app/dateinput.js`, `app/focuskeep.js`, `tests/dateinput.test.js`,
+  `tests/e2e/typing-flow.mjs`); PR open, waiting for the owner's merge.
 - [>] Bug A: the rent roll from an OM doesn't scan correctly (diagnosed;
-  waiting on the owner's decision)
-- [>] Bug B: income and expenses read from OM statements are often wrong
-  (diagnosed; waiting on the owner's decision)
+  recommendations approved: vendor tesseract.js on demand, row provenance
+  and `rent_inplace` with a migration step, golden before/after shown if
+  anything changes). Includes the structure-only script for real rent rolls.
+- [ ] Bug B: income and expenses read from OM statements are often wrong
+  (diagnosed; recommendations approved: Year-1-only labelled projected at
+  medium confidence; a failed check blocks NOI, EGI and opex; tolerance the
+  larger of half a printed unit per line or 0.5%; growth note above 25%,
+  warning above 50%, never blocking; additive provenance fields)
 
 ### Part 2: design proposals
 These stop for approval.
@@ -91,9 +104,10 @@ Behind the "New look" toggle, after 2b.
 
 ### Other standing instructions
 - [ ] Data QC panel (not designed yet)
-- [~] Character-by-character typing tests for every input type: some flows
-  type a key at a time (`shell-flow`, `history-flow`, `impact-flow`), but
-  there is no suite over every input type yet. Date inputs are Bug C.
+- [x] Character-by-character typing tests for every input type:
+  `typing-flow` (4.7.3) types every date field and the number, percent and
+  currency fields key by key, and checks Tab after a redraw. New input types
+  must be added to it.
 
 ## Rules and process (every phase)
 
@@ -478,14 +492,14 @@ multi-format import" waits on proposal 2a.
   against its Total column (`statementChecks`). Synthetic only.
 - [ ] Recurring against nonrecurring, only with confirmation; ambiguous items
   left as "needs classification"
-- [~] Operating against capital: capital, reserves, TI and LC, debt,
-  depreciation and owner costs go below the line by their wording; a bare
-  "management fee" and any line that matches nothing go to Review. See the
-  questions at the end.
-- [~] Learn from past mappings as suggestions only: remembered labels exist
-  (label and category, never an amount), but they are applied as "your
-  choice", not offered as suggestions, and there is no "mapped this way in
-  your last N deals". See the questions at the end.
+- [ ] Operating against capital, owner's answer 2026-10-14: capex-type lines
+  (capital, reserves, TI and LC, debt, depreciation, owner costs) are not
+  moved below the line automatically; they are suggested and wait for the
+  owner's confirmation. Today 4.7.0 moves them by their wording. To change.
+- [ ] Learn from past mappings as suggestions only, owner's answer
+  2026-10-14: remembered labels become suggestions that need confirmation.
+  Today 4.7.0 applies them as "your choice", and there is no "mapped this
+  way in your last N deals". To change.
 - [ ] Export the normalized statement to Excel with a mapping sheet
 
 - [ ] 7.6 Jurisdiction rules table (reassessment triggers, assessment ratios,
@@ -890,42 +904,18 @@ Pre-Flight; the Document Center goes with the data room.*
 - [!] Live AI and speech providers (credentials and a deployed server)
 - [!] Screen readers
 
-## Questions for the owner
+## Owner's answers (2026-10-14)
 
-Where the master plan and the later instructions differ. Nothing has been
-changed for these; each needs your answer.
-
-1. **Branches.** Part 0 rule 3 and Part 22 say to commit on "the designated
-   development branch". `CLAUDE.md` says one PR per item. Is each item its
-   own branch and PR, merged into `main`?
-2. **Navigation.** Part 4 asks for a collapsible left rail of 12 workspaces.
-   The UI revamp asks for a bottom navigation, Robinhood-style. Today the
-   desktop has a sidebar and the phone a bottom tab bar. Should the desktop
-   keep a left rail?
-3. **Design direction.** Part 20.1 asks for restraint: one accent, no
-   generic dashboard cards, subtle motion. The revamp adds live charts,
-   motion and customizable widgets. Which wins where they differ?
-4. **The 3.2.0 line.** Part 0 rule 2 and Part 24.1 refer to "the 3.2.0
-   development line". The baseline found 3.3.0 on `main`, which contains
-   3.2.0, and work is now at 4.7.x. Can these references be treated as met?
-5. **Learned mappings.** Part 7.5 says past mappings are suggestions only.
-   In 4.7.0 a remembered label is applied as "your choice". Keep that, or
-   make it a suggestion you confirm?
-6. **Operating against capital.** Part 7.5 says to separate operating from
-   capital only with your confirmation or strong evidence. In 4.7.0, lines
-   go below the line by their wording, such as "capital" or "reserves". Is
-   wording strong enough evidence?
-7. **Rounding.** Part 3.1 and 7.7 say to keep full precision and round only
-   for display. In 4.1.0, stored totals were rounded to whole cents and rates
-   per SF to four decimals (decision D-B, now "money is whole cents" in
-   `CLAUDE.md`). Is that what you want?
-8. **When to stop.** `CLAUDE.md` lists "the only places to stop and wait".
-   Part 0 rule 6 adds more: paid services, security or data retention, a
-   change of financial meaning, and two readings of a financial input. These
-   were added to `CLAUDE.md`'s gates in 4.7.2. Do you agree?
-9. **Order of work.** Part 22 ranks the UI foundation fourth, after the
-   engine, Mapping Studio and ingestion. Your later instructions put the UI
-   revamp ahead of the rest of Phase 2 and Phase 3. Confirm that order.
-10. **Licence.** `package.json` says MIT, and the Phase 8 list has
-    "proprietary LICENSE". The master plan doesn't say. Which applies, and
-    when?
+1. Branches: one branch and PR per item.
+2. Navigation: bottom nav on the phone, left rail on the desktop; keep both.
+3. Design: follow the revamp with the master plan's restraint: one accent
+   color, charts only where they inform a decision, no filler cards.
+4. The 3.2.0 line: met.
+5. Remembered T-12 labels: suggestions that need confirmation (tracked in
+   Phase 2, 7.5).
+6. Operating against capital: suggest, never move automatically (tracked in
+   Phase 2, 7.5).
+7. Rounding: whole cents as decided in 4.1.0; display rounding separate.
+8. The extra approval gates from Part 0 rule 6: confirmed.
+9. Order: the bugs, then both proposals, then the builds.
+10. Licence: MIT until Phase 8.

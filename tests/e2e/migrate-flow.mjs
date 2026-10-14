@@ -67,7 +67,8 @@ async function open(p, base, id) {
 const shown = (p) => p.evaluate(() => {
   const text = (sel) => [...document.querySelectorAll(sel)].map((e) => e.innerText).join('\n');
   return [text('#deal-root h1'), text('#deal-tiles'), text('#deal-root .deal-analysis, #deal-analysis'), text('#deal-rentroll table')].join('\n')
-    .replace(/\b\d+\.\d+\.\d+\b/g, 'v').replace(/updated [^\n·]*/gi, 'updated');
+    .replace(/\b\d+\.\d+\.\d+\b/g, 'v').replace(/updated [^\n·]*/gi, 'updated')
+    .replace(/\s+/g, ' '); // a date cell is a wrapper now (the shared date field), which only changes the line breaks in the text
 });
 
 // ---- 1. restored: brought up to date before anything opens it
@@ -96,7 +97,7 @@ for (const name of Object.keys(after)) {
   await open(page, BASE, after[name].id);
   await open(oldPage, OLD, after[name].id);
   const [a, b] = [await shown(page), await shown(oldPage)];
-  check(`${name}: the deal screen shows what it showed before`, a === b && a.includes(name.split(' ')[0]) && a.length > 100, a === b ? `${a.length} characters: ${a.slice(0, 80).replace(/\n/g, " | ")}` : `new: ${a.slice(0, 300)} | old: ${b.slice(0, 300)}`);
+  check(`${name}: the deal screen shows what it showed before`, a === b && a.includes(name.split(' ')[0]) && a.length > 100, a === b ? `${a.length} characters: ${a.slice(0, 80).replace(/\n/g, " | ")}` : (() => { let i = 0; while (i < a.length && a[i] === b[i]) i++; return `differs at ${i}: new ${JSON.stringify(a.slice(Math.max(0, i - 40), i + 80))} | old ${JSON.stringify(b.slice(Math.max(0, i - 40), i + 80))}`; })());
   const [na, ob] = [(await deals(page))[name], (await deals(oldPage))[name]];
   const [ca, cb] = [comparable(na), comparable(ob)];
   const same = JSON.stringify(ca) === JSON.stringify(cb);

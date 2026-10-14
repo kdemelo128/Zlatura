@@ -9,6 +9,7 @@
 
 import { quickValue, loanTool, offerTool, netEffectiveRent, exchangeDates, waltTool } from './tools.js';
 import { MORE_TOOLS, GROUPS } from './toolsdefs.js';
+import { dateInput } from './dateinput.js';
 import { dealForTools, applyFromTools } from './dealui.js';
 import { kvGet, kvSet, logRounding, MONEY_VERSION } from './store.js';
 import { quantizeToolInput, quantizeToolValues } from './engine/money.js';
@@ -244,7 +245,7 @@ const inputText = (kind, v) => {
   return showInput(kind, v);
 };
 
-function inputField(t, [id, label, kind, ph, help], mem) {
+function inputField(t, [id, label, kind, ph, help], mem, onDate) {
   const f = el('div', 'field');
   let i;
   if (kind === 'bool') {
@@ -266,13 +267,19 @@ function inputField(t, [id, label, kind, ph, help], mem) {
     f.append(lab, i);
   } else {
     const lab = el('label', null, label);
-    i = el('input', kind === 'date' ? null : 'n');
-    i.id = `tool-${t.id}-${id}`;
-    lab.htmlFor = i.id;
-    if (kind === 'date') i.type = 'date'; else i.inputMode = kind === 'list' ? 'text' : 'decimal';
-    i.placeholder = ph || '';
-    i.autocomplete = 'off';
-    i.value = kind === 'date' ? (mem[id] || '') : showInput(kind, mem[id]);
+    const iid = `tool-${t.id}-${id}`;
+    lab.htmlFor = iid;
+    if (kind === 'date') {
+      // read when the date is finished (blur or Enter), never on the way in
+      i = dateInput({ id: iid, value: mem[id], onCommit: () => onDate() });
+    } else {
+      i = el('input', 'n');
+      i.id = iid;
+      i.inputMode = kind === 'list' ? 'text' : 'decimal';
+      i.placeholder = ph || '';
+      i.autocomplete = 'off';
+      i.value = showInput(kind, mem[id]);
+    }
     f.append(lab, i);
   }
   if (kind === 'list') f.classList.add('wide');
@@ -331,7 +338,7 @@ function open(t) {
   form.style.padding = '0';
   const inputs = {};
   for (const spec of t.inputs) {
-    const [f, i] = inputField(t, spec, mem);
+    const [f, i] = inputField(t, spec, mem, () => update());
     inputs[spec[0]] = [i, spec[2], spec[1]];
     form.appendChild(f);
   }
@@ -389,7 +396,7 @@ function open(t) {
     if (send) send.disabled = !d || !t.toDeal(current, out);
   };
   for (const [i, kind, label] of Object.values(inputs)) {
-    i.addEventListener(kind === 'select' ? 'change' : 'input', update);
+    if (kind !== 'date') i.addEventListener(kind === 'select' ? 'change' : 'input', update);
     if (!['date', 'bool', 'select'].includes(kind)) i.addEventListener('change', () => { const v = quantizeToolInput(kind, label, readInput(kind, i.value)); if (v !== null) i.value = showInput(kind, v); });
   }
   update();
@@ -644,13 +651,17 @@ function openWalt(t) {
       const tr = el('tr');
       for (const [k, type, ph] of [['tenant', 'text', 'Tenant'], ['sf', 'n', '2,400'], ['annual', 'n', '96,000'], ['end', 'date', '']]) {
         const td = el('td');
-        const i = el('input');
-        if (type === 'date') i.type = 'date'; else if (type === 'n') i.inputMode = 'decimal';
-        i.placeholder = ph;
-        i.value = r[k] || '';
-        i.setAttribute('aria-label', `${k} for row ${idx + 1}`);
-        i.addEventListener('input', () => { r[k] = i.value; update(); });
-        td.appendChild(i);
+        if (type === 'date') {
+          td.appendChild(dateInput({ value: r[k], label: `${k} for row ${idx + 1}`, end: true, onCommit: (iso) => { r[k] = iso; update(); } }));
+        } else {
+          const i = el('input');
+          if (type === 'n') i.inputMode = 'decimal';
+          i.placeholder = ph;
+          i.value = r[k] || '';
+          i.setAttribute('aria-label', `${k} for row ${idx + 1}`);
+          i.addEventListener('input', () => { r[k] = i.value; update(); });
+          td.appendChild(i);
+        }
         tr.appendChild(td);
       }
       const td = el('td');

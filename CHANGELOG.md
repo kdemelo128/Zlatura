@@ -1,5 +1,38 @@
 # Changelog
 
+## 4.7.3: dates you type no longer disappear (on the development branch; not merged or deployed)
+
+Bug C. Typing a date into the rent roll or the lease editor could wipe what
+you had typed once you reached the year, and a number you finished with Tab
+could leave you with no field selected. Both are fixed.
+
+- **One date field everywhere.** Dates are now typed as plain text and read
+  when you leave the field or press Enter, never while keys are going in.
+  Nothing is reformatted or cleared as you type, and the cursor stays put.
+  It understands `01/15/2027`, `1/15/27`, `2027-01-15`, `01152027` (what a
+  phone's number pad gives) and `Jan 2027`, `January 2027`, `Jan-27`. A month
+  on its own means its first day, or its last day in the fields that end
+  something (lease end, a rent period's To, an abatement's To). A good date
+  shows as `MM/DD/YYYY`. Something that isn't a date stays as typed, with a
+  hint ("Try 01/15/2027 or Jan 2027") and isn't saved. Escape puts back the
+  last saved date. A calendar button beside each date opens the phone or
+  browser picker as the second way in.
+- **Where it is used:** the rent roll grid, Assumptions (As of), the lease
+  editor (lease start, rent start, lease end, rent periods, the rent
+  generator, free rent, one-time items), comp sale dates, the Tools that take
+  a date, the deal's next step and key dates, Home tasks and the date to try
+  in What this affects. Dates are still saved the same way.
+- **Years before 100.** The lease engine read a four-digit year like 0002 as
+  1902; it now reads it as written. No saved deal is affected: every figure
+  in the 618 saved deal results and 646 displayed figures is unchanged.
+- **Tab after a number.** Finishing a number or percent in the lease editor,
+  the Assumptions, the deal's figures or the What-if answers redrew that part
+  of the page and dropped the field Tab was moving to. The page now puts the
+  cursor back on the right field, and the Assumptions section stays open
+  while you work down it.
+- **Tests:** a new browser flow types character by character into every date
+  and number field and checks, after every key, that the field holds exactly
+  what was typed and still has focus.
 ## 4.7.2: the master plan in the repository, and the tracking checked against it (on the development branch; not merged or deployed)
 
 The app itself doesn't change: this release is documents only, plus the

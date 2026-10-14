@@ -27,6 +27,7 @@ import { projectionNow, projectionLater, projectionSync, projectionError } from 
 import { legacyRows } from './rentroll.js';
 import { pending as stepsDue, applyStep } from './migrate.js';
 import { renderRentRollWorkspace } from './rentrollui.js';
+import { redrawKeepingFocus } from './focuskeep.js';
 import { renderT12Card } from './t12ui.js';
 import { openLibrary } from './libraryui.js';
 import { openAiSettings, readWithAi, openAssistant, transcribeNote, openTranscript } from './aiui.js';
@@ -1027,7 +1028,7 @@ function figRow(key, label, kind) {
   inp.autocomplete = 'off';
   if (kind !== 'text') inp.inputMode = 'decimal';
   inp.placeholder = kind === 'text' ? '' : '—';
-  inp.addEventListener('change', () => {
+  inp.addEventListener('change', () => redrawKeepingFocus(document.body, () => {
     let v;
     if (kind === 'text') v = inp.value.trim() || null;
     else {
@@ -1038,7 +1039,7 @@ function figRow(key, label, kind) {
     inp.value = fmt(kind, v);
     if (key === 'lot_sf') { const s = lab.querySelector('small'); if (s) s.textContent = ok(v) ? `${(v / 43560).toFixed(3)} acres` : ''; }
     srcHolder.replaceChildren(sourceTag(key));
-  });
+  }));
   const labCell = el('div', 'fl-cell');
   labCell.append(lab, affectsButton(`What changing ${label} affects`, () => showImpact([`figures.${key}`])));
   li.appendChild(labCell);
@@ -1446,7 +1447,7 @@ function renderScenario(m) {
     i.inputMode = 'decimal';
     i.value = ok(val) ? dec(val, 2) : '';
     i.setAttribute('aria-label', `${label} target, percent`);
-    i.addEventListener('change', () => { const v = parsePct(i.value); tg[key] = ok(v) && v > 0 && v < 100 ? v : null; touch(); renderDerived(); });
+    i.addEventListener('change', () => redrawKeepingFocus(document.body, () => { const v = parsePct(i.value); tg[key] = ok(v) && v > 0 && v < 100 ? v : null; touch(); renderDerived(); }));
     left.append(txt, i, el('span', null, '%'));
     if (why) left.appendChild(el('span', 'why', why));
     li.appendChild(left);

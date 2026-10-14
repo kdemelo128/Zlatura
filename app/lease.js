@@ -61,8 +61,10 @@ function parseDay(str) {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(str);
   if (!m) return null;
   const y = +m[1]; const mo = +m[2]; const d = +m[3];
-  const t = Date.UTC(y, mo - 1, d);
-  const back = new Date(t);
+  // Date.UTC would read the years 0 to 99 as 1900 to 1999; setUTCFullYear takes them as written
+  const back = new Date(0);
+  back.setUTCFullYear(y, mo - 1, d);
+  const t = back.getTime();
   if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) return null;
   return t / DAY;
 }

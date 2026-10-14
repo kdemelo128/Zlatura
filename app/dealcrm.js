@@ -4,6 +4,7 @@
 import * as crm from './crm.js';
 import { STAGE_LABEL, stageChoices, stageOf, taskBuckets, CONTACT_ROLES, KEY_DATE_LABELS, isoDay } from './pipeline.js';
 import { el, svg, toast, niceDate } from './kit.js';
+import { dateInput } from './dateinput.js';
 
 /**
  * box: the card; d: the open deal; touch(): save it. Draws, then redraws
@@ -51,8 +52,7 @@ export async function renderDealCrm(box, d, { touch, api }) {
   const add = el('form', 'task-add');
   const ti = el('input');
   ti.id = 'deal-task-title'; ti.placeholder = 'Add a next step'; ti.setAttribute('aria-label', 'New task for this deal'); ti.autocomplete = 'off';
-  const due = el('input');
-  due.type = 'date'; due.id = 'deal-task-due'; due.setAttribute('aria-label', 'Due date');
+  const due = dateInput({ id: 'deal-task-due', label: 'Due date' });
   const go = el('button', 'btn btn-sm', 'Add');
   go.type = 'submit';
   add.append(ti, due, go);
@@ -101,8 +101,7 @@ export async function renderDealCrm(box, d, { touch, api }) {
   kl.id = 'deal-date-label';
   kl.setAttribute('aria-label', 'Which date');
   for (const l of KEY_DATE_LABELS) { const o = el('option', null, l); o.value = l; kl.appendChild(o); }
-  const kdt = el('input');
-  kdt.type = 'date'; kdt.id = 'deal-date'; kdt.setAttribute('aria-label', 'Date');
+  const kdt = dateInput({ id: 'deal-date', label: 'Date' });
   const kb = el('button', 'btn btn-sm', 'Add');
   kb.type = 'submit';
   kf.append(kl, kdt, kb);

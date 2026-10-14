@@ -58,7 +58,7 @@ test('every key on the list is still handled where it says', () => {
 test('the sheet: by where each works, with ⌘ on a Mac and Ctrl elsewhere', () => {
   const pc = sheetGroups(false);
   const mac = sheetGroups(true);
-  assert.deepEqual(pc.map((g) => g.group), ['Anywhere', 'In the search', 'In a deal', 'In the rent roll', 'Settings']);
+  assert.deepEqual(pc.map((g) => g.group), ['Anywhere', 'In the search', 'In a deal', 'In the rent roll', 'In a date field', 'Settings']);
   const row = (gs, does) => gs.flatMap((g) => g.rows).find((r) => r.does === does);
   assert.deepEqual(row(pc, 'Undo the last change to the deal').keys, [['Ctrl', 'Z']]);
   assert.deepEqual(row(mac, 'Undo the last change to the deal').keys, [['⌘', 'Z']]);
