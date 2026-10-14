@@ -1,5 +1,34 @@
 # Changelog
 
+## 4.7.1: how the rest of the plan is built and tracked (on the development branch; not merged or deployed)
+
+The app itself doesn't change. This release sets up the way the rest of the
+master plan is built and tracked:
+
+- **`docs/PLAN_STATUS.md`** has a checklist of every phase and item. Each one
+  is marked done, in progress, not started or blocked. The feature list is
+  generated from `docs/acceptance-matrix.md`, and the file is updated with
+  every PR.
+- **`CLAUDE.md`** holds the standing rules:
+  - one PR per item;
+  - approval gates;
+  - golden outputs unchanged;
+  - invented fixtures only;
+  - tests that fail on old code;
+  - version and changelog with every PR.
+- **Two Claude Code agents** in `.claude/agents/`:
+  - **designer**, always on Opus: proposals, bug diagnosis, parsing, money
+    and calculation logic, data format, security and end-of-phase review;
+  - **builder**, always on Sonnet: approved builds, UI, wiring, docs and
+    tests.
+
+  If the builder fails twice on the same problem, it hands back to the
+  designer.
+- **WebKit runs.** The browser suite can run on WebKit, Safari's engine:
+  `PW_BROWSER=webkit bash tests/e2e/run.sh`. That needs WebKit installed;
+  this environment has only Chromium, so runs here use Chromium at iPhone
+  size.
+
 ## 4.7.0: the T-12, and the Review Queue (on the development branch; not merged or deployed)
 
 Phase 2, milestone 1, as approved in `docs/proposals/t12-review-queue.md`,
