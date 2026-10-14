@@ -28,6 +28,7 @@ import * as store from './store.js';
 import { renderKpis, renderRank, renderTime } from './glance.js';
 import { VERSION, compsCsv, renderCompSheet, fullAddress } from './exporters.js';
 import { compBasis } from './deal.js';
+import { dateInput } from './dateinput.js';
 import {
   $, el, svg, IN_ARTIFACT, XLSX, parseNum, parsePct, int, dec, money2, pct, localDate, toast,
   openSheet, closeSheet, backdropCloses, actionSheet, getPdfjs, getXlsx, getFflate, idle,
@@ -357,13 +358,9 @@ function row(c, kind) {
   tr.appendChild(tdName);
 
   if (kind === 'sale') {
-    const d = el('input');
-    d.type = 'date';
-    d.value = c.date ? new Date(c.date).toISOString().slice(0, 10) : '';
-    d.setAttribute('aria-label', 'Sale date');
-    d.addEventListener('change', () => {
-      setField(c, 'date', d.value ? new Date(`${d.value}T00:00:00Z`) : null);
-      onEdit();
+    const d = dateInput({
+      value: c.date ? new Date(c.date).toISOString().slice(0, 10) : '', label: 'Sale date',
+      onCommit: (iso) => { setField(c, 'date', iso ? new Date(`${iso}T00:00:00Z`) : null); onEdit(); },
     });
     tr.appendChild(fieldCell('', 'Sold', d));
   } else {

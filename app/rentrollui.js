@@ -20,6 +20,8 @@ import { kvGet, kvSet } from './store.js';
 import { projectionNow, projectionLater } from './projector.js';
 import { LEASE_FIELDS } from './impact.js';
 import { affectsButton } from './impactui.js';
+import { dateInput } from './dateinput.js';
+import { redrawKeepingFocus } from './focuskeep.js';
 import {
   el, svg, parseNum, parsePct, int, dec, money0, money2, pct, short, yrs, toast, actionSheet, getXlsx, deliver, XLSX,
 } from './kit.js';
@@ -43,7 +45,6 @@ function show(kind, v) {
 }
 function read(kind, raw) {
   if (kind === 'text' || kind === 'select') return String(raw).trim();
-  if (kind === 'date') return raw && dayOf(raw) !== null ? raw : null;
   if (kind === 'pct') return parsePct(raw, { fraction: false });
   const v = parseNum(raw);
   return v === null ? null : v;
@@ -66,7 +67,8 @@ export function renderRentRollWorkspace(box, deal, compsApi, onChange, hooks = {
   api = compsApi;
   box.textContent = '';
   const rr = deal.rr;
-  const changed = (redraw = true, meta = null) => { onChange(meta); if (redraw) refresh(); };
+  // the redraw keeps the cursor: Tab out of a field that redraws the page still lands in the next field
+  const changed = (redraw = true, meta = null) => { onChange(meta); if (redraw) redrawKeepingFocus(box, refresh); };
   // an automatic snapshot of the deal before a bulk change (the deal's history keeps it); its id, or null
   changed.snapshot = (reason) => (hooks.snapshot ? hooks.snapshot(reason) : null);
   // "what this affects" (the dependency map), opened by the deal screen
@@ -211,22 +213,36 @@ export function renderRentRollWorkspace(box, deal, compsApi, onChange, hooks = {
           s.addEventListener('change', () => { col.set(L, s.value, c); changed(); });
           s.addEventListener('keydown', (e) => nav(e, s));
           td.appendChild(s);
+        } else if (col.kind === 'date') {
+          const di = dateInput({
+            value: v, label: `${col.label}, unit ${L.unit || ri + 1}`, end: col.key === 'leaseEnd',
+            onCommit: (iso) => {
+              col.set(L, iso || null, c);
+              changed(false);
+              di.value = col.get(L, gridContext(rr)) || '';
+              // the rest of the row may follow (years left, and so on)
+              refreshRow(tr, L);
+              refreshTotals();
+            },
+          });
+          di.input.dataset.r = ri; di.input.dataset.c = ci;
+          di.input.addEventListener('keydown', (e) => nav(e, di.input));
+          td.appendChild(di);
         } else {
           const i = el('input', ['money', 'money2', 'int', 'pct', 'dec'].includes(col.kind) ? 'n' : null);
-          if (col.kind === 'date') i.type = 'date';
-          else if (col.kind !== 'text') i.inputMode = 'decimal';
-          i.value = col.kind === 'date' ? (v || '') : show(col.kind, v);
+          if (col.kind !== 'text') i.inputMode = 'decimal';
+          i.value = show(col.kind, v);
           i.dataset.orig = i.value;
           i.dataset.r = ri; i.dataset.c = ci;
           i.setAttribute('aria-label', `${col.label}, unit ${L.unit || ri + 1}`);
           i.autocomplete = 'off';
           i.addEventListener('change', () => {
             const nv = read(col.kind, i.value);
-            if ((col.kind !== 'text' && col.kind !== 'date') && i.value.trim() && nv === null) { toast(`“${i.value}” isn’t a number.`); i.value = i.dataset.orig; return; }
+            if (col.kind !== 'text' && i.value.trim() && nv === null) { toast(`“${i.value}” isn’t a number.`); i.value = i.dataset.orig; return; }
             col.set(L, nv, c);
             changed(false);
             const again = col.get(L, gridContext(rr));
-            i.value = col.kind === 'date' ? (again || '') : show(col.kind, again);
+            i.value = show(col.kind, again);
             i.dataset.orig = i.value;
             // the rest of the row may follow (rent per SF from rent, and so on)
             refreshRow(tr, L);
@@ -353,7 +369,8 @@ export function renderRentRollWorkspace(box, deal, compsApi, onChange, hooks = {
         const v = col.get(L, cc);
         const inp = td.querySelector('input');
         if (!col.set) td.textContent = show(col.kind, v) || '—';
-        else if (inp && document.activeElement !== inp) { inp.value = col.kind === 'date' ? (v || '') : show(col.kind, v); inp.dataset.orig = inp.value; }
+        else if (col.kind === 'date') { if (td.firstChild && 'input' in td.firstChild) td.firstChild.value = v || ''; }
+        else if (inp && document.activeElement !== inp) { inp.value = show(col.kind, v); inp.dataset.orig = inp.value; }
       });
     }
     function refreshTotals() {
@@ -397,7 +414,7 @@ export function renderRentRollWorkspace(box, deal, compsApi, onChange, hooks = {
       if (!target) return false;
       e.preventDefault();
       target.focus();
-      if (target.select && target.type !== 'date') target.select();
+      if (target.select) target.select();
       return true;
     };
     const atStart = cell.selectionStart === 0 || cell.selectionStart === null || cell.selectionStart === undefined;
@@ -406,8 +423,8 @@ export function renderRentRollWorkspace(box, deal, compsApi, onChange, hooks = {
     if (e.key === 'Enter' && cell.tagName === 'INPUT') { cell.dispatchEvent(new Event('change')); go(1, 0); return; }
     if (e.key === 'ArrowDown' && cell.tagName !== 'SELECT') go(1, 0);
     else if (e.key === 'ArrowUp' && cell.tagName !== 'SELECT') go(-1, 0);
-    else if (e.key === 'ArrowRight' && (atEnd || cell.tagName !== 'INPUT' || cell.type === 'date')) go(0, 1);
-    else if (e.key === 'ArrowLeft' && (atStart || cell.tagName !== 'INPUT' || cell.type === 'date')) go(0, -1);
+    else if (e.key === 'ArrowRight' && (atEnd || cell.tagName !== 'INPUT')) go(0, 1);
+    else if (e.key === 'ArrowLeft' && (atStart || cell.tagName !== 'INPUT')) go(0, -1);
   }
 
   refresh();
@@ -540,29 +557,41 @@ function drawProjection(sec, P, s) {
   sec.appendChild(el('p', 'hint-sm', `Documented periods are the leases as entered; renewals and lease-up are projected at ${ok(s.marketRent) ? `${money2(s.marketRent)} ${s.marketUnit === 'month' ? 'a month' : 'per SF a year'}` : 'each unit’s market rent'}, growing ${dec(s.marketGrowth, 2)}% a year, with a ${dec(s.renewal.probability, 0)}% renewal probability. ${ok(s.opex) ? '' : 'Enter operating expenses below to reach NOI. '}Change any of it under Assumptions.`));
 }
 
+/** One short random id per deal, so the settings fields keep the same ids across redraws. */
+const FORM_IDS = new WeakMap();
+const SETTINGS_OPEN = new WeakSet();
+const formId = (deal) => { let x = FORM_IDS.get(deal); if (!x) { x = Math.random().toString(36).slice(2, 6); FORM_IDS.set(deal, x); } return x; };
+
 function settingsForm(deal, rr, changed) {
   const s = rr.settings;
   s.renewal = { ...DEFAULT_SETTINGS.renewal, ...(s.renewal || {}) };
   const d = el('details', 'rr-sec rr-settings');
+  // an edit redraws this form: it stays open, so the next field is still there to Tab into
+  d.open = SETTINGS_OPEN.has(deal);
+  d.addEventListener('toggle', () => { if (d.open) SETTINGS_OPEN.add(deal); else SETTINGS_OPEN.delete(deal); });
   d.appendChild(el('summary', 'sec-label', 'Assumptions: market, expenses, renewals'));
   const g = el('div', 'grid-form');
   g.style.padding = '8px 0 0';
   const field = (obj, key, label, kind, hint) => {
     const f = el('div', 'field');
-    const id = `rrs-${key}-${Math.random().toString(36).slice(2, 6)}`;
+    // the same id each time the form is drawn, so a redraw can find the field again
+    const id = `rrs-${key}-${formId(deal)}`;
     const lab = el('label', null, label);
     lab.htmlFor = id;
-    const i = el('input', kind === 'date' ? null : 'n');
-    i.id = id;
-    if (kind === 'date') i.type = 'date'; else i.inputMode = 'decimal';
-    i.value = obj[key] === null || obj[key] === undefined ? '' : kind === 'money' ? int(obj[key]) : kind === 'money2' ? dec(obj[key], 2) : String(obj[key]);
-    if (hint) i.placeholder = hint;
-    i.addEventListener('change', () => {
-      const v = kind === 'date' ? (dayOf(i.value) !== null ? i.value : null) : kind === 'pct' ? parsePct(i.value, { fraction: false }) : parseNum(i.value);
-      if (kind === 'date' && v === null) { toast('That date isn’t valid.'); return; }
-      obj[key] = v;
-      changed();
-    });
+    let i;
+    if (kind === 'date') {
+      i = dateInput({ id, value: obj[key], required: true, onCommit: (iso) => { obj[key] = iso; changed(); } });
+    } else {
+      i = el('input', 'n');
+      i.id = id;
+      i.inputMode = 'decimal';
+      i.value = obj[key] === null || obj[key] === undefined ? '' : kind === 'money' ? int(obj[key]) : kind === 'money2' ? dec(obj[key], 2) : String(obj[key]);
+      if (hint) i.placeholder = hint;
+      i.addEventListener('change', () => {
+        obj[key] = kind === 'pct' ? parsePct(i.value, { fraction: false }) : parseNum(i.value);
+        changed();
+      });
+    }
     const id2 = obj === s ? `rr.settings.${key}` : 'rr.settings.renewal';
     f.append(lab, i, affectsButton(`What changing ${label.replace(/[,%].*$/, '').trim().toLowerCase()} affects`, () => changed.affects([id2])));
     f.classList.add('has-affects');
@@ -943,7 +972,7 @@ function scheduleSheet(rr, L, changed) {
   const body = api.sheetOpen({ eyebrow: `Unit ${L.unit || ''}`, title: L.vacant ? 'Vacant space' : (L.tenant || 'Lease schedule'), sub: 'Rent as dated periods. Documented terms come from the lease; projected ones are assumptions.', foot: [revert, doneB] });
   revert.addEventListener('click', () => { for (const k of Object.keys(L)) delete L[k]; Object.assign(L, JSON.parse(JSON.stringify(snapshot))); changed(); draw(); toast('Lease put back as it was.'); });
   doneB.addEventListener('click', () => api.sheetClose());
-  const edit = () => { changed(); draw(); };
+  const edit = () => redrawKeepingFocus(body, () => { changed(); draw(); });
 
   function draw() {
     const keepScroll = body.scrollTop;
@@ -955,10 +984,15 @@ function scheduleSheet(rr, L, changed) {
       const fd = el('div', 'field');
       const id = `ls-${key}`;
       const lab = el('label', null, label); lab.htmlFor = id;
-      const i = el('input', kind === 'text' || kind === 'date' ? null : 'n'); i.id = id;
-      if (kind === 'date') i.type = 'date'; else if (kind !== 'text') i.inputMode = 'decimal';
-      i.value = L[key] === null || L[key] === undefined ? '' : kind === 'int' ? int(L[key]) : String(L[key]);
-      i.addEventListener('change', () => { L[key] = kind === 'text' ? i.value.trim() : kind === 'date' ? (dayOf(i.value) !== null ? i.value : null) : parseNum(i.value); edit(); });
+      let i;
+      if (kind === 'date') {
+        i = dateInput({ id, value: L[key], end: key === 'leaseEnd', onCommit: (iso) => { L[key] = iso || null; edit(); } });
+      } else {
+        i = el('input', kind === 'text' ? null : 'n'); i.id = id;
+        if (kind !== 'text') i.inputMode = 'decimal';
+        i.value = L[key] === null || L[key] === undefined ? '' : kind === 'int' ? int(L[key]) : String(L[key]);
+        i.addEventListener('change', () => { L[key] = kind === 'text' ? i.value.trim() : parseNum(i.value); edit(); });
+      }
       fd.append(lab, i); g.appendChild(fd);
     };
     f('tenant', 'Tenant', 'text'); f('unit', 'Unit / suite', 'text'); f('sf', 'SF', 'int');
@@ -992,7 +1026,7 @@ function scheduleSheet(rr, L, changed) {
     periods.sort((a, b) => (dayOf(a.start) ?? 0) - (dayOf(b.start) ?? 0));
     periods.forEach((p, i) => {
       const tr = el('tr', p.source === 'projected' ? 'projected' : null);
-      const dateIn = (k) => { const td = el('td'); td.dataset.label = k === 'start' ? 'From' : 'To'; const i2 = el('input'); i2.type = 'date'; i2.value = p[k] || ''; i2.setAttribute('aria-label', `Period ${i + 1} ${k === 'start' ? 'from' : 'to'}`); i2.addEventListener('change', () => { p[k] = dayOf(i2.value) !== null ? i2.value : p[k]; p.edited = true; edit(); }); td.appendChild(i2); return td; };
+      const dateIn = (k) => { const td = el('td'); td.dataset.label = k === 'start' ? 'From' : 'To'; td.appendChild(dateInput({ value: p[k], label: `Period ${i + 1} ${k === 'start' ? 'from' : 'to'}`, end: k === 'end', required: true, onCommit: (iso) => { p[k] = iso; p.edited = true; edit(); } })); return td; };
       tr.appendChild(dateIn('start'));
       tr.appendChild(dateIn('end'));
       const tdR = el('td'); tdR.dataset.label = 'Rent'; const r = el('input', 'n'); r.inputMode = 'decimal'; r.value = ok(p.rate) ? dec(p.rate, 2) : ''; r.setAttribute('aria-label', `Period ${i + 1} rent`);
@@ -1041,9 +1075,13 @@ function scheduleSheet(rr, L, changed) {
       const fd = el('div', 'field'); const id = `gen-${key}`;
       const lab = el('label', null, label); lab.htmlFor = id;
       let i;
-      if (opts) { i = el('select'); for (const [v, l] of opts) { const o = el('option', null, l); o.value = v; i.appendChild(o); } } else { i = el('input', kind === 'date' ? null : 'n'); if (kind === 'date') i.type = 'date'; else i.inputMode = 'decimal'; }
-      i.id = id; i.value = gv[key] ?? '';
-      i.addEventListener('change', () => { gv[key] = i.value; });
+      if (kind === 'date') {
+        i = dateInput({ id, value: gv[key], end: key === 'end', onCommit: (iso) => { gv[key] = iso; } });
+      } else {
+        if (opts) { i = el('select'); for (const [v, l] of opts) { const o = el('option', null, l); o.value = v; i.appendChild(o); } } else { i = el('input', 'n'); i.inputMode = 'decimal'; }
+        i.id = id; i.value = gv[key] ?? '';
+        i.addEventListener('change', () => { gv[key] = i.value; });
+      }
       fd.append(lab, i); gg.appendChild(fd);
     };
     gf('start', 'From', 'date'); gf('end', 'To', 'date'); gf('rate', 'Starting rent', 'n');
@@ -1067,10 +1105,8 @@ function scheduleSheet(rr, L, changed) {
     const ab = (L.abatements ||= []);
     ab.forEach((a, i) => {
       const row = el('div', 'rr-line');
-      const s1 = el('input'); s1.type = 'date'; s1.value = a.start || ''; s1.setAttribute('aria-label', `Abatement ${i + 1} from`);
-      s1.addEventListener('change', () => { a.start = s1.value; edit(); });
-      const e1 = el('input'); e1.type = 'date'; e1.value = a.end || ''; e1.setAttribute('aria-label', `Abatement ${i + 1} to`);
-      e1.addEventListener('change', () => { a.end = e1.value; edit(); });
+      const s1 = dateInput({ value: a.start, label: `Abatement ${i + 1} from`, onCommit: (iso) => { a.start = iso; edit(); } });
+      const e1 = dateInput({ value: a.end, label: `Abatement ${i + 1} to`, end: true, onCommit: (iso) => { a.end = iso; edit(); } });
       const p1 = el('input', 'n'); p1.inputMode = 'decimal'; p1.value = ok(a.pct) ? String(a.pct) : '100'; p1.setAttribute('aria-label', `Abatement ${i + 1} percent of rent`);
       p1.addEventListener('change', () => { a.pct = parsePct(p1.value, { fraction: false }); edit(); });
       const x = el('button', 'iconbtn'); x.type = 'button'; x.innerHTML = svg('<path d="M6 6l12 12M18 6L6 18"/>', 14); x.setAttribute('aria-label', `Remove abatement ${i + 1}`);
@@ -1089,8 +1125,7 @@ function scheduleSheet(rr, L, changed) {
     const ot = (L.oneTime ||= []);
     ot.forEach((o, i) => {
       const row = el('div', 'rr-line');
-      const d1 = el('input'); d1.type = 'date'; d1.value = o.date || ''; d1.setAttribute('aria-label', `Item ${i + 1} date`);
-      d1.addEventListener('change', () => { o.date = d1.value; edit(); });
+      const d1 = dateInput({ value: o.date, label: `Item ${i + 1} date`, onCommit: (iso) => { o.date = iso; edit(); } });
       const a1 = el('input', 'n'); a1.inputMode = 'decimal'; a1.value = ok(o.amount) ? String(o.amount) : ''; a1.setAttribute('aria-label', `Item ${i + 1} amount, negative for a credit`);
       a1.addEventListener('change', () => { o.amount = parseNum(a1.value); edit(); });
       const n1 = el('input', 'input'); n1.value = o.note || ''; n1.placeholder = 'what it is'; n1.setAttribute('aria-label', `Item ${i + 1} note`);

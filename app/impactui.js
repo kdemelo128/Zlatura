@@ -5,6 +5,7 @@
  * value can be tried without saving: each line then shows before → after.
  * For a figure, the same sheet says what it is worked out from. */
 
+import { dateInput } from './dateinput.js';
 import { el, svg, toast, money0, money2, pct, times, yrs, int, dec, parseNum, parsePct, getFflate } from './kit.js';
 import {
   affects, nodeOf, upstream, groupOf, valuesOf, withTrial, trialKind, sameValue, hasRentRoll, scenariosOf, downstream,
@@ -92,11 +93,16 @@ export async function openImpact(deal, ids, { title = '', heading = '', leaseId 
     trialBox = el('form', 'impact-trial');
     trialBox.id = 'impact-trial-form';
     const lab = el('label', null, 'Try a value');
-    const i = el('input', kind === 'date' ? null : 'n');
-    i.id = 'impact-trial';
-    lab.htmlFor = i.id;
-    if (kind === 'date') i.type = 'date'; else i.inputMode = 'decimal';
-    i.placeholder = kind === 'pct' ? 'e.g. 7.25' : kind === 'date' ? '' : 'a value';
+    let i;
+    if (kind === 'date') {
+      i = dateInput({ id: 'impact-trial' });
+    } else {
+      i = el('input', 'n');
+      i.id = 'impact-trial';
+      i.inputMode = 'decimal';
+      i.placeholder = kind === 'pct' ? 'e.g. 7.25' : 'a value';
+    }
+    lab.htmlFor = 'impact-trial';
     const go = el('button', 'btn btn-sm', 'Try');
     go.type = 'submit';
     go.id = 'impact-try';
@@ -104,6 +110,7 @@ export async function openImpact(deal, ids, { title = '', heading = '', leaseId 
     trialBox.append(lab, i, go, note);
     trialBox.addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (kind === 'date' && i.classList.contains('invalid')) { toast('That isn’t a value this field can take.'); return; }
       const raw = i.value.trim();
       const v = kind === 'date' ? (raw || null) : kind === 'pct' ? parsePct(raw, { fraction: false }) : parseNum(raw);
       if (raw && v === null) { toast('That isn’t a value this field can take.'); return; }

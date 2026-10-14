@@ -107,7 +107,7 @@ await page.keyboard.press('Shift+Slash');
 const keysOpen = await page.waitForSelector('#sheet[open] .keys-sheet', { timeout: 3000 }).then(() => true, () => false);
 check('"?" opens the keyboard shortcuts', keysOpen && (await page.textContent('#sheet-title')) === 'Keyboard shortcuts');
 const groups = await page.$$eval('#sheet-body .keys-group h3', (xs) => xs.map((x) => x.textContent));
-check('by where they work', groups.join(' | ') === 'Anywhere | In the search | In a deal | In the rent roll | Settings', groups.join(' | '));
+check('by where they work', groups.join(' | ') === 'Anywhere | In the search | In a deal | In the rent roll | In a date field | Settings', groups.join(' | '));
 const rows = await page.$$eval('#sheet-body .keys-list dt', (xs) => xs.map((x) => `${[...x.querySelectorAll('kbd')].map((k) => k.textContent).join('+')} = ${x.nextElementSibling.textContent}`));
 check('it lists search, undo, redo and the rent roll keys', ['Ctrl+K = Search deals, contacts and tools, and run an action', 'Ctrl+Z = Undo the last change to the deal', 'Shift+Ctrl+Z+Ctrl+Y = Redo it', 'Esc = Put the cell back as it was'].every((r) => rows.includes(r)), rows.join(' / '));
 check('focus is in the sheet', await page.evaluate(() => !!document.activeElement.closest('#sheet')));

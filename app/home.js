@@ -8,6 +8,7 @@ import { STAGES, STAGE_LABEL, DEFAULT_STAGES, HIDDEN, stageChoices, stageOf, pip
 import { listAllDeals, updateDeal, showDeal, currentDealId } from './dealui.js';
 import { taskRow, contactLinks, editContact } from './dealcrm.js';
 import { $, el, toast, actionSheet, getXlsx, deliver, printed, XLSX, short, money0, money2, pct, int, niceDate, localDate } from './kit.js';
+import { dateInput } from './dateinput.js';
 
 let api = null;
 let visible = false;
@@ -329,8 +330,7 @@ function tasksCard(tasks, deals, nameOf) {
   const add = el('form', 'task-add home-task-add');
   const ti = el('input');
   ti.id = 'task-title'; ti.placeholder = 'New task'; ti.setAttribute('aria-label', 'New task'); ti.autocomplete = 'off';
-  const due = el('input');
-  due.type = 'date'; due.id = 'task-due'; due.setAttribute('aria-label', 'Due date');
+  const due = dateInput({ id: 'task-due', label: 'Due date' });
   const ds = el('select');
   ds.id = 'task-deal';
   ds.setAttribute('aria-label', 'Deal for the task');
