@@ -8,12 +8,17 @@ async function loadPlaywright() {
   return createRequire('/opt/node-tools/node_modules/')('playwright');
 }
 const pw = await loadPlaywright();
-export const { chromium } = pw.chromium ? pw : pw.default;
+const P = pw.chromium ? pw : pw.default;
+/** The engine the flows run on: Chromium by default, `PW_BROWSER=webkit` (or firefox) where that engine is installed. */
+export const ENGINE = process.env.PW_BROWSER || 'chromium';
+export const chromium = P[ENGINE];
+if (!chromium) throw new Error(`Unknown PW_BROWSER “${ENGINE}”: use chromium, webkit or firefox.`);
 export const BASE = process.env.BASE || 'http://localhost:8080/';
 export const SHOTS = new URL('./shots/', import.meta.url).pathname;
 
 export async function phone(opts = {}) {
-  const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'] });
+  // the fake camera and microphone are Chromium flags; other engines start plain
+  const browser = await chromium.launch(ENGINE === 'chromium' ? { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'] } : {});
   const ctx = await browser.newContext({
     viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
