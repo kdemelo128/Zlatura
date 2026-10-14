@@ -15,10 +15,23 @@ const list = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true
 test('the service worker caches every file the app needs, and only files that exist', () => {
   const sw = read('sw.js');
   const assets = [...sw.slice(sw.indexOf('const ASSETS'), sw.indexOf('];')).matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  // the scanned-page reader is fetched on request, not installed (sw.js keeps it in its own cache once fetched)
+  const onDemand = (f) => f.startsWith('vendor/ocr/');
   const shipped = ['index.html', 'manifest.webmanifest',
-    ...list('app'), ...list('vendor'), ...list('fonts'), ...list('icons')].filter((f) => !f.endsWith('.md'));
+    ...list('app'), ...list('vendor'), ...list('fonts'), ...list('icons')].filter((f) => !f.endsWith('.md') && !onDemand(f));
   for (const f of shipped) assert.ok(assets.includes(f), `sw.js does not cache ${f}`);
   for (const a of assets.filter((x) => x !== './')) assert.ok(exists(a), `sw.js caches ${a}, which does not exist`);
+  assert.ok(!assets.some(onDemand), 'the OCR files are not in the install set');
+  assert.ok(list('vendor/ocr').length >= 4, 'the OCR files are in vendor/ocr');
+  assert.match(sw, /const OCR_CACHE = 'zlatura-ocr-tesseract-7\.0\.0'/);
+  assert.match(sw, /k !== CACHE && k !== OCR_CACHE/, 'an app update keeps the OCR cache');
+  // every OCR file the module names exists
+  const ocr = read('app/ocr.js');
+  for (const m of ocr.matchAll(/'([\w.-]+\.(?:js|gz))'|'(eng-[\w.-]+)'/g)) {
+    const name = m[1] || m[2];
+    assert.ok(exists(`vendor/ocr/${name}`) || exists(`vendor/ocr/${name}/eng.traineddata.gz`) || /^\.\.\//.test(name), `app/ocr.js names vendor/ocr/${name}, which does not exist`);
+  }
+  assert.ok(exists(read('app/ocr.js').match(/const LIB = '\.\.\/(vendor\/ocr\/[^']+)'/)[1]));
 });
 
 test('every file the page and manifest point at exists', () => {
@@ -49,7 +62,8 @@ test('every module the app imports exists, with the same capitalization', () => 
 });
 
 test('no text file carries raw control characters (some hosts refuse them)', () => {
-  const files = ['index.html', 'sw.js', 'manifest.webmanifest', ...list('app'), ...list('vendor')];
+  // the OCR language data is gzip, a binary file like the fonts and icons
+  const files = ['index.html', 'sw.js', 'manifest.webmanifest', ...list('app'), ...list('vendor')].filter((f) => !f.endsWith('.gz'));
   for (const f of files) {
     const buf = fs.readFileSync(path.join(ROOT, f));
     // tab, newline and carriage return are fine

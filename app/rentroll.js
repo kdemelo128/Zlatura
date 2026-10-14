@@ -6,7 +6,11 @@
  * typed value lands on a lease, so the screen, the Excel export and the deal
  * analysis all read the same thing. */
 
-import { inPlace, monthlyAmount, leaseId, dayOf, DEFAULT_SETTINGS, rentRollSummary } from './lease.js';
+import { inPlace, monthlyAmount, leaseId, dayOf, DEFAULT_SETTINGS, rentRollSummary, fromOmRows } from './lease.js';
+import { rentRollQc } from './reconcile.js';
+import { blockingChecks } from './dataqc.js';
+import { rentRoll as readRentRollTable } from './omroll.js';
+import { toCents, toRate } from './engine/money.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const pos = (x) => ok(x) && x > 0;
@@ -212,3 +216,107 @@ export function viewRows(rr, { query = '', sort = null, dir = 1, status = 'all' 
 }
 
 export { rentRollSummary };
+
+/* ------------------------------------------------- the OM's rent roll, checked */
+
+const isoDate = (d) => (d instanceof Date ? (Number.isNaN(d.getTime()) ? null : d.toISOString()) : d || null);
+/** An OM row as a deal keeps it: dates as ISO text. */
+export const storedRow = (r) => ({
+  ...r, start: isoDate(r.start), end: isoDate(r.end),
+  // money as all stored money is kept: totals to whole cents, rates per SF to four places (engine/money.js)
+  ...(ok(r.annual) ? { annual: toCents(r.annual) } : {}), ...(ok(r.monthly) ? { monthly: toCents(r.monthly) } : {}), ...(ok(r.psf) ? { psf: toRate(r.psf) } : {}),
+});
+
+/**
+ * What a deal keeps of an OM's rent roll as read (om.js readOm): the rows to
+ * use now, and the Data QC record (`deal.rrQc`): pages, columns, totals, the
+ * checks (reconcile.js rentRollQc) and, while a check fails, the rows held
+ * back. Null when the OM has neither a rent roll nor a page without text.
+ */
+export function omRollRecord(om, { figures = {}, sources = {}, asOf = null, file = '' } = {}) {
+  const roll = om && om.rentRoll;
+  const scanned = (om && om.scanned) || [];
+  if (!roll && !scanned.length) return { qc: null, rows: [] };
+  const rows = roll ? roll.rows.map(storedRow) : [];
+  const qc = {
+    v: 1, at: Date.now(), file, pages: roll ? roll.pages : [], page: roll ? roll.page : null, scanned, confidence: roll ? roll.confidence : null,
+    columns: roll ? roll.columns : [], totals: roll ? roll.totals.map(({ cells, ...T }) => ({ ...T, cells })) : [], segments: roll ? roll.segments : [],
+    checks: rentRollQc(figures, roll, { sources, scanned, asOf }), held: null, applied: false, ocr: [],
+  };
+  const hold = rows.length > 0 && blockingChecks(qc).length > 0;
+  if (hold) qc.held = rows;
+  qc.applied = rows.length > 0 && !hold;
+  return { qc, rows: hold ? [] : rows };
+}
+
+/** A rent roll of leases from OM rows, set up as a new deal's is (migrate.js, step "rent-roll"). */
+function rollFromRows(d, rows, today) {
+  const bsf = d.figures && Number.isFinite(d.figures.bsf) ? d.figures.bsf : null;
+  const preset = presetFor(d.figures && d.figures.ptype);
+  const rr = fromOmRows(rows, { asOf: today, page: (d.rrQc && d.rrQc.page) || d.rentRollPage || null, buildingSf: bsf });
+  rr.columns = layoutFromPreset(preset);
+  rr.preset = preset;
+  rr.settings.marketUnit = MARKET_UNIT[preset] || 'psf_year';
+  if (d.figures && Number.isFinite(d.figures.opex)) rr.settings.opex = d.figures.opex;
+  return rr;
+}
+
+/**
+ * The rows a failed check held back, now the broker has resolved or accepted
+ * every fail: they become the deal's rent roll. Returns 'applied', 'kept'
+ * (the deal's rent roll has units already: nothing is overwritten) or null.
+ */
+export function applyHeldRows(d, today) {
+  const qc = d && d.rrQc;
+  if (!qc || !Array.isArray(qc.held) || !qc.held.length || blockingChecks(qc).length) return null;
+  if (d.rr && Array.isArray(d.rr.leases) && d.rr.leases.length) { qc.keptNote = 'The rent roll already has units, so the OM’s rows were not put over them.'; return 'kept'; }
+  d.rentRoll = qc.held;
+  d.rentRollPage = qc.page;
+  d.rr = rollFromRows(d, qc.held, today);
+  qc.held = null;
+  qc.applied = true;
+  return 'applied';
+}
+
+/**
+ * Rows read by OCR from a scanned page, once the broker accepts them: added
+ * to the rent roll (or, with none yet, made into one). Each lease's source
+ * says OCR. Returns how many were added.
+ */
+export function addOcrRows(d, page, today) {
+  const qc = d && d.rrQc;
+  const o = qc && (qc.ocr || []).find((x) => x.page === page);
+  if (!o || o.added || !o.rows.length) return 0;
+  if (d.rr && Array.isArray(d.rr.leases) && d.rr.leases.length) {
+    const more = fromOmRows(o.rows, { asOf: d.rr.settings.asOf || today, page }).leases;
+    d.rr.leases.push(...more);
+  } else d.rr = rollFromRows(d, o.rows, today);
+  d.rentRoll = legacyRows(d.rr);
+  o.added = true;
+  return o.rows.length;
+}
+
+/**
+ * A scanned page read by OCR (ocr.js), run through the same rent roll reader
+ * and kept on the Data QC record: its rows (marked OCR, low confidence) wait
+ * there, behind a failing check, until the broker accepts them. Returns how
+ * many rows were found.
+ */
+export function ocrReading(qc, page, res, at = Date.now()) {
+  const pages = Array(page).fill(''); pages[page - 1] = res.text || '';
+  const layouts = Array(page).fill(null); layouts[page - 1] = res.geom || null;
+  const roll = readRentRollTable(pages, { layouts });
+  const rows = roll ? roll.rows.map((r) => storedRow({ ...r, ocr: true, confidence: 'low' })) : [];
+  const failed = roll ? roll.issues.filter((i) => i.level === 'fail').length : 0;
+  qc.ocr = (qc.ocr || []).filter((o) => o.page !== page);
+  qc.ocr.push({ page, at, rows, words: res.words || 0, conf: Math.round(res.conf || 0), added: false });
+  qc.checks = (qc.checks || []).filter((c) => c.id !== `ocr:${page}`);
+  const sc = qc.checks.find((c) => c.id === `scanned:${page}`);
+  if (sc && !sc.resolved) sc.resolved = { how: 'ocr', at };
+  const base = { id: `ocr:${page}`, kind: 'ocr', page, line: null, row: null, col: null, colLabel: null, cell: null, lineText: '' };
+  qc.checks.push(rows.length
+    ? { ...base, level: 'fail', amount: rows.reduce((s, r) => s + (Number.isFinite(r.annual) ? r.annual : 0), 0),
+      text: `Page ${page} was read by OCR: ${rows.length} row${rows.length === 1 ? '' : 's'} from ${res.words || 0} words (mean OCR confidence ${Math.round(res.conf || 0)}%)${failed ? `, and ${failed} of its own checks failed` : ''}. A figure read this way can be wrong: compare each row with the page. Accepting adds them to the rent roll, marked OCR.` }
+    : { ...base, level: 'info', amount: 0, text: `Page ${page} was read by OCR (${res.words || 0} words), but no rent roll table with a header was found on it. If it holds rows, enter them by hand.` });
+  return rows.length;
+}

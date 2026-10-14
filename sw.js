@@ -18,8 +18,15 @@
  * the whole set again in one pass (bypassing the HTTP cache), so the modules
  * it holds offline always belong to the same release, never a mix of the old
  * and the new. The old cache is dropped on activate. The test suite also
- * checks this list against the files on disk. */
-const VERSION = '4.7.3';
+ * checks this list against the files on disk.
+ *
+ * One exception: the scanned-page reader (vendor/ocr/, about 7 MB) is not in
+ * the install set, so installing stays as quick as it was. It is fetched only
+ * when the broker asks for a scanned page to be read, and kept from then on in
+ * a cache of its own, named for its version and kept across app updates: after
+ * the first use it works offline too. Before that, offline, it says it needs
+ * a connection once. */
+const VERSION = '4.7.4';
 const CACHE = `zlatura-${VERSION}`;
 const ASSETS = [
   './',
@@ -40,6 +47,10 @@ const ASSETS = [
   'app/exporters.js',
   'app/kit.js',
   'app/om.js',
+  'app/omroll.js',
+  'app/dataqc.js',
+  'app/dataqcui.js',
+  'app/ocr.js',
   'app/deal.js',
   'app/dealui.js',
   'app/brief.js',
@@ -109,6 +120,9 @@ const ASSETS = [
 ];
 
 const IMMUTABLE = /\/(vendor|fonts|icons)\//;
+// the scanned-page reader: on demand, in its own cache (its files carry the version in their names too)
+const OCR = /\/vendor\/ocr\//;
+const OCR_CACHE = 'zlatura-ocr-tesseract-7.0.0';
 const NETWORK_WAIT_MS = 3500;
 
 self.addEventListener('install', (e) => {
@@ -122,7 +136,7 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== OCR_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -163,8 +177,15 @@ function cacheFirst(request) {
   return caches.match(request, { ignoreSearch: true }).then((hit) => hit || fromNetwork(request));
 }
 
+function ocrFile(request) {
+  return caches.open(OCR_CACHE).then((c) => c.match(request, { ignoreSearch: true }).then((hit) => hit || fetch(request).then((res) => {
+    if (res.ok && res.type === 'basic') c.put(request, res.clone());
+    return res;
+  })));
+}
+
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
-  e.respondWith(IMMUTABLE.test(url.pathname) ? cacheFirst(e.request) : networkFirst(e.request));
+  e.respondWith(OCR.test(url.pathname) ? ocrFile(e.request) : IMMUTABLE.test(url.pathname) ? cacheFirst(e.request) : networkFirst(e.request));
 });

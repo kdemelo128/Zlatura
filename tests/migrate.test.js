@@ -2,7 +2,9 @@
  * versions (tests/fixtures):
  *   backup-3.1.0-before-rent-roll.json  deals read by the version before the
  *     rent roll, backed up by 3.1.0 without being opened (tests/tools/make-old-backup.mjs);
- *   backup-comp-loader-3.3.0.json       a 3.3.0 deal, before the money rounding.
+ *   backup-comp-loader-3.3.0.json       a 3.3.0 deal, before the money rounding;
+ *   backup-4.7.3-before-data-qc.json    deals read from OMs by 4.7.3, before an OM's rent
+ *     roll kept its Data QC record (tests/tools/make-backup-4.7.3.mjs).
  * Every step must have a backup that needs it: adding a step without one fails here. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,9 +19,10 @@ const FIX = new URL('./fixtures/', import.meta.url).pathname;
 const BACKUPS = {
   '3.1.0': 'backup-3.1.0-before-rent-roll.json',
   '3.3.0': 'backup-comp-loader-3.3.0.json',
+  '4.7.3': 'backup-4.7.3-before-data-qc.json',
 };
 /** The old backup each step is tested on: a new step needs a backup from the version before it. */
-const COVERS = { money: ['3.1.0', '3.3.0'], 'rent-roll': ['3.1.0'] };
+const COVERS = { money: ['3.1.0', '3.3.0'], 'rent-roll': ['3.1.0'], 'rr-qc': ['3.1.0', '3.3.0', '4.7.3'] };
 const load = (v) => readBackup(fs.readFileSync(FIX + BACKUPS[v], 'utf8'));
 const TODAY = '2026-10-10';
 const empty = { deals: [], kv: {}, session: null, local: {} };
@@ -35,7 +38,7 @@ test('the registry: ids unique, each field only goes up, and the latest versions
     assert.equal(typeof s.label([]), 'string');
   }
   assert.deepEqual(LATEST, last);
-  assert.equal(SCHEMA, 2);
+  assert.equal(SCHEMA, 3);
   assert.equal(MONEY_VERSION, 1);
   assert.equal(STORE_MONEY, MONEY_VERSION, 'the store writes the registry’s money version');
 });
@@ -53,11 +56,13 @@ test('3.1.0 backup: deals from before the rent roll get one, from the OM’s row
   assert.equal(b.deals.length, 3);
   for (const d of b.deals) {
     assert.equal(d.rr, undefined, 'saved without a rent roll');
-    assert.deepEqual(pending(d).map((s) => s.id), ['money', 'rent-roll']);
+    const fromOm = (d.rentRoll || []).length > 0;
+    const due = fromOm ? ['money', 'rent-roll', 'rr-qc'] : ['money', 'rent-roll'];
+    assert.deepEqual(pending(d).map((s) => s.id), due);
     const rows = (d.rentRoll || []).map((r) => ({ ...r }));
     const applied = migrateDeal(d, { today: TODAY });
-    assert.deepEqual(applied.map((x) => x.id), ['money', 'rent-roll']);
-    assert.equal(d.schema, SCHEMA);
+    assert.deepEqual(applied.map((x) => x.id), due);
+    assert.equal(d.schema, fromOm ? SCHEMA : 2, 'only a deal with an OM rent roll needs the Data QC record');
     assert.equal(d.moneyVersion, MONEY_VERSION);
     assert.ok(d.rr && Array.isArray(d.rr.leases));
     assert.equal(d.rr.settings.asOf, TODAY);
@@ -83,7 +88,7 @@ test('3.1.0 backup: deals from before the rent roll get one, from the OM’s row
 
 test('3.3.0 backup: only the rounding is due, and it is recorded value by value', () => {
   const [d] = load('3.3.0').deals;
-  assert.deepEqual(pending(d).map((s) => s.id), ['money']);
+  assert.deepEqual(pending(d).map((s) => s.id), ['money', 'rr-qc']);
   const rr = JSON.stringify(d.rr);
   const [a] = migrateDeal(d, { today: TODAY });
   assert.ok(a.rounded.length >= 1);
@@ -117,8 +122,9 @@ test('a deal saved by a newer version is left alone, and a backup holding one is
 });
 
 test('the restore says which deals an older version saved, and what bringing them up to date changes', () => {
-  assert.match(planRestore(load('3.1.0'), empty).summary.join(' '), /3 deals saved by an older version are brought up to date as they are restored: money rounded to whole cents \(1\), rent roll set up \(3\)\./);
-  assert.match(planRestore(load('3.3.0'), empty).summary.join(' '), /1 deal saved by an older version is brought up to date as it is restored: money rounded to whole cents \(1\)\./);
+  assert.match(planRestore(load('3.1.0'), empty).summary.join(' '), /3 deals saved by an older version are brought up to date as they are restored: money rounded to whole cents \(1\), rent roll set up \(3\), rent roll source recorded \(1\)\./);
+  assert.match(planRestore(load('3.3.0'), empty).summary.join(' '), /1 deal saved by an older version is brought up to date as it is restored: money rounded to whole cents \(1\), rent roll source recorded \(1\)\./);
+  assert.match(planRestore(load('4.7.3'), empty).summary.join(' '), /1 deal saved by an older version is brought up to date as it is restored: rent roll source recorded \(1\)\./);
   // working it out changes nothing in the backup
   const b = load('3.1.0');
   planRestore(b, empty);
@@ -127,4 +133,31 @@ test('the restore says which deals an older version saved, and what bringing the
   const cur = load('3.1.0');
   for (const d of cur.deals) migrateDeal(d);
   assert.ok(!/older version/.test(planRestore(cur, empty).summary.join(' ')));
+});
+
+test('4.7.3 backup: a deal whose rent roll came from an OM gets a Data QC record saying it was read before the checks; nothing else changes', () => {
+  const b = load('4.7.3');
+  assert.equal(b.deals.length, 2);
+  const om = b.deals.find((d) => (d.rentRoll || []).length);
+  const other = b.deals.find((d) => !(d.rentRoll || []).length);
+  assert.equal(om.rrQc, undefined, 'saved by 4.7.3 without one');
+  assert.equal(om.schema, 2);
+  assert.deepEqual(pending(other).map((s) => s.id), [], 'a deal with no OM rent roll needs nothing');
+  const before = JSON.parse(JSON.stringify(om));
+  const applied = migrateDeal(om, { today: TODAY });
+  assert.deepEqual(applied.map((x) => x.id), ['rr-qc']);
+  assert.deepEqual(applied[0].rounded, []);
+  assert.equal(om.schema, 3);
+  assert.equal(om.rrQc.legacy, true);
+  assert.deepEqual(om.rrQc.pages, [before.rentRollPage]);
+  assert.equal(om.rrQc.page, before.rentRollPage);
+  assert.deepEqual(om.rrQc.checks, [], 'no checks are made up for a reading that was never checked');
+  assert.equal(om.rrQc.held, null, 'nothing held back: the rent roll it had stays in use');
+  // everything the deal had is kept exactly: the step only adds
+  const { rrQc, schema, ...rest } = om;
+  const { schema: s0, ...rest0 } = before;
+  assert.deepEqual(rest, rest0);
+  assert.deepEqual(migrateDeal(om, { today: TODAY }), [], 'and runs once');
+  // this version knows schema 3 (4.7.3 would refuse a backup holding it, as the registry guards every step)
+  assert.ok(!tooNew(om));
 });

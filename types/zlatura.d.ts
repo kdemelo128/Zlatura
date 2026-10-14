@@ -73,13 +73,19 @@ interface Figures {
   price_psf?: UsdPerSf; price_unit?: UsdPerUnit;
   address?: string; city?: string; state?: string; zip?: string; ptype?: string;
   bsf?: Sf; lot_sf?: LandSf; units?: number; year?: number; renovated?: number; stories?: number; zoning?: string; parking?: string;
-  gpr?: UsdPerYear; gross?: UsdPerYear; opex?: UsdPerYear; taxes?: UsdPerYear;
+  gpr?: UsdPerYear; gross?: UsdPerYear; opex?: UsdPerYear; taxes?: UsdPerYear; rent_inplace?: UsdPerYear;
   tenant?: string; guarantor?: string; lease_type?: string; lease_exp?: string; term_left?: string; increases?: string; options?: string;
   rentRoll?: OmRentRow[];
 }
 interface Loan { ltv?: Pct; rate?: Pct; amort?: Years; io?: boolean; closing?: Pct; minDscr?: Multiple; minDy?: Pct }
 /** A row of the OM's rent roll table (and what the analysis reads of a rent roll). */
-interface OmRentRow { suite?: string; tenant?: string; sf?: Sf; annual?: UsdPerYear; psf?: UsdPerSfYear; start?: string; end?: string; vacant?: boolean; mtm?: boolean }
+interface OmRentRow {
+  suite?: string; tenant?: string; sf?: Sf; annual?: UsdPerYear; psf?: UsdPerSfYear; start?: string; end?: string; vacant?: boolean; mtm?: boolean;
+  /** read from an OM by position (omroll.js): a holdover, the bumps as printed, market rent, and where each value came from */
+  monthly?: UsdPerMonth; holdover?: boolean; bumps?: string; market?: number; status?: string; ocr?: boolean;
+  src?: { page: number; line: number; cells: Record<string, { page: number; line: number; col: number; text: string }> };
+  derived?: string[]; confidence?: 'high' | 'medium' | 'low'; score?: number; why?: string[];
+}
 interface RentPeriod { start: IsoDate; end: IsoDate; rate: RentInUnit; unit: RentUnit; source?: string; note?: string; edited?: boolean }
 interface Abatement { start: IsoDate; end: IsoDate; pct: Pct; source?: string; note?: string }
 interface Recovery { method: 'none' | 'prorata' | 'base_year' | 'stop' | 'fixed'; share?: Pct; baseAmount?: UsdPerYear; stopPsf?: UsdPerSfYear; amount?: UsdPerYear; growth?: Pct }
@@ -93,14 +99,14 @@ interface Lease {
   marketRent?: RentInUnit; marketUnit?: RentUnit; recovery?: Recovery;
   percentRent?: { rate: Pct; sales: UsdPerYear; breakpoint?: UsdPerYear; natural?: boolean; growth?: Pct };
   oneTime?: { date: IsoDate; amount: Usd; label?: string }[]; renewal?: Renewal; leaseUpMonths?: Months;
-  deposit?: Usd; arrears?: Usd; options?: string; notes?: string; custom?: Record<string, unknown>; source?: { kind: string; page?: number; file?: string };
+  deposit?: Usd; arrears?: Usd; options?: string; notes?: string; custom?: Record<string, unknown>; source?: { kind: string; page?: number; file?: string; line?: number; ocr?: boolean };
 }
 interface RentRollSettings {
   asOf: IsoDate | null; years?: Years; marketRent?: RentInUnit | null; marketUnit?: RentUnit; marketGrowth?: Pct; opex?: UsdPerYear | null; expenseGrowth?: Pct;
   recoverable?: UsdPerYear | null; generalVacancy?: Pct; reservesPsf?: UsdPerSfYear; otherIncome?: { label?: string; annual: UsdPerYear; growth?: Pct }[];
   leaseUpMonths?: Months; buildingSf?: Sf | null; renewal?: Renewal;
 }
-interface RentRoll { settings: RentRollSettings; leases: Lease[]; columns?: unknown[] | null }
+interface RentRoll { settings: RentRollSettings; leases: Lease[]; columns?: unknown[] | null; preset?: string }
 /** What a scenario sets for itself (deal.live, and each saved scenario's `over`). */
 interface ScenarioOver {
   price?: Usd; noi?: UsdPerYear; occ?: Pct; rentChange?: PctChange; expenseChange?: PctChange;

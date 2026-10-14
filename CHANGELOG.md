@@ -1,5 +1,56 @@
 # Changelog
 
+## 4.7.4: rent rolls read from an OM correctly, with checks you can see (on the development branch; not merged or deployed)
+
+Bug A. A rent roll read from an offering memorandum could lose rows, invent
+tenants, mix up monthly and annual rent, and say nothing about it. It is now
+read by where things sit on the page, every value keeps its source, and a
+short Data QC list shows what was checked.
+
+- **Read by position.** Columns are recognised from their headings, scored
+  against every kind (so "Escalation Rate" is bumps, not rent per SF), with
+  headings over one to three lines, "Resident" as well as "Tenant", and
+  columns for bumps, monthly rent per SF, market rent and status. A name
+  printed over two or three lines stays one tenant, even with its figures
+  centred between the lines.
+- **Over several pages.** A rent roll that runs on to the next page is
+  followed, with or without its header repeated there. A lease comparables
+  table later in the OM is no longer added to the rent roll. Each row keeps
+  the page and line it was printed on, and each value the cell it came from.
+- **Totals and subtotals.** "Retail Subtotal", "Totals / Averages" and a
+  Total row with no label are recognised as totals, not tenants, and checked
+  against the rows above them; a tenant called "Total Body Fitness" is a
+  tenant. A subtotal no longer ends the table early.
+- **Units, never guessed silently.** Annual, monthly, rent per SF a year or a
+  month: from the heading first. A "Rent" column that doesn't say is worked
+  out from rent per SF and flagged; a figure out of range (rent per SF printed
+  under "Annual Rent", say) fails a check and is left as printed. Nothing is
+  multiplied by 12 behind your back any more. "$60.0K" reads as $60,000.
+- **Vacancies and dates.** A vacant suite with no SF is kept (and flagged);
+  Holdover, M-T-M and Month-to-Month are month-to-month; a lease term printed
+  as one "start – end" cell gives both dates.
+- **Data QC.** After an OM is read, the rent roll card shows one line per
+  check: pass, check, fail or note, each pointing to its page, row and cell.
+  It compares the rent roll with its own Total row and with the OM's stated
+  building SF, occupancy (now on the stated building SF, not the rent roll's
+  own), in-place rent (a new figure, read from "Base Rent" or "In-Place
+  Rent"), gross potential rent and units. A failed check holds the rent roll
+  back until you resolve it, accept it, or resolve it in Review, where every
+  check waits with its page, row and cell.
+- **Scanned pages.** Each page with no text is flagged. "Read this scanned
+  page" reads it with OCR (Tesseract, about 7 MB, downloaded from this site
+  only the first time you use it, then kept for offline use). Every value
+  read that way is marked OCR and waits for you to accept it.
+- **Your saved deals.** Nothing changes in them except that a rent roll read
+  from an OM by an earlier version is marked "read before Data QC". Every
+  figure in the 618 saved deal results and 646 displayed figures is
+  unchanged.
+- **Tests:** 24 new rent roll tests (on page text and on PDFs), 7 on the
+  checks, the Review items and OCR rows, a backup made by 4.7.3, and a new
+  browser flow that reads
+  an invented OM with a page carried over and a scanned page, resolves the
+  failed check in Review, and reads the scanned page by OCR.
+
 ## 4.7.3: dates you type no longer disappear (on the development branch; not merged or deployed)
 
 Bug C. Typing a date into the rent roll or the lease editor could wipe what

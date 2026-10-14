@@ -4,12 +4,14 @@
  * Each action records itself where the item lives: a deal's change goes in
  * its history (and can be undone); a template's in the template. */
 
-import { el, toast, money0 } from './kit.js';
+import { el, toast, money0, localDate } from './kit.js';
 import { reviewItems, reviewCount } from './review.js';
 import { listAllDeals, updateDeal, showDeal, openTemplates } from './dealui.js';
 import { listTemplates, putTemplate } from './library.js';
 import { CATEGORY, markSeen } from './t12.js';
 import { categorySelect, fileT12Line } from './t12ui.js';
+import { resolveCheck, resolveLabel } from './dataqc.js';
+import { applyHeldRows, addOcrRows } from './rentroll.js';
 
 let visible = false;
 let drawing = 0;
@@ -46,7 +48,7 @@ async function render() {
   const head = el('div', 'view-head');
   head.appendChild(el('h1', null, 'Review'));
   const n = reviewCount(groups);
-  head.appendChild(el('p', null, n ? `${n} item${n === 1 ? '' : 's'} waiting, most money at stake first. Each choice is recorded where it belongs, and on a deal it can be undone.` : 'Nothing is waiting. T-12 lines to file, T-12 figures that don’t add up, AI readings not yet applied and template cells mapped with low confidence appear here.'));
+  head.appendChild(el('p', null, n ? `${n} item${n === 1 ? '' : 's'} waiting, most money at stake first. Each choice is recorded where it belongs, and on a deal it can be undone.` : 'Nothing is waiting. T-12 lines to file, T-12 figures that don’t add up, rent roll checks from an OM, AI readings not yet applied and template cells mapped with low confidence appear here.'));
   root.appendChild(head);
   const stack = el('div', 'stack');
   for (const g of groups) stack.appendChild(groupCard(g));
@@ -101,6 +103,21 @@ function itemRow(g, it) {
     btn('Seen', 'btn-gray', async () => {
       await updateDeal(g.id, (d) => { if (!d.t12) return false; markSeen(d.t12, it.checkId); return true; }, { kind: 'edit', label: 'T-12: a check marked seen' });
       changed('Marked seen. It stays on the T-12 card.');
+    });
+  } else if (it.kind === 'rrcheck') {
+    text.append(el('b', null, `Rent roll ${it.level === 'fail' ? 'check failed' : 'check'}: `), el('span', null, it.text));
+    if (it.where) text.append(el('span', 'sub', ` ${it.where}`));
+    if (it.lineText) { const q = el('code', 'qc-line', it.lineText); text.append(' ', q); }
+    btn(resolveLabel({ level: it.level, kind: it.checkKind }), it.level === 'fail' ? 'btn-primary' : 'btn-gray', async () => {
+      let applied = null;
+      await updateDeal(g.id, (d) => {
+        if (!d.rrQc || !resolveCheck(d.rrQc, it.checkId, 'accepted')) return false;
+        const m = /^ocr:(\d+)$/.exec(it.checkId);
+        if (m) applied = addOcrRows(d, Number(m[1]), localDate()) ? 'ocr' : null;
+        else applied = applyHeldRows(d, localDate());
+        return true;
+      }, { kind: 'edit', label: `Rent roll check accepted: ${it.text.slice(0, 80)}${it.text.length > 80 ? '…' : ''}` });
+      changed(applied === 'applied' ? 'Accepted. Every failed check is resolved, so the OM’s rent roll is now the deal’s.' : applied === 'ocr' ? 'Accepted. The rows read by OCR are added to the rent roll, marked OCR.' : applied === 'kept' ? 'Accepted. The deal’s rent roll already has units, so the OM’s rows were kept aside, not put over them.' : 'Accepted. It stays on the deal’s Data QC list.');
     });
   } else if (it.kind === 'ai') {
     text.append(el('b', null, `AI reading not applied: ${it.label} ${typeof it.value === 'number' ? usd(it.value) : `“${it.value}”`}`), el('span', 'sub', ` ${it.doc}${it.page ? `, page ${it.page}` : ''}${it.status ? ` · ${it.status.replace(/-/g, ' ')}` : ''}`));
