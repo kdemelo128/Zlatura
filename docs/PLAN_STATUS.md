@@ -1,65 +1,83 @@
 # Plan status
 
-Where Zlatura stands against the master plan. It is updated with every PR.
+Where Zlatura stands against the master plan,
+[`ZLATURA_MASTER_PROMPT_v2.md`](../ZLATURA_MASTER_PROMPT_v2.md) in the
+repository root. Every phase of its Part 22 and every deliverable in Parts 0–24
+is listed below, numbered by its section, with the owner's later instructions
+first. The evidence for each feature, in more detail, is in
+`docs/acceptance-matrix.md`. This file is updated with every PR.
 
-**Key:** `[x]` done · `[~]` in progress or partly done · `[ ]` not started ·
-`[!]` blocked (the reason is given).
+**Key**, and how it maps to the master plan's Part 23 statuses:
 
-Last updated: 4.7.1, the model routing setup (2026-10-14).
+| Mark | Here | Part 23 status |
+|---|---|---|
+| `[x]` | done | Implemented and verified; or Tested with synthetic fixtures only, which is then said ("synthetic only") |
+| `[~]` | partial | Partially implemented (what is missing is said); or Implemented, not fully tested (the gap is said) |
+| `[>]` | in progress | Being worked on now |
+| `[ ]` | not started | Not implemented |
+| `[!]` | blocked | Blocked (what is missing is said) |
+
+"Synthetic only" means tested only with the invented files the tests make. No
+real brokerage file, live AI or speech service, Microsoft Excel, Safari,
+Firefox or screen reader has been used for any item (see the end of this file).
+
+Last updated: 4.7.2, reconciled against the master plan (2026-10-14).
 
 ## Now
 
-- **Current step:** Part 1, Bug C (date inputs). After it: Bug A, then Bug B.
+- **Current step:** Part 1, Bug C (in progress).
+- **Bugs A and B:** diagnosed; waiting on the owner's decisions.
 - **Next gate:** the three bug-fix PRs, open for merge.
+- **Questions for the owner:** where the master plan and the later
+  instructions differ, at the end of this file.
 
-## Phases
+## Counts
 
-### Phase 0: audit and plan
-- [x] Baseline report, architecture proposal, acceptance matrix (4.0.0)
+| Group | Done | Partial | In progress | Not started | Blocked | Items |
+|---|---|---|---|---|---|---|
+| The owner's directive | 3 | 2 | 3 | 10 | 0 | 18 |
+| Rules and process (Parts 0, 1.3, 22, 23, 24) | 19 | 7 | 1 | 0 | 0 | 27 |
+| The 15 pillars (Part 2) | 1 | 8 | 0 | 6 | 0 | 15 |
+| Phase 0: audit and baseline | 9 | 0 | 0 | 0 | 0 | 9 |
+| Phase 1: foundations | 18 | 21 | 0 | 5 | 0 | 44 |
+| Phase 2: underwriting and documents | 14 | 49 | 0 | 44 | 0 | 107 |
+| Phase 3: firm templates | 6 | 5 | 0 | 4 | 1 | 16 |
+| Phase 4: comps and capital markets | 8 | 12 | 0 | 18 | 0 | 38 |
+| Phase 5: marketing, diligence, buyers | 6 | 7 | 0 | 31 | 0 | 44 |
+| Phase 6: live AI and Field Mode | 8 | 8 | 0 | 9 | 1 | 26 |
+| Phase 7: workspaces and integrations | 1 | 4 | 0 | 9 | 0 | 14 |
+| Phase 8: final audit | 1 | 2 | 0 | 7 | 1 | 11 |
+| Real-world validation | 0 | 0 | 0 | 0 | 5 | 5 |
+| **All** | **94** | **125** | **4** | **143** | **8** | **374** |
 
-### Phase 1: foundations
-- [x] Rename to Zlatura and storage migration (4.0.0)
-- [x] One calculation engine, conventions, whole-cent money (4.1.0)
-- [x] Lease projection off the main thread, performance budgets (4.2.0)
-- [x] History, undo/redo, snapshots, backups v2, storage limits (4.3.x)
-- [x] Dependency map and "what this affects" (4.4.0)
-- [x] Typed deal model with unit types (4.4.1)
-- [x] Migration registry (4.5.0)
-- [x] `?` keyboard shortcut sheet (4.6.0)
+The pillars are counted on their own as well as through the items of the
+phases that build them.
 
-### Setup for the rest of the plan
+## The owner's directive (later instructions)
+
+These came after the master plan and are worked first.
+
+### Setup
 - [x] Model routing: the designer (Opus) and builder (Sonnet) agents, and
-  CLAUDE.md (4.7.1)
-- [x] This file
-- [~] WebKit (iPhone Safari engine) runs: `PW_BROWSER=webkit` added. **Blocked
-  here:** WebKit isn't installed in this environment, so runs here are
-  Chromium at iPhone size.
+  `CLAUDE.md` (4.7.1)
+- [x] This file (4.7.1); reconciled against the master plan (4.7.2)
+- [x] The master plan in the repository root, as the owner pasted it (4.7.2)
+- [~] WebKit (iPhone Safari's engine) runs: `PW_BROWSER=webkit` added (4.7.1).
+  **Blocked here:** WebKit isn't installed in this environment, so runs here
+  are Chromium at iPhone size.
 
 ### Part 1: three bugs
-- [ ] Bug C: date inputs lose what is typed at the year
-- [ ] Bug A: the rent roll from an OM doesn't scan correctly
-- [ ] Bug B: income and expenses read from OM statements are often wrong
+- [>] Bug C: date inputs lose what is typed at the year (in progress)
+- [>] Bug A: the rent roll from an OM doesn't scan correctly (diagnosed;
+  waiting on the owner's decision)
+- [>] Bug B: income and expenses read from OM statements are often wrong
+  (diagnosed; waiting on the owner's decision)
 
 ### Part 2: design proposals
 These stop for approval.
 - [ ] 2a. T-12 multi-format import (`docs/proposals/t12-multiformat.md`)
 - [ ] 2b. UI revamp (`docs/proposals/ui-revamp.md`, wireframes in
   `docs/proposals/ui/`)
-
-### Phase 2: underwriting and analysis
-- [x] T-12 import (.xlsx, .csv), 21 categories, remembered labels (4.7.0)
-- [x] Review Queue (4.7.0)
-- [x] NOI three ways (4.7.0)
-- [ ] T-12 multi-format import (after 2a)
-- [ ] OM red-flag check
-- [ ] Pro forma vs T-12 bridge, as an interactive waterfall
-- [ ] Native underwriting templates by property type
-- [ ] Rent roll and lease engine extensions (CPI, early termination,
-  options, recovery caps)
-- [ ] OM ingestion review flow and OM Forensics
-- [ ] Scenario Studio (branchable scenarios)
-- [ ] Pricing Guidance Studio
-- [ ] Provenance and drill-down for every number
 
 ### UI revamp
 Behind the "New look" toggle, after 2b.
@@ -69,285 +87,845 @@ Behind the "New look" toggle, after 2b.
 - [ ] Live charts
 - [ ] Motion and micro-interactions
 - [ ] Clean-up of existing screens
-- [ ] Feature map, and a test that nothing is lost
+- [ ] Feature map, and a test that no feature is lost
 
-### Phase 3: firm templates
-- [ ] Mapping Studio, inspection, dry run, safe fill (partly there:
-  library, dry run, safe fill)
-- [ ] Recalculation verification
-- [ ] Drift detection
-- [ ] Native-vs-template reconciliation
-- [ ] Template governance
+### Other standing instructions
+- [ ] Data QC panel (not designed yet)
+- [~] Character-by-character typing tests for every input type: some flows
+  type a key at a time (`shell-flow`, `history-flow`, `impact-flow`), but
+  there is no suite over every input type yet. Date inputs are Bug C.
 
-### Phase 4: comps and capital markets
-- [ ] Comp workspace, adjustment grid, lease comps
-- [ ] Debt sizing comparison, live-rate provider framework, lender quote
-  tracker
-- [ ] Tools library audit and expansion
+## Rules and process (every phase)
 
-### Phase 5: marketing, diligence, buyers
-- [ ] Branded deliverables and Claim Checker
-- [ ] Pre-Flight Gates
-- [ ] Data room sharing and analytics
-- [ ] Due diligence and critical dates
-- [ ] Buyer Match and Outreach Engine
-- [ ] Bid Leveler
-- [ ] Q&A manager
+### Part 0: operating rules
+These are in `CLAUDE.md` and followed on every PR.
+- [x] 0.1 Continue, don't rebuild: no feature removed; golden outputs
+  identical (`tests/analyze-golden.test.js`, `tests/tools/golden.mjs`)
+- [x] 0.2 Audit before building (`docs/baseline-report.md`, Phase 0)
+- [x] 0.3 Small increments: code, tests, full regression, report, commit.
+  See the first question at the end about which branch.
+- [x] 0.4 No merge, force-push, branch reset, data deletion, production
+  change or deploy without authorization (`CLAUDE.md`, 4.7.2)
+- [x] 0.5 Accuracy over feature count; a smaller honest version, with the gap
+  in the acceptance matrix
+- [x] 0.6 Decide vs ask (`CLAUDE.md`, 4.7.2)
+- [x] 0.7 Honest reporting in Part 23's vocabulary (`CLAUDE.md`, 4.7.2)
+- [x] 0.8 Renamed to Zlatura, with a migration (4.0.0; see Phase 1)
 
-### Phase 6: live AI and Field Mode
-- [ ] Provider configuration (provider-agnostic, private mode, no key in
-  the app)
-- [ ] Evaluation harness
-- [ ] Ask the Deal
-- [ ] Transcription
-- [ ] Field Mode
+### Part 1.3: core principles
+- [~] 1. The firm's workflow wins: firm templates are filled from the deal
+  (Phase 3); there is no native model by property type yet (7.1)
+- [~] 2. One deal model, many views: the OM, rent roll, T-12, tools and
+  templates read the same deal (`types/zlatura.d.ts`, `app/impact.js`); comps
+  are kept apart from deals
+- [~] 3. Every number has a receipt: source tags and the dependency map (3.3,
+  7.7); no sheet-and-cell receipt for every figure
+- [~] 4. Facts, assumptions and forecasts kept apart: source tags; scenario
+  figures kept apart; the rent roll's year 1 labelled a projection (4.7.0)
+- [~] 5. Nothing silently changes: AI readings are applied only when ticked,
+  and "Use the T-12's figures" is an explicit step; re-reading an OM still
+  replaces its figures (6.2.6)
+- [~] 6. Honest uncertainty: missing is `null`, never 0; there is no
+  `confirmed_zero` (3.1)
+- [x] 7. Calm, premium, fast: the design system (Part 20) and performance
+  budgets (3.7). The UI revamp will rework it.
 
-### Phase 7: workspaces and integrations
-- [ ] Accounts, permissions, sync, remote backup, audit logs
-- [ ] Calendar, email and CRM integrations
-- [ ] Retention and deletion
-- [ ] Hosting proposal (private repo, login-gated site)
+### Part 22: per-phase deliverable
+- [x] A report at each phase's end (functionality, files, tests and results,
+  known bugs, formulas validated, compatibility, security and storage,
+  branch and commit, deployment, next work). Phase 0: baseline report.
+  Phase 1: CHANGELOG 4.0.0 to 4.6.0 and the checkpoint reports in
+  `docs/proposals/`.
 
-### Phase 8: final audit
-- [ ] UI/UX polish, accessibility, cross-browser, responsive
-- [ ] Performance measurement, security review (including git history)
-- [ ] Full regression, real-document and real-Excel validation plan
-- [ ] Deployment and migration checklist, proprietary LICENSE
+### Part 23: acceptance matrix and truthfulness
+- [x] `docs/acceptance-matrix.md` covers every feature in the master plan
+  (rows added in 4.7.2)
+- [x] One Part 23 status per feature
+- [x] Full regression on the final code of each PR (`CLAUDE.md`)
+- [x] No success claimed from mocks or synthetic files alone ("synthetic
+  only" here; the matrix's header)
+- [~] Limitations reported with a concrete validation plan: limitations are
+  listed (see the end of this file); no written plan yet for live AI, Excel,
+  Safari or real files
+- [x] Not called production-ready
+- [x] Every report ends with what was verified, what was not, what was
+  assumed, and what is needed from the owner (`CLAUDE.md`, 4.7.2)
 
-## Every feature in the brief
+### Part 24: starting instructions
+- [x] 1. Audit the repository and the 3.2.0 work (`docs/baseline-report.md`
+  §1: 3.3.0 on `main` held all of 3.2.0)
+- [x] 2. Baseline report and architecture plan; wait for the go-ahead
+  (`docs/architecture/proposal.md`, decisions D-A to D-F)
+- [>] 3. Proceed through the phases, keeping what works (now: Phase 2, after
+  the owner's directive above)
+- [x] 4. Further ideas, with rationale and effort, not built until approved
+  (`docs/architecture/proposal.md` §6: seven ideas; the T-12 cleaner was
+  approved and built in 4.7.0)
 
-Generated from `docs/acceptance-matrix.md`. It has 164 items:
+## The 15 pillars (Part 2)
 
-| Status | Items |
-|---|---|
-| Done | 48 |
-| In progress or partly done | 56 |
-| Not started | 52 |
-| Blocked | 8 |
+Each is built through the items of the phases named.
 
-#### Part 0–1. Operating rules, identity
+- [x] 1. Deal Ledger and Impact Graph (3.3; 4.4.0)
+- [~] 2. Provenance everywhere: source tags per deal figure; no sheet-and-cell
+  receipt (3.3, 7.7)
+- [~] 3. Mapping Studio: library, inspection, suggestions, dry run, safe fill;
+  no drift detection or reconciliation in the product (Phase 3)
+- [~] 4. OM Forensics: some of the Part 6.3 checks (Phase 2)
+- [~] 5. Time Machine: snapshots, compare and restore (4.3.0); no "what did we
+  tell the client on this date?"
+- [~] 6. Scenario Studio: named What if scenarios and two-way grids; no
+  branching or tornado (7.8)
+- [ ] 7. Bid Leveler (17.3)
+- [ ] 8. Buyer Match and Outreach Engine (17.2)
+- [ ] 9. Data Room Intelligence (12.1, 13.6, 18.5)
+- [~] 10. Ask the Deal: over the deal's facts, cited by id, stand-in model
+  only; not over documents (6.5)
+- [~] 11. Field Mode: offline app, photos, voice notes, checklists; no area
+  labels, geotags or observation links (Part 14)
+- [ ] 12. Pre-Flight Gates (13.5)
+- [ ] 13. Live market inputs, properly sourced (15.4)
+- [~] 14. Command Center UX: ⌘K, `?`, Review Queue, undo/redo, Today; no
+  saved views or daily briefing (Part 4, 5.1)
+- [ ] 15. Guided Mode (20.5)
 
-- [x] Rename to Zlatura (UI, metadata, docs, exports, file names)
-- [x] Storage migration (IndexedDB `comp-loader` → `zlatura`, `comp-loader.*` keys, cache name)
-- [x] Old file formats still read (backup, project, template package)
-- [x] Pre-rename backups still restore (with a test)
-- [~] "About the name" (partially implemented)
-- [x] Tagline
-- [~] Logo (light, dark), favicon, app icons (implemented, not fully tested)
+## Phase 0: audit and baseline
 
-#### Part 2–3. Pillars and architecture foundations
+All in `docs/baseline-report.md`, `docs/architecture/proposal.md` and
+`docs/acceptance-matrix.md` (CHANGELOG "Zlatura Phase 0").
+- [x] Repository, branch and commit audit; working tree (§1)
+- [x] Real line counts and module boundaries (§2)
+- [x] Test baseline (§3)
+- [x] Dependency and security scan (§3 `npm audit`, §8)
+- [x] Feature inventory against the acceptance matrix (§4)
+- [x] Calculation audit, with the defects D1 to D9 (§5; D1 fixed in Phase 0)
+- [x] 3.5 Current storage layer and its limits documented (§6)
+- [x] Risk register (§9)
+- [x] Architecture review and proposed changes, with the migration plan
+  (`docs/architecture/proposal.md`)
 
-- [x] Typed domain model with unit-branded types
-- [~] Explicit missing values (`unknown` / `not_applicable` / `confirmed_zero`) (partially implemented)
-- [x] Decimal or integer-cent money
-- [~] Pure calculation engine, one formula per quantity (partially implemented)
-- [~] Calculation results carry inputs, formula id, conventions, warnings (partially implemented)
-- [~] Convention registry, configurable (partially implemented)
-- [x] Impact Graph (dependency graph, "this change affects…", cycle detection)
-- [~] "Explain this number" for every material output (partially implemented)
-- [~] Event-sourced change history (partially implemented)
-- [x] Undo/redo for all deal edits
-- [x] Snapshots (named and automatic), compare, restore
-- [x] Backups carry history and snapshots (version 2); version 1 still restores
-- [x] Storage limits and the 80% warning
-- [x] Database version 2 (history, snapshots, trash) without data loss
-- [x] Versioned schema with forward migrations and a migration test suite using real old backups
-- [~] Local-first with optional cloud sync (partially implemented)
-- [ ] Plugin interfaces (parsers, calculators, template adapters, exports, data providers)
-- [ ] REST API and webhooks
-- [~] Performance budgets measured (implemented, not fully tested)
-- [~] Long work off the UI thread (partially implemented)
+## Phase 1: foundations
 
-#### Part 4. Application structure and navigation
+### Part 1.1: the name
+- [x] Renamed in the UI, metadata, docs, exports and file names (4.0.0;
+  `rename-flow`, `shell-flow`). Repository name and Pages URL kept, as decided
+  (D-F).
+- [x] One-time migration of storage keys, IndexedDB and cache; old backups
+  restore, with a test (4.0.0; `rename.test.js`,
+  `tests/fixtures/backup-comp-loader-3.3.0.json`, `rename-flow`). Chromium
+  only.
+- [~] "About the name": Settings → About and the README; no onboarding
+  screen
+- [x] Tagline options; the owner's choice is used (4.0.0)
+- [~] Logo (light, dark), favicon and app icons (`docs/brand/`, `icons/`):
+  not checked on a real home screen
 
-- [~] Primary workspaces (partially implemented)
-- [x] Command palette (Cmd/Ctrl+K)
-- [~] Global search across documents, tasks, notes, comps (partially implemented)
-- [~] Deal switcher, recently opened, breadcrumbs (partially implemented)
-- [x] Review Queue
+### Part 3: architecture foundations
+- [~] 3.1 One typed Deal aggregate: `types/zlatura.d.ts` types the deal as it
+  is (4.4.1). Parties, Documents, Diligence and Marketing don't exist yet, and
+  the operating statements are only the T-12.
+- [x] 3.1 Branded unit types; mixing units is a type-check error (4.4.1;
+  `types.test.js`, `tests/types/mistakes.js`: 24 mix-ups refused)
+- [ ] 3.1 Area basis (GBA, RSF, USF) as distinct measures: building SF is one
+  figure
+- [~] 3.1 Missing values explicit: missing is `null`, never 0, in the
+  analysis; no `unknown`, `not_applicable` or `confirmed_zero`
+- [x] 3.1 Integer-cent money: stored totals rounded to whole cents once,
+  each change logged (4.1.0; `money.test.js`, `engine-flow`); derived figures
+  in floating point, rounded at display. See the questions at the end.
+- [~] 3.2 Pure engine, one formula per quantity: `app/engine/`, every deal
+  figure registered in `engine/figures.js` (4.1.0, 4.3.2; `engine.test.js`,
+  `analyze-golden.test.js`). The tools' math (`calc.js`, `tools.js`) and the
+  lease engine are not registered.
+- [~] 3.2 Results carry inputs, formula id, conventions and warnings: each
+  figure has an id, label, unit and inputs; the results are plain numbers
+- [~] 3.2 Conventions declared and configurable: `engine/conventions.js`,
+  Settings; WALT weighting and month-to-month are settable on the device; the
+  rest are fixed; not per deal
+- [x] 3.3 Dependency graph with "This change affects…" before a change is
+  kept: figures, checks, scenarios, exports, template cells and document
+  sections (4.4.0; `impact.js`, `impactui.js`, `impact.test.js`,
+  `impact-files.test.js`, `impact-flow`)
+- [x] 3.3 Circular dependencies refused, naming the loop (`engine/graph.js`;
+  `impact.test.js` "a loop is refused, and named")
+- [~] 3.3 "Explain this number": the overview's tiles and the dependency
+  sheet; not every figure on every screen, and no formula in words
+- [~] 3.4 Event-sourced history: each deal keeps every change with old and new
+  values, saved with the deal in one transaction (4.3.0; `history.js`,
+  `history.test.js`); it is a log beside the saved deal, not the store the
+  deal is rebuilt from
+- [x] 3.4 Undo/redo, History and snapshots from that log (4.3.0;
+  `history-flow`, `snapshot-flow`)
+- [ ] 3.4 "What changed since I last opened this deal"
+- [x] 3.5 Versioned schema, forward migrations, a migration test suite on
+  real old backups (4.5.0; `app/migrate.js`, `migrate.test.js`,
+  `migrate-flow`)
+- [x] 3.5 Database version 2, backups with history, storage limits (4.3.1;
+  `upgrade-flow`, `backup.test.js`, `limits-flow`)
+- [ ] 3.6 Plugin interfaces for parsers, calculators, template adapters,
+  exports, data providers and integrations. The tools declared as data
+  (`toolsdefs.js`) are the nearest pattern. *Part 22 doesn't name 3.6; placed
+  here with the architecture.*
+- [~] 3.7 A 500-line rent roll opens in under 1 second: 189 ms (4.2.0,
+  `perf-flow`, headless Chromium in this container, 500 generated leases);
+  not on a real laptop or phone
+- [~] 3.7 Recalculation under 150 ms: an edit shows its totals in 66 ms; with
+  the CPU slowed 4×, 326 ms (not met)
+- [~] 3.7 A 40-page PDF: "Page k of n" progress, pdf.js in a worker, the
+  projection in a worker (4.2.0); OM analysis, exports and template fills
+  still on the main thread
+- [~] 3.7 Large files: type and size checks with plain messages; no streaming
+  or chunked reading
+- [x] 3.7 Measured numbers documented (CHANGELOG 4.2.0; the matrix)
+
+### Part 4: structure and navigation (the shell)
+- [~] Twelve primary workspaces: five (Home, Deals, Comps, Tools, Settings),
+  plus Review when something waits; a sidebar on the desktop and a tab bar on
+  the phone. The rest stay out of the navigation until they work, as Part 4
+  says.
+- [x] Command palette, ⌘K or Ctrl K: deals, contacts, tools, screens and
+  actions (`command.js`, `shell-flow`); documents, notes and comps are not
+  indexed
+- [~] Global search: deals, contacts and tools only
+- [~] Deal switcher, recently opened, breadcrumbs: the deals list and
+  "Continue working"; no breadcrumbs
+- [x] Review Queue (4.7.0; `review.js`, `reviewui.js`, `t12-noi.test.js`,
+  `t12-flow`): T-12 lines and checks, AI readings, low-confidence template
+  cells. Low-confidence OM readings are left out (approved); conflicts and
+  stale items are not in it yet.
 - [ ] Status bar (save, sync, scenario, template, confidence)
-- [x] Keyboard shortcut cheat sheet (`?`)
-- [x] Light, dark, system themes
-- [~] Responsive desktop, tablet, phone (implemented, not fully tested)
+- [x] Undo/redo for every deal edit (4.3.0)
+- [x] Keyboard first, with the `?` sheet (4.6.0; `shortcuts.test.js`,
+  `shell-flow`)
+- [x] Light, dark and system themes (`shell-flow`, `a11y-flow`)
+- [~] Responsive: 320–430, 834 and 1440 px in Chromium; no real devices
 
-#### Part 5. Home: Command Center and pipeline
+### Part 20.1–20.2: design system
+*Part 22 puts "design system and navigation shell" in Phase 1; 20.3–20.6 are
+under Phase 8.*
+- [x] 20.1 Calm direction, one muted-gold accent, semantic status colours;
+  motion off when the system asks for reduced motion (`app/styles.css`)
+- [x] 20.2 Design tokens (`app/styles.css`)
+- [~] 20.2 Components with documented states: the components exist; their
+  states are not documented
+- [ ] 20.2 Living style guide route
+- [~] 20.2 Dense tables: sticky headers, pinned first column, keyboard and
+  inline editing in the rent roll grid; column resizing there only
+- [~] 20.2 Charts with accessible palettes and direct labels: the comps
+  charts (`glance.js`) and the Excel charts (`charts.js`); no other in-app
+  charts yet
 
-- [x] Today view: key dates, follow-ups, stale deals
-- [ ] Documents awaiting review, overdue diligence, buyer replies on Home
-- [ ] AI daily summary (labelled)
-- [x] Pipeline: configurable stages, board
-- [ ] Pipeline table view, saved filters, stage gates (required fields, checklists)
-- [x] Needs Attention
-- [~] Recent work, pinned deals (partially implemented)
-- [ ] Pipeline analytics (commission by stage and probability, aging, conversion)
-- [ ] Calendar integration
-- [ ] Custom widgets and saved views
-- [ ] Deal Health Score (explainable)
+### Part 21.5: convention registry
+*Built with the engine in Phase 1.*
+- [~] A visible registry: Settings → Calculation conventions lists them; WALT
+  basis and month-to-month are configurable, the rest fixed
 
-#### Part 6. Live Deal and OM integration
+## Phase 2: underwriting and documents
 
-- [~] Scanned PDFs / OCR (partially implemented)
-- [~] Each field: value, unit, page, quote, confidence (implemented, not fully tested)
-- [x] Cross-field validators (price/SF, NOI/price vs cap, rent roll sum vs stated)
-- [~] Review screen before writing to the deal (partially implemented)
-- [~] Approved values never silently overwritten by a later import (partially implemented)
-- [~] OM Forensics ("Broker Math Check") (partially implemented)
-- [~] Conflict cards between sources (partially implemented)
-- [ ] Lease abstraction from lease documents
-- [ ] Estoppel and SNDA checklist
-- [x] Site visits: photos, voice notes, checklist, notes
-- [~] Deal timeline (partially implemented)
+*Part 22 names "OM ingestion review flow and OM Forensics". Part 6.1, 6.4,
+6.6 and 6.8 are placed here too; 6.5 and 6.7 are in Phase 6. Part 21 is placed
+here, where most of the money logic is built, and is checked on every PR.*
 
-#### Part 7. Underwriting and valuation
+### Part 6: the deal workspace and the OM
+- [~] 6.1 Workspace contents: the OM and its figures, property, rent roll,
+  T-12, underwriting, What if, site visit, AI assistant, brief and history
+  are in the deal; no APN/parcel or ownership fields, documents, diligence or
+  communications
+- [~] 6.2.1 File type and structure: text and scanned PDFs told apart (a
+  scanned OM asks for the figures to be typed); tables and images not
+  detected
+- [~] 6.2.2 Text, tables and images with page references: text with page and
+  line; the rent roll table from the OM's text (`lease.js` `fromOmRows`; Bug
+  A open); no images; no OCR
+- [~] 6.2.3 Each proposed field with value, unit, page, quote, confidence and
+  validation status: page, line and confidence; units implicit per field; on
+  the AI path every quote is checked against the PDF text
+  (`reconcile.js`). Synthetic only (`om.test.js`); Bug B open.
+- [x] 6.2.4 Cross-field validators: price/SF, NOI ÷ price against the cap,
+  rent roll against the stated figures (`engine/figures.js`, `deal.test.js`).
+  Synthetic only.
+- [~] 6.2.4 Unit, sign, date and magnitude validators: a few (NOI above
+  gross, EGI well above potential rent, zero or negative NOI); no general
+  check per field
+- [~] 6.2.5 Review screen (accept, edit, reject, defer): the AI path has one;
+  the built-in reader writes figures straight to the deal, each tagged and
+  editable; no "defer"
+- [~] 6.2.6 Only approved fields written, never overwritten later: AI review
+  applies only ticked fields and keeps the old value; re-reading an OM
+  replaces its figures
+- [~] 6.3 "OM red-flag check": findings with severity (note, warning,
+  error) and the arithmetic in words; not one ranked list with evidence links
+- [~] 6.3.1 Pro forma NOI above the T-12 or annualized current NOI, with a
+  bridge: pro forma more than 10% above in-place (`proForma`); the OM's NOI
+  against the T-12's at 2% and 5%, naming the largest of income, expenses and
+  taxes (4.7.0, `noiOmT12`, `t12-noi.test.js`); no line-by-line bridge (7.9)
+  and no annualized current NOI
+- [~] 6.3.2 Cap rate on pro forma rather than in-place NOI: a stated cap
+  that doesn't match NOI ÷ price is flagged and asks which NOI it is on
+  (`statedCap`); not detected directly
+- [~] 6.3.3 Expenses below the property's history or configured per-SF
+  benchmarks: under 12% of gross on a lease that isn't net
+  (`lightExpenses`); the T-12 against the OM in the NOI comparison; no
+  configured benchmarks
+- [~] 6.3.4 Tax not reassessed for the price: a question on every deal with
+  a price or taxes (`assessment`); no jurisdiction rules (7.6)
+- [ ] 6.3.5 Management fee, reserves or payroll missing or low (mentioned
+  only in the light-expenses question)
+- [ ] 6.3.6 Rent roll rent above the lease abstract; expirations that differ
+  between documents (needs 6.6)
+- [ ] 6.3.7 Free rent, abatements and concessions not reflected in stated
+  income
+- [ ] 6.3.8 Physical against economic occupancy (the rent roll's leased SF
+  is compared with the OM's occupancy, `rentRollOcc`)
+- [~] 6.3.9 Tenant risks: rent expiring within two years, vacant space,
+  short term left, the guarantor (questions); concentration shown in the
+  rent roll; no co-tenancy, termination-option, go-dark or above-market
+  rollover checks
+- [~] 6.3.10 Square-footage basis: the OM's $/SF against price ÷ SF, rent
+  roll SF against the building's (`priceSf`, `rentRollSf`); GBA, RSF and
+  usable not told apart (3.1)
+- [ ] 6.3.11 Recoveries above what the leases allow
+- [x] 6.3.12 $/SF and cap rate against the saved comps: priced more than 10%
+  above the sold comps (`premium`), value at the comps' cap rate with a
+  thin-sample note (`fewCompCaps`). Synthetic only.
+- [ ] 6.3 Actions on each finding: add as a conflict, create a diligence
+  request, add to buyer Q&A, dismiss with a reason (T-12 checks can be marked
+  seen in Review, 4.7.0)
+- [~] 6.4 Conflict cards: AI review shows the deal's and the document's
+  values side by side; no general conflict store, no "unresolved" record
+- [ ] 6.6 Lease abstraction: a proposed abstract of each lease's terms
+  *(placed here with the lease engine; Part 22 doesn't name 6.6)*
+- [ ] 6.6 Each abstract field linked to its clause and page; unknown stays
+  unknown; feeds the lease engine only after approval
+- [ ] 6.6 Estoppel and SNDA checklist from the abstracts
+- [~] 6.8 Deal timeline: each deal's History lists every edit (4.3.0) and
+  Home shows recent activity; no single filterable timeline of documents,
+  communications, meetings, stages and scenarios
 
-- [ ] Native property-type templates (multifamily, retail, office, industrial, mixed-use, land)
-- [~] Transaction, income, expense, cash flow, valuation, returns (partially implemented)
-- [ ] Pricing Guidance Studio (football field)
-- [ ] Broker Opinion of Value generator
-- [~] Historical vs projected side by side (T-12, budget, pro forma…) (partially implemented)
-- [~] Operating statement import and normalization (partially implemented)
-- [ ] Jurisdiction rules data table
-- [~] Auditability: source, page, edits per number (partially implemented)
-- [~] Scenario Studio: branchable scenarios (partially implemented)
-- [~] Tornado, two-way grids, break-even solvers (partially implemented)
-- [ ] Monte Carlo
-- [ ] "Why did this number change?" waterfall
-- [x] NOI bridge
+### Part 7: underwriting and valuation
+Today there is one general model; the rent roll's column presets differ by
+property type.
+- [ ] 7.1 Native template: multifamily
+- [ ] 7.1 Native template: retail (single-tenant NNN, multi-tenant, shopping
+  center, street retail)
+- [ ] 7.1 Native template: office
+- [ ] 7.1 Native template: industrial and warehouse
+- [ ] 7.1 Native template: mixed-use
+- [ ] 7.1 Native template: land and development
+- [ ] 7.1 Native templates for hospitality, self-storage, medical office and
+  others, only where a reliable model can be defined
+- [ ] 7.1 Each template's definition (asset type, inputs, outputs,
+  conventions, version, changelog), copy-on-customize
+- [~] 7.2 Transaction assumptions: spread over the deal, the rent roll's
+  settings and the Tools, not one model
+- [~] 7.2 Income: potential and contract rent, market rent and re-leasing,
+  vacancy, concessions, other income and recoveries in the rent roll
+  projection (`lease.js`); history from the T-12
+- [~] 7.2 Expenses: the deal's total expenses and taxes; the T-12's 21
+  categories; no line-item expense model in underwriting; no user-defined
+  categories
+- [~] 7.2 Cash flow: the rent roll projection by month and year through NOI,
+  TI, LC and reserves (`lease.js`, `rrbook.js`); DCF and hold tools; no
+  levered cash flow statement on the deal
+- [~] 7.2 Valuation: direct cap, comps' $/SF and cap rate, the DCF tool,
+  value and exit-cap sensitivity; no reconciliation across methods
+- [~] 7.2 Returns: levered IRR, multiple and cash-on-cash (hold tool), DSCR,
+  debt yield, yield on cost, break-even occupancy, sensitivity grids
+- [ ] 7.3 Football field chart
+- [ ] 7.3 Pricing recommendation worksheet (range, rationale, risks,
+  exhibits)
+- [ ] 7.3 Broker Opinion of Value generator
+- [~] 7.4 Historical against projected, each basis kept apart: NOI three ways,
+  the OM's, the T-12's and the rent roll's year 1, with the gaps flagged (4.7.0;
+  `t12-noi.test.js`). "Use the T-12's figures" is an explicit step you can
+  undo. No prior-year actual, budget, annualized current, stabilized or
+  scenario records.
 
-#### Part 8. Firm templates and Mapping Studio
+#### 7.5 Operating statement normalization
+The T-12 import (4.7.0, `app/t12.js`, `app/t12ui.js`, `tests/t12.test.js`,
+`tests/t12-noi.test.js`, `t12-flow`) covers part of this. It has been tested on
+eight invented layouts only, and not yet on a real T-12. The owner's "T-12
+multi-format import" waits on proposal 2a.
+- [x] Import XLSX and CSV, read on the device (4.7.0). Synthetic only.
+- [ ] Import a text PDF (after 2a)
+- [ ] Import OCR'd scans, labelled as OCR (after 2a)
+- [~] Mapping interface: each line goes to one of 21 standard categories,
+  keeping its own wording and account number; "Every line" changes any
+  line's category
+- [ ] Mapping: custom categories
+- [ ] Mapping: split lines
+- [ ] Mapping: one-to-many
+- [~] Missing months: fewer than 12 month columns is flagged as "Only N
+  months" and never scaled up; a month missing inside the period is not
+  detected
+- [ ] Duplicate periods (the same month twice)
+- [~] Non-monthly columns: an annual-only statement is read and flagged; a
+  quarterly statement is not recognised
+- [~] YTD against monthly: each line's months are checked against the file's
+  Total, TTM or YTD column; a file whose columns are cumulative YTD figures is
+  not detected
+- [x] Sign conventions: negatives in brackets or with a trailing minus;
+  expenses written negative and vacancy written positive made consistent
+  (`normalizeSigns`; a mutation check). Synthetic only.
+- [x] Subtotal rows kept apart from line rows, never double counted, and
+  checked against the lines above them. Synthetic only.
+- [ ] Flag spikes
+- [ ] Flag negative expenses
+- [ ] Flag large one-off items
+- [ ] Flag year-over-year outliers (needs more than one year)
+- [x] Reconcile totals to the source statement: the file's own EGI, total
+  expenses, NOI and each subtotal against its lines, and each line's months
+  against its Total column (`statementChecks`). Synthetic only.
+- [ ] Recurring against nonrecurring, only with confirmation; ambiguous items
+  left as "needs classification"
+- [~] Operating against capital: capital, reserves, TI and LC, debt,
+  depreciation and owner costs go below the line by their wording; a bare
+  "management fee" and any line that matches nothing go to Review. See the
+  questions at the end.
+- [~] Learn from past mappings as suggestions only: remembered labels exist
+  (label and category, never an amount), but they are applied as "your
+  choice", not offered as suggestions, and there is no "mapped this way in
+  your last N deals". See the questions at the end.
+- [ ] Export the normalized statement to Excel with a mapping sheet
 
-- [x] Template library with versions, archive, export/import
-- [~] Per-template metadata (owner, property type, usage counts, changelog) (partially implemented)
-- [x] Workbook inspection (sheets, formulas, names, merges, hidden, macros, legacy formats)
-- [~] Mapping suggestions with confidence (implemented, not fully tested)
-- [~] Input vs output cell detection (partially implemented)
-- [x] Dry run cell-by-cell preview
-- [x] Safe fill preserving formulas, formats, merges, names, VBA
-- [x] Audit sheet
-- [~] Recalculation verification and read-back reconciliation (partially implemented)
-- [ ] Template drift detection
-- [ ] Native vs template reconciliation report
-- [!] Workspace sharing and governance (roles, publish, deprecate) (blocked)
+- [ ] 7.6 Jurisdiction rules table (reassessment triggers, assessment ratios,
+  tax rates, appeal windows, transfer and recordation taxes), confirmed per
+  deal. The DC zoning list (`zoning.js`) for comps is not this.
+- [~] 7.7 Auditability: source tags per deal figure (OM page and line,
+  typed, edited, derived, AI, tool, scenario), each deal's History of edits,
+  T-12 lines with their sheet row; no sheet-and-cell source for deal figures
+- [~] 7.8 Baseline and named scenarios, kept apart until "Save to deal…"
+  with the list of changes (What if, `dealui.js`)
+- [ ] 7.8 Branchable scenarios (broker case against independent case, and
+  so on)
+- [ ] 7.8 Tornado chart
+- [~] 7.8 Two-way sensitivity grids: value (NOI by cap rate) and returns
+  (price by exit cap) in Tools
+- [~] 7.8 Break-even solvers: price for a target cap or IRR (What if),
+  break-even occupancy with debt service (DSCR 1.0); no rent for a target cap
+- [~] 7.8 Scenario comparison: saved scenarios listed with their results in
+  the brief; no side-by-side table
+- [ ] 7.8 Monte Carlo (illustrative, off by default, visible seed)
+- [ ] 7.8 "Why did this number change?" waterfall between scenarios or
+  snapshots (snapshot compare lists the input changes, 4.3.0)
+- [~] **7.9 Pro forma against T-12 bridge** (the owner's "as an interactive
+  waterfall"; master plan 6.3 first bullet and 7.9: T-12 NOI to broker pro
+  forma NOI to platform stabilized NOI, line by line). What exists: the OM's
+  NOI against the T-12's, with the largest of income, expenses and taxes
+  named (4.7.0); the NOI bridge tool builds one case from potential rent down
+  to NOI. Not built: the line-by-line bridge, a platform stabilized NOI, the
+  waterfall.
+- [ ] 7.9 Value bridge: broker price to independently modelled value, by
+  assumption
 
-#### Part 9. Rent roll and lease engine
+### Part 9: rent roll and lease engine
+- [x] 9.1 Units and tenants, rent periods on any dates, fixed steps and %
+  increases, free rent and abatements, renewal and re-leasing with
+  probabilities, rollover and downtime, TI and LC, vacant units and lease-up,
+  market rent, one-time charges, custom fields (`lease.js`, `rentroll.js`;
+  `lease.test.js` known answers worked by hand, `rentroll-flow`)
+- [x] 9.1 Recoveries by method (pro-rata, base year, expense stop, fixed) and
+  percentage rent with a natural or set breakpoint (`lease.js`,
+  `lease.test.js`)
+- [ ] 9.1 Ground lease as its own rent type; custom billing periods
+- [ ] 9.1 CPI-linked increases (index, floor, cap, lag, base period)
+- [ ] 9.1 Early termination (notice, date, fee, cash-flow effect)
+- [~] 9.1 Options: renewal by probability; expansion, contraction and purchase
+  options are text, not modelled
+- [~] 9.1 Recoveries with caps, admin fees and gross-ups: methods and base
+  years exist; caps, admin fees and gross-ups don't
+- [x] 9.2 Outputs: summary, lease schedule editor, expirations by year and
+  tenant, concentration by rent and SF, WALT by rent or SF with the method
+  named, contract against market, projections by month and year, lease-up,
+  exportable rent roll with its NOI bridge (`rrbook.js`), feeds the deal and
+  the templates
+- [~] 9.3 Rent definitions kept apart: contract, market, projected and after
+  concessions; billed and collected don't exist; effective rent net of TI and
+  LC only in the net-effective-rent tool
+- [~] 9.4 Rollover Radar: the expiration table with rent at risk; no option
+  dates, re-leasing cost or months of income exposed
+- [x] 9.5 Messy XLSX and CSV rent rolls: header row found, total rows skipped,
+  columns mapped (`rentrollui.js`, `rentroll-flow`). Synthetic only.
+- [~] 9.5 Text-PDF rent rolls: only through the OM reader (Bug A open)
+- [~] 9.5 Vacant rows (by status); multi-line units and repeated header rows
+  not handled
+- [x] 9.5 Validation: overlapping periods, end before start, invalid dates,
+  units listed twice, area sum against the building (`validateLease`,
+  `validateRentRoll`)
+- [ ] 9.5 Rent per SF taken for rent per month; duplicate tenants
+- [x] 9.5 Reconciled to the OM: occupancy and SF against its stated figures
+  (`rentRollOcc`, `rentRollSf`)
+- [x] 9.6 Known answers worked by hand: irregular dates, leap years, partial
+  months, mid-month starts, step boundaries, free-rent timing, WALT
+  (`lease.test.js`, `engine.test.js`)
+- [ ] 9.6 Known answers for CPI, termination fees and option exercise (the
+  features don't exist)
 
-- [x] Units, tenants, rent types, periods, steps, % bumps, free rent, recoveries, percentage rent, one-time items, renewals, lease-up, market rent
-- [ ] CPI-linked increases (index, floor, cap, lag)
-- [ ] Early termination (notice, date, fee, cash-flow effect)
-- [~] Expansion, contraction, purchase options (partially implemented)
-- [~] Recovery caps, admin fees, gross-ups (partially implemented)
-- [x] Outputs: summary, schedule, expirations, concentration, WALT, loss to lease, projection, NOI bridge
-- [~] Rent definitions kept distinct (contract, market, potential, billed, collected, effective) (partially implemented)
-- [~] Rollover Radar (partially implemented)
-- [x] Messy rent roll intake (XLSX, CSV) with header detection and total-row skipping
-- [x] Validation (overlaps, bad dates, area sums)
-- [x] Known-answer tests for irregular dates, leap years, partial months
-- [~] Performance with 500 leases (partially implemented)
+### Part 21: accuracy, validation and controls
+- [~] 21.1 Validation layer: units by type, missing as `null`, source tags,
+  reconciliation checks, warnings on implausible inputs; actual, estimate
+  and projection labelled in places, not everywhere
+- [~] 21.2 Prohibited behaviours caught by tests: unit mix-ups refused by the
+  type check (`tests/types/mistakes.js`); missing never 0; a partial T-12
+  never scaled; a bare management fee never guessed. GBA and RSF are not told
+  apart, and double counting is checked only in the T-12's subtotals.
+- [~] 21.3 Plausibility rules: fixed checks with fixed thresholds in
+  `engine/figures.js` (DSCR 1.25×, pro forma 10%, NOI gaps 2% and 5%,
+  expenses 12%); none are editable workspace settings
+- [~] 21.4 Known answers for every material formula: many worked by hand
+  (`engine.test.js`, `lease.test.js`, `t12.test.js`); some expected values
+  came from the code (baseline §5.3)
+- [ ] 21.4 Property-based tests for financial invariants (NOI = EGI − expenses;
+  the loan balance reaches zero; buckets add to the total). History has 400
+  random round trips (`history.test.js`).
+- [~] 21.4 Differential tests, native against template recalculation:
+  LibreOffice recalculates the exported workbooks and compares them with the
+  stored values (`tests/e2e/recalc.py`, `make_engine_check.mjs`)
+- [~] 21.4 Golden-file tests: 618 deal results (`analyze-golden.test.js`)
+  and 646 displayed figures (`golden.mjs`); exports and template fills are
+  checked cell by cell in flows, not against golden files
+- [~] 21.4 Mutation checks: run by hand on each PR and recorded in the
+  CHANGELOG (4.7.0: eight; 4.4.0: nine); 24 deliberate unit mix-ups in every
+  `npm test`; no mutation-testing tool
+- [~] 21.4 Edge cases: partial periods, leap years, missing data, 500 leases;
+  very small and very large deals and valid negative values not tested
+  systematically
+- [x] 21.4 Workbook validity kept apart from Excel recalculation: LibreOffice
+  only, and every report says so
 
-#### Part 10. Comps and market
+## Phase 3: firm templates (Part 8)
 
-- [x] Manual comps, filters, sort, include/exclude
-- [~] Saved comp sets (multiple) (partially implemented)
-- [ ] Map view with radius/polygon
-- [~] Adjustment grid with required rationale (partially implemented)
-- [ ] Lease comps and effective rent
-- [ ] Market notes and statistics with source and date
-- [ ] Public data providers (FRED, BLS, Census)
-- [~] Comp-to-underwriting links (implemented, not fully tested)
+- [x] 8.1 Template library: upload, versions (last 10), archive, export and
+  import; XLSX and XLSM (`library.js`, `template-flow`, `tpl-flow`,
+  `template.test.js`)
+- [ ] 8.1 CSV templates
+- [~] 8.1 Per-template metadata: name, category, description and versions; no
+  owner, use case, changelog, usage counts or validation results
+- [x] 8.2 Inspection: sheets and visibility, formulas, names, merges, hidden
+  sheets, macros, legacy formats (`template.js`)
+- [ ] 8.2 Inspection of data validations, protection, external links, array
+  and volatile functions, with an Inspection Report of warnings
+- [~] 8.3 Mapping suggestions with confidence: named ranges and labels; no
+  number-format, formula-role or past-mapping signals; not fully tested
+- [x] 8.3 Approve, edit or reject; approved mappings saved with the template
+- [~] 8.3 Input against output cells: formula cells flagged and never
+  overwritten; outputs not read back
+- [x] 8.4 Dry run, cell by cell
+- [x] 8.4 Safe fill keeping formulas, formats, merges, names and VBA (byte for
+  byte). Recalculated in LibreOffice; not opened in Microsoft Excel.
+- [x] 8.4 Audit sheet
+- [~] 8.4 Recalculation verification: LibreOffice in the test suite only, not
+  in the product; the three states (filled, structurally valid, recalculated
+  and reconciled) are not reported
+- [~] 8.4 Unmapped fields, missing inputs and differences: the dry run says
+  which fields the deal has no value for; reconciliation differences are not
+  shown
+- [ ] 8.5 Template drift detection
+- [ ] 8.6 Native against template reconciliation report
+- [!] 8.7 Sharing and governance (roles, publish, usage, deprecate).
+  **Blocked:** needs accounts and a server (Phase 7).
 
-#### Part 11. Tools
+## Phase 4: comps and capital markets
 
-- [x] 30 calculators with formula notes, scenarios, export, load from deal, write back after confirmation
-- [~] Audit for duplication against the deal model (partially implemented)
-- [~] New: seller net sheet, 1031 timeline/boot (partially implemented)
-- [ ] New: cost segregation estimator, prepayment (yield maintenance, defeasance, step-down), rate buydown, XIRR, NNN↔gross, area-basis converter, interest reserve, transfer taxes, listing pricing sheet, pipeline forecast
-- [~] Search, favourites, recently used, recommended (partially implemented)
+### Part 10: comps and market
+- [x] 10.1 Sales comps from CoStar PDFs, checked and flagged, into an Excel
+  workbook (`costar.js`, `workbook.js`, `comps-flow`). Synthetic only: the
+  CoStar layout is recreated from public examples.
+- [x] 10.1 Manual comps, filters, sorting, include and exclude, comparison
+  tables, CSV and printable exports
+- [~] 10.1 Sale type and conditions read from CoStar; no verified cap rate,
+  verification status or verifier
+- [ ] 10.1 Comp import from Excel or CSV with column mapping (comps come from
+  CoStar PDFs, project files or by hand)
+- [~] 10.1 Saved comp sets: one working set per device, plus project export
+  and import
+- [ ] 10.1 Map view with radius and polygon
+- [~] 10.2 Adjustment grid with a required rationale: in the exported
+  workbook, filled in Excel; not in the app
+- [~] 10.2 Paired-sales or regression support: a least-squares trend of sold
+  $/SF over time (`glance.js`, the workbook's Summary); no paired sales, and
+  not offered as adjustment support
+- [ ] 10.3 Lease comps with effective rent and explicit gross, net and
+  modified gross (the workbook's Lease Comps tab is filled by hand)
+- [ ] 10.4 Market notes and submarket statistics with source and date, stale
+  ones marked
+- [~] 10.4 Bring-your-own data: CoStar sale comp PDFs only
+- [ ] 10.4 Public data providers (Census, BLS, FRED)
+- [~] 10.5 Comp-to-underwriting links: asking against the comps, value at the
+  comps' $/SF and cap; comp ids not kept as evidence; not fully tested
 
-#### Part 12. Document Center
+### Part 11: tools
+- [x] The 30 calculators, with formula notes, scenarios, export, load from the
+  deal, write back after confirmation (`toolsdefs.js`, `toolsui.js`,
+  `tools.test.js`, `finance.test.js`, `tools-flow`)
+- [~] Audit for duplication against the deal model: baseline §5; 4.1.0 put the
+  shared formulas in the engine; the tools' own math is not registered
+- [x] 11.1 Seller net sheet ("Offer and seller net")
+- [~] 11.1 1031 timeline and boot: the 45- and 180-day deadlines; no boot
+- [ ] 11.1 Cost segregation estimator (illustrative)
+- [ ] 11.1 Prepayment: yield maintenance, defeasance, step-down
+- [ ] 11.1 Rate buydown and forward-starting scenarios
+- [ ] 11.1 XIRR with irregular dates
+- [ ] 11.1 NNN against gross conversion
+- [ ] 11.1 Rent per SF basis converter (RSF, USF, GBA; monthly, annual)
+- [x] 11.1 Land residual ("Residual land value")
+- [ ] 11.1 Listing presentation pricing sheet
+- [x] 11.1 Commission split calculator ("Commission and splits": tiers and
+  splits)
+- [ ] 11.1 Prospect pipeline forecast
+- [ ] 11.1 Transfer and recordation taxes (needs 7.6)
+- [~] 11.2 Tool requirements: labelled inputs with units, formula notes,
+  export, link to the open deal and confirmation before writing back; known
+  answers for some formulas only
+- [~] 11.3 Search, favourites, recently used, recommended: search only
 
-- [ ] Data room with folders, tags, versions, status, previews
-- [ ] Conversions (PDF↔Word, tables to Excel, OCR…)
-- [ ] Batch processing, history, retention
-- [~] Upload safety (size limits, sniffing, isolation) (partially implemented)
-- [ ] Document diff/redline, PDF tools
+### Part 15: capital markets
+- [x] 15.1 Debt sizing by LTV, DSCR and debt yield with the binding
+  constraint (Loan sizing tool; the deal's largest supportable loan)
+- [x] 15.1 Amortization, IO, floating with a cap, refinance, maturity risk,
+  fees (Tools; `finance.test.js`)
+- [~] 15.1 Equity required and levered returns (hold and waterfall tools); no
+  capital stack summary
+- [ ] 15.2 Financing comparison across structures (illustrative labelled as
+  such)
+- [ ] 15.3 Lender package builder
+- [ ] 15.4 Live rates from a configured provider, with source, as-of and
+  fetch status; a labelled assumption when there is none; pinned to a deal.
+  Rates are typed by hand today.
+- [ ] 15.5 Lender CRM and quote tracker
+- [~] 15.6 One loan engine: debt service is one function used by screens,
+  tools and the workbook (`engine/debt.js`, 4.1.0); refinance and maturity
+  math is in `calc.js`
 
-#### Part 13. Marketing and OM creation
+## Phase 5: marketing, diligence, buyers
 
-- [x] One-page deal brief
-- [ ] OM, BOV, fact sheet, pitch deck, emails, listing copy
-- [ ] Firm branding
-- [ ] Evidence Panel, Claim Checker
-- [ ] Pre-Flight Gates
-- [ ] Secure share links, engagement analytics
+*Part 22 doesn't name Part 5 (Home) or most of Part 12 (Document Center).
+Home is placed here because its missing parts need diligence, buyers and
+Pre-Flight; the Document Center goes with the data room.*
 
-#### Part 14. Field Mode
+### Part 5: Home, Command Center and pipeline
+- [x] 5.1 Today: key dates, follow-ups, stale deals (`home.js`,
+  `pipeline.js`, `home-flow`). Key dates look 30 days ahead (the plan says
+  14, configurable); a deal is stale after 21 days, fixed.
+- [ ] 5.1 Today: documents awaiting review, overdue diligence, buyer replies
+- [ ] 5.1 Daily AI summary, labelled as AI
+- [x] 5.1 Pipeline: nine stages, renamable and hideable; the board
+- [ ] 5.1 Pipeline table view, saved filters, stage gates
+- [x] 5.1 Needs Attention: key dates, overdue tasks, no next step, stale
+  deals, no backup
+- [ ] 5.1 Needs Attention: incomplete underwriting, expiring listing
+  agreements, missing disclaimers
+- [~] 5.1 Recent work (yes); pinned deals (no)
+- [ ] 5.1 Pipeline analytics (commission by stage and probability, aging,
+  conversion)
+- [~] 5.1 Meetings and tasks: tasks; no calendar (17.5)
+- [ ] 5.1 Customizable widgets and saved views (with the UI revamp)
+- [ ] 5.2 Deal Health Score, every point traceable to an editable rule
 
-- [x] Installable, offline-capable PWA
-- [x] Photos, voice notes, checklists, notes
-- [ ] Area labels, observations linked to diligence, offline contact lookup, geofence
+### Part 12: Document Center
+- [ ] 12.1 Data room: folders, tags, versions, status, indexed search,
+  previews (the OM's PDF itself is not kept today)
+- [ ] 12.2 Conversion workflows
+- [~] 12.3 The four operations kept apart: extraction (`om.js`, `costar.js`),
+  normalization (`t12.js`) and underwriting (`app/engine/`) are separate
+  modules; conversion doesn't exist
+- [ ] 12.4 Batch processing, naming rules, ZIP packages, history, retention
+- [~] 12.5 Upload safety: type and size checks, legacy formats refused,
+  macros detected, PDFs parsed in a worker; no malware-scan hook or written
+  retention rules
+- [ ] 12.6 Document diff and redline
+- [ ] 12.7 PDF tools
 
-#### Part 15. Capital markets
+### Part 13: marketing and OM creation
+- [x] 13.1 One-page deal brief and five-line text summary (`brief.js`)
+- [ ] 13.1 OM, BOV, fact sheet, highlights, summaries, exhibits, market
+  overview, presentations, investor briefs, packages, listing proposals,
+  pitch decks, teaser emails, social and listing copy
+- [ ] 13.2 Firm branding
+- [ ] 13.3 Evidence Panel beside each section
+- [ ] 13.3 AI text marked as draft and never "verified" by the AI;
+  placeholders that block export
+- [ ] 13.3 Claim Checker
+- [~] 13.4 Exports: the brief prints, the workbook is XLSX; no DOCX, PPTX
+  or email-ready versions
+- [ ] 13.5 Pre-Flight Gate, its result saved with the export
+- [ ] 13.6 Share links (expiry, watermark, passcode, NDA/CA) and engagement
+  analytics
 
-- [x] Debt sizing (LTV, DSCR, debt yield) with binding constraint
-- [x] Amortization, IO, floating with cap, refinance, maturity risk, fees
-- [ ] Financing structure comparison
-- [ ] Lender package builder
-- [ ] Live rates with source and as-of
-- [ ] Lender CRM and quote tracker
-- [~] One loan engine for underwriting and tools (partially implemented)
+### Part 17.1–17.4: CRM and buyers
+*17.5 integrations are in Phase 7.*
+- [x] 17.1 Contacts with roles, linked to deals (`crm.js`, `dealcrm.js`)
+- [ ] 17.1 Companies as records, owners and entities, investors, firm custom
+  fields
+- [ ] 17.2 Buyer profiles
+- [ ] 17.2 Match view, ranked and explained
+- [ ] 17.2 Call and email lists with talking points and the call script
+- [ ] 17.2 Outcome logging and the per-listing activity report
+- [ ] 17.2 Follow-up cadence; do-not-contact and opt-out lists honoured
+- [ ] 17.3 Offers and LOIs recorded; Bid Leveler; client offer summary
+- [~] 17.4 Communications: voice notes and transcripts sit on the deal, and
+  action items become its next steps (stand-in speech and model only); no
+  calendar events or contact import
 
-#### Part 16. Live AI and transcription
-
-- [x] AI server (keys server-side, token, origin allowlist, rate limit, no content logging)
-- [!] Live provider validation (blocked)
-- [~] Provider abstraction, per-workspace data-leaving setting (partially implemented)
-- [~] Prompt-injection defence with adversarial tests (partially implemented)
-- [ ] Extraction evaluation harness
-
-#### Part 17. CRM and integrations
-
-- [x] Contacts with roles, linked to deals
-- [ ] Companies as records, owners/entities, investors, custom fields
-- [ ] Buyer profiles, Buyer Match, call lists, outcome logging
-- [ ] Offers and Bid Leveler
-- [ ] Calendar, email, CRM, e-signature integrations
-
-#### Part 18. Due diligence and closing
-
+### Part 18: due diligence and closing
 - [x] Key dates on a deal
-- [ ] Diligence checklists, request tracking, Q&A manager, closing workspace, prorations
-- [~] Contract-driven critical dates (incl. 1031 45/180 days) (partially implemented)
+- [ ] 18.1 Diligence checklists by property type and stage (the site-visit
+  checklist only)
+- [ ] 18.2 Request tracking: uploaded, reviewed, approved
+- [~] 18.3 Critical dates: typed by hand; the 1031 tool works out 45 and 180
+  days; no contract-driven dates, business days or holidays
+- [ ] 18.4 Closing workspace, prorations, funds flow
+- [ ] 18.5 Q&A manager
+- [ ] 18.6 Diligence findings proposing underwriting changes
 
-#### Part 19. Workspaces, security, privacy
+## Phase 6: live AI and Field Mode
 
-- [ ] Accounts, roles, sync, remote backup, audit logs
-- [x] Local backup and restore
-- [~] Security headers / CSP (partially implemented)
-- [~] Retention policy and verified deletion (partially implemented)
+*6.5 Ask the Deal and 6.7 site visits are placed here with Part 16 and Part
+14.*
 
-#### Part 20. UI/UX
+### Part 16: live AI and transcription
+- [x] 16.1.1 The AI server: keys on the server, app token, origin allowlist,
+  rate limit, no content logged (`server/`, `server/test`: 11 pass)
+- [~] 16.1.2 Setup, health check and clear errors: `server/README.md`,
+  Settings → Test connection (`/api/health`); not tried against a deployed
+  server
+- [x] 16.1.3 OM extraction and review, the deal assistant, meeting notes with
+  action items, transcription with timed segments (`ai-flow`, `voice-flow`).
+  Synthetic only: a stand-in model and speech service.
+- [ ] 16.1.3 Speaker labels; searchable meeting history; AI reading of
+  financial statements; cross-document reconciliation by AI
+- [!] 16.1.4 A real AI provider and speech service. **Blocked:** needs
+  `ANTHROPIC_API_KEY`, `STT_URL`, `STT_API_KEY` and a deployed server.
+- [~] 16.1.5 Limits: token, size limits, rate limit, origins, timeouts; no
+  retries with backoff and no cost caps; the rate limit is per socket address
+- [~] 16.1.6 Provider abstraction: speech is any OpenAI-compatible service;
+  the language model is one vendor; AI off by default and each send
+  confirmed; no per-workspace setting
+- [~] 16.2 Each extracted number checked against its source: every quote is
+  checked against the PDF text (`reconcile.js`); unit, sign and period
+  partly
+- [~] 16.2 Source text, extracted, confirmed, AI, calculated and unresolved
+  kept apart: by source tags; AI readings stay apart until applied
+- [x] 16.2 The AI proposes, the person approves; it never overwrites an
+  approved value (`ai-flow`). Synthetic only.
+- [~] 16.2 Prompt-injection defence: document text sent as data, quotes
+  verified; no adversarial test set
+- [ ] 16.3 Extraction evaluation harness
+- [~] 16.4 Live features marked "Blocked: credentials"; no written
+  live-validation plan yet
 
-- [x] Design tokens, components, light/dark
-- [ ] Living style guide route
-- [x] Dense tables: sticky headers, pinned first column, keyboard, inline edit
-- [x] WCAG 2.2 AA (automated)
-- [!] Screen reader tested (blocked)
-- [~] Chromium, Firefox, Safari (partially implemented)
-- [ ] Guided Mode
+### Part 6.5: Ask the Deal
+- [x] Cited answers over the deal's facts, each fact cited by id
+  (`aifacts.js`, `ai-flow`). Synthetic only.
+- [ ] Over every document's text, notes, transcripts and models
+- [ ] Suggested questions per document type; answers saved as source-linked
+  notes
 
-#### Part 21. Accuracy controls
+### Part 14 and 6.7: Field Mode and site visits
+- [x] Installable and offline (`sw.js`, `pwa-flow`); not on a real iPhone
+- [ ] A local queue with conflict-safe sync (needs Phase 7)
+- [x] Photos, voice notes, checklists and notes (`voice-flow`, `workflows`)
+- [x] Transcription (`voice-flow`). Synthetic only: a stand-in speech
+  service.
+- [ ] Photo area labels, condition tags, annotations and geotags
+- [ ] Observations linked to diligence and assumptions as questions
+- [ ] Offline tenant and contact lookup screen (contacts already open offline
+  from Home)
+- [~] Deal summary card and key numbers for calls: the brief's five-line text
+- [ ] Geofenced "you are at the property" prompt
+- [x] Meeting notes with action items into the deal's next steps (`aiui.js`,
+  `voice-flow`). Synthetic only.
 
-- [~] Known-answer tests for material formulas (partially implemented)
-- [ ] Property-based tests for invariants
-- [~] Differential tests native vs template recalculation (partially implemented)
-- [~] Golden-file tests for exports (partially implemented)
-- [ ] Mutation tests
-- [~] Configurable plausibility rules (partially implemented)
+## Phase 7: workspaces and integrations
 
-#### Real-world validation still required
+*3.5's cloud sync and 3.6's REST API and webhooks are placed here.*
+- [ ] 19.1 Accounts, MFA, teams, roles, deal-level access, shared templates,
+  cross-device sync, remote backup, audit logs, deletion
+- [ ] 19.1 Migration plan from local to cloud that keeps local deals, with
+  local export kept (`docs/architecture/proposal.md` §2.9 leaves it to this
+  phase, decision D-D)
+- [x] Local backup and restore kept (`backup-flow`, `backup.test.js`)
+- [ ] 3.6 REST API and outbound webhooks
+- [ ] 19.2 Server-side authorization, tenant isolation, role and abuse tests
+- [ ] 19.2 Encryption at rest for stored documents (data in the browser is
+  unencrypted, as the README says)
+- [~] 19.2 Security headers: a CSP subset by meta tag; GitHub Pages can't set
+  headers
+- [ ] 19.2 Audit log of access to sensitive documents and exports
+- [~] 19.2 Retention and verified deletion: deleting a deal deletes its
+  photos and audio; removed media kept 30 days for undo; no written policy
+- [ ] 19.2 A "confidential" tag that limits sharing and AI
+- [~] 19.2 Where data is stored, shown: Settings → Your data, Home's first-run
+  text and the backup reminder; not shown at all times
+- [~] 19.3 Security review checklist and known gaps: baseline §8 observations;
+  no checklist
+- [ ] 17.5 Calendar, email, CRM, e-signature and file-storage integrations,
+  each documented
+- [ ] Hosting proposal (private repository, login-gated site)
 
-- [!] Safari on a real iPhone; Firefox (blocked)
-- [!] Microsoft Excel opening filled and exported workbooks (blocked)
-- [!] Real OMs, rent rolls, T-12s, CoStar exports (blocked)
-- [!] Live AI and speech providers (blocked)
-- [!] Screen readers (blocked)
+## Phase 8: final audit
+
+- [ ] 20.3 The key screens finished (with the UI revamp)
+- [x] 20.4 WCAG 2.2 AA, automated: axe on every screen in light and dark, 24
+  px targets, reflow at 320 px (`a11y-flow`)
+- [!] 20.4 Screen readers. **Blocked:** no VoiceOver or NVDA here.
+- [~] 20.4 Browsers: Chromium only; WebKit runs are possible but it isn't
+  installed here; Firefox not installed
+- [ ] 20.5 Guided Mode, with "why this matters" notes and step checklists
+- [~] 20.6 Microcopy and states: errors say what to do (an .xls is refused
+  with the next step), page-by-page progress, empty states on Home;
+  terminology not yet audited
+- [ ] 3.7 Performance measured on the final code
+- [ ] Security review, including the git history
+- [ ] Full regression on the final code
+- [ ] Real-document and real-Excel validation plan
+- [ ] Deployment and migration checklist; proprietary LICENSE
+
+## Real-world validation still required
+
+- [!] Safari on a real iPhone; Firefox (not available here)
+- [!] Microsoft Excel opening filled and exported workbooks (LibreOffice only)
+- [!] Real OMs, rent rolls, T-12s and CoStar exports (needs files the owner
+  is entitled to share; real files stay in `private/`)
+- [!] Live AI and speech providers (credentials and a deployed server)
+- [!] Screen readers
+
+## Questions for the owner
+
+Where the master plan and the later instructions differ. Nothing has been
+changed for these; each needs your answer.
+
+1. **Branches.** Part 0 rule 3 and Part 22 say to commit on "the designated
+   development branch". `CLAUDE.md` says one PR per item. Is each item its
+   own branch and PR, merged into `main`?
+2. **Navigation.** Part 4 asks for a collapsible left rail of 12 workspaces.
+   The UI revamp asks for a bottom navigation, Robinhood-style. Today the
+   desktop has a sidebar and the phone a bottom tab bar. Should the desktop
+   keep a left rail?
+3. **Design direction.** Part 20.1 asks for restraint: one accent, no
+   generic dashboard cards, subtle motion. The revamp adds live charts,
+   motion and customizable widgets. Which wins where they differ?
+4. **The 3.2.0 line.** Part 0 rule 2 and Part 24.1 refer to "the 3.2.0
+   development line". The baseline found 3.3.0 on `main`, which contains
+   3.2.0, and work is now at 4.7.x. Can these references be treated as met?
+5. **Learned mappings.** Part 7.5 says past mappings are suggestions only.
+   In 4.7.0 a remembered label is applied as "your choice". Keep that, or
+   make it a suggestion you confirm?
+6. **Operating against capital.** Part 7.5 says to separate operating from
+   capital only with your confirmation or strong evidence. In 4.7.0, lines
+   go below the line by their wording, such as "capital" or "reserves". Is
+   wording strong enough evidence?
+7. **Rounding.** Part 3.1 and 7.7 say to keep full precision and round only
+   for display. In 4.1.0, stored totals were rounded to whole cents and rates
+   per SF to four decimals (decision D-B, now "money is whole cents" in
+   `CLAUDE.md`). Is that what you want?
+8. **When to stop.** `CLAUDE.md` lists "the only places to stop and wait".
+   Part 0 rule 6 adds more: paid services, security or data retention, a
+   change of financial meaning, and two readings of a financial input. These
+   were added to `CLAUDE.md`'s gates in 4.7.2. Do you agree?
+9. **Order of work.** Part 22 ranks the UI foundation fourth, after the
+   engine, Mapping Studio and ingestion. Your later instructions put the UI
+   revamp ahead of the rest of Phase 2 and Phase 3. Confirm that order.
+10. **Licence.** `package.json` says MIT, and the Phase 8 list has
+    "proprietary LICENSE". The master plan doesn't say. Which applies, and
+    when?
