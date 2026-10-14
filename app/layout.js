@@ -34,11 +34,18 @@ export function charWidth(items) {
 function lineOf(it) {
   // transform = [a, b, c, d, e, f]; e,f is the baseline origin.
   const t = it.transform;
-  return { x: t[4], y: t[5], w: it.width || 0, h: it.height || Math.abs(t[3]) || 8, s: it.str };
+  return { x: t[4], y: t[5], w: it.width || 0, h: it.height || Math.abs(t[3]) || 8, s: it.str, conf: it.conf };
 }
 
-/** Group fragments into visual lines, then render each as fixed-width text. */
-export function layoutPage(items, viewportHeight) {
+/**
+ * Group fragments into visual lines, then render each as fixed-width text.
+ * With `geom` (an object), also record where everything sits, for readers
+ * that work by position (omroll.js): geom.cw, the character width used, and
+ * geom.lines[i] for text line i (null for a blank line): { y, h, frags }, y
+ * the baseline in PDF units (up is larger), each frag { s, e, x0, x1 }: its
+ * character span on the line and its x extent in PDF units.
+ */
+export function layoutPage(items, viewportHeight, geom = null) {
   const frags = [];
   for (const raw of items) {
     if (!raw || typeof raw.str !== 'string') continue;
@@ -47,6 +54,7 @@ export function layoutPage(items, viewportHeight) {
     if (WS.test(f.s)) continue;            // spacing fragment: the gap is implied by x
     frags.push(f);
   }
+  if (geom) { geom.cw = charWidth(items); geom.lines = []; }
   if (!frags.length) return '';
 
   const cw = charWidth(items);
@@ -77,12 +85,13 @@ export function layoutPage(items, viewportHeight) {
     if (prevY !== null) {
       const h = ln.items[0].h || 8;
       const blanks = Math.min(3, Math.max(0, Math.round((prevY - ln.y) / (h * 1.35)) - 1));
-      for (let i = 0; i < blanks; i++) out.push('');
+      for (let i = 0; i < blanks; i++) { out.push(''); if (geom) geom.lines.push(null); }
     }
     prevY = ln.y;
 
     let text = ' '.repeat(Math.max(0, Math.round((ln.items[0].x - left) / cw)));
     let endX = ln.items[0].x;
+    const fr = geom ? [] : null;
     for (let i = 0; i < ln.items.length; i++) {
       const it = ln.items[i];
       if (i > 0) {
@@ -93,10 +102,33 @@ export function layoutPage(items, viewportHeight) {
         else n = Math.max(2, Math.round(gap / cw));
         text += ' '.repeat(n);
       }
+      if (fr) fr.push({ s: text.length, e: text.length + it.s.length, x0: it.x, x1: it.x + (it.w || it.s.length * cw) });
       text += it.s;
       endX = it.x + it.w;
     }
     out.push(text.replace(/\s+$/, ''));
+    if (geom) {
+      const conf = ln.items.filter((f) => Number.isFinite(f.conf));
+      geom.lines.push({ y: ln.y, h: ln.items[0].h || 8, frags: fr, ...(conf.length ? { ocr: true, conf: Math.min(...conf.map((f) => f.conf)) } : {}) });
+    }
   }
   return out.join('\n');
+}
+
+/**
+ * Words read by OCR from a page image ({ text, conf, x0, y0, x1, y1, base }:
+ * pixels, y down; `base` the baseline of the word's OCR line, if known) as
+ * text items in the shape pdf.js gives (y up), so layoutPage and the readers
+ * after it run on a scanned page as they do on a text page. Each item keeps
+ * the OCR confidence (0 to 100), which layoutPage's geometry carries per line.
+ */
+export function itemsFromWords(words, height) {
+  const out = [];
+  for (const w of words || []) {
+    const s = String((w && w.text) || '').trim();
+    if (!s) continue;
+    const h = Math.max(1, w.y1 - w.y0);
+    out.push({ str: s, transform: [h, 0, 0, h, w.x0, height - (Number.isFinite(w.base) ? w.base : w.y1)], width: Math.max(1, w.x1 - w.x0), height: h, conf: Number.isFinite(w.conf) ? w.conf : 0 });
+  }
+  return out;
 }

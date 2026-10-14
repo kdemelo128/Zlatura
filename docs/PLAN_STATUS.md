@@ -21,12 +21,13 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.2, reconciled against the master plan (2026-10-14).
+Last updated: 4.7.4, Bug A built (2026-10-14).
 
 ## Now
 
-- **Current step:** Part 1, Bug A (next: designer's approved fix, then the
-  builder). Bug C is built (4.7.3), PR open for merge.
+- **Current step:** Part 1, Bug B. Bug A is built (4.7.4, committed on
+  `claude/bug-a-om-rent-roll`, stacked on Bug C; PR pending). Bug C is built
+  (4.7.3), PR open for merge.
 - **Bugs A and B:** diagnosed; all recommendations approved 2026-10-14.
 - **Usage rules (2026-10-14):** one agent at a time, never parallel Opus;
   routine work in the main session; read big files by section or grep; run
@@ -41,12 +42,12 @@ Last updated: 4.7.2, reconciled against the master plan (2026-10-14).
 
 | Group | Done | Partial | In progress | Not started | Blocked | Items |
 |---|---|---|---|---|---|---|
-| The owner's directive | 5 | 1 | 1 | 11 | 0 | 18 |
+| The owner's directive | 6 | 1 | 1 | 10 | 0 | 18 |
 | Rules and process (Parts 0, 1.3, 22, 23, 24) | 19 | 7 | 1 | 0 | 0 | 27 |
 | The 15 pillars (Part 2) | 1 | 8 | 0 | 6 | 0 | 15 |
 | Phase 0: audit and baseline | 9 | 0 | 0 | 0 | 0 | 9 |
 | Phase 1: foundations | 18 | 21 | 0 | 5 | 0 | 44 |
-| Phase 2: underwriting and documents | 14 | 47 | 0 | 46 | 0 | 107 |
+| Phase 2: underwriting and documents | 16 | 46 | 0 | 45 | 0 | 107 |
 | Phase 3: firm templates | 6 | 5 | 0 | 4 | 1 | 16 |
 | Phase 4: comps and capital markets | 8 | 12 | 0 | 18 | 0 | 38 |
 | Phase 5: marketing, diligence, buyers | 6 | 7 | 0 | 31 | 0 | 44 |
@@ -54,7 +55,7 @@ Last updated: 4.7.2, reconciled against the master plan (2026-10-14).
 | Phase 7: workspaces and integrations | 1 | 4 | 0 | 9 | 0 | 14 |
 | Phase 8: final audit | 1 | 2 | 0 | 7 | 1 | 11 |
 | Real-world validation | 0 | 0 | 0 | 0 | 5 | 5 |
-| **All** | **96** | **123** | **2** | **145** | **8** | **374** |
+| **All** | **99** | **122** | **2** | **143** | **8** | **374** |
 
 The pillars are counted on their own as well as through the items of the
 phases that build them.
@@ -76,11 +77,13 @@ These came after the master plan and are worked first.
 - [x] Bug C: date inputs lose what is typed at the year. Built in 4.7.3
   (`app/dateinput.js`, `app/focuskeep.js`, `tests/dateinput.test.js`,
   `tests/e2e/typing-flow.mjs`); PR open, waiting for the owner's merge.
-- [>] Bug A: the rent roll from an OM doesn't scan correctly (diagnosed;
-  recommendations approved: vendor tesseract.js on demand, row provenance
-  and `rent_inplace` with a migration step, golden before/after shown if
-  anything changes). Includes the structure-only script for real rent rolls.
-- [ ] Bug B: income and expenses read from OM statements are often wrong
+- [x] Bug A: the rent roll from an OM doesn't scan correctly. Built in 4.7.4
+  (`app/omroll.js` reads it by position; Data QC in `app/dataqc.js`,
+  `dataqcui.js`, `reconcile.js`; Review items `rrcheck`; OCR on request in
+  `app/ocr.js` with tesseract.js under `vendor/ocr/`; migration step
+  `rr-qc`; `tests/tools/rr-local.mjs` for real rent rolls). Synthetic
+  fixtures only; PR pending.
+- [>] Bug B: income and expenses read from OM statements are often wrong
   (diagnosed; recommendations approved: Year-1-only labelled projected at
   medium confidence; a failed check blocks NOI, EGI and opex; tolerance the
   larger of half a printed unit per line or 0.5%; growth note above 25%,
@@ -345,12 +348,14 @@ here, where most of the money logic is built, and is checked on every PR.*
   T-12, underwriting, What if, site visit, AI assistant, brief and history
   are in the deal; no APN/parcel or ownership fields, documents, diligence or
   communications
-- [~] 6.2.1 File type and structure: text and scanned PDFs told apart (a
-  scanned OM asks for the figures to be typed); tables and images not
+- [~] 6.2.1 File type and structure: text and scanned PDFs told apart, and
+  since 4.7.4 each page with no text layer is flagged (a scanned OM asks for
+  the figures to be typed); tables other than the rent roll and images not
   detected
 - [~] 6.2.2 Text, tables and images with page references: text with page and
-  line; the rent roll table from the OM's text (`lease.js` `fromOmRows`; Bug
-  A open); no images; no OCR
+  line; the rent roll table read by position, each cell with its page, line
+  and column (4.7.4, `omroll.js`); a scanned rent roll page read by OCR on
+  request, labelled OCR (4.7.4, `ocr.js`); no images
 - [~] 6.2.3 Each proposed field with value, unit, page, quote, confidence and
   validation status: page, line and confidence; units implicit per field; on
   the AI path every quote is checked against the PDF text
@@ -560,13 +565,16 @@ multi-format import" waits on proposal 2a.
   dates, re-leasing cost or months of income exposed
 - [x] 9.5 Messy XLSX and CSV rent rolls: header row found, total rows skipped,
   columns mapped (`rentrollui.js`, `rentroll-flow`). Synthetic only.
-- [~] 9.5 Text-PDF rent rolls: only through the OM reader (Bug A open)
-- [~] 9.5 Vacant rows (by status); multi-line units and repeated header rows
-  not handled
+- [x] 9.5 Text-PDF rent rolls: through the OM reader, by position, over
+  several pages, with Data QC (4.7.4, `om.test.js`, `omrr-flow`). Synthetic only.
+- [x] 9.5 Vacant rows (by status or word, with or without SF), multi-line
+  units and repeated header rows (4.7.4, in an OM's rent roll). Synthetic only.
 - [x] 9.5 Validation: overlapping periods, end before start, invalid dates,
   units listed twice, area sum against the building (`validateLease`,
   `validateRentRoll`)
-- [ ] 9.5 Rent per SF taken for rent per month; duplicate tenants
+- [~] 9.5 Rent per SF taken for rent per month: units from the header, a
+  guess flagged, out-of-range figures fail a check (4.7.4, OM rent rolls);
+  duplicate tenants not checked
 - [x] 9.5 Reconciled to the OM: occupancy and SF against its stated figures
   (`rentRollOcc`, `rentRollSf`)
 - [x] 9.6 Known answers worked by hand: irregular dates, leap years, partial

@@ -1,12 +1,14 @@
 /* review.js -- what is waiting for a person to look at, worked out from where
  * each item lives (no separate queue is kept): T-12 lines not yet filed, T-12
- * checks not yet seen, AI readings never applied or dismissed, and firm
- * template cells mapped with low confidence. Resolving an item is recorded
+ * checks not yet seen, rent roll checks from an OM's Data QC not yet resolved,
+ * AI readings never applied or dismissed, and firm template cells mapped with
+ * low confidence. Resolving an item is recorded
  * where it lives, so it travels in backups and, on a deal, can be undone.
  * Pure: reviewui.js draws it. Design: docs/proposals/t12-review-queue.md. */
 
 import { openLines, openChecks } from './t12.js';
 import { DEAL_FIELDS } from './dealfields.js';
+import { openChecks as openQc, whereText } from './dataqc.js';
 
 const FIELD_LABEL = Object.fromEntries(DEAL_FIELDS.map((f) => [f.key, f.label]));
 const dealName = (d) => d.name || (d.figures && d.figures.address) || 'Untitled deal';
@@ -15,7 +17,9 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.abs(v) : 
 /**
  * Every item, grouped: [{ group: 'deal'|'template', id, name, items: [...] }],
  * each group's items with the most money at stake first, groups by the same.
- * Items: { kind: 't12line'|'t12check'|'ai'|'tpl', id, amount, ... }.
+ * Items: { kind: 't12line'|'t12check'|'ai'|'rrcheck'|'tpl', id, amount, ... }.
+ * An 'rrcheck' is a Data QC check on an OM's rent roll (dataqc.js) that
+ * failed or found the OM disagreeing with itself: with its page, row and cell.
  */
 export function reviewItems({ deals = [], templates = [] } = {}) {
   const groups = [];
@@ -31,6 +35,11 @@ export function reviewItems({ deals = [], templates = [] } = {}) {
       }
       items.push(...byKey.values());
       for (const c of openChecks(d.t12)) items.push({ kind: 't12check', id: `t12check:${c.id}`, checkId: c.id, text: c.text, amount: num(c.amount) });
+    }
+    for (const c of openQc(d.rrQc)) {
+      items.push({ kind: 'rrcheck', id: `rrcheck:${c.id}`, checkId: c.id, level: c.level, checkKind: c.kind, text: c.text, where: whereText(c), page: c.page || null, row: c.row || null, col: c.colLabel || null, cell: c.cell ? c.cell.text : null, lineText: c.lineText || '',
+        // a fail holds the rent roll back: it sorts with the rent it holds
+        amount: num(c.amount) || (c.level === 'fail' && d.rrQc.held ? d.rrQc.held.reduce((s, r) => s + num(r.annual), 0) : 0) });
     }
     const ex = (d.ai && Array.isArray(d.ai.extractions)) ? d.ai.extractions : [];
     ex.forEach((x, i) => (x.fields || []).forEach((f, j) => {

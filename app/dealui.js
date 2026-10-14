@@ -24,7 +24,10 @@ import { undoState, inverseOf, mediaRefs, withBytes, applyChanges, placeOf, snap
 import { renderDealBrief, dealSummaryText, placeLine } from './brief.js';
 import { project, rentRollSummary } from './lease.js';
 import { projectionNow, projectionLater, projectionSync, projectionError } from './projector.js';
-import { legacyRows } from './rentroll.js';
+import { legacyRows, omRollRecord, applyHeldRows, addOcrRows, ocrReading } from './rentroll.js';
+import { qcPanel } from './dataqcui.js';
+import { resolveCheck, blockingChecks, qcCounts } from './dataqc.js';
+import { readScannedPage, ocrSupported } from './ocr.js';
 import { pending as stepsDue, applyStep } from './migrate.js';
 import { renderRentRollWorkspace } from './rentrollui.js';
 import { redrawKeepingFocus } from './focuskeep.js';
@@ -52,6 +55,9 @@ let pending = null;       // the deal whose latest change has not reached storag
 const opened = new Map();
 const deleted = new Set();  // a late photo or recording must not bring a deleted deal back
 let photoUrls = [];
+/* The PDF each deal was read from this session, for reading a scanned page on request (not stored: the OM is never kept). */
+const omFiles = new Map();
+let ocrBusy = null;       // { dealId, page, text } while a scanned page is being read
 
 const LOAN_KEY = 'zlatura.loan.v1';
 const CUR_KEY = 'zlatura.deal.current';
@@ -402,10 +408,11 @@ async function readOmFile(file) {
   reading = { name: file.name, done: 0, total: 0 };
   render();
   let pages;
+  const layouts = [];
   try {
     const pdfjs = await getPdfjs();
     pages = await api.pdfPages(pdfjs, new Uint8Array(await file.arrayBuffer()), {
-      onPage: (k, n) => { reading.done = k; reading.total = n; progress(); },
+      onPage: (k, n) => { reading.done = k; reading.total = n; progress(); }, layouts,
     });
   } catch (err) {
     reading = null;
@@ -413,10 +420,13 @@ async function readOmFile(file) {
     toast(`${file.name} can’t be read: ${pdfProblem(err, file)}`, null, 8000);
     return;
   }
-  const om = readOm(pages);
+  const om = readOm(pages, { layouts: layouts.length === pages.length ? layouts : null });
   reading = null;
   if (om.chars < 200) {
-    deal = newDeal({ name: file.name.replace(/\.pdf$/i, ''), source: file.name, readAt: Date.now(), pages: om.pages });
+    // every page a scan: the Data QC record lists them, so one can be read by OCR
+    const { qc } = omRollRecord({ ...om, rentRoll: null, scanned: pages.map((_, i) => i + 1) }, { asOf: localDate(), file: file.name });
+    deal = newDeal({ name: file.name.replace(/\.pdf$/i, ''), source: file.name, readAt: Date.now(), pages: om.pages, rrQc: qc });
+    omFiles.set(deal.id, file);
     render();
     toast('This OM is scanned images with no text in it, so its numbers can’t be read. Enter the key figures by hand; the analysis works the same.', null, 9000);
     touch();
@@ -430,19 +440,24 @@ async function readOmFile(file) {
     figures[key] = f.value;
     sources[key] = { page: f.page, line: f.line, confidence: f.confidence, alts: f.alts || [], count: f.count || 1, orig: f.value };
   }
+  // the rent roll, checked (Data QC): a failed check holds it back until the broker resolves or accepts it
+  const { qc, rows } = omRollRecord(om, { figures, sources, asOf: localDate(), file: file.name });
   deal = newDeal({
     name: figures.address || file.name.replace(/\.pdf$/i, ''),
     source: file.name, readAt: Date.now(), pages: om.pages, figures, sources,
-    rentRoll: om.rentRoll ? om.rentRoll.rows.map((r) => ({ ...r, end: r.end ? new Date(r.end).toISOString() : null, start: r.start ? new Date(r.start).toISOString() : null })) : [],
+    rentRoll: rows,
     rentRollPage: om.rentRoll ? om.rentRoll.page : null,
     unpriced: om.unpriced,
+    ...(qc ? { rrQc: qc } : {}),
   });
+  omFiles.set(deal.id, file);
   try { localStorage.setItem(CUR_KEY, deal.id); } catch { /* fine */ }
   const n = Object.keys(figures).length;
   render();
   touch();
   store.askToPersist();
-  toast(`Read ${om.pages} page${om.pages === 1 ? '' : 's'}: ${n} figure${n === 1 ? '' : 's'} found${om.rentRoll ? ` and a rent roll of ${om.rentRoll.rows.length}` : ''}. Tap a page tag to see where each came from.`, null, 7000);
+  const held = qc && qc.held ? qc.held.length : 0;
+  toast(`Read ${om.pages} page${om.pages === 1 ? '' : 's'}: ${n} figure${n === 1 ? '' : 's'} found${om.rentRoll ? ` and a rent roll of ${om.rentRoll.rows.length}` : ''}.${held ? ' A rent roll check failed, so the rent roll is held back: see Data QC.' : ''}${om.scanned.length ? ` ${om.scanned.length} page${om.scanned.length === 1 ? ' has' : 's have'} no text.` : ''} Tap a page tag to see where each came from.`, null, 7000);
   idle(() => getXlsx().catch(() => {}));
 }
 
@@ -1554,8 +1569,11 @@ function renderRentRoll(m) {
   const n = rr ? rr.leases.length : 0;
   const h = el('div', 'card-head');
   h.appendChild(el('h2', null, 'Rent roll'));
-  h.appendChild(el('span', 'count', n ? `${n} unit${n === 1 ? '' : 's'}${deal.rentRollPage ? ` · read from OM page ${deal.rentRollPage}` : ''}` : 'none yet'));
+  const qcPages = deal.rrQc && deal.rrQc.applied && deal.rrQc.pages && deal.rrQc.pages.length > 1 ? deal.rrQc.pages : null;
+  h.appendChild(el('span', 'count', n ? `${n} unit${n === 1 ? '' : 's'}${qcPages ? ` · read from OM pages ${qcPages[0]}–${qcPages[qcPages.length - 1]}` : deal.rentRollPage ? ` · read from OM page ${deal.rentRollPage}` : ''}` : 'none yet'));
   box.appendChild(h);
+  // the OM's rent roll as read, checked (Data QC): what passed, what to check, what holds it back
+  if (deal.rrQc) box.appendChild(rrQcPanel(deal));
   if (n) {
     const sum = rentRollSummary(rr, rr.settings.asOf);
     const t = el('div', 'tiles');
@@ -1567,7 +1585,9 @@ function renderRentRoll(m) {
     add('Expiring by next year-end', pct(soon, 0), 'of rent', soon >= 25 ? 'warn' : '');
     box.appendChild(t);
     // the rent roll against the OM's own figures (reconcile.js: arithmetic, no AI)
-    const issues = crossChecks(deal.figures, sum);
+    // the Data QC panel already compares the building SF and occupancy with the rent roll as read
+    const covered = deal.rrQc && deal.rrQc.applied && !deal.rrQc.legacy ? ['occ', 'sf'] : [];
+    const issues = crossChecks(deal.figures, sum).filter((i) => !covered.includes(i.id));
     if (issues.length) {
       const ul = el('ul', 'rr-checks');
       ul.id = 'deal-rr-checks';
@@ -1595,12 +1615,138 @@ function renderRentRoll(m) {
   } else {
     const p = el('p', 'hint');
     p.style.padding = '0 16px 6px';
-    p.textContent = 'No rent roll yet. Add units by hand, import one from Excel or CSV, or read an OM that prints one.';
+    p.textContent = deal.rrQc && deal.rrQc.held ? 'The OM’s rent roll is held back until the failed checks above are resolved or accepted.' : 'No rent roll yet. Add units by hand, import one from Excel or CSV, or read an OM that prints one.';
     box.appendChild(p);
   }
   const b = button('btn-sm', n ? 'Open the rent roll' : 'Start a rent roll', () => showPane('rentroll'));
   b.style.margin = '0 16px 16px';
   box.appendChild(b);
+}
+
+/* ------------------------------------------------------------ Data QC */
+
+const pagesText = (ps) => (ps.length === 1 ? `page ${ps[0]}` : `pages ${ps[0]}–${ps[ps.length - 1]}`);
+
+/** The Data QC panel for the OM's rent roll (dataqcui.js draws it; the checks are reconcile.js's). */
+function rrQcPanel(d) {
+  const qc = d.rrQc;
+  if (qc.legacy) {
+    const p = el('p', 'hint-sm qc-legacy', `This rent roll was read from the OM by a version before Data QC, so its rows weren’t checked against its pages. Read the OM again to check it page by page, row by row.`);
+    p.id = 'deal-qc';
+    p.style.padding = '0 16px 8px';
+    return p;
+  }
+  const n = qcCounts(qc);
+  const held = Array.isArray(qc.held) ? qc.held.length : 0;
+  return qcPanel({
+    id: 'deal-qc', title: 'Data QC', qc,
+    intro: qc.pages && qc.pages.length ? `The rent roll as read from ${pagesText(qc.pages)} of the OM: each check, and the page, row and cell it points to.` : 'What was found in the OM, page by page.',
+    blockedText: held ? `The rent roll (${held} row${held === 1 ? '' : 's'}) is held back: ${n.blocking} check${n.blocking === 1 ? '' : 's'} failed. Resolve each here or in Review, or accept the reading as it stands.` : '',
+    onResolve: (c) => resolveQc(d, [c]),
+    onAcceptAll: () => resolveQc(d, blockingChecks(qc)),
+    extra: (c) => qcExtras(d, c),
+  });
+}
+
+async function resolveQc(d, list) {
+  if (!list.length) return;
+  let res = null;
+  await updateDeal(d.id, (x) => {
+    if (!x.rrQc) return false;
+    for (const c of list) {
+      resolveCheck(x.rrQc, c.id, 'accepted');
+      const m = /^ocr:(\d+)$/.exec(c.id);
+      if (m && addOcrRows(x, Number(m[1]), localDate())) res = 'ocr';
+    }
+    res = applyHeldRows(x, localDate()) || res;
+    return true;
+  }, { kind: 'edit', label: list.length === 1 ? `Data QC: accepted “${list[0].text.slice(0, 70)}${list[0].text.length > 70 ? '…' : ''}”` : `Data QC: ${list.length} failed checks accepted as read` });
+  document.dispatchEvent(new CustomEvent('reviewchange'));
+  toast(res === 'applied' ? 'Accepted. Every failed check is resolved, so the OM’s rent roll is now the deal’s.' : res === 'ocr' ? 'Accepted. The rows read by OCR are added to the rent roll, marked OCR.' : res === 'kept' ? 'Accepted. The rent roll already has units, so the OM’s rows were kept aside, not put over them.' : 'Accepted.');
+}
+
+/** What a check line offers beyond resolving it: reading a scanned page, or the rows OCR read. */
+function qcExtras(d, c) {
+  const out = [];
+  if (c.kind === 'scanned' && !c.resolved) {
+    if (ocrBusy && ocrBusy.dealId === d.id) {
+      const st = el('span', 'hint-sm', ocrBusy.text);
+      st.id = 'deal-ocr-status';
+      st.setAttribute('role', 'status');
+      out.push(st);
+      return out;
+    }
+    const pages = c.pages || [c.page];
+    let sel = null;
+    if (pages.length > 1) {
+      sel = el('select', 'input input-sm');
+      sel.setAttribute('aria-label', 'Scanned page to read');
+      for (const p of pages) { const o = el('option', null, `Page ${p}`); o.value = String(p); sel.appendChild(o); }
+      out.push(sel);
+    }
+    const b = el('button', 'btn btn-sm btn-gray qc-ocr', omFiles.has(d.id) ? (pages.length > 1 ? 'Read this scanned page' : `Read this scanned page (${pages[0]})`) : 'Choose the OM’s PDF to read this page');
+    b.type = 'button';
+    if (!ocrSupported()) { b.disabled = true; b.title = 'This browser can’t run the scanned-page reader.'; }
+    b.addEventListener('click', () => ocrPage(d, sel ? Number(sel.value) : pages[0]));
+    out.push(b);
+  }
+  if (c.kind === 'ocr') {
+    const o = (d.rrQc.ocr || []).find((x) => x.page === c.page);
+    if (o && o.rows.length) {
+      const det = el('details', 'qc-ocr-rows');
+      det.appendChild(el('summary', null, `The ${o.rows.length} row${o.rows.length === 1 ? '' : 's'} read by OCR`));
+      const t = el('table', 'mini');
+      const hr = el('tr');
+      for (const hh of ['Suite', 'Tenant', 'SF', 'Annual rent', 'Ends']) hr.appendChild(el('th', null, hh));
+      t.appendChild(hr);
+      for (const r of o.rows) {
+        const tr = el('tr');
+        for (const v of [r.suite || '', r.vacant ? 'Vacant' : r.tenant || '', ok(r.sf) ? int(r.sf) : '', ok(r.annual) ? money0(r.annual) : '', r.mtm ? 'MTM' : r.end ? String(r.end).slice(0, 10) : '']) tr.appendChild(el('td', null, `${v}`));
+        t.appendChild(tr);
+      }
+      det.appendChild(t);
+      out.push(det);
+    }
+  }
+  return out;
+}
+
+/** A PDF chosen again (the file isn't kept between sessions). */
+function pickPdf() {
+  return new Promise((resolve) => {
+    const i = el('input');
+    i.type = 'file';
+    i.accept = 'application/pdf,.pdf';
+    i.hidden = true;
+    i.id = 'deal-ocr-file';
+    i.addEventListener('change', () => { resolve(i.files[0] || null); i.remove(); }, { once: true });
+    document.body.appendChild(i);
+    i.click();
+  });
+}
+
+/** Read one scanned page by OCR, on request (ocr.js), and keep what it found on the Data QC record. */
+async function ocrPage(d, page) {
+  if (ocrBusy) { toast('Still reading a page.'); return; }
+  let file = omFiles.get(d.id);
+  if (!file) { file = await pickPdf(); if (!file) return; omFiles.set(d.id, file); }
+  ocrBusy = { dealId: d.id, page, text: 'Starting…' };
+  if (deal === d) render();
+  try {
+    const pdfjs = await getPdfjs();
+    const res = await readScannedPage(pdfjs, new Uint8Array(await file.arrayBuffer()), page, {
+      onProgress: (t) => { if (ocrBusy) ocrBusy.text = t; const st = $('deal-ocr-status'); if (st) st.textContent = t; },
+    });
+    let n = 0;
+    await updateDeal(d.id, (x) => { if (!x.rrQc) return false; n = ocrReading(x.rrQc, page, res); return true; }, { kind: 'edit', label: `Data QC: page ${page} read by OCR` });
+    toast(n ? `Page ${page} read by OCR: ${n} row${n === 1 ? '' : 's'}, waiting in Data QC for you to check them.` : `Page ${page} read by OCR: no rent roll table found on it.`, null, 7000);
+  } catch (e) {
+    toast(`Page ${page} couldn’t be read: ${e && e.message ? e.message : e}`, null, 8000);
+  } finally {
+    ocrBusy = null;
+    if (deal === d) render();
+    document.dispatchEvent(new CustomEvent('reviewchange'));
+  }
 }
 
 /* --------------------------------------------------------------- questions */

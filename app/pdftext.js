@@ -32,9 +32,14 @@ export function repairApostrophes(pages) {
   return pages.map((p) => res.reduce((s, re) => s.replace(re, '$1’'), p));
 }
 
-/** Page text of a PDF. `onPage(done, total)` reports progress on a long document. */
+/**
+ * Page text of a PDF. `onPage(done, total)` reports progress on a long
+ * document. With `layouts` (an array), each page's geometry from layout.js is
+ * pushed onto it as well: baselines and x positions, for reading tables by
+ * position (omroll.js). The text is the same either way.
+ */
 export async function pdfPages(pdfjs, data, opts = {}) {
-  const { onPage, ...docOpts } = opts;
+  const { onPage, layouts, ...docOpts } = opts;
   const doc = await pdfjs.getDocument({
     data,
     isEvalSupported: false,
@@ -46,7 +51,9 @@ export async function pdfPages(pdfjs, data, opts = {}) {
     if (onPage) onPage(i, doc.numPages);
     const page = await doc.getPage(i);
     const tc = await page.getTextContent({ includeMarkedContent: false });
-    pages.push(layoutPage(tc.items, page.getViewport({ scale: 1 }).height));
+    const geom = Array.isArray(layouts) ? {} : null;
+    pages.push(layoutPage(tc.items, page.getViewport({ scale: 1 }).height, geom));
+    if (geom) layouts.push(geom);
     page.cleanup();
   }
   await doc.destroy();

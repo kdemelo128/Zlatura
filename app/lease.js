@@ -617,8 +617,10 @@ export function fromOmRows(rows, { asOf, page = null, buildingSf = null } = {}) 
     const L = {
       id: leaseId(), unit: r.suite || '', tenant: r.vacant ? '' : (r.tenant || ''), sf: pos(r.sf) ? r.sf : null,
       vacant: !!r.vacant, mtm: !!r.mtm, leaseStart: start, rentStart: null, leaseEnd: end, periods: [], abatements: [],
-      source: { kind: 'om', page }, custom: {},
+      // the page and line the row was printed on (omroll.js), and whether OCR read it
+      source: { kind: 'om', page: (r.src && r.src.page) || page, ...(r.src && r.src.line ? { line: r.src.line } : {}), ...(r.ocr ? { ocr: true } : {}) }, custom: {},
     };
+    if (r.holdover && !r.vacant) L.status = 'Holdover';
     if (!r.vacant && pos(r.annual)) {
       const pStart = start || asOf;
       const pEnd = end || (r.mtm ? addDays(addMonths(asOf, 1), -1) : null);

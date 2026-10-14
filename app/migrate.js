@@ -81,6 +81,27 @@ export const MIGRATIONS = [
       return { rounded: changes.filter((c) => !/^rentRoll\[/.test(c.path)) };
     },
   },
+  {
+    id: 'rr-qc',
+    field: 'schema',
+    to: 3,
+    since: '4.7.4',
+    does: 'A rent roll read from an OM gets a Data QC record: the pages it came from, marked as read before the rows were checked against them.',
+    brief: 'rent roll source recorded',
+    kind: 'create',
+    label: () => 'Rent roll source recorded (read before Data QC)',
+    // a deal whose rent roll came from an OM's table, read before 4.7.4 kept its checks
+    needed: (d) => !d.rrQc && Array.isArray(d.rentRoll) && d.rentRoll.length > 0 && /\.pdf$/i.test(String(d.source || '')) && (d.schema || 0) < 3,
+    up(d) {
+      const page = Number.isFinite(d.rentRollPage) ? d.rentRollPage : null;
+      d.rrQc = {
+        v: 1, legacy: true, at: null, file: d.source || '', pages: page ? [page] : [], page, scanned: [], confidence: null,
+        columns: [], totals: [], segments: [], checks: [], held: null, applied: true, ocr: [],
+      };
+      d.schema = 3;
+      return { rounded: [] };
+    },
+  },
 ];
 
 /** The newest value of each version field this code writes. */

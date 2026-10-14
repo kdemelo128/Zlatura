@@ -23,6 +23,8 @@
  * Input is page text from layout.js, where a visible gap is two or more
  * spaces, so a line splits into the cells a reader sees. */
 
+import { rentRoll } from './omroll.js';
+
 /* ------------------------------------------------------------ the cells */
 
 /** A line split at its visible gaps: [{ text, start, end }] by character column. */
@@ -87,12 +89,18 @@ export function parseInt0(s) {
 const MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11 };
 const fullYear = (y) => (y < 100 ? (y < 70 ? 2000 + y : 1900 + y) : y);
 
-/** A lease date as OMs print one: 12/31/2029, 12/31/29, 12/2029, 12/29, Dec-29, Dec 2029, 2029, MTM. */
+/** A lease date as OMs print one: 12/31/2029, 12/31/29, 2029-12-31, Dec 31, 2029, 12/2029, 12/29, Dec-29, Dec 2029, 2029, MTM, Holdover. */
 export function parseDate(s) {
   const t = String(s).trim();
-  if (/^(mtm|month[- ]to[- ]month)$/i.test(t)) return { mtm: true, date: null };
-  let m = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(t);
-  if (m) return { date: new Date(Date.UTC(fullYear(+m[3]), +m[1] - 1, +m[2])) };
+  if (/^(mtm|m-t-m|m\/m|month[- ]to[- ]month)$/i.test(t)) return { mtm: true, date: null };
+  if (/^(holdover|hold[- ]over|h\/o)$/i.test(t)) return { mtm: true, holdover: true, date: null };
+  let m = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/.exec(t);
+  if (m && +m[1] >= 1 && +m[1] <= 12 && +m[2] >= 1 && +m[2] <= 31) return { date: new Date(Date.UTC(fullYear(+m[3]), +m[1] - 1, +m[2])) };
+  m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+  if (m) return { date: new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])) };
+  m = /^([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})$/.exec(t);
+  const mon0 = m ? (MONTHS[m[1].slice(0, 4).toLowerCase()] ?? MONTHS[m[1].slice(0, 3).toLowerCase()]) : undefined;
+  if (mon0 !== undefined) return { date: new Date(Date.UTC(+m[3], mon0, +m[2])) };
   m = /^(\d{1,2})[/-](\d{2}|\d{4})$/.exec(t);
   if (m && +m[1] >= 1 && +m[1] <= 12) {
     const y = fullYear(+m[2]);
@@ -213,6 +221,13 @@ export const FIELDS = {
     skip: /\b(per\s+(?:sf|unit)|\/\s*(?:sf|unit)|psf|growth|%)\b/i,
     divert: [PROFORMA, null],
   },
+  rent_inplace: {
+    // the rent being paid now, as the OM states it: checked against the rent roll (reconcile.js)
+    label: 'In-place rent (stated)', kind: 'money', min: 1000, max: 1e9, noStack: true,
+    labels: [[/^(?:total\s+)?(?:annual\s+)?(?:in[- ]place|base|current|contract|scheduled\s+base|minimum)\s+rent(?:al\s+(?:income|revenue))?\b/i, 3]],
+    skip: /\b(per\s+(?:sf|unit)|\/\s*(?:sf|unit|mo)|psf|growth|%|monthly|market)\b/i,
+    divert: [PROFORMA, null],
+  },
   opex: {
     label: 'Operating expenses', kind: 'money', min: 100, max: 1e9,
     labels: [[/\btotal (?:operating )?expenses\b|\btotal opex\b|^operating expenses\b|^expenses\b/i, 3]],
@@ -271,7 +286,7 @@ export const FIELDS = {
 /* Field order matters where labels overlap: the specific forms (price per SF,
  * pro forma NOI) are tried before the general ones on the same cell. */
 const ORDER = ['price_psf', 'price_unit', 'noi_pf', 'cap_pf', 'price', 'noi', 'cap', 'bsf', 'lot', 'units',
-  'year', 'renovated', 'occ', 'gpr', 'gross', 'opex', 'taxes', 'stories', 'parking', 'zoning', 'tenant', 'guarantor',
+  'year', 'renovated', 'occ', 'gpr', 'gross', 'rent_inplace', 'opex', 'taxes', 'stories', 'parking', 'zoning', 'tenant', 'guarantor',
   'lease_type', 'lease_exp', 'term_left', 'increases', 'options'];
 
 const SUMMARY = /(executive|investment|offering|property|financial|deal|pricing)\s+(summary|highlights|overview)|the offering|offering terms|pricing\s*(?:&|and)\s*financ|financial analysis|key facts|at a glance/i;
@@ -415,7 +430,7 @@ function candidates(pages) {
             if (v === null) continue;
           }
           // 3. a figure stacked above or below its caption, in the same column
-          if (v === null && TF.kind !== 'text' && !prose) {
+          if (v === null && TF.kind !== 'text' && !prose && !TF.noStack) {
             for (const d of [1, -1, 2, -2]) {
               const row = grid[li + d];
               if (!row) continue;
@@ -427,7 +442,7 @@ function candidates(pages) {
           }
           if (v === null) continue;
           if (TF.kind === 'text' && SUMMARY.test(v)) continue;
-          const score = weight + pageBonus + (['noi', 'noi_pf', 'gross', 'opex', 'taxes'].includes(target) ? finBonus : 0)
+          const score = weight + pageBonus + (['noi', 'noi_pf', 'gross', 'rent_inplace', 'opex', 'taxes'].includes(target) ? finBonus : 0)
             - (prose ? 1 : 0);
           out.push({ key: target, value: v, page: pi + 1, line: lines[li].trim().replace(/\s{2,}/g, '   '), score });
         }
@@ -530,133 +545,18 @@ function typeOf(pages) {
 
 /* --------------------------------------------------------------- rent roll */
 
-const HEAD = {
-  tenant: /\b(tenant|lessee|occupant|tenant name)\b/i,
-  suite: /\b(suite|ste|unit|space|floor)\b/i,
-  sf: /\b(sf|rsf|nra|gla|sq\.?\s?ft|square\s+f(?:ee|oo)t|size|area)\b/i,
-  start: /\b(start|commence|commencement|begin|from|lease\s+start)\b/i,
-  end: /\b(exp|expiration|expires|end|to|lxd|led|term(?:ination)?)\b/i,
-  psf: /(\bpsf\b|\/\s?sf|per\s+sf|rent\s*\/\s*sf|\$\s*\/\s*sf|rate)/i,
-  monthly: /\b(monthly|month|\/mo|per month)\b/i,
-  annual: /\b(annual|yearly|\/yr|per year|base rent|total rent|rent)\b/i,
-};
-
-export function headerColumns(cells) {
-  const cols = [];
-  const used = new Set();
-  for (const c of cells) {
-    let key = null;
-    // order decides ties: "Rent/SF" is psf, "Monthly Rent" monthly, "Lease Exp." end
-    for (const k of ['tenant', 'psf', 'monthly', 'end', 'start', 'sf', 'suite', 'annual']) {
-      if (!used.has(k) && HEAD[k].test(c.text)) { key = k; break; }
-    }
-    if (key) { used.add(key); cols.push({ key, start: c.start, end: c.end, mid: (c.start + c.end) / 2 }); }
-  }
-  return used.has('tenant') && cols.length >= 3 && (used.has('sf') || used.has('annual') || used.has('psf')) ? cols : null;
-}
-
-/** Combine a two-line header ("Lease" over "Expiration") into one row of cells. */
-export function mergeHeader(a, b) {
-  if (!b || !b.length || b.some((c) => /\d/.test(c.text))) return a;
-  const out = a.map((c) => ({ ...c }));
-  for (const c of b) {
-    const over = out.find((x) => x.start <= c.end + 1 && c.start <= x.end + 1);
-    if (over) {
-      over.text = `${over.text} ${c.text}`;
-      over.start = Math.min(over.start, c.start);
-      over.end = Math.max(over.end, c.end);
-    } else out.push({ ...c });
-  }
-  return out.sort((x, y) => x.start - y.start);
-}
-
-const TOTAL = /^\s*(total|totals|subtotal|grand total|occupied|vacant total|average|summary)\b/i;
-
-function readRentRow(cells, cols) {
-  const row = { tenant: null, suite: null, sf: null, start: null, end: null, endText: null, mtm: false, annual: null, monthly: null, psf: null };
-  // each cell goes to the header column whose centre is nearest
-  const slots = new Map();
-  for (const c of cells) {
-    const mid = (c.start + c.end) / 2;
-    let best = null;
-    for (const col of cols) {
-      const d = Math.abs(col.mid - mid) - (c.start <= col.end && col.start <= c.end ? 4 : 0);
-      if (!best || d < best.d) best = { col, d };
-    }
-    const prev = slots.get(best.col.key);
-    if (!prev || best.d < prev.d) slots.set(best.col.key, { text: c.text, d: best.d });
-  }
-  for (const [key, { text }] of slots) {
-    if (key === 'tenant' || key === 'suite') row[key] = text;
-    else if (key === 'start' || key === 'end') {
-      const d = parseDate(text);
-      if (d) {
-        if (key === 'end') { row.end = d.date; row.mtm = !!d.mtm; row.endText = text; }
-        else row.start = d.date;
-      }
-    } else if (key === 'sf') {
-      const n = parseInt0(text.replace(/\s*(sf|rsf)$/i, ''));
-      if (n !== null && n > 0 && n < 5e6) row.sf = n;
-    } else {
-      const n = /\$?\s?(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)/.exec(text);
-      if (n) row[key] = toNum(n[1]);
-    }
-  }
-  if (!row.tenant) {
-    const first = cells[0];
-    if (first && !/^\$?\d/.test(first.text)) row.tenant = first.text;
-  }
-  return row;
-}
-
-export function rentRoll(pages) {
-  const rows = [];
-  let page = null;
-  pages.forEach((p, pi) => {
-    const grid = p.split('\n').map(splitCells);
-    for (let i = 0; i < grid.length; i++) {
-      if (grid[i].length < 3) continue;
-      // a header can run over two lines ("Lease" over "Expiration"): take whichever reading finds more columns
-      const one = headerColumns(grid[i]);
-      const two = headerColumns(mergeHeader(grid[i], grid[i + 1]));
-      const head = two && (!one || two.length > one.length) ? two : one;
-      if (!head) continue;
-      const skipNext = head === two && grid[i + 1] && grid[i + 1].length > 0;
-      let blank = 0;
-      for (let j = i + (skipNext ? 2 : 1); j < grid.length; j++) {
-        const cells = grid[j];
-        if (!cells.length) { if (++blank > 2) break; continue; }
-        blank = 0;
-        if (TOTAL.test(cells[0].text)) break;
-        if (headerColumns(cells)) break;
-        const hasNum = cells.some((c) => /\d/.test(c.text));
-        if (!hasNum) { if (/vacant/i.test(cells[0].text)) rows.push({ tenant: cells[0].text, vacant: true, sf: null }); continue; }
-        const r = readRentRow(cells, head);
-        if (!r.tenant && !r.suite) continue;
-        r.vacant = /\bvacant\b|\bavailable\b/i.test(`${r.tenant} ${r.suite}`);
-        if (r.annual === null && r.monthly !== null) r.annual = r.monthly * 12;
-        if (r.annual === null && r.psf !== null && r.sf) r.annual = r.psf * r.sf;
-        if (r.psf === null && r.annual && r.sf) r.psf = r.annual / r.sf;
-        // a monthly figure printed in the annual column would put rent at a twelfth;
-        // a psf below $1 a year is the tell
-        if (r.annual && r.sf && r.annual / r.sf < 1.2 && r.monthly === null) {
-          r.monthly = r.annual; r.annual *= 12; r.psf = r.annual / r.sf;
-        }
-        if (!r.sf && !r.annual) continue;
-        // a stray line that lines up with the columns: too small to be a lease, or a label
-        if ((r.sf !== null && r.sf < 100 && !r.annual) || /^(subject property|total|average|median)\b/i.test(r.tenant || '')) continue;
-        rows.push(r);
-      }
-      if (rows.length) { page = pi + 1; return; }
-    }
-  });
-  return rows.length ? { rows, page } : null;
-}
+// read by position in omroll.js; kept reachable here under the names it always had
+export { rentRoll, headerColumns, mergeHeader } from './omroll.js';
 
 /* ------------------------------------------------------------------ main */
 
-/** Read an OM: `pages` is page text from layout.js. */
-export function readOm(pages) {
+/**
+ * Read an OM: `pages` is page text from layout.js; `layouts`, optionally, each
+ * page's geometry from layout.js (baselines and x positions), which lets the
+ * rent roll be read by position. `scanned` lists the pages with no text
+ * layer: a photo, or a scan whose figures can't be read without OCR.
+ */
+export function readOm(pages, { layouts = null } = {}) {
   const text = pages.join('\n');
   const fields = /** @type {Record<string, any>} */ ({ ...choose(candidates(pages)), ...addressOf(pages), ...typeOf(pages) });
   // land and building printed in acres, say, both come back in SF; keep acres for display
@@ -664,9 +564,10 @@ export function readOm(pages) {
   const unpriced = !fields.price && /\b(unpriced|call for (?:offers|pricing)|price upon request|best and final|bid process|call broker|market bid|subject to offer)\b/i.test(text);
   return {
     fields,
-    rentRoll: rentRoll(pages),
+    rentRoll: rentRoll(pages, { layouts }),
     unpriced,
     pages: pages.length,
     chars: text.replace(/\s+/g, '').length,
+    scanned: pages.map((p, i) => (String(p || '').replace(/\s+/g, '').length < 10 ? i + 1 : 0)).filter(Boolean),
   };
 }
