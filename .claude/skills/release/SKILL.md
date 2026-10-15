@@ -5,6 +5,10 @@ description: Zlatura's release steps for every PR: version bump, CHANGELOG, docs
 
 # Release steps (every PR)
 
+Do these in the PR's **last commit**, after `npm run sync-main` has merged
+the latest main in: `CHANGELOG.md`, `docs/NOW.md`, `docs/PLAN_STATUS.md` and
+the version files are edited nowhere else, so they can't clash.
+
 1. Bump the version with `npm run bump -- <x.y.z>`. It updates `package.json`,
    `package-lock.json` (lines 3 and 9), `sw.js` and `app/exporters.js`, and
    fails if any of them doesn't change.

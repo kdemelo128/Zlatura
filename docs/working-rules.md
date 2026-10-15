@@ -72,3 +72,28 @@ structure.
   attribution settings.
 - The PR report format, the hand-test checklist, the release steps and the
   quality-gate routine are skills in `.claude/skills/` (loaded on demand).
+
+## Branches and PRs (owner, 2026-10-15)
+
+These stop merge conflicts from recurring.
+
+- **Every branch starts from the latest main** (`git fetch origin main`,
+  then branch from `origin/main`), never from another unmerged branch.
+- **Before opening a PR, and again before telling the owner it is ready:**
+  1. merge the latest main into the branch (`npm run sync-main`);
+  2. resolve any conflict yourself;
+  3. re-run `npm run check:quick`, and `npm run check:full` if anything
+     beyond docs changed;
+  4. confirm on GitHub that the PR shows no conflicts.
+- **One PR open for the owner's merge at a time**, unless two are truly
+  independent and touch different files. The next PR's branch never starts
+  from an unmerged one.
+- **`CHANGELOG.md`, `docs/NOW.md`, `docs/PLAN_STATUS.md` and the version
+  files** (`package.json`, `package-lock.json`, `sw.js`,
+  `app/exporters.js`) are edited only in the last commit of a PR, after
+  main has been merged in, so they can't clash with anything.
+- **A PR is called ready to merge only when GitHub says it is mergeable,
+  with CI passing.** Checks passing locally are not enough.
+- **`check:full`'s last step** (`tests/tools/sync-main.mjs --check`) fails if
+  the branch is behind main or any tracked file has a conflict marker at
+  the start of a line.

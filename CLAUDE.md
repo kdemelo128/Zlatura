@@ -12,6 +12,18 @@ The longer wording of every rule below is in `docs/working-rules.md`.
 
 - **One PR per item, one branch per PR.** For anything big, write a
   proposal in `docs/proposals/` first and stop for the owner's approval.
+- **Branches and merges:**
+  - every branch starts from the latest main;
+  - before opening a PR, and again before saying it's ready: run
+    `npm run sync-main`, resolve conflicts yourself, re-run `check:quick`
+    (and `check:full` if more than docs changed), and confirm on GitHub
+    that there are no conflicts;
+  - one PR open for the owner's merge at a time, unless two are
+    independent and touch different files; never branch from an unmerged
+    branch;
+  - edit `CHANGELOG.md`, `docs/NOW.md`, `docs/PLAN_STATUS.md` and the
+    version files only in a PR's last commit, after merging main;
+  - never call a PR ready unless GitHub shows it mergeable with CI passing.
 - **Approval gates (the only places to stop and wait):** bug-fix PRs and
   Part 2 proposals once open; before any change to saved-deal results, the
   data format or hosting, or anything hard to undo; before anything that
@@ -87,6 +99,8 @@ Run the `release` skill: bump the version, update `CHANGELOG.md`,
 ## Commands
 
 - Type check: `npx tsc -p types/tsconfig.json`; Node tests: `npm test`.
+- Bring a branch up to date with main: `npm run sync-main` (lists any
+  conflicted files).
 - Browser suite: `bash tests/e2e/run.sh [flow …]` (Chromium);
   `PW_BROWSER=webkit bash tests/e2e/run.sh` where WebKit is installed.
 - Golden by hand, old-code runs and a stray server on 8080: the

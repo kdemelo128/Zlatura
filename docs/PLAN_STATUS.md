@@ -21,17 +21,17 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.10; a partial-year T-12 is never used as a year's figures (2026-10-15).
+Last updated: 4.7.11; a small browser check on every push, and branches kept current with main (2026-10-15).
 
 ## Now
 
-- **Current step:** item 2, the partial-year T-12 fix (4.7.10, PR #28): a
-  T-3, T-6 or T-9 is kept partial by default, annualized only when the owner
-  confirms each annual figure; a deal saved earlier holding one as a year's
-  is warned about. Project settings (4.7.9) are merged (#27), and so are the
-  efficiency setup (4.7.8, #26), the lost-edit fix (#25) and item 1 (#23,
-  #24). Next: item 3, the CI browser subset. Gate 2 passed: both Part 2
-  proposals approved by the owner 2026-10-15 (all recommendations: 22 in `t12-multiformat.md`, 18 in `ui-revamp.md`
+- **Current step:** item 3, the CI browser subset (4.7.11, PR open), with
+  the owner's branch rules and `npm run sync-main`. The partial-year T-12
+  fix (4.7.10) is merged (#28), and so are project settings (4.7.9, #27),
+  the efficiency setup (4.7.8, #26), the lost-edit fix (#25) and item 1
+  (#23, #24). Next: changelog fragments if approved, then item 4, the T-12
+  multi-format import. Gate 2 passed: both Part 2 proposals approved by
+  the owner 2026-10-15 (all recommendations: 22 in `t12-multiformat.md`, 18 in `ui-revamp.md`
   section 11). Bugs C, A and B are merged (4.7.3–4.7.5).
 - **Lost edit (since 4.7.3), fixed in 4.7.7:** `app/focuskeep.js` held the
   whole change handler, the save included, until Tab's focus landed, so
@@ -42,12 +42,12 @@ Last updated: 4.7.10; a partial-year T-12 is never used as a year's figures (202
   stopping for the owner's merge after each:**
   1. [x] Browser flows exit with an error when a check fails, proved by a
      flow made to fail on purpose (4.7.6).
-  2. [x] Partial-year T-12 fix (4.7.10, PR #28): "Use the T-12's figures"
+  2. [x] Partial-year T-12 fix (4.7.10, #28): "Use the T-12's figures"
      never saves a T-3, T-6 or T-9 as the annual NOI; partial shown as
      partial; annualizing only with the owner's explicit confirmation.
-  3. The CI browser subset (typing, lost edit, deal persistence, deal
-     export), its own small PR, timed, with the cost if the repo goes
-     private (owner, 2026-10-15).
+  3. [x] The CI browser subset (typing, lost edit, deal persistence, deal
+     export), timed, with the cost if the repo goes private (4.7.11, PR
+     open).
   4. T-12 multi-format import (`docs/proposals/t12-multiformat.md`).
   5. OM red-flag check, then the pro forma vs T-12 bridge as an interactive
      waterfall.
@@ -105,6 +105,12 @@ These came after the master plan and are worked first.
   `npm run check:quick`, `check:full` and `bump`; merged (#26)
 - [x] Project settings (4.7.9): main session on Sonnet at medium effort; 32
   unused plugins off for this project; merged (#27)
+- [x] CI browser subset (4.7.11): typing-flow, lostedit-flow,
+  deal-persistence and deal-export on every push, Chromium at iPhone size,
+  without the LibreOffice recalc; PR open
+- [x] Branch rules and `npm run sync-main` (4.7.11); `check:full` ends by
+  failing if the branch is behind main or has conflict markers; PR open
+- [ ] Changelog fragments: proposed (`docs/proposals/changelog-fragments.md`)
 - [~] WebKit (iPhone Safari's engine) runs: `PW_BROWSER=webkit` added (4.7.1).
   **Blocked here:** WebKit isn't installed in this environment, so runs here
   are Chromium at iPhone size.

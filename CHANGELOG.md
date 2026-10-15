@@ -1,5 +1,59 @@
 # Changelog
 
+## 4.7.11: a small browser check on every push, and branches kept current with main (on the development branch; not merged or deployed)
+
+CI, tooling and docs only; the app is unchanged.
+
+**The CI browser subset.** Before, GitHub Actions ran only the Node tests,
+and the browser flows ran only in a Claude session.
+
+- **A second CI job, `browser`**, runs four flows on Chromium at iPhone size
+  on every push (owner, 2026-10-15): `typing-flow`, `lostedit-flow`,
+  `deal-persistence` and `deal-export`.
+  - Playwright's Chromium is cached between runs.
+  - The Python packages the fixture scripts need are pinned in
+    `tests/e2e/requirements.txt`.
+- **`E2E_SKIP_RECALC=1`** leaves out `run.sh`'s LibreOffice recalculation,
+  which CI doesn't have. `check:full` always runs it.
+- **Timed:**
+  - an empty cache: 1 min 46 s (the flows 65 s);
+  - a filled cache: 1 min 44 s (the flows 72 s);
+  - both round to 2 billed minutes a run.
+
+**Merge conflicts don't recur.** Two PRs open at once both edited the top of
+`CHANGELOG.md`, `docs/NOW.md`, `docs/PLAN_STATUS.md` and the version files,
+so the second always conflicted (#28 with #27).
+
+- **New standing rules** (owner, 2026-10-15), in `CLAUDE.md`,
+  `docs/working-rules.md` and the `pr-report` and `release` skills:
+  - every branch starts from the latest main;
+  - before opening a PR, and again before calling it ready, main is merged
+    in and conflicts resolved, the checks re-run, and GitHub confirmed to
+    show no conflicts;
+  - one PR open for the owner's merge at a time;
+  - the changelog, status docs and version files change only in a PR's
+    last commit;
+  - a PR is called ready only when GitHub shows it mergeable with CI
+    passing.
+- **`npm run sync-main`** fetches main, merges it into the current branch,
+  and lists any conflicted files.
+- **`check:full`'s new last step** (`sync-main.mjs --check`) fails if the
+  branch is behind main, or a tracked file has a conflict marker at the
+  start of a line.
+- **Proposed, not built:** changelog fragments, one file per PR
+  (`docs/proposals/changelog-fragments.md`).
+
+**Tested by `tests/check-tools.test.js`.**
+- The CI job runs exactly the four flows, each one `run.sh` knows, and only
+  CI skips the recalc.
+- `sync-main` in throwaway repositories: current, behind, merged,
+  conflicted, markers left, and a Markdown rule that isn't a marker.
+- `check:full` ends with the check.
+- The new tests fail on 4.7.10. Five mutations of `sync-main` are each
+  caught.
+
+Saved results and figures are unchanged (golden outputs identical).
+
 ## 4.7.10: a partial-year T-12 is never used as a year's figures (on the development branch; not merged or deployed)
 
 Before, "Use the T-12's figures" on a T-3, T-6 or T-9 put its totals onto
