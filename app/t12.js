@@ -293,6 +293,21 @@ export function statementTotals(t) {
 }
 
 /**
+ * A partial statement's totals scaled to a year, × 12 ÷ its months, to whole
+ * cents (convention t12.months): EGI, operating expenses and taxes each
+ * scaled, NOI their difference so it still adds up. Only on the broker's
+ * explicit confirmation ("Use the T-12's figures"). `T` is statementTotals'
+ * result; a full year, or no months, gives null: nothing to scale.
+ */
+export function annualized(T) {
+  const n = T.months;
+  if (!(n > 0 && n < 12)) return null;
+  const up = (v) => cents((v * 12) / n);
+  const egi = up(T.egi); const opex = up(T.opex);
+  return { egi, opex, taxes: up(T.taxes), noi: cents(egi - opex), months: n };
+}
+
+/**
  * What the statement's own numbers say that doesn't add up, and what is
  * missing: [{ id, kind, text, amount }]. `id` is stable, so "seen" can be kept.
  * `tol(stated, lines)` is how far a stated figure may sit from what its
