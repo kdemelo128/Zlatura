@@ -14,7 +14,7 @@ import fs from 'fs';
 import { phone, BASE, SHOTS, finish } from './lib.mjs';
 const F = new URL('./files/', import.meta.url).pathname;
 const R = []; const check = (n, c, d = '') => R.push([c ? 'PASS' : 'FAIL', n, d]);
-const finish = async (browser, errors) => {
+const done = async (browser, errors) => {
   for (const r of R) console.log(r.join(' | '));
   finish(R, 'errors', errors);
   await browser.close();
@@ -39,7 +39,7 @@ await page.setInputFiles('#om-file', F + 'om-retail.pdf');
 await page.waitForSelector('#deal-tiles .tile');
 const hasCard = await page.waitForSelector('#deal-t12 #t12-import', { timeout: 5000 }).then(() => true, () => false);
 check('the deal’s overview has a T-12 card with an import button', hasCard);
-if (!hasCard) await finish(browser, errors);
+if (!hasCard) await done(browser, errors);
 check('no Review tab while nothing is waiting', await page.evaluate((s) => document.querySelector(s).hidden, tab));
 await importT12('invented-square.xlsx');
 const card = await text('#deal-t12');
@@ -173,4 +173,4 @@ check('phone: the tab bar keeps every tab on one row', await P.page.evaluate(() 
 await P.page.screenshot({ path: `${SHOTS}t12-phone-review.png` });
 errors.push(...P.errors);
 fs.writeFileSync(`${SHOTS}t12-flow.json`, JSON.stringify(R, null, 1));
-await finish(P.browser, errors);
+await done(P.browser, errors);

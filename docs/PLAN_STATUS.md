@@ -21,17 +21,25 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.5; both Part 2 proposals approved (2026-10-15).
+Last updated: 4.7.6; browser flows now fail the run when a check fails (2026-10-15).
 
 ## Now
 
-- **Current step:** gate 2 passed. Both Part 2 proposals approved by the
-  owner 2026-10-15 (all recommendations: 22 in `t12-multiformat.md`, 18 in
-  `ui-revamp.md` section 11). Bugs C, A and B are merged (4.7.3–4.7.5).
+- **Current step:** build item 1 done (4.7.6, PR open; its first part
+  merged as #23). Next: the lost-edit bug it uncovered (below), then item 2.
+  Gate 2 passed: both Part 2 proposals approved by the owner 2026-10-15
+  (all recommendations: 22 in `t12-multiformat.md`, 18 in `ui-revamp.md`
+  section 11). Bugs C, A and B are merged (4.7.3–4.7.5).
+- **Bug found by item 1 (data loss, since 4.7.3):** a figure typed on the
+  deal and committed with Tab is saved one tick late (`app/focuskeep.js`
+  waits for focus to land before running the whole change handler). Leaving
+  the deal or reloading in that tick drops the edit, or writes it to no deal
+  (`null.figures`). `deal-persistence` fails about 3 runs in 4. Fix as its
+  own PR before item 2 (bugs first, owner's answer 9).
 - **Build order (owner, 2026-10-15), one PR and one agent at a time,
   stopping for the owner's merge after each:**
-  1. Browser flows exit with an error when a check fails, proved by a flow
-     made to fail on purpose.
+  1. [x] Browser flows exit with an error when a check fails, proved by a
+     flow made to fail on purpose (4.7.6).
   2. Partial-year T-12 fix: "Use the T-12's figures" never saves a T-3, T-6
      or T-9 as the annual NOI; partial shown as partial; annualizing only
      with the owner's explicit confirmation, never silently.
