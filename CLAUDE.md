@@ -34,6 +34,16 @@ The longer wording of every rule below is in `docs/working-rules.md`.
   change production settings or deploy without the owner's explicit
   authorization. If the latest work isn't on the branch you expect, stop and
   report.
+- **Reuse before you build** (`docs/working-rules.md`):
+  - before any proposal, or a build bigger than a small PR: check
+    `THIRD_PARTY.md` and the app's own modules, then do a capped prior-art
+    search, and put a "Prior art" table (license, size, maintenance,
+    offline, network, security, verdict) in it;
+  - permissive licenses only (MIT, BSD, Apache-2.0, ISC; MPL-2.0 with
+    approval), never GPL, AGPL or unlicensed;
+  - any new library or copied code is an approval gate: pin it, vendor it
+    with its license text and checksum, and list it in `THIRD_PARTY.md`;
+  - never outside code for the engine or money logic.
 - **No feature is removed.** Everything stays reachable; whatever is touched
   gets better.
 - **Golden outputs stay identical** unless the owner approves the change,

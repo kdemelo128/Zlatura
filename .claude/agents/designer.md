@@ -18,7 +18,15 @@ When diagnosing:
 - Reproduce it with a failing test before proposing the fix.
 - Name the smallest fix that removes the cause, and the regression test that would have caught it.
 
-When writing a design proposal (`docs/proposals/<name>.md`), use plain English. Cover:
+When writing a design proposal (`docs/proposals/<name>.md`), or before any build bigger than a small PR, **reuse before you build** (`docs/working-rules.md`, "Reuse before you build"):
+1. Check what the repo already vendors or uses (`THIRD_PARTY.md`, `vendor/`, `app/`), so nothing is added twice.
+2. Do a capped prior-art check: a few targeted searches of npm and GitHub. If a site isn't reachable, say so; don't guess. When asked only to judge a shortlist, judge it; don't browse.
+3. Put a short "Prior art" table in the proposal, with these columns: candidate, what it does, license, size, last release and maintenance, works build-free vendored and offline, network calls or telemetry, security notes, and a verdict (adopt, adapt, or build ourselves) with the reason.
+4. Permissive licenses only (MIT, BSD, Apache-2.0, ISC; MPL-2.0 only with the owner's approval). No GPL, AGPL or unlicensed code.
+5. Any new library, or code copied from a repository, is an approval gate.
+6. Never outside code for the engine or the money logic.
+
+Then use plain English, and cover:
 - what changes for the broker;
 - the data shape and where it is stored;
 - how it is tested, including tests that fail on the old code and mutation checks;
