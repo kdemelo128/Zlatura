@@ -1,7 +1,7 @@
 /* Backup and restore: everything on the device into one file, a wiped
  * browser brought back from it, a merge that keeps newer work, and a replace. */
 import fs from 'fs';
-import { phone, BASE, SHOTS } from './lib.mjs';
+import { phone, BASE, SHOTS, finish } from './lib.mjs';
 const F = new URL('./files/', import.meta.url).pathname;
 const { browser, page, errors } = await phone();
 const R = []; const check = (n, c, d = '') => R.push([c ? 'PASS' : 'FAIL', n, d]);
@@ -100,5 +100,5 @@ const rep = await dealCount();
 check('after replace: only the backup’s deal, in the backup’s stage', rep.length === 1 && rep[0].stage === 'offer', JSON.stringify(rep));
 check('the token on this device survived the replace', (await kvGet('ai.settings')).token === 'NEW-DEVICE-TOKEN');
 for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', errors);
+finish(R, 'errors', errors);
 await browser.close();

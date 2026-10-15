@@ -1,4 +1,4 @@
-import { phone, BASE, SHOTS } from './lib.mjs';
+import { phone, BASE, SHOTS, finish } from './lib.mjs';
 import fs from 'fs';
 const F = new URL('./files/', import.meta.url).pathname;
 const { browser, page, errors } = await phone();
@@ -88,5 +88,5 @@ await ch3.setFiles(F + 'uw.template.json');
 await page.waitForTimeout(800);
 check('imported template keeps its mapping', /\d+ cells · 1 table/.test(await page.textContent('#sheet-body .li')), await page.textContent('#sheet-body .li'));
 for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', errors);
+finish(R, 'errors', errors);
 await browser.close();

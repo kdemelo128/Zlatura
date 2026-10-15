@@ -9,7 +9,7 @@
  *      under 50 MB): automatic snapshots go first, named ones stay, and
  *      Settings warns from 80%. */
 import fs from 'fs';
-import { phone, BASE } from './lib.mjs';
+import { phone, BASE, finish } from './lib.mjs';
 
 const F = new URL('./files/', import.meta.url).pathname;
 const R = []; const check = (n, c, d = '') => R.push([c ? 'PASS' : 'FAIL', n, d]);
@@ -171,4 +171,4 @@ check(`Settings warns at 80% (now ${Math.round(over.share * 100)}%)`, over.share
 await D.browser.close();
 
 for (const [s, n, x] of R) console.log(s, '|', n, x ? `| ${x}` : '');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', [A, B, C, D].flatMap((x) => x.errors));
+finish(R, 'errors', [A, B, C, D].flatMap((x) => x.errors));

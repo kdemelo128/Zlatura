@@ -1,6 +1,6 @@
 /* Home: the pipeline, tasks, contacts, activity and deliverables, and a
  * deal's Pipeline card, kept consistent with each other and across a reload. */
-import { phone, BASE, SHOTS } from './lib.mjs';
+import { phone, BASE, SHOTS, finish } from './lib.mjs';
 import { execFileSync } from 'child_process';
 const F = new URL('./files/', import.meta.url).pathname;
 const { browser, page, errors } = await phone();
@@ -144,5 +144,5 @@ check('no overflow at 320 px', await page.evaluate(() => document.documentElemen
 const txt = await page.locator('#app').innerText();
 check('no NaN/undefined/Infinity', !/\b(NaN|undefined|Infinity)\b/.test(txt));
 for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', errors);
+finish(R, 'errors', errors);
 await browser.close();

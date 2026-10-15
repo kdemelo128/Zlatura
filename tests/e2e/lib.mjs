@@ -31,3 +31,6 @@ export async function phone(opts = {}) {
   page.on('requestfailed', (r) => errors.push(`[reqfail] ${r.url()} ${r.failure()?.errorText}`));
   return { browser, ctx, page, errors };
 }
+
+// the end of every flow lives in its own module so `npm test` can check it without a browser
+export { finish } from './finish.mjs';

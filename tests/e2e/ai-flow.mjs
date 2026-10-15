@@ -4,7 +4,7 @@
  * including an invented passage and a conflict -- so this checks the app's
  * own checks and review, not the model. No live model is called. */
 import http from 'node:http';
-import { phone, BASE, SHOTS } from './lib.mjs';
+import { phone, BASE, SHOTS, finish } from './lib.mjs';
 import { handler, config } from '../../server/index.mjs';
 const { default: Anthropic } = await import('../../server/node_modules/@anthropic-ai/sdk/index.mjs');
 
@@ -167,7 +167,7 @@ check('call action items became the deal’s next steps', /Send the T-12 \(Selle
 const txt = await page.locator('#app').innerText();
 check('no NaN/undefined/Infinity', !/\b(NaN|undefined|Infinity)\b/.test(txt));
 for (const [st, n, d] of R) console.log(st, '|', n, d ? `| ${d}` : '');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', errors);
+finish(R, 'errors', errors);
 await browser.close();
 server.close();
 upstream.close();

@@ -2,7 +2,7 @@
  * persists across a reload (before first paint), the command menu finds real
  * deals, contacts and tools from the keyboard and runs real actions, and the
  * Settings screen's controls work. */
-import { phone, BASE, SHOTS } from './lib.mjs';
+import { phone, BASE, SHOTS, finish } from './lib.mjs';
 const F = new URL('./files/', import.meta.url).pathname;
 const R = []; const check = (n, c, d = '') => R.push([c ? 'PASS' : 'FAIL', n, d]);
 
@@ -177,4 +177,4 @@ check('phone: no horizontal overflow on Home', await P.page.evaluate(() => docum
 await P.browser.close();
 
 for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', [...errors, ...P.errors]);
+finish(R, 'errors', [...errors, ...P.errors]);

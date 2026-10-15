@@ -6,7 +6,7 @@
  *     its place; a photo deleted comes back with its bytes (from the trash);
  *   - the History sheet lists every change, and Undo to here goes back several
  *     steps as one, itself recorded. */
-import { phone, BASE } from './lib.mjs';
+import { phone, BASE, finish } from './lib.mjs';
 
 const F = new URL('./files/', import.meta.url).pathname;
 const R = []; const check = (n, c, d = '') => R.push([c ? 'PASS' : 'FAIL', n, d]);
@@ -124,4 +124,4 @@ check('Redo is offered for the steps undone', /^Redo:/.test(await redoLabel()), 
 
 await browser.close();
 for (const [s, n, x] of R) console.log(s, '|', n, x ? `| ${x}` : '');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', errors);
+finish(R, 'errors', errors);

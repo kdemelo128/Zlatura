@@ -1,5 +1,6 @@
-import { phone, BASE } from './lib.mjs';
+import { phone, BASE, finish } from './lib.mjs';
 const F = new URL('./files/', import.meta.url).pathname;
+const R = []; const check = (n, c, d = '') => R.push([c ? 'PASS' : 'FAIL', n, d]);
 const { browser, page, errors } = await phone();
 await page.goto(BASE + '#comps', { waitUntil: 'load' });
 await page.setInputFiles('#file', F + 'costar-comps.pdf');
@@ -9,6 +10,10 @@ const price = page.locator('#sales-table tbody tr').first().locator('input[aria-
 await price.fill('4.75m'); await price.press('Tab');
 await page.reload({ waitUntil: 'load' });
 await page.waitForTimeout(1500);
-console.log('price after immediate reload (expect 4,750,000):', await page.locator('#sales-table tbody tr').first().locator('input[aria-label="Sale price"]').inputValue());
-console.log('errors', errors);
+const after = await page.locator('#sales-table tbody tr').first().locator('input[aria-label="Sale price"]').inputValue();
+console.log('price after immediate reload (expect 4,750,000):', after);
+check('a comp price edited then reloaded at once is kept', after === '4,750,000', after);
+check('no console errors', errors.length === 0, errors.join(' / '));
+for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
+finish(R, 'errors', errors);
 await browser.close();

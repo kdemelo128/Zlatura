@@ -13,7 +13,7 @@
  * away the field Tab was moving to, so the next keystroke went nowhere.
  *
  *   node typing-flow.mjs            # BASE=http://localhost:8080/ by default */
-import { phone, BASE } from './lib.mjs';
+import { phone, BASE, finish } from './lib.mjs';
 
 const F = new URL('./files/', import.meta.url).pathname;
 const { browser, page, errors } = await phone();
@@ -325,7 +325,7 @@ if (await page.locator('#sheet-body table.rows-edit').count()) {
 check('no console errors', errors.length === 0, errors.join(' | '));
 
 for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', errors);
+finish(R, 'errors', errors);
 await browser.close();
 // a failed check fails the run (run.sh stops on it)
 process.exit(R.some((x) => x[0] === 'FAIL') || errors.length ? 1 : 0);

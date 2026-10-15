@@ -1,4 +1,4 @@
-import { phone, BASE, SHOTS } from './lib.mjs';
+import { phone, BASE, SHOTS, finish } from './lib.mjs';
 const F = new URL('./files/', import.meta.url).pathname;
 const { browser, ctx, page, errors } = await phone();
 await ctx.grantPermissions(['microphone']);
@@ -55,5 +55,5 @@ await page.locator('.toast button').click();
 await page.waitForTimeout(200);
 check('undo restores it', (await page.locator('#deal-audio .voice-row').count()) === 3);
 for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', errors);
+finish(R, 'errors', errors);
 await browser.close();

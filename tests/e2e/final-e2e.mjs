@@ -1,4 +1,4 @@
-import { phone, BASE, SHOTS } from './lib.mjs';
+import { phone, BASE, SHOTS, finish } from './lib.mjs';
 const F = new URL('./files/', import.meta.url).pathname;
 const { browser, ctx, page, errors } = await phone();
 await ctx.grantPermissions(['microphone']);
@@ -105,5 +105,5 @@ check('16. first property intact after visiting the second', (await page.inputVa
 const txt = await page.locator('#app').innerText();
 check('no NaN / undefined / Infinity anywhere on screen', !/\b(NaN|undefined|Infinity)\b/.test(txt));
 for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'console errors', errors);
+finish(R, 'console errors', errors);
 await browser.close();

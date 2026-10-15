@@ -1,4 +1,4 @@
-import { phone, BASE, SHOTS } from './lib.mjs';
+import { phone, BASE, SHOTS, finish } from './lib.mjs';
 const F = new URL('./files/', import.meta.url).pathname;
 const { browser, page, errors } = await phone();
 const R = [];
@@ -64,5 +64,5 @@ check('hold assumptions stay with the scenario', (await page.inputValue('#scn-ex
 const txt = await page.locator('#deal-root').innerText();
 check('no NaN/undefined/Infinity on screen', !/\b(NaN|undefined|Infinity|null)\b/.test(txt));
 for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', errors);
+finish(R, 'errors', errors);
 await browser.close();

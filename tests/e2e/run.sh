@@ -31,6 +31,11 @@ sleep 1
 # another server already on the port would be tested in its place, from wherever it serves
 if ! kill -0 "$SERVER" 2>/dev/null; then echo "Port 8080 is in use: stop whatever holds it and run again." >&2; exit 2; fi
 FLOWS=${1:-"workflows rentroll-flow bigroll-flow template-flow tools-flow ai-flow home-flow shell-flow rename-flow engine-flow history-flow snapshot-flow impact-flow migrate-flow t12-flow upgrade-flow limits-flow backup-flow a11y-flow live-flow voice-flow final-e2e deal-persistence deal-isolation comps-reload errors-flow pwa-flow tpl-flow comps-flow omrr-flow omstmt-flow typing-flow mobile-audit perf-flow"}
-for f in $FLOWS; do echo "===== $f"; node "$f.mjs"; done
+# every flow runs even when one fails; any flow that exits with an error
+# (a failed check, no checks, or a crash) is listed and the run fails
+FAILED=()
+for f in $FLOWS; do echo "===== $f"; node "$f.mjs" || FAILED+=("$f"); done
 node make_engine_check.mjs files/engine-check.xlsx
-for x in files/*.xlsx files/*.xlsm; do case "$x" in *acme-template.xlsx) continue;; esac; echo "===== recalc $x"; python3 -W ignore recalc.py "$x"; done
+for x in files/*.xlsx files/*.xlsm; do case "$x" in *acme-template.xlsx) continue;; esac; echo "===== recalc $x"; python3 -W ignore recalc.py "$x" || FAILED+=("recalc $x"); done
+if [ ${#FAILED[@]} -gt 0 ]; then echo "===== FAILED: ${FAILED[*]}" >&2; exit 1; fi
+echo "===== all flows passed"
