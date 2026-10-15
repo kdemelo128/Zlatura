@@ -5,7 +5,9 @@
  *   npm run check:full    once before each PR: the whole Node suite, the type
  *                         check, the golden check and the full browser suite
  *                         (tests/e2e/run.sh: every flow, axe, perf budgets,
- *                         typing, LibreOffice recalc)
+ *                         typing, LibreOffice recalc), and last that the
+ *                         branch is current with main with no conflict
+ *                         markers (tests/tools/sync-main.mjs --check)
  *
  * Every step runs even when one fails; any failure makes the command exit 1.
  * The golden check compares every displayed figure with the base branch
@@ -49,7 +51,7 @@ function affectedTests(changed) {
     if (mods.some((m) => src.includes(`/${m}'`) || src.includes(`/${m}"`) || src.includes(`/${m}\``))) pick.add(t);
   }
   // a change to shared test helpers or fixtures can reach any test
-  if (changed.some((f) => /^tests\/(fixtures|tools|helpers)\//.test(f) && !/^tests\/tools\/(check|bump-version)\.mjs$/.test(f))) return tests;
+  if (changed.some((f) => /^tests\/(fixtures|tools|helpers)\//.test(f) && !/^tests\/tools\/(check|bump-version|sync-main)\.mjs$/.test(f))) return tests;
   return [...pick].filter((t) => fs.existsSync(path.join(ROOT, t)));
 }
 
@@ -92,6 +94,8 @@ if (mode === 'quick') {
 step('type check', 'npx', ['tsc', '-p', 'types/tsconfig.json']);
 golden();
 if (mode === 'full') step('browser suite (flows, axe, perf, typing, recalc)', 'bash', ['tests/e2e/run.sh']);
+// last: the branch is current with main and no conflict marker is left (npm run sync-main fixes the first)
+if (mode === 'full') step('current with main, no conflict markers', 'node', ['tests/tools/sync-main.mjs', '--check']);
 
 if (failed.length) { console.log(`\n===== check:${mode} FAILED: ${failed.join(', ')}`); process.exit(1); }
 console.log(`\n===== check:${mode} passed`);

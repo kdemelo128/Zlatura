@@ -10,6 +10,7 @@
     "check:quick": "node tests/tools/check.mjs quick",
     "check:full": "node tests/tools/check.mjs full",
     "bump": "node tests/tools/bump-version.mjs",
+    "sync-main": "node tests/tools/sync-main.mjs",
     "serve": "python3 -m http.server 8080"
   },
   "devDependencies": {

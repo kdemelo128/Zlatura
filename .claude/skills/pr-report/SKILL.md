@@ -5,6 +5,17 @@ description: Zlatura's PR body and the short report to the owner after opening a
 
 # PR body and report
 
+**Before opening a PR, and again before telling the owner it is ready:**
+1. Merge the latest main in with `npm run sync-main`, and resolve any
+   conflict yourself.
+2. Re-run `npm run check:quick`, and `npm run check:full` if anything
+   beyond docs changed. `check:full` ends by failing if the branch is behind
+   main or has conflict markers.
+3. On GitHub, confirm that the PR shows no conflicts, with CI passing
+   (`mergeable_state` is `clean`).
+Call a PR ready only then. Keep only one PR open for the owner's merge at a
+time, unless two are independent and touch different files.
+
 **PR body**, in this order:
 1. One line: which build item or bug it is, and that it's one PR for one item.
 2. **Root cause** in one line (for a fix).
