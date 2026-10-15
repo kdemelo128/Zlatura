@@ -21,15 +21,17 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.11; a small browser check on every push, and branches kept current with main (2026-10-15).
+Last updated: 4.7.12; reuse before you build, THIRD_PARTY.md, prior-art and competitive-gap proposals (2026-10-15).
 
 ## Now
 
-- **Current step:** item 3, the CI browser subset (4.7.11, PR open), with
-  the owner's branch rules and `npm run sync-main`. The partial-year T-12
-  fix (4.7.10) is merged (#28), and so are project settings (4.7.9, #27),
-  the efficiency setup (4.7.8, #26), the lost-edit fix (#25) and item 1
-  (#23, #24). Next: changelog fragments if approved, then item 4, the T-12
+- **Current step:** the owner's "reuse before you build" rule, the
+  `THIRD_PARTY.md` register and two proposals (4.7.12, PR open; docs only):
+  `prior-art.md`, `competitive-gap.md` and `production-readiness.md`, which
+  wait on the owner before any change to the plan. The CI browser subset (4.7.11) is merged (#29),
+  as are the partial-year T-12 fix (4.7.10, #28), project settings
+  (4.7.9, #27), the efficiency setup (4.7.8, #26), the lost-edit fix (#25)
+  and item 1 (#23, #24). Next: changelog fragments if approved, then item 4, the T-12
   multi-format import. Gate 2 passed: both Part 2 proposals approved by
   the owner 2026-10-15 (all recommendations: 22 in `t12-multiformat.md`, 18 in `ui-revamp.md`
   section 11). Bugs C, A and B are merged (4.7.3–4.7.5).
@@ -46,8 +48,7 @@ Last updated: 4.7.11; a small browser check on every push, and branches kept cur
      never saves a T-3, T-6 or T-9 as the annual NOI; partial shown as
      partial; annualizing only with the owner's explicit confirmation.
   3. [x] The CI browser subset (typing, lost edit, deal persistence, deal
-     export), timed, with the cost if the repo goes private (4.7.11, PR
-     open).
+     export), timed, with the cost if the repo goes private (4.7.11, #29).
   4. T-12 multi-format import (`docs/proposals/t12-multiformat.md`).
   5. OM red-flag check, then the pro forma vs T-12 bridge as an interactive
      waterfall.
@@ -107,9 +108,17 @@ These came after the master plan and are worked first.
   unused plugins off for this project; merged (#27)
 - [x] CI browser subset (4.7.11): typing-flow, lostedit-flow,
   deal-persistence and deal-export on every push, Chromium at iPhone size,
-  without the LibreOffice recalc; PR open
+  without the LibreOffice recalc; merged (#29)
 - [x] Branch rules and `npm run sync-main` (4.7.11); `check:full` ends by
-  failing if the branch is behind main or has conflict markers; PR open
+  failing if the branch is behind main or has conflict markers; merged (#29)
+- [x] Reuse before you build (4.7.12): the rule, `THIRD_PARTY.md` (was
+  `VENDOR.md`) with license texts and checksums; PR open
+- [ ] Prior-art summary for the upcoming work (`docs/proposals/prior-art.md`):
+  waiting for the owner
+- [ ] Competitive gap (`docs/proposals/competitive-gap.md`): waiting for the
+  owner; the build order is unchanged until approved
+- [ ] Production readiness (`docs/proposals/production-readiness.md`):
+  waiting for the owner (the section below)
 - [ ] Changelog fragments: proposed (`docs/proposals/changelog-fragments.md`)
 - [~] WebKit (iPhone Safari's engine) runs: `PW_BROWSER=webkit` added (4.7.1).
   **Blocked here:** WebKit isn't installed in this environment, so runs here
@@ -160,6 +169,35 @@ Behind the "New look" toggle, after 2b.
   `typing-flow` (4.7.3) types every date field and the number, percent and
   currency fields key by key, and checks Tab after a redraw. New input types
   must be added to it.
+
+### Production readiness (owner's checklist, 2026-10-15)
+Proposal only, in `docs/proposals/production-readiness.md`. The owner's
+checklist of about 150 items is mapped to Zlatura in 104 rows:
+- **A** (61): applies now to the local-first app;
+- **A/B** (8): applies now, and again once accounts arrive;
+- **B** (25): designed in before accounts, sync and hosting (Phase 7);
+- **C** (4): only if Zlatura bills customers;
+- **D** (6): doesn't apply, with the reason.
+Each row has its status and a verdict. The build order is unchanged until
+the owner approves. Fix-now items, each its own PR:
+- [ ] F1 money: one rounding rule. `t12.js` and `omstatement.js` round on
+  their own, not with the engine's `toCents`: 1.005 gives 1.00, not 1.01
+  (approval: a before/after table)
+- [ ] F2 old CSVs: a Windows-1252 fallback
+- [ ] F3 the phone's Back button returns to the last screen
+- [ ] F4 a strict Content-Security-Policy, with `script-src`
+- [ ] F5 dependency audit in CI, and actions pinned to commit SHAs
+- [ ] F6 hostile-text pack (apostrophes, emoji, right-to-left, formulas);
+  F7 tests run in other timezones
+- [ ] F8 "Recently deleted" for 30 days (approval: retention)
+- [ ] F9 an optional password on backups (approval: format change)
+- [ ] F10 stolen-laptop and disaster-recovery plans, one page each
+- [ ] F11 split `dealui.js` (2,701 lines), inside the UI revamp
+- [ ] F12 AI server limits before any deployment: spend cap, a token per
+  device, prompt-injection tests
+- [ ] Before Phase 7, from day one: tenant isolation, object-level checks,
+  sessions, rate limits, audit of views, reversible migrations, tested
+  restore (section 4 of the proposal)
 
 ## Rules and process (every phase)
 

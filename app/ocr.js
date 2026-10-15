@@ -3,7 +3,7 @@
  * An OM page with no text layer (a scan) can still hold the rent roll. When
  * the broker taps "Read this scanned page", the page is drawn from the PDF
  * with pdf.js and read by Tesseract (tesseract.js 7, vendored under
- * vendor/ocr/, Apache-2.0: VENDOR.md) in a Web Worker. Nothing is fetched
+ * vendor/ocr/, Apache-2.0: THIRD_PARTY.md) in a Web Worker. Nothing is fetched
  * from another site: the library, its worker, the WebAssembly engine and the
  * English data all come from this site, and only on that tap; they are not in
  * the service worker's install set (about 7 MB), so the app's first load

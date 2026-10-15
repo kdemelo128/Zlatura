@@ -20,6 +20,10 @@ time, unless two are independent and touch different files.
 1. One line: which build item or bug it is, and that it's one PR for one item.
 2. **Root cause** in one line (for a fix).
 3. **What changed**, as short bullets.
+   For a build bigger than a small PR, or one that adds a library: the
+   **Prior art** table (`docs/working-rules.md`, "Reuse before you build").
+   A new library also needs its `THIRD_PARTY.md` row, the `vendor/licenses/`
+   file, its checksum, and the `npm audit` result.
 4. **Tested**: each test that fails on the old code (and how it was run against
    `git archive <old>` with `BASE=`), the mutation checks, `npm run check:full`
    totals (Node tests, flows and checks, recalc, axe, perf ms against 150 ms),

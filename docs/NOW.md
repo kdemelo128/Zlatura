@@ -4,7 +4,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.11 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.12 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -13,13 +13,16 @@ section with grep, never in full.
   - the efficiency setup (#26, 4.7.8);
   - project settings, Sonnet at medium effort and unused plugins off (#27,
     4.7.9);
-  - the partial-year T-12 fix (#28, 4.7.10).
-- **In progress:** the CI browser subset, the branch rules and
-  `npm run sync-main` (4.7.11, PR open). Waiting for the owner's merge; no
-  other PR is open.
+  - the partial-year T-12 fix (#28, 4.7.10);
+  - the CI browser subset, branch rules and `sync-main` (#29, 4.7.11).
+- **In progress:** "reuse before you build", `THIRD_PARTY.md`, and the
+  prior-art, competitive-gap and production-readiness proposals (4.7.12, PR
+  open, docs only).
+  Waiting for the owner's approval of the proposals; no other PR is open.
 - **Next (build order, one PR at a time, owner merges each):**
-  1. [PR open, 4.7.11] the CI browser subset, with the branch rules and
-     `sync-main`;
+  1. [PR open, 4.7.12] reuse rule, `THIRD_PARTY.md`, prior-art,
+     competitive-gap and production-readiness proposals (the reorder and the
+     fix-now list wait on the owner);
   2. changelog fragments, if approved (`docs/proposals/changelog-fragments.md`);
   3. T-12 multi-format import (`docs/proposals/t12-multiformat.md`);
   4. OM red-flag check, then the pro forma vs T-12 bridge (waterfall);

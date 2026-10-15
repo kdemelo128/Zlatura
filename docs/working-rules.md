@@ -97,3 +97,43 @@ These stop merge conflicts from recurring.
 - **`check:full`'s last step** (`tests/tools/sync-main.mjs --check`) fails if
   the branch is behind main or any tracked file has a conflict marker at
   the start of a line.
+
+## Reuse before you build (owner, 2026-10-15)
+
+1. **Prior-art check first.** Do it before any design proposal, and before
+   any build bigger than a small PR. Keep the effort capped: a few targeted
+   searches of npm and GitHub, using what this environment allows (the npm
+   registry, `gh` or the web). If a site isn't reachable, say so; don't
+   guess. First check what the repo already vendors or uses
+   (`THIRD_PARTY.md`: pdf.js, Tesseract, ExcelJS, fflate, and the app's own
+   modules), so nothing is added twice.
+2. **A short "Prior art" table** goes in the proposal or PR, with these
+   columns:
+   - candidate, and what it does;
+   - license and size;
+   - last release and maintenance;
+   - works build-free as a vendored file, and offline;
+   - any network calls or telemetry;
+   - security notes;
+   - verdict (adopt, adapt, or build ourselves), with the reason.
+3. **Criteria:**
+   - Licenses: permissive only (MIT, BSD, Apache-2.0, ISC); MPL-2.0 only
+     with the owner's approval. No GPL, AGPL or unlicensed code: the
+     project may become proprietary.
+   - The library: actively maintained, small, no build step, no network
+     calls or tracking.
+   - It works in the offline home-screen app, and doesn't slow the 150 ms
+     edit budget.
+   - Pin an exact version, vendor the file with its license text
+     (`vendor/licenses/`), and record its SHA-256 in `THIRD_PARTY.md` with
+     the version, license and why it's there.
+   - Run `npm audit` and report the result.
+4. **Approval gate.** Adding any third-party library, or copying code from
+   a repository, needs the owner's OK on the table first. Never copy code
+   that has no license.
+5. **Never outside code for the engine or the money logic.** A library may
+   help around them: file reading, charts, drag and drop, date parsing. The
+   golden outputs (618 saved results, 646 figures) must stay unchanged, and
+   every new dependency gets a wrapper module and tests.
+6. **Research stays cheap.** The designer judges a shortlist; it doesn't
+   browse. Keep summaries to a page.
