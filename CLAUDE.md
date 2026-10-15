@@ -1,127 +1,91 @@
 # Zlatura: working rules for Claude Code
 
 Zlatura is a vanilla-JS ES-module PWA for commercial real estate brokers:
-`app/` holds the app, there is no build step, and it is served by GitHub
-Pages. The plan is the master prompt, `ZLATURA_MASTER_PROMPT_v2.md` in the
-repository root (never edit it), tracked in `docs/acceptance-matrix.md` and
-`docs/PLAN_STATUS.md`. Re-read its Part 0 (operating rules) and Part 23
-(truthfulness) at the start of every phase and before every report. Where it
-and the owner's later instructions below differ, the open questions are
-listed at the end of `docs/PLAN_STATUS.md` for the owner to decide.
+`app/` holds the app, there is no build step, and GitHub Pages serves it.
+
+**Start every session by reading `docs/NOW.md` only.** Read
+`docs/PLAN_STATUS.md`, the master plan (`ZLATURA_MASTER_PROMPT_v2.md`, never
+edit it) and `docs/acceptance-matrix.md` by section with grep, never in full.
+The longer wording of every rule below is in `docs/working-rules.md`.
 
 ## Standing rules
 
-**PRs and approvals**
-- **One PR per item.** For anything big, write a design proposal first
-  (`docs/proposals/`) and stop for the owner's approval before building.
-- **Approval gates (the only places to stop and wait):**
-  - the three bug-fix PRs, once open;
-  - the Part 2 proposals, once written;
-  - before any change to saved-deal results, the data format or hosting,
-    or anything hard to undo;
-  - before anything that costs money (paid APIs), affects security or data
-    retention, or changes financial meaning, or when two readings of a
-    financial input give different numbers (Part 0 rule 6);
-  - the end of each phase, with a status report.
-- Decide implementation details, naming and reversible choices yourself,
-  and say what you chose in the report.
+- **One PR per item, one branch per PR.** For anything big, write a
+  proposal in `docs/proposals/` first and stop for the owner's approval.
+- **Approval gates (the only places to stop and wait):** bug-fix PRs and
+  Part 2 proposals once open; before any change to saved-deal results, the
+  data format or hosting, or anything hard to undo; before anything that
+  costs money, affects security or data retention, or changes financial
+  meaning, or when two readings of a financial input differ (Part 0 rule 6);
+  the end of each phase. Decide reversible details yourself and say so.
 - **Never** merge, force-push, reset important branches, delete user data,
   change production settings or deploy without the owner's explicit
-  authorization.
-- If the latest work isn't on the branch you expect, stop and report before
-  changing anything.
+  authorization. If the latest work isn't on the branch you expect, stop and
+  report.
+- **No feature is removed.** Everything stays reachable; whatever is touched
+  gets better.
+- **Golden outputs stay identical** unless the owner approves the change,
+  shown as a before/after table: `tests/analyze-golden.test.js` (618 saved
+  deal results) and `tests/tools/golden.mjs` (646 displayed figures).
+- **Money is whole cents; one shared engine** (`app/engine/`,
+  `app/deal.js`), never a second copy of the math; no build step.
+- **Prohibited (Part 21.2):** blank as zero; monthly/annual, gross/net,
+  SF/acres or percent/points confused; rentable and gross area mixed;
+  anything counted twice; a calculator checking itself; a value invented
+  for an ambiguous input (ask instead). Accuracy beats feature count: ship
+  a smaller honest version and list the gap in the acceptance matrix.
+- **Truthfulness (Part 23):** use only the seven status words; never call
+  anything verified, live or secure unless tested that way, and say how;
+  where Excel, Safari, live services or real files weren't available, say
+  so with a validation plan. Re-read Parts 0 and 23 of the master plan at
+  the start of each phase and before each phase report.
+- **Invented fixtures only.** The repo is public. Real files stay in the
+  git-ignored `private/` folder, are reported in structure-only counts, and
+  their figures and names never appear in tests, docs, commits or PRs.
 
-**Features and outputs**
-- **No feature is removed.** Every existing feature stays reachable, and a
-  feature that is touched gets better.
-- **Golden outputs stay identical** unless the owner approves an intended
-  change. They are `tests/analyze-golden.test.js` (618 saved deal results)
-  and `node tests/tools/golden.mjs --diff` (646 displayed figures).
-- **Money is whole cents.** There is one shared calculation engine
-  (`app/engine/`, `app/deal.js`); never write a second copy of the math.
-  There is no build step.
-- **Prohibited (Part 21.2):**
-  - blank turned into zero, or missing treated as a confirmed zero;
-  - monthly confused with annual, gross with net, SF with acres, percent
-    with percentage points;
-  - rentable and gross area mixed silently;
-  - vacancy, reimbursements, expenses, concessions or capital costs counted
-    twice;
-  - a calculator's output used to check that same calculator;
-  - a value invented when an input is ambiguous: ask.
-- Accuracy, transparency and data preservation outrank feature count. If a
-  feature can't be made trustworthy, ship a smaller honest version and list
-  the gap in the acceptance matrix.
+## Tests and checks
 
-**Tests**
-- New tests must fail on the old code. Run each against `git archive <old>`
+- New tests must fail on the old code: run them against `git archive <old>`
   served with `BASE=`.
-- **Every PR runs:**
-  - mutation checks;
-  - the full browser suite (`tests/e2e/run.sh`), on Chromium and at iPhone
-    size;
-  - the perf budgets (150 ms per edit);
-  - axe;
-  - character-by-character typing tests for every input type.
-- **Invented fixtures only.** Never commit real Greysteel or confidential
-  files, figures, property names or tenant names. Real files stay in the
-  git-ignored `private/` folder and are reported in structure-only counts.
+- `npm run check:quick` while developing: affected unit tests, the type
+  check and the golden check.
+- `npm run check:full` once before each PR: the Node suite, the type check,
+  the golden check and the full browser suite (Chromium, phone and desktop
+  sizes, axe, perf budget of 150 ms per edit, character-by-character typing).
+  Mutation checks and Data QC are in the `quality-gates` skill.
+- A failed check fails the command (exit code); never weaken a check.
 
-**After every PR**
-- Bump the version in `package.json`, `package-lock.json` (lines 3 and 9),
-  `app/exporters.js` and `sw.js`, and update `CHANGELOG.md`.
-- Update `docs/PLAN_STATUS.md` and, where a status moved,
-  `docs/acceptance-matrix.md`.
-- Report to the owner:
-  - what changed;
-  - what was tested;
-  - what to hand-test on a phone;
-  - the running cost;
-  - and, last: what was verified, what was not, what you assumed, and what
-    you need from the owner.
+## After every PR
 
-## Truthfulness (Part 23)
+Run the `release` skill: bump the version, update `CHANGELOG.md`,
+`docs/NOW.md`, `docs/PLAN_STATUS.md` and, where a status moved,
+`docs/acceptance-matrix.md`. Report with the `pr-report` skill, plus the
+`hand-test` skill's phone checklist.
 
-- One status per feature, in these words only: Implemented and verified;
-  Implemented, not fully tested; Tested with synthetic fixtures only; Tested
-  with live services (date and method recorded); Blocked (say exactly what is
-  missing); Partially implemented; Not implemented.
-- Never call anything verified, live, compatible, secure or production-ready
-  unless it was tested that way, and say how. Success on mocks or invented
-  files alone is not success.
-- Run the full regression on the final code, not on a version changed
-  afterwards.
-- Where real credentials, third-party APIs, Microsoft Excel, Safari or real
-  brokerage files aren't available, say so and give a concrete validation
-  plan.
+## Usage rules
+
+- One agent at a time, never parallel Opus; routine work in the main
+  session; no agents for small things. Plan mode before any design or risky
+  change.
+- Batch related steps; point at exact files and line ranges; don't re-read
+  a file you just wrote; keep reports short; no polling check-ins.
+- Before any long task (and on a usage limit) write a state note in
+  `docs/NOW.md`. Compact or start fresh between PRs.
+- If a cheaper step would skip a quality gate, tell the owner.
 
 ## Model routing
 
-- **designer** (`.claude/agents/designer.md`, Opus) decides and diagnoses:
-  - design proposals;
-  - bug root causes;
-  - parsing, money and calculation logic;
-  - data-format and migration changes;
-  - security review;
-  - the end-of-phase independent review.
-- **builder** (`.claude/agents/builder.md`, Sonnet) carries out approved
-  designs:
-  - UI and screens;
-  - wiring;
-  - docs and changelogs;
-  - test updates;
-  - routine fixes.
-- If the builder fails twice on the same problem, it goes back to the
-  designer.
-- Keep the main session lean: send large searches and long test runs to
-  subagents.
+- **designer** (Opus, `.claude/agents/designer.md`): proposals, root causes,
+  parsing, money logic, data format and migrations, security, phase review.
+- **builder** (Sonnet, `.claude/agents/builder.md`): approved designs, UI,
+  wiring, docs, test updates, routine fixes; after two failures on the same
+  problem it goes back to the designer. Delegate only large, self-contained
+  work.
 
 ## Commands
 
-- Type-check: `npx tsc -p types/tsconfig.json`
-- Node tests: `npm test`
-- Browser suite:
-  - Chromium: `bash tests/e2e/run.sh`
-  - WebKit, where it is installed: `PW_BROWSER=webkit bash tests/e2e/run.sh`
-- Golden check: `node tests/tools/golden.mjs <app-dir> > out.json`, then
-  `node tests/tools/golden.mjs --diff before.json after.json`
+- Type check: `npx tsc -p types/tsconfig.json`; Node tests: `npm test`.
+- Browser suite: `bash tests/e2e/run.sh [flow …]` (Chromium);
+  `PW_BROWSER=webkit bash tests/e2e/run.sh` where WebKit is installed.
+- Golden by hand, old-code runs and a stray server on 8080: the
+  `quality-gates` skill.
