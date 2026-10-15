@@ -44,7 +44,8 @@ def scan_image(items, path, dpi=200):
         x = it["x"] * k - (dr.textlength(it["s"], font=f) if it.get("right") else 0)
         dr.text((x, (792 - it["y"]) * k), it["s"], fill=0, font=f, anchor="ls")
     im.save(path)
-for name, spec in pages["rr_specs"].items():
+# and invented operating statements (tests/om-statement-fixtures.js): headings centred over their columns
+for name, spec in {**pages["rr_specs"], **pages.get("stmt_specs", {})}.items():
     c = canvas.Canvas(f"{d}/{name}.pdf", pagesize=letter)
     for i, pg in enumerate(spec):
         if isinstance(pg, dict):
@@ -53,7 +54,7 @@ for name, spec in pages["rr_specs"].items():
         else:
             for it in pg:
                 c.setFont("Helvetica-Bold" if it.get("bold") else "Helvetica", it.get("size", 8))
-                (c.drawRightString if it.get("right") else c.drawString)(it["x"], it["y"], it["s"])
+                (c.drawCentredString if it.get("center") else c.drawRightString if it.get("right") else c.drawString)(it["x"], it["y"], it["s"])
         c.showPage()
     c.save()
 open(f"{d}/corrupt.pdf", "wb").write(b"%PDF-1.7\n1 0 obj << /Type /Catalog >> garbage garbage\n")

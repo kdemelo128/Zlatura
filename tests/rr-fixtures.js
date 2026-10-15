@@ -100,7 +100,7 @@ export const statedOm = [
 
 /**
  * A PDF of text drawn at positions, in Courier (so a right-aligned figure's
- * place is exact): pages: [[{ x, y, s, right?, size?, bold? }]]. Small and
+ * place is exact): pages: [[{ x, y, s, right?, center?, size?, bold? }]]. Small and
  * dependency-free, for reading through pdf.js in Node exactly as the app does.
  */
 export function pdfOf(pages) {
@@ -115,7 +115,8 @@ export function pdfOf(pages) {
     const items = Array.isArray(page) ? page : [];
     const ops = items.map((it) => {
       const size = it.size || 8;
-      const x = it.right ? it.x - String(it.s).length * 0.6 * size : it.x;
+      const w = String(it.s).length * 0.6 * size;
+      const x = it.right ? it.x - w : it.center ? it.x - w / 2 : it.x;
       return `BT /${it.bold ? 'F2' : 'F1'} ${size} Tf ${x.toFixed(2)} ${it.y.toFixed(2)} Td (${esc(it.s)}) Tj ET`;
     }).join('\n');
     const content = add(`<< /Length ${ops.length} >>\nstream\n${ops}\nendstream`);

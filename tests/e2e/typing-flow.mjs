@@ -327,3 +327,5 @@ check('no console errors', errors.length === 0, errors.join(' | '));
 for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
 console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', errors);
 await browser.close();
+// a failed check fails the run (run.sh stops on it)
+process.exit(R.some((x) => x[0] === 'FAIL') || errors.length ? 1 : 0);

@@ -20,10 +20,17 @@
  * inferred silently: a figure worked out from others (NOI from price and cap
  * rate, say) is marked as derived by deal.js, not passed off as read.
  *
+ * An operating statement (a table of income and expenses with T-12, Actual,
+ * Year 1 or Pro Forma columns) is read as a table by omstatement.js: each
+ * figure from the column its heading names, scaled as the table says,
+ * checked by the statement's own arithmetic, and kept with its row, column
+ * and cell.
+ *
  * Input is page text from layout.js, where a visible gap is two or more
  * spaces, so a line splits into the cells a reader sees. */
 
 import { rentRoll } from './omroll.js';
+import { statementTables, inferUnits, pickColumns, tableChecks, columnName, rowSections } from './omstatement.js';
 
 /* ------------------------------------------------------------ the cells */
 
@@ -237,7 +244,8 @@ export const FIELDS = {
   taxes: {
     label: 'Real estate taxes', kind: 'money', min: 100, max: 1e8,
     labels: [[/\b(?:real estate|property|re)\s+tax(?:es)?\b/i, 3]],
-    skip: /\b(per\s+(?:sf|unit)|\/\s*(?:sf|unit)|psf|rate|assess|abatement|%)\b/i,
+    // a tax reimbursement is income from tenants, not the tax bill
+    skip: /\b(per\s+(?:sf|unit)|\/\s*(?:sf|unit)|psf|rate|assess|abatement|%|recover\w*|reimburs\w*)\b/i,
     divert: [PROFORMA, null],
   },
   stories: {
@@ -293,6 +301,45 @@ const SUMMARY = /(executive|investment|offering|property|financial|deal|pricing)
 const FINANCIALS = /operating (statement|history|summary)|income statement|income\s*(?:&|and)\s*expense|cash flow|pro ?forma|t-?12|trailing twelve|rent roll/i;
 const DEMOGRAPHICS = /demographic|population|household income|traffic counts?|daytime population|median income|employers/i;
 
+/* The figures an operating statement prints, read from its table (omstatement.js) where there is one. */
+const STMT_KEYS = new Set(['noi_pf', 'noi', 'gpr', 'gross', 'rent_inplace', 'opex', 'taxes']);
+/* Where in a statement each one sits, so a tie goes to the row in the right part ("Real Estate Taxes" under expenses). */
+const STMT_SIDE = { gross: 'income', gpr: 'income', rent_inplace: 'income', opex: 'expense', taxes: 'expense' };
+
+/** A label's words, all of them up to its value: "Expenses Per Unit" in "Expenses Per Unit: $6,667". */
+function labelPart(text, hit) {
+  const after = text.slice(hit.index + hit[0].length);
+  const v = /[$\d]/.exec(after);
+  return text.slice(0, hit.index + hit[0].length + (v ? v.index : after.length));
+}
+/* Words that make a figure per SF, per unit or a reimbursement wherever they sit in its label. */
+const WHOLE = /\b(?:per\s+(?:sf|unit|key|bed|door|rsf|square\s+foot)|psf|recover\w*|reimburs\w*)\b|\/\s*(?:sf|unit|key)\b/ig;
+/** Whether a field's skip words rule a label out: as far as the match, and per-unit, per-SF or reimbursement words anywhere in it ("Expenses Per Unit" is not the total). */
+function skipped(F, text, hit) {
+  if (!F.skip) return false;
+  if (F.skip.test(text.slice(0, hit.index + hit[0].length))) return true;
+  return (labelPart(text, hit).match(WHOLE) || []).some((w) => F.skip.test(w));
+}
+
+/** The statement fields a row label introduces, in field order: [{ key, weight }]. */
+function rowFields(text) {
+  const out = [];
+  const taken = new Set();
+  for (const key of ORDER) {
+    if (!STMT_KEYS.has(key)) continue;
+    const F = FIELDS[key];
+    let hit = null; let weight = 0;
+    for (const [re, w] of F.labels) { const m = re.exec(text); if (m) { hit = m; weight = w; break; } }
+    if (!hit || taken.has(hit.index)) continue;
+    if (skipped(F, text, hit)) continue;
+    let target = key;
+    if (F.divert && F.divert[0].test(text)) { if (!F.divert[1]) continue; target = F.divert[1]; }
+    taken.add(hit.index);
+    out.push({ key: target, weight });
+  }
+  return out;
+}
+
 function readValue(F, s, labelText) {
   switch (F.kind) {
     case 'money': {
@@ -334,33 +381,34 @@ function valueCell(F, cell) {
   return digits / cell.text.length >= 0.45 || cell.text.length <= 14 ? v : null;
 }
 
-/** Every labelled value in the document, scored. */
-function candidates(pages) {
+/** Every labelled value in the document, scored; and the operating statements, read as tables. */
+function candidates(pages, { layouts = null, asOfYear = new Date().getFullYear() } = {}) {
   const out = [];
+  const tables = statementTables(pages, { layouts, asOfYear, isStatementRow: (label) => rowFields(label).length > 0 });
+  // the lines that are rows of a statement: their statement figures come from the table, by column
+  const stmtLine = new Map();
+  for (const t of tables) for (const r of t.rows) if (!r.heading) stmtLine.set(`${t.page - 1}:${r.line}`, { t, r });
+  const bonus = [];
   pages.forEach((page, pi) => {
     const lines = page.split('\n');
     const grid = lines.map(splitCells);
     const pageBonus = (pi < 4 ? 1 : 0) + (SUMMARY.test(page) ? 2 : 0) - (DEMOGRAPHICS.test(page) && !SUMMARY.test(page) ? 2 : 0);
     const finBonus = FINANCIALS.test(page) ? 1 : 0;
-
-    // an operating statement with a Pro Forma column: the column headings
-    // that say so, carried down to the rows beneath them
-    const pfCols = [];
-    let cur = null;
-    let since = 0;
-    grid.forEach((cells, li) => {
-      const heads = cells.filter((c) => c.text.length <= 40 && PROFORMA.test(c.text) && !/\d{4,}|\$/.test(c.text.replace(/\b(?:19|20)\d\d\b/g, '')));
-      if (heads.length && cells.length >= 2) { cur = heads; since = 0; } else if (cur && ++since > 40) cur = null;
-      pfCols[li] = cur;
-    });
-    const inPf = (li, c) => !!pfCols[li] && pfCols[li].some((h) => c.start <= h.end + 4 && c.end >= h.start - 4);
+    bonus[pi] = { pageBonus, finBonus };
 
     grid.forEach((cells, li) => {
+      const inTable = stmtLine.has(`${pi}:${li}`);
       cells.forEach((cell, ci) => {
         const prose = cell.text.length > 70;
         const taken = new Set();
+        let slotted = false;
         for (const key of ORDER) {
           const F = FIELDS[key];
+          if (inTable && STMT_KEYS.has(key)) {
+            // in their place among the others: the table's figures for this row
+            if (ci === 0 && !slotted) { out.push({ slot: `${pi}:${li}` }); slotted = true; }
+            continue;
+          }
           // a value written before its words, as prose does
           for (const re of F.pre || []) {
             const m = re.exec(cell.text);
@@ -380,7 +428,8 @@ function candidates(pages) {
           // the same label can't introduce two fields: "Price per SF" is not also "Price"
           if (taken.has(hit.index)) continue;
           const labelText = cell.text.slice(0, hit.index + hit[0].length);
-          if (F.skip && F.skip.test(labelText)) continue;
+          // per-unit words count wherever they sit in the label: "Expenses Per Unit" is not the total
+          if (skipped(F, cell.text, hit)) continue;
           let target = key;
           if (F.divert && F.divert[0].test(cell.text)) {
             if (!F.divert[1]) continue;
@@ -399,35 +448,10 @@ function candidates(pages) {
           // a word in a table header is not a label with a value beside it
           if (TF.kind === 'text' && v === null && cells.length > 3 && !/:\s*$/.test(labelText + rest.slice(0, 2))) continue;
           // 2. the next cells on the line ("Asking Price      $4,950,000")
-          let vk = -1;
           for (let k = ci + 1; v === null && k < Math.min(cells.length, ci + 3); k++) {
             const r = readValue(TF, cells[k].text, labelText);
-            if (plausible(TF, r)) { v = r; vk = k; }
+            if (plausible(TF, r)) v = r;
             if (TF.kind === 'text') break;
-          }
-          // in a Current / Pro Forma statement the in-place figure is the one
-          // outside the Pro Forma column, and the one inside it is the pro forma NOI
-          if (vk >= 0 && pfCols[li] && TF.kind === 'money') {
-            let pfVal = null;
-            if (inPf(li, cells[vk])) {
-              pfVal = v;
-              v = null;
-              for (let k = ci + 1; k < cells.length; k++) {
-                if (k === vk || inPf(li, cells[k])) continue;
-                const r = readValue(TF, cells[k].text, labelText);
-                if (plausible(TF, r)) { v = r; break; }
-              }
-            } else {
-              for (let k = vk + 1; k < cells.length; k++) {
-                if (!inPf(li, cells[k])) continue;
-                const r = readValue(TF, cells[k].text, labelText);
-                if (plausible(TF, r)) { pfVal = r; break; }
-              }
-            }
-            if (pfVal !== null && target === 'noi') {
-              out.push({ key: 'noi_pf', value: pfVal, page: pi + 1, line: lines[li].trim().replace(/\s{2,}/g, '   '), score: weight + pageBonus + finBonus });
-            }
-            if (v === null) continue;
           }
           // 3. a figure stacked above or below its caption, in the same column
           if (v === null && TF.kind !== 'text' && !prose && !TF.noStack) {
@@ -449,10 +473,73 @@ function candidates(pages) {
       });
     });
   });
-  return out;
+
+  // the statements: per SF or per unit columns with no heading told by the building's size, then each
+  // figure from the column its basis calls for, and the statement's own arithmetic checked
+  const hint = choose(out.filter((c) => !c.slot && (c.key === 'bsf' || c.key === 'units')));
+  const fromTable = new Map();
+  const checks = [];
+  const read = [];
+  for (const t of tables) {
+    inferUnits(t, { bsf: hint.bsf ? hint.bsf.value : null, units: hint.units ? hint.units.value : null });
+    const picks = pickColumns(t);
+    const sections = rowSections(t);
+    // the rows each field could come from: where a label fits two rows, the one in the right part of the statement
+    /** @type {Record<string, any[]>} */
+    const rowsOf = {};
+    for (const r of t.rows) if (!r.heading) for (const f of rowFields(r.label)) (rowsOf[f.key] ||= []).push(r);
+    for (const [k, list] of Object.entries(rowsOf)) {
+      const side = STMT_SIDE[k];
+      const fit = side ? list.filter((r) => sections.get(r.line) === side) : list;
+      if (fit.length && fit.length < list.length) rowsOf[k] = fit;
+    }
+    const { checks: cs, perCol } = tableChecks(t, { picks, rowsOf });
+    checks.push(...cs);
+    const usable = t.columns.filter((c) => !['pct', 'psf', 'unit'].includes(c.kind));
+    const { pageBonus, finBonus } = bonus[t.page - 1];
+    for (const r of t.rows) {
+      if (r.heading) continue;
+      const list = [];
+      for (const f of rowFields(r.label)) {
+        if (!(rowsOf[f.key] || []).includes(r)) continue;
+        const wants = f.key === 'noi' ? [['noi_pf', picks.pf], ['noi', picks.inplace]]
+          : f.key === 'noi_pf' ? [['noi_pf', picks.pf ?? picks.inplace ?? (usable[0] ? usable[0].idx : null)]] : [[f.key, picks.inplace]];
+        for (const [key, k] of wants) {
+          if (k === null || k === undefined) continue;
+          const cell = r.cells[k];
+          if (!cell || cell.dash) continue;               // printed blank: nothing to read, and no other column taken instead
+          const value = Math.round(cell.value * (t.scale || 1) * 100) / 100;
+          const F = FIELDS[key];
+          const name = columnName(t, k, picks);
+          if (!plausible(F, value)) {
+            // a cell that can't be the figure leaves the row unresolved: the next column is never taken instead
+            const lead = r.lineText.length - r.lineText.trimStart().length;
+            checks.push({ id: `stmt:${t.id}:c${k}:range.${key}`, kind: 'range', level: 'warn', amount: Math.abs(value), page: t.page, line: r.line + 1, row: r.label, col: k, colLabel: name, cell: { text: cell.text, at: cell.start - lead }, lineText: r.lineText.trim(),
+              text: `${F.label} in ${name} is printed as “${cell.text}”${t.scale !== 1 ? ` (${value.toLocaleString('en-US')} at the table’s scale)` : ''}: below ${F.min.toLocaleString('en-US')} or negative, so it isn’t applied by itself and no other column is taken instead. Enter it, or choose a fix in Data QC.` });
+            continue;
+          }
+          const col = t.columns[k];
+          const res = perCol[k] || { ran: 0, failed: [] };
+          const check = res.failed.length ? 'fail' : res.ran ? 'pass' : 'none';
+          const known = col.kind === 'actual' && picks.inplaceHow === 'actual' && key !== 'noi_pf';
+          const conf = check === 'fail' ? 'low' : known && check === 'pass' ? 'high' : 'medium';
+          const alts = usable.filter((c) => c.idx !== k && r.cells[c.idx] && !r.cells[c.idx].dash)
+            .map((c) => ({ value: Math.round(r.cells[c.idx].value * (t.scale || 1) * 100) / 100, page: t.page, line: r.lineText.trim().replace(/\s{2,}/g, '   '), col: columnName(t, c.idx, picks), cell: r.cells[c.idx].text }));
+          list.push({ key, value, page: t.page, line: r.lineText.trim().replace(/\s{2,}/g, '   '), score: f.weight + pageBonus + finBonus,
+            stmt: { table: t.id, row: r.label, lineNo: r.line + 1, col: name, colIndex: k, colKind: picks.inplaceHow === 'year1' && k === picks.inplace ? 'year1' : col.kind, cell: cell.text, scale: t.scale || 1, unit: 'total', check, conf, alts } });
+        }
+      }
+      fromTable.set(`${t.page - 1}:${r.line}`, list);
+    }
+    read.push({ id: t.id, page: t.page, title: t.title, scale: t.scale || 1, scaleText: t.scaleText, lines: [t.lines[0] + 1, t.lines[1] + 1], rows: t.rows.filter((r) => !r.heading).length,
+      columns: t.columns.map((c) => ({ idx: c.idx, label: columnName(t, c.idx, picks), kind: c.kind, ...(c.year ? { year: c.year } : {}), ...(c.t12 ? { t12: true } : {}), ...(c.inferred ? { inferred: true } : {}) })),
+      inplace: picks.inplace, pf: picks.pf });
+  }
+  const all = out.flatMap((c) => (c.slot ? fromTable.get(c.slot) || [] : [c]));
+  return { cands: all, statement: { tables: read, checks } };
 }
 
-/** The best value for each field, with the runners-up. */
+/** The best value for each field, with the runners-up; a figure from a statement keeps its row, column and cell. */
 function choose(cands) {
   const by = {};
   for (const c of cands) (by[c.key] ||= []).push(c);
@@ -463,20 +550,27 @@ function choose(cands) {
     for (const c of list) {
       const id = F.kind === 'text' ? String(c.value).toLowerCase() : (F.kind === 'pct' ? c.value.toFixed(2) : Math.round(c.value));
       const g = groups.get(id);
-      if (!g) groups.set(id, { ...c, count: 1, best: c.score });
+      if (!g) groups.set(id, { ...c, count: 1, best: c.score, stmts: c.stmt ? [c.stmt] : [] });
       else {
         g.count += 1;
-        if (c.score > g.best) Object.assign(g, { page: c.page, line: c.line, best: c.score });
+        if (c.stmt) g.stmts.push(c.stmt);
+        if (c.score > g.best) Object.assign(g, { page: c.page, line: c.line, best: c.score, stmt: c.stmt });
       }
     }
     const ranked = [...groups.values()]
       .map((g) => ({ ...g, score: g.best + Math.min(2, 0.75 * (g.count - 1)) }))
       .sort((a, b) => b.score - a.score || a.page - b.page);
     const [top, ...rest] = ranked;
+    let confidence = top.score >= 5 ? 'high' : top.score >= 3.5 ? 'medium' : 'low';
+    if (top.stmt) confidence = top.stmt.conf;
+    else if (top.stmts.some((s) => s.check === 'fail')) confidence = 'low';
+    const others = rest.slice(0, 4).map((g) => ({ value: g.value, page: g.page, line: g.line }));
+    const colAlts = top.stmt ? top.stmt.alts.filter((a) => a.value !== top.value) : [];
     fields[key] = {
       value: top.value, page: top.page, line: top.line, count: top.count,
-      confidence: top.score >= 5 ? 'high' : top.score >= 3.5 ? 'medium' : 'low',
-      alts: rest.slice(0, 4).map((g) => ({ value: g.value, page: g.page, line: g.line })),
+      confidence,
+      alts: [...colAlts, ...others.filter((o) => !colAlts.some((a) => a.value === o.value))],
+      ...(top.stmt ? { row: top.stmt.row, lineNo: top.stmt.lineNo, col: top.stmt.col, colKind: top.stmt.colKind, cell: top.stmt.cell, scale: top.stmt.scale, unit: top.stmt.unit, table: top.stmt.table, check: top.stmt.check } : {}),
     };
   }
   return fields;
@@ -553,18 +647,25 @@ export { rentRoll, headerColumns, mergeHeader } from './omroll.js';
 /**
  * Read an OM: `pages` is page text from layout.js; `layouts`, optionally, each
  * page's geometry from layout.js (baselines and x positions), which lets the
- * rent roll be read by position. `scanned` lists the pages with no text
- * layer: a photo, or a scan whose figures can't be read without OCR.
+ * rent roll and the operating statements be read by position. `asOf` (a
+ * date) says which plain years in a statement's headings are past (actual)
+ * and which are to come (projected); today by default. `scanned` lists the
+ * pages with no text layer: a photo, or a scan whose figures can't be read
+ * without OCR. `statement` holds the statement tables as read and their
+ * checks (omstatement.js), in the Data QC shape.
  */
-export function readOm(pages, { layouts = null } = {}) {
+export function readOm(pages, { layouts = null, asOf = null } = {}) {
   const text = pages.join('\n');
-  const fields = /** @type {Record<string, any>} */ ({ ...choose(candidates(pages)), ...addressOf(pages), ...typeOf(pages) });
+  const asOfYear = asOf ? new Date(asOf).getUTCFullYear() : new Date().getFullYear();
+  const { cands, statement } = candidates(pages, { layouts, asOfYear });
+  const fields = /** @type {Record<string, any>} */ ({ ...choose(cands), ...addressOf(pages), ...typeOf(pages) });
   // land and building printed in acres, say, both come back in SF; keep acres for display
   if (fields.lot) fields.lot.acres = Math.round((fields.lot.value / 43560) * 1000) / 1000;
   const unpriced = !fields.price && /\b(unpriced|call for (?:offers|pricing)|price upon request|best and final|bid process|call broker|market bid|subject to offer)\b/i.test(text);
   return {
     fields,
     rentRoll: rentRoll(pages, { layouts }),
+    statement,
     unpriced,
     pages: pages.length,
     chars: text.replace(/\s+/g, '').length,
