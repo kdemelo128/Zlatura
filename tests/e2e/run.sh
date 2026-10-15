@@ -37,7 +37,11 @@ FAILED=()
 # workbooks left by an earlier run would be recalculated as if this run made them
 rm -f files/out-*
 for f in $FLOWS; do echo "===== $f"; node "$f.mjs" || FAILED+=("$f"); done
+# the LibreOffice recalculation of every workbook; E2E_SKIP_RECALC=1 leaves it out (the CI browser subset,
+# which has no LibreOffice: check:full always runs it)
+if [ "${E2E_SKIP_RECALC:-}" = 1 ]; then echo "===== recalc skipped (E2E_SKIP_RECALC=1)"; else
 node make_engine_check.mjs files/engine-check.xlsx
 for x in files/*.xlsx files/*.xlsm; do case "$x" in *acme-template.xlsx) continue;; esac; echo "===== recalc $x"; python3 -W ignore recalc.py "$x" || FAILED+=("recalc $x"); done
+fi
 if [ ${#FAILED[@]} -gt 0 ]; then echo "===== FAILED: ${FAILED[*]}" >&2; exit 1; fi
 echo "===== all flows passed"

@@ -1,0 +1,4 @@
+# what tests/e2e/run.sh's fixture scripts need (the CI browser subset installs these)
+reportlab==5.0.1
+Pillow==12.3.0
+openpyxl==3.1.5
