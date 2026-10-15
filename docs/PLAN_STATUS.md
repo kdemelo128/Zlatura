@@ -21,22 +21,38 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.5, Bug B built; proposal 2a written (2026-10-15).
+Last updated: 4.7.5; both Part 2 proposals approved (2026-10-15).
 
 ## Now
 
-- **Current step:** Gate 1: three bug PRs open; then Part 2 proposals.
-  Bug B is built (4.7.5, committed on `claude/bug-b-om-income`, stacked on
-  Bug A's 4.7.4 commit; PR pending). Bugs A and C are merged into main.
-- **Bugs A and B:** diagnosed; all recommendations approved 2026-10-14.
+- **Current step:** gate 2 passed. Both Part 2 proposals approved by the
+  owner 2026-10-15 (all recommendations: 22 in `t12-multiformat.md`, 18 in
+  `ui-revamp.md` section 11). Bugs C, A and B are merged (4.7.3–4.7.5).
+- **Build order (owner, 2026-10-15), one PR and one agent at a time,
+  stopping for the owner's merge after each:**
+  1. Browser flows exit with an error when a check fails, proved by a flow
+     made to fail on purpose.
+  2. Partial-year T-12 fix: "Use the T-12's figures" never saves a T-3, T-6
+     or T-9 as the annual NOI; partial shown as partial; annualizing only
+     with the owner's explicit confirmation, never silently.
+  3. T-12 multi-format import (`docs/proposals/t12-multiformat.md`).
+  4. OM red-flag check, then the pro forma vs T-12 bridge as an interactive
+     waterfall.
+  5. UI revamp in phases behind the "New look" toggle: foundation and theme,
+     Home and navigation, customization, live charts, motion, screen
+     clean-ups, then the Feature map test.
+  6. The rest of Phase 2, then Phases 3 to 8.
+- **Changes to saved results or financial meaning** inside the approved
+  proposals go in their own small PR, with the before/after golden-output
+  difference shown before the owner merges.
+- **Kept as is (owner, 2026-10-15):** the "What doesn't add up" occupancy
+  check stays on the rent roll's own SF so saved results stay identical;
+  tracked for the Phase 2 rent roll work.
 - **Usage rules (2026-10-14):** one agent at a time, never parallel Opus;
   routine work in the main session; read big files by section or grep; run
   only the affected tests while developing and the full suites once before
   each PR; no polling check-ins; short reports; on a usage limit, write a
   short state note here first.
-- **Part 2a:** proposal `docs/proposals/t12-multiformat.md` written on
-  `claude/proposal-t12-multiformat` (docs only), waiting for approval.
-- **Next gate:** the three bug-fix PRs, open for merge.
 - **Questions for the owner:** where the master plan and the later
   instructions differ, at the end of this file.
 
@@ -44,7 +60,7 @@ Last updated: 4.7.5, Bug B built; proposal 2a written (2026-10-15).
 
 | Group | Done | Partial | In progress | Not started | Blocked | Items |
 |---|---|---|---|---|---|---|
-| The owner's directive | 7 | 1 | 1 | 9 | 0 | 18 |
+| The owner's directive | 9 | 1 | 0 | 8 | 0 | 18 |
 | Rules and process (Parts 0, 1.3, 22, 23, 24) | 19 | 7 | 1 | 0 | 0 | 27 |
 | The 15 pillars (Part 2) | 1 | 8 | 0 | 6 | 0 | 15 |
 | Phase 0: audit and baseline | 9 | 0 | 0 | 0 | 0 | 9 |
@@ -57,7 +73,7 @@ Last updated: 4.7.5, Bug B built; proposal 2a written (2026-10-15).
 | Phase 7: workspaces and integrations | 1 | 4 | 0 | 9 | 0 | 14 |
 | Phase 8: final audit | 1 | 2 | 0 | 7 | 1 | 11 |
 | Real-world validation | 0 | 0 | 0 | 0 | 5 | 5 |
-| **All** | **100** | **122** | **2** | **142** | **8** | **374** |
+| **All** | **102** | **122** | **1** | **141** | **8** | **374** |
 
 The pillars are counted on their own as well as through the items of the
 phases that build them.
@@ -96,11 +112,13 @@ These came after the master plan and are worked first.
 
 ### Part 2: design proposals
 These stop for approval.
-- [>] 2a. T-12 multi-format import (`docs/proposals/t12-multiformat.md`):
-  proposal written 2026-10-15, waiting for the owner's approval (22
-  decisions listed at its end)
-- [ ] 2b. UI revamp (`docs/proposals/ui-revamp.md`, wireframes in
-  `docs/proposals/ui/`)
+- [x] 2a. T-12 multi-format import (`docs/proposals/t12-multiformat.md`):
+  written 2026-10-15 (PR #21, merged); all 22 decisions approved by the
+  owner 2026-10-15, as recommended. To build after the two fixes below.
+- [x] 2b. UI revamp (`docs/proposals/ui-revamp.md`, wireframes in
+  `docs/proposals/ui/`): written 2026-10-15 (PR #22); all 18 decisions in
+  section 11 approved by the owner 2026-10-15, as recommended. Built in
+  phases behind the "New look" toggle.
 
 ### UI revamp
 Behind the "New look" toggle, after 2b.

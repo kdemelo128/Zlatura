@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Chart: trying a rate, with the table · Zlatura new look (wireframe)</title>
+<style>:root{--bg:#F7F6F3;--side:#F1EFEB;--surface:#FFFFFF;--surface-2:#F3F2EE;--ink:#16191E;--muted:#4F555E;--line:rgba(22,25,30,.13);--accent:#8A6118;--accent-ink:#FFFFFF;--accent-soft:rgba(138,97,24,.12);--pos:#0072B2;--neg:#B85000;--ref:#5F6570;--good:#0F7356;--warn:#93500A;--warn-soft:rgba(219,128,20,.13);color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0F1012;--side:#121315;--surface:#17191C;--surface-2:#1D2024;--ink:#EEECE7;--muted:#AEB2B8;--line:rgba(255,255,255,.14);--accent:#DDB466;--accent-ink:#0F1012;--accent-soft:rgba(221,180,102,.16);--pos:#56B4E9;--neg:#E69F00;--ref:#979CA4;--good:#4DCB97;--warn:#F0AB52;--warn-soft:rgba(240,171,82,.14);color-scheme:dark}}
+*{box-sizing:border-box}html,body{margin:0}html{scroll-padding:72px 0 76px}body{background:var(--bg);color:var(--ink);font:400 15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+h1,h2,h3{margin:0;font-weight:600}p{margin:0}a{color:var(--ink);text-underline-offset:3px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.wf{font-size:12px;color:var(--muted);text-align:center;padding:6px 12px;border-bottom:1px dashed var(--line)}
+.serif{font-family:ui-serif,"New York",Georgia,serif}
+.num{font-variant-numeric:tabular-nums}
+.phone{max-width:430px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:var(--bg)}
+.bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bg);border-bottom:1px solid var(--line)}
+.mark{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--ink);color:var(--accent)}
+.brand{font:600 17px/1 ui-serif,Georgia,serif;margin-right:auto}
+.ib{flex:none;min-width:44px;min-height:44px;display:inline-grid;place-items:center;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font:inherit;cursor:pointer;padding:0 10px}
+.ib.plain{border-color:transparent;background:none}
+.ib:disabled{color:var(--muted);opacity:.75}
+.btn{flex:none;white-space:nowrap;min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 15px/1 inherit;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.wide{width:100%}
+.content{flex:1;padding:4px 16px 24px;display:grid;gap:14px;align-content:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px}
+.card h2{font-size:17px}
+.card .sub{color:var(--muted);font-size:13px}
+.head{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}.head h2{margin-right:auto}
+.eyebrow{font:600 12px/1 inherit;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.hero{font-size:24px;line-height:1.25;font-weight:600}
+.rows{list-style:none;margin:0;padding:0}.rows li{display:flex;gap:10px;align-items:center;min-height:52px;border-top:1px solid var(--line);padding:6px 0}.rows li:first-child{border-top:0}
+.rows .main{flex:1;min-width:0}.rows a.main{display:block;padding:8px 0;text-decoration:none;color:inherit}.rows .t{font-weight:600}.rows .s{color:var(--muted);font-size:13px}
+.tag{font:600 12px/1 inherit;padding:4px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.figs{display:flex;gap:16px}.figs b{display:block;font-size:15px}.figs span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.big3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.big3 b{display:block;font-size:22px;line-height:1.1;letter-spacing:-.01em}.big3 .k{font-size:13px;color:var(--muted)}.big3 .why{font-size:12px;color:var(--muted)}
+.tabs{position:sticky;bottom:0;z-index:5;display:grid;grid-template-columns:repeat(5,1fr);background:var(--bg);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0)}
+.tabs a{min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:600 11px/1 inherit;color:var(--muted);text-decoration:none;position:relative}
+.tabs a[aria-current=page]{color:var(--ink)}.tabs a[aria-current=page]::before{content:"";position:absolute;top:0;left:30%;right:30%;height:2px;background:var(--accent)}
+.tabs svg,.rail svg{width:24px;height:24px}
+.count{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font:700 11px/1 inherit}
+.tabs .count{position:absolute;top:6px;left:calc(50% + 6px)}
+.seg{display:flex;gap:2px;background:var(--surface-2);border-radius:12px;padding:3px}.seg button,.seg a{flex:1;min-height:44px;border:0;background:none;border-radius:9px;font:600 14px/1 inherit;font-family:inherit;color:var(--muted);cursor:pointer;display:grid;place-items:center;text-decoration:none}
+.seg [aria-pressed=true],.seg [aria-checked=true],.seg [aria-current=page]{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.chart svg{width:100%;height:auto;display:block}
+.chart .sum{font-size:14px;margin:2px 0 8px}
+.chart .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.ax{font:11px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;fill:var(--muted)}
+.lbl{font:600 11px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;fill:var(--ink)}
+table{border-collapse:collapse;width:100%;font-size:14px}caption{text-align:left;font-weight:600;padding:0 0 6px}th,td{padding:8px 6px;border-top:1px solid var(--line);text-align:right}th[scope=row],thead th:first-child{text-align:left}thead th{font-size:12px;color:var(--muted);font-weight:600}
+tr.hl td,tr.hl th{background:var(--accent-soft);font-weight:600}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px dashed var(--accent);color:var(--ink);font-size:13px;font-weight:600}
+.note{font-size:13px;color:var(--muted)}
+.warnrow{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--warn-soft)}
+.warnrow b{color:var(--warn)}</style>
+</head>
+<body>
+<aside class="wf" aria-label="About this wireframe">Wireframe for proposal 2b. Every name and number is invented. <a href="index.html">All wireframes</a></aside>
+<div class="phone">
+<header class="bar" style="gap:4px"><a class="ib plain" href="deal-phone.html" aria-label="Back to Harbor Row Retail"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a><span class="serif" style="font-weight:600;font-size:16px;margin-right:auto">Harbor Row Retail</span></header>
+<main class="content" id="main">
+<section class="card chart" aria-labelledby="h-d2" style="margin-top:8px"><div class="head"><h1 id="h-d2" style="font-size:17px">Debt: DSCR against the rate</h1><button class="btn" type="button" aria-expanded="true" aria-controls="t-d2">Table</button></div>
+<p class="sum">DSCR is 1.43x at 6.50%. It falls below the 1.25x lender minimum above 7.83%.</p>
+<p><span class="chip">Trying 7.25%: the deal is unchanged</span></p>
+<svg viewBox="0 0 340 190" aria-hidden="true"><line x1="44" x2="328" y1="145.73333333333335" y2="145.73333333333335" stroke="var(--line)"/><text class="ax" x="38" y="149.73333333333335" text-anchor="end">1.2x</text><line x1="44" x2="328" y1="105.20000000000005" y2="105.20000000000005" stroke="var(--line)"/><text class="ax" x="38" y="109.20000000000005" text-anchor="end">1.4x</text><line x1="44" x2="328" y1="64.66666666666667" y2="64.66666666666667" stroke="var(--line)"/><text class="ax" x="38" y="68.66666666666667" text-anchor="end">1.6x</text><line x1="44" x2="328" y1="24.133333333333354" y2="24.133333333333354" stroke="var(--line)"/><text class="ax" x="38" y="28.133333333333354" text-anchor="end">1.8x</text><text class="ax" x="44" y="182" text-anchor="middle">4.5%</text><text class="ax" x="115" y="182" text-anchor="middle">5.5%</text><text class="ax" x="186" y="182" text-anchor="middle">6.5%</text><text class="ax" x="257" y="182" text-anchor="middle">7.5%</text><text class="ax" x="328" y="182" text-anchor="middle">8.5%</text>
+<line x1="44" x2="328" y1="135.60000000000002" y2="135.60000000000002" stroke="var(--neg)" stroke-width="1.5" stroke-dasharray="6 4"/><text class="lbl" x="48" y="129.60000000000002">Lender minimum 1.25x</text>
+<polyline points="44.0,27.8 61.8,38.1 79.5,48.0 97.3,57.6 115.0,66.7 132.8,75.4 150.5,83.7 168.3,91.8 186.0,99.5 203.8,106.8 221.5,113.9 239.3,120.8 257.0,127.3 274.8,133.6 292.5,139.7 310.3,145.3 328.0,151.0" fill="none" stroke="var(--pos)" stroke-width="2.5"/>
+<line x1="280.71399999999994" x2="280.71399999999994" y1="131.60000000000002" y2="153.60000000000002" stroke="var(--neg)" stroke-width="1.5"/>
+<circle cx="186" cy="99.52533333333336" r="7" fill="none" stroke="var(--accent)" stroke-width="2.5"/><text class="lbl" x="176" y="89.52533333333336" text-anchor="end">This deal 1.43x</text><line x1="239.25" x2="239.25" y1="14" y2="166" stroke="var(--accent)" stroke-width="2"/><circle cx="239.25" cy="120.80533333333335" r="6" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>
+<rect x="247.25" y="22" width="92" height="34" rx="8" fill="var(--surface)" stroke="var(--accent)"/><text class="lbl" x="255.25" y="37">Trying 7.25%</text><text class="ax" x="255.25" y="50">DSCR 1.32x</text></svg>
+<label for="rate" style="display:block;font-weight:600;font-size:14px;margin-top:6px">Interest rate to try</label>
+<input id="rate" type="range" min="4.5" max="8.5" step="0.25" value="7.25" aria-valuetext="7.25%: DSCR 1.32x, meets the 1.25x minimum" style="width:100%;min-height:44px;accent-color:var(--accent)">
+<div role="status" class="card num" style="background:var(--surface-2);border:0;padding:12px;margin-top:6px"><b>At 7.25%</b>: DSCR <b>1.32x</b>, meets the 1.25x minimum. Debt service $304,523 a year; cash flow after debt $98,477.</div>
+<div class="acts"><button class="btn primary" type="button">Keep as a What-if scenario</button><button class="btn" type="button">Back to 6.50%</button><button class="btn" type="button">Affects: loan rate</button><button class="btn" type="button">NOI source: OM p. 14</button></div>
+<div id="t-d2" style="margin-top:14px;overflow-x:auto"><table class="num"><caption>DSCR at each rate, loan $3,720,000, 30-year amortization</caption>
+<thead><tr><th scope="col">Rate</th><th scope="col">Debt service</th><th scope="col">DSCR</th><th scope="col">Meets 1.25x</th></tr></thead>
+<tbody><tr><th scope="row">6.00%</th><td>$267,639</td><td>1.51x</td><td>Yes</td></tr><tr><th scope="row">6.25%</th><td>$274,856</td><td>1.47x</td><td>Yes</td></tr><tr><th scope="row">6.50% (the deal)</th><td>$282,155</td><td>1.43x</td><td>Yes</td></tr><tr><th scope="row">6.75%</th><td>$289,534</td><td>1.39x</td><td>Yes</td></tr><tr><th scope="row">7.00%</th><td>$296,991</td><td>1.36x</td><td>Yes</td></tr><tr class="hl"><th scope="row">7.25% (trying)</th><td>$304,523</td><td>1.32x</td><td>Yes</td></tr><tr><th scope="row">7.50%</th><td>$312,129</td><td>1.29x</td><td>Yes</td></tr><tr><th scope="row">7.75%</th><td>$319,806</td><td>1.26x</td><td>Yes</td></tr><tr><th scope="row">8.00%</th><td>$327,553</td><td>1.23x</td><td>No</td></tr></tbody></table></div>
+<p class="note" style="margin-top:10px">Keyboard: the chart is one stop; Left and Right move the rate by a quarter point, Home and End go to the ends. A screen reader hears the summary, then the slider's value, and can read the table.</p>
+</section>
+</main>
+<nav class="tabs" aria-label="Sections">
+  <a href="#home"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5M10 20v-6h4v6"/></svg><span>Home</span></a>
+  <a href="#deals" aria-current="page"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13"/><path d="M9 21v-5h6v5"/></svg><span>Deals</span></a>
+  <a href="#comps"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="3"/><path d="M3.5 9.5h17M9 9.5V20"/></svg><span>Comps</span></a>
+  <a href="#tools"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="17" height="18" rx="3"/><path d="M8 7h8M8 11.5h.01M12 11.5h.01M16 11.5h.01M8 15.5h.01M12 15.5h.01M16 15.5h.01"/></svg><span>Tools</span></a>
+  <a href="#more" aria-label="More, 3 items to review"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>More</span><span class="count" aria-hidden="true">3</span></a>
+</nav>
+</div>
+</body>
+</html>

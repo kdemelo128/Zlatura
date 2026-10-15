@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Customize mode and the Hidden shelf · Zlatura new look (wireframe)</title>
+<style>:root{--bg:#F7F6F3;--side:#F1EFEB;--surface:#FFFFFF;--surface-2:#F3F2EE;--ink:#16191E;--muted:#4F555E;--line:rgba(22,25,30,.13);--accent:#8A6118;--accent-ink:#FFFFFF;--accent-soft:rgba(138,97,24,.12);--pos:#0072B2;--neg:#B85000;--ref:#5F6570;--good:#0F7356;--warn:#93500A;--warn-soft:rgba(219,128,20,.13);color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0F1012;--side:#121315;--surface:#17191C;--surface-2:#1D2024;--ink:#EEECE7;--muted:#AEB2B8;--line:rgba(255,255,255,.14);--accent:#DDB466;--accent-ink:#0F1012;--accent-soft:rgba(221,180,102,.16);--pos:#56B4E9;--neg:#E69F00;--ref:#979CA4;--good:#4DCB97;--warn:#F0AB52;--warn-soft:rgba(240,171,82,.14);color-scheme:dark}}
+*{box-sizing:border-box}html,body{margin:0}html{scroll-padding:72px 0 76px}body{background:var(--bg);color:var(--ink);font:400 15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+h1,h2,h3{margin:0;font-weight:600}p{margin:0}a{color:var(--ink);text-underline-offset:3px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.wf{font-size:12px;color:var(--muted);text-align:center;padding:6px 12px;border-bottom:1px dashed var(--line)}
+.serif{font-family:ui-serif,"New York",Georgia,serif}
+.num{font-variant-numeric:tabular-nums}
+.phone{max-width:430px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:var(--bg)}
+.bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bg);border-bottom:1px solid var(--line)}
+.mark{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--ink);color:var(--accent)}
+.brand{font:600 17px/1 ui-serif,Georgia,serif;margin-right:auto}
+.ib{flex:none;min-width:44px;min-height:44px;display:inline-grid;place-items:center;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font:inherit;cursor:pointer;padding:0 10px}
+.ib.plain{border-color:transparent;background:none}
+.ib:disabled{color:var(--muted);opacity:.75}
+.btn{flex:none;white-space:nowrap;min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 15px/1 inherit;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.wide{width:100%}
+.content{flex:1;padding:4px 16px 24px;display:grid;gap:14px;align-content:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px}
+.card h2{font-size:17px}
+.card .sub{color:var(--muted);font-size:13px}
+.head{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}.head h2{margin-right:auto}
+.eyebrow{font:600 12px/1 inherit;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.hero{font-size:24px;line-height:1.25;font-weight:600}
+.rows{list-style:none;margin:0;padding:0}.rows li{display:flex;gap:10px;align-items:center;min-height:52px;border-top:1px solid var(--line);padding:6px 0}.rows li:first-child{border-top:0}
+.rows .main{flex:1;min-width:0}.rows a.main{display:block;padding:8px 0;text-decoration:none;color:inherit}.rows .t{font-weight:600}.rows .s{color:var(--muted);font-size:13px}
+.tag{font:600 12px/1 inherit;padding:4px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.figs{display:flex;gap:16px}.figs b{display:block;font-size:15px}.figs span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.big3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.big3 b{display:block;font-size:22px;line-height:1.1;letter-spacing:-.01em}.big3 .k{font-size:13px;color:var(--muted)}.big3 .why{font-size:12px;color:var(--muted)}
+.tabs{position:sticky;bottom:0;z-index:5;display:grid;grid-template-columns:repeat(5,1fr);background:var(--bg);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0)}
+.tabs a{min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:600 11px/1 inherit;color:var(--muted);text-decoration:none;position:relative}
+.tabs a[aria-current=page]{color:var(--ink)}.tabs a[aria-current=page]::before{content:"";position:absolute;top:0;left:30%;right:30%;height:2px;background:var(--accent)}
+.tabs svg,.rail svg{width:24px;height:24px}
+.count{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font:700 11px/1 inherit}
+.tabs .count{position:absolute;top:6px;left:calc(50% + 6px)}
+.seg{display:flex;gap:2px;background:var(--surface-2);border-radius:12px;padding:3px}.seg button,.seg a{flex:1;min-height:44px;border:0;background:none;border-radius:9px;font:600 14px/1 inherit;font-family:inherit;color:var(--muted);cursor:pointer;display:grid;place-items:center;text-decoration:none}
+.seg [aria-pressed=true],.seg [aria-checked=true],.seg [aria-current=page]{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.chart svg{width:100%;height:auto;display:block}
+.chart .sum{font-size:14px;margin:2px 0 8px}
+.chart .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.ax{font:11px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;fill:var(--muted)}
+.lbl{font:600 11px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;fill:var(--ink)}
+table{border-collapse:collapse;width:100%;font-size:14px}caption{text-align:left;font-weight:600;padding:0 0 6px}th,td{padding:8px 6px;border-top:1px solid var(--line);text-align:right}th[scope=row],thead th:first-child{text-align:left}thead th{font-size:12px;color:var(--muted);font-weight:600}
+tr.hl td,tr.hl th{background:var(--accent-soft);font-weight:600}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px dashed var(--accent);color:var(--ink);font-size:13px;font-weight:600}
+.note{font-size:13px;color:var(--muted)}
+.warnrow{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--warn-soft)}
+.warnrow b{color:var(--warn)}</style>
+</head>
+<body>
+<aside class="wf" aria-label="About this wireframe">Wireframe for proposal 2b. Every name and number is invented. <a href="index.html">All wireframes</a></aside>
+<style>
+.crow{display:flex;align-items:center;gap:6px;min-height:56px;border-top:1px solid var(--line);padding:6px 0}.crow:first-child{border-top:0}.crow .n{flex:1;font-weight:600}
+.sw-brass{background:#8A6118}@media (prefers-color-scheme:dark){.sw-brass{background:#DDB466}}.sw-cobalt{background:#2350C8}@media (prefers-color-scheme:dark){.sw-cobalt{background:#93ACFF}}.sw-teal{background:#0A7064}@media (prefers-color-scheme:dark){.sw-teal{background:#3FC9B6}}.sw-plum{background:#6E3A8C}@media (prefers-color-scheme:dark){.sw-plum{background:#C9A2E0}}.sw-graphite{background:#3D4A5C}@media (prefers-color-scheme:dark){.sw-graphite{background:#B9C3D1}}
+.sw{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:56px;min-height:64px;border:0;background:none;color:var(--ink);font:12px/1.2 inherit;font-family:inherit;cursor:pointer;border-radius:12px;padding:6px 2px}
+.sw i{width:28px;height:28px;border-radius:50%;display:block}
+.sw[aria-checked=true]{box-shadow:0 0 0 2px var(--accent)}
+</style>
+<div class="phone">
+<header class="bar"><span style="font-weight:600;margin-right:auto">Customizing Home</span><a class="btn primary" href="home-phone.html">Done</a></header>
+<main class="content" id="main">
+<h1 class="sr" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Customize Home</h1>
+<section class="card" aria-labelledby="h-pre"><h2 id="h-pre" style="margin-bottom:8px">Preset</h2>
+<div class="seg" role="radiogroup" aria-labelledby="h-pre"><button type="button" role="radio" aria-checked="true">Calm</button><button type="button" role="radio" aria-checked="false">Everything</button><button type="button" role="radio" aria-checked="false">Pipeline</button></div>
+<p class="note" style="margin-top:8px">Choosing a preset shows what it changes first, and can be undone.</p></section>
+<section class="card" aria-labelledby="h-on"><div class="head"><h2 id="h-on">On Home</h2><button class="btn" type="button">Edit as a list</button></div>
+<ol class="rows" style="list-style:none"><li class="crow"><span class="n">Headline</span>
+<button class="ib" type="button" aria-label="Move Headline up" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button><button class="ib" type="button" aria-label="Move Headline down"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><button class="btn" type="button" aria-label="Hide Headline">Hide</button></li><li class="crow"><span class="n">Review</span>
+<button class="ib" type="button" aria-label="Move Review up"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button><button class="ib" type="button" aria-label="Move Review down"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><button class="btn" type="button" aria-label="Hide Review">Hide</button></li><li class="crow"><span class="n">Today</span>
+<button class="ib" type="button" aria-label="Move Today up"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button><button class="ib" type="button" aria-label="Move Today down"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><button class="btn" type="button" aria-label="Hide Today">Hide</button></li><li class="crow"><span class="n">Continue working</span>
+<button class="ib" type="button" aria-label="Move Continue working up"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button><button class="ib" type="button" aria-label="Move Continue working down"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><button class="btn" type="button" aria-label="Hide Continue working">Hide</button></li><li class="crow"><span class="n">Pipeline</span>
+<button class="ib" type="button" aria-label="Move Pipeline up"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button><button class="ib" type="button" aria-label="Move Pipeline down"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><button class="btn" type="button" aria-label="Hide Pipeline">Hide</button></li><li class="crow"><span class="n">Tasks</span>
+<button class="ib" type="button" aria-label="Move Tasks up"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button><button class="ib" type="button" aria-label="Move Tasks down" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><button class="btn" type="button" aria-label="Hide Tasks">Hide</button></li></ol>
+<p role="status" class="note" style="margin-top:6px">Pipeline, position 5 of 6.</p></section>
+<section class="card" aria-labelledby="h-shelf"><div class="head"><h2 id="h-shelf">Hidden shelf</h2><span class="sub">3 cards</span></div>
+<p class="note">Hidden cards are kept here, never removed. Open shows one once without changing the layout.</p>
+<ul class="rows"><li class="crow"><span class="n">Contacts<span class="s" style="display:block;font-weight:400">also in More → Contacts</span></span><button class="btn" type="button" aria-label="Open Contacts">Open</button><button class="btn" type="button" aria-label="Show Contacts on Home">Show</button></li><li class="crow"><span class="n">Recent activity<span class="s" style="display:block;font-weight:400">stage changes, tasks, files produced</span></span><button class="btn" type="button" aria-label="Open Recent activity">Open</button><button class="btn" type="button" aria-label="Show Recent activity on Home">Show</button></li><li class="crow"><span class="n">This week<span class="s" style="display:block;font-weight:400">tasks due this week, files produced</span></span><button class="btn" type="button" aria-label="Open This week">Open</button><button class="btn" type="button" aria-label="Show This week on Home">Show</button></li></ul></section>
+<section class="card" aria-labelledby="h-app"><h2 id="h-app" style="margin-bottom:8px">Appearance</h2>
+<p id="l-acc" style="font-weight:600;font-size:14px">Accent</p>
+<div role="radiogroup" aria-labelledby="l-acc" style="display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 12px"><button class="sw" type="button" role="radio" aria-checked="true"><i class="sw-brass" aria-hidden="true"></i>Brass</button><button class="sw" type="button" role="radio" aria-checked="false"><i class="sw-cobalt" aria-hidden="true"></i>Cobalt</button><button class="sw" type="button" role="radio" aria-checked="false"><i class="sw-teal" aria-hidden="true"></i>Teal</button><button class="sw" type="button" role="radio" aria-checked="false"><i class="sw-plum" aria-hidden="true"></i>Plum</button><button class="sw" type="button" role="radio" aria-checked="false"><i class="sw-graphite" aria-hidden="true"></i>Graphite</button></div>
+<p id="l-den" style="font-weight:600;font-size:14px">Density</p>
+<div class="seg" role="radiogroup" aria-labelledby="l-den" style="margin-top:6px"><button type="button" role="radio" aria-checked="true">Comfortable</button><button type="button" role="radio" aria-checked="false">Compact</button></div>
+<p class="note" style="margin-top:6px">Compact applies with a mouse only; on a touch screen every target stays at least 44 points.</p></section>
+<button class="btn wide" type="button" style="color:var(--warn);border-color:var(--warn)">Reset Home…</button>
+</main>
+<nav class="tabs" aria-label="Sections">
+  <a href="#home" aria-current="page"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5M10 20v-6h4v6"/></svg><span>Home</span></a>
+  <a href="#deals"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13"/><path d="M9 21v-5h6v5"/></svg><span>Deals</span></a>
+  <a href="#comps"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="3"/><path d="M3.5 9.5h17M9 9.5V20"/></svg><span>Comps</span></a>
+  <a href="#tools"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="17" height="18" rx="3"/><path d="M8 7h8M8 11.5h.01M12 11.5h.01M16 11.5h.01M8 15.5h.01M12 15.5h.01M16 15.5h.01"/></svg><span>Tools</span></a>
+  <a href="#more" aria-label="More, 3 items to review"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>More</span><span class="count" aria-hidden="true">3</span></a>
+</nav>
+</div>
+</body>
+</html>
