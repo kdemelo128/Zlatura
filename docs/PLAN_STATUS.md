@@ -21,21 +21,20 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.6; browser flows now fail the run when a check fails (2026-10-15).
+Last updated: 4.7.7; an edit is kept when the deal is left or the app closed at once (2026-10-15).
 
 ## Now
 
-- **Current step:** build item 1 done (4.7.6, PR open; its first part
-  merged as #23). Next: the lost-edit bug it uncovered (below), then item 2.
-  Gate 2 passed: both Part 2 proposals approved by the owner 2026-10-15
+- **Current step:** the lost-edit bug found by build item 1 is fixed (4.7.7,
+  PR open). Item 1 is merged (#23, #24). Next: item 2, the partial-year T-12
+  fix. Gate 2 passed: both Part 2 proposals approved by the owner 2026-10-15
   (all recommendations: 22 in `t12-multiformat.md`, 18 in `ui-revamp.md`
   section 11). Bugs C, A and B are merged (4.7.3–4.7.5).
-- **Bug found by item 1 (data loss, since 4.7.3):** a figure typed on the
-  deal and committed with Tab is saved one tick late (`app/focuskeep.js`
-  waits for focus to land before running the whole change handler). Leaving
-  the deal or reloading in that tick drops the edit, or writes it to no deal
-  (`null.figures`). `deal-persistence` fails about 3 runs in 4. Fix as its
-  own PR before item 2 (bugs first, owner's answer 9).
+- **Lost edit (since 4.7.3), fixed in 4.7.7:** `app/focuskeep.js` held the
+  whole change handler, the save included, until Tab's focus landed, so
+  leaving the deal or closing the app in that beat lost the edit. Now the
+  save is immediate and only the redraw waits (deal figures, What-if
+  targets, lease editor); `lostedit-flow` covers each.
 - **Build order (owner, 2026-10-15), one PR and one agent at a time,
   stopping for the owner's merge after each:**
   1. [x] Browser flows exit with an error when a check fails, proved by a
