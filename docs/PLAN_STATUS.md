@@ -21,15 +21,15 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.8; efficiency setup, tooling and docs only (2026-10-15).
+Last updated: 4.7.11; a small browser check on every push (2026-10-15).
 
 ## Now
 
-- **Current step:** efficiency setup (4.7.8, PR open; no app change):
-  `docs/NOW.md`, a shorter `CLAUDE.md`, on-demand skills, read-deny rules,
-  `check:quick`, `check:full` and `bump`. Three decisions for the owner are
-  in `docs/proposals/efficiency-setup.md`. The lost-edit fix (4.7.7) is
-  merged (#25), and so is item 1 (#23, #24). Next: item 2, the partial-year T-12
+- **Current step:** the CI browser subset (4.7.11, PR open): typing,
+  lost edit, deal persistence and deal export on every push. Open before
+  it: project settings (4.7.9) and the partial-year T-12 fix (4.7.10). The
+  efficiency setup (4.7.8) is merged (#26), and so are the lost-edit fix
+  (#25) and item 1 (#23, #24). Next: item 2, the partial-year T-12
   fix. Gate 2 passed: both Part 2 proposals approved by the owner 2026-10-15
   (all recommendations: 22 in `t12-multiformat.md`, 18 in `ui-revamp.md`
   section 11). Bugs C, A and B are merged (4.7.3–4.7.5).
@@ -101,6 +101,9 @@ These came after the master plan and are worked first.
   `docs/working-rules.md`, on-demand skills, read-deny rules,
   `npm run check:quick`, `check:full` and `bump`; PR open. Three decisions
   for the owner in `docs/proposals/efficiency-setup.md`
+- [x] CI browser subset (4.7.11): typing-flow, lostedit-flow,
+  deal-persistence and deal-export on every push, Chromium at iPhone size,
+  without the LibreOffice recalc; PR open
 - [~] WebKit (iPhone Safari's engine) runs: `PW_BROWSER=webkit` added (4.7.1).
   **Blocked here:** WebKit isn't installed in this environment, so runs here
   are Chromium at iPhone size.
