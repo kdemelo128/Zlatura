@@ -1,7 +1,7 @@
 /* The Tools screen: search, the new calculators against independently worked
  * figures, saved scenarios, Excel export and print, loading from a deal and
  * writing back to it only after the confirmation. */
-import { phone, BASE, SHOTS } from './lib.mjs';
+import { phone, BASE, SHOTS, finish } from './lib.mjs';
 import { execFileSync } from 'child_process';
 const F = new URL('./files/', import.meta.url).pathname;
 const { browser, page, errors } = await phone();
@@ -157,5 +157,5 @@ await closeSheet();
 const txt = await page.locator('#app').innerText();
 check('no NaN/undefined/Infinity', !/\b(NaN|undefined|Infinity)\b/.test(txt));
 for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', errors);
+finish(R, 'errors', errors);
 await browser.close();

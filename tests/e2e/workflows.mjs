@@ -1,4 +1,4 @@
-import { phone, BASE, SHOTS } from './lib.mjs';
+import { phone, BASE, SHOTS, finish } from './lib.mjs';
 import fs from 'fs';
 const F = new URL('./files/', import.meta.url).pathname;
 const { browser, page, errors } = await phone();
@@ -155,6 +155,6 @@ check('tool inputs remembered', (await page.inputValue('#sheet-body [id$="-price
 await page.click('#sheet-close');
 
 for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
-console.log('PASS', R.filter((r) => r[0] === 'PASS').length, 'FAIL', R.filter((r) => r[0] === 'FAIL').length);
+finish(R);
 console.log('errors', errors);
 await browser.close();

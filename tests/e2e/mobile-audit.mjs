@@ -1,5 +1,8 @@
-import { phone, BASE, SHOTS } from './lib.mjs';
+import { phone, BASE, SHOTS, finish } from './lib.mjs';
 const F = new URL('./files/', import.meta.url).pathname;
+const R = []; const check = (n, c, d = '') => R.push([c ? 'PASS' : 'FAIL', n, d]);
+// small targets (under 30 px) are listed for information: the 24 px rule is
+// checked in a11y-flow, and the 44 pt goal belongs to the new look
 for (const width of [320, 375, 390, 430]) {
   const { browser, page, errors } = await phone({ viewport: { width, height: 800 } });
   await page.goto(BASE, { waitUntil: 'load' });
@@ -36,8 +39,13 @@ for (const width of [320, 375, 390, 430]) {
     if (res.over.length) console.log('   overflow:', res.over);
     if (res.small.length) console.log('   small targets:', res.small);
     if (res.tiny.length) console.log('   tiny text:', res.tiny);
+    check(`${width} ${v}: nothing sticks out sideways`, res.scrollW <= res.vw && !res.over.length, res.over.join(', '));
+    check(`${width} ${v}: no text under 11 px`, !res.tiny.length, res.tiny.join(', '));
     if (width === 375) await page.screenshot({ path: `${SHOTS}m375-${v}.png`, fullPage: true });
   }
   if (errors.length) console.log('errors', errors);
+  check(`${width}: no console errors`, errors.length === 0, errors.join(' / '));
   await browser.close();
 }
+for (const [s, n, d] of R) if (s === 'FAIL') console.log(s, '|', n, d ? `| ${d}` : '');
+finish(R);

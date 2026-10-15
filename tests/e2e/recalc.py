@@ -40,3 +40,5 @@ for ws in forms.worksheets:
 doc.close(True); proc.terminate()
 print(f"sheets={len(forms.worksheets)} formulas={nform} errors={len(errs)} mismatches={len(mism)} no-stored-value={uncached}")
 for x in (errs + mism)[:40]: print('  ', x)
+# a formula error or a mismatch fails the run (run.sh collects it)
+if errs or mism: sys.exit(1)

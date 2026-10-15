@@ -4,7 +4,7 @@
  * and the page reflows at 320 px. Automated checks find only part of what a
  * screen-reader user meets; they are a floor, not an audit. */
 import { createRequire } from 'module';
-import { phone, BASE } from './lib.mjs';
+import { phone, BASE, finish } from './lib.mjs';
 const AXE = createRequire(import.meta.url).resolve('axe-core/axe.min.js');
 const F = new URL('./files/', import.meta.url).pathname;
 const { browser, page, errors } = await phone();
@@ -182,5 +182,5 @@ check('Android and desktop: the page can be zoomed (no maximum-scale)', !/maximu
 await other.close();
 for (const [s, n, d] of R) console.log(s, '|', n, d ? `\n    ${d}` : '');
 console.log('\nRules violated:', [...found.values()].map((v) => `${v.id} (${v.impact}) on ${[...v.where].join(', ')}`).join('\n  ') || 'none');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', errors);
+finish(R, 'errors', errors);
 await browser.close();

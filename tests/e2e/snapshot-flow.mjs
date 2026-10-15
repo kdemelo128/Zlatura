@@ -6,7 +6,7 @@
  *     overwrites the deal; an import too large to undo step by step is undone
  *     from its snapshot;
  *   - the limits: 20 named (the 21st is refused), 10 automatic (oldest goes). */
-import { phone, BASE } from './lib.mjs';
+import { phone, BASE, finish } from './lib.mjs';
 
 const F = new URL('./files/', import.meta.url).pathname;
 const R = []; const check = (n, c, d = '') => R.push([c ? 'PASS' : 'FAIL', n, d]);
@@ -179,4 +179,4 @@ check('10 automatic ones are kept: the oldest go', lim.auto.length === 10 && lim
 
 await browser.close();
 for (const [s, n, x] of R) console.log(s, '|', n, x ? `| ${x}` : '');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', errors);
+finish(R, 'errors', errors);

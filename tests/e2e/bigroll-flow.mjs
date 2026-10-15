@@ -11,7 +11,7 @@
  *     the Rent roll tab, instead of “working out” for ever. */
 import fs from 'fs';
 import { createRequire } from 'module';
-import { phone, BASE } from './lib.mjs';
+import { phone, BASE, finish } from './lib.mjs';
 
 const F = new URL('./files/', import.meta.url).pathname;
 const AXE = createRequire(import.meta.url).resolve('axe-core/axe.min.js');
@@ -142,4 +142,4 @@ check('no other errors', otherC.length === 0, otherC.join(' | '));
 await C.browser.close();
 
 for (const [s, nm, x] of R) console.log(s, '|', nm, x ? `| ${x}` : '');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', errors);
+finish(R, 'errors', errors);

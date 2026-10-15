@@ -12,7 +12,7 @@
  *   node perf-flow.mjs            # needs a server on BASE (run.sh starts one)
  *   THROTTLE=4 node perf-flow.mjs # the same with the CPU slowed 4×, a mid-range phone */
 import fs from 'fs';
-import { phone, BASE } from './lib.mjs';
+import { phone, BASE, finish } from './lib.mjs';
 
 const F = new URL('./files/', import.meta.url).pathname;
 const RUNS = Number(process.env.RUNS || 5);
@@ -124,4 +124,4 @@ if (THROTTLE === 1) {
 }
 await browser.close();
 for (const [s, n, x] of R) console.log(s, '|', n, x ? `| ${x}` : '');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', errors);
+finish(R, 'errors', errors);

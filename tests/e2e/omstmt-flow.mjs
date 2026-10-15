@@ -13,7 +13,7 @@
  *   4. Undo on the deal puts the check back and holds the figures again;
  *   5. axe on the panel, the Review item and the figures, light and dark. */
 import { createRequire } from 'module';
-import { phone, BASE, SHOTS } from './lib.mjs';
+import { phone, BASE, SHOTS, finish } from './lib.mjs';
 const AXE = createRequire(import.meta.url).resolve('axe-core/axe.min.js');
 const F = new URL('./files/', import.meta.url).pathname;
 const R = []; const check = (n, c, d = '') => R.push([c ? 'PASS' : 'FAIL', n, d]);
@@ -122,6 +122,6 @@ const bad = ['NaN', 'Infinity', 'undefined'].filter((w) => new RegExp(`\\b${w}\\
 check('no NaN, Infinity or undefined in the panel', !bad.length, bad.join());
 
 for (const r of R) console.log(r.join(' | '));
-console.log(`PASS ${R.filter((r) => r[0] === 'PASS').length} FAIL ${R.filter((r) => r[0] === 'FAIL').length} errors`, errors);
+finish(R, 'errors', errors);
 await browser.close();
 process.exit(R.some((r) => r[0] === 'FAIL') || errors.length ? 1 : 0);

@@ -15,7 +15,7 @@
  *      nothing is restored. */
 import { spawn, execFileSync } from 'child_process';
 import fs from 'fs';
-import { phone, BASE, SHOTS } from './lib.mjs';
+import { phone, BASE, SHOTS, finish } from './lib.mjs';
 
 const ROOT = new URL('../../', import.meta.url).pathname;
 const F = new URL('./files/', import.meta.url).pathname;
@@ -143,6 +143,6 @@ check('a backup holding a deal saved by a newer version is refused, saying which
 check('and nothing is restored', (await idb(page, 'deals')).length === count0);
 
 for (const r of R) console.log(r.join(' | '));
-console.log(`PASS ${R.filter((r) => r[0] === 'PASS').length} FAIL ${R.filter((r) => r[0] === 'FAIL').length} errors`, errors.filter((e) => !/Service Worker registration blocked/.test(e)));
+finish(R, 'errors', errors.filter((e) => !/Service Worker registration blocked/.test(e)));
 await browser.close();
 process.exit(R.some((r) => r[0] === 'FAIL') ? 1 : 0);

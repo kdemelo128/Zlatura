@@ -16,7 +16,7 @@
  * Service workers are blocked here: this is about storage, not the cache. */
 import { spawn, execFileSync } from 'child_process';
 import fs from 'fs';
-import { phone } from './lib.mjs';
+import { phone, finish } from './lib.mjs';
 
 const ROOT = new URL('../../', import.meta.url).pathname;
 const F = new URL('./files/', import.meta.url).pathname;
@@ -196,4 +196,4 @@ try {
 }
 
 for (const [s, n, x] of R) console.log(s, '|', n, x ? `| ${x}` : '');
-console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length);
+finish(R);

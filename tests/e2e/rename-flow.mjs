@@ -9,7 +9,7 @@
  * this makes is also kept as tests/fixtures/backup-comp-loader-3.3.0.json. */
 import { spawn, execFileSync } from 'child_process';
 import fs from 'fs';
-import { phone } from './lib.mjs';
+import { phone, finish } from './lib.mjs';
 
 const ROOT = new URL('../../', import.meta.url).pathname;
 const F = new URL('./files/', import.meta.url).pathname;
@@ -149,7 +149,7 @@ try {
   await P.browser.close();
 
   for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
-  console.log('PASS', R.filter((x) => x[0] === 'PASS').length, 'FAIL', R.filter((x) => x[0] === 'FAIL').length, 'errors', { oldApp: oldErrors, newApp: newErrors, fresh: P.errors });
+  finish(R, 'errors', { oldApp: oldErrors, newApp: newErrors, fresh: P.errors });
 } finally {
   stop();
   fs.rmSync(OLD_DIR, { recursive: true, force: true });

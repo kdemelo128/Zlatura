@@ -11,12 +11,12 @@
  *      and "Seen" clears it; an AI reading and a template cell in the queue;
  *   7. an .xls refused; nothing overflows on a phone. */
 import fs from 'fs';
-import { phone, BASE, SHOTS } from './lib.mjs';
+import { phone, BASE, SHOTS, finish } from './lib.mjs';
 const F = new URL('./files/', import.meta.url).pathname;
 const R = []; const check = (n, c, d = '') => R.push([c ? 'PASS' : 'FAIL', n, d]);
 const finish = async (browser, errors) => {
   for (const r of R) console.log(r.join(' | '));
-  console.log(`PASS ${R.filter((r) => r[0] === 'PASS').length} FAIL ${R.filter((r) => r[0] === 'FAIL').length} errors`, errors);
+  finish(R, 'errors', errors);
   await browser.close();
   process.exit(R.some((r) => r[0] === 'FAIL') ? 1 : 0);
 };
