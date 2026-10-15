@@ -1057,18 +1057,25 @@ function figRow(key, label, kind) {
   inp.autocomplete = 'off';
   if (kind !== 'text') inp.inputMode = 'decimal';
   inp.placeholder = kind === 'text' ? '' : '—';
-  inp.addEventListener('change', () => redrawKeepingFocus(document.body, () => {
+  inp.addEventListener('change', () => {
     let v;
     if (kind === 'text') v = inp.value.trim() || null;
     else {
       v = kind === 'pct' ? parsePct(inp.value) : parseNum(inp.value);
       if (kind === 'year' && v !== null && (v < 1600 || v > 2100)) v = null;
     }
-    setFigure(key, v);
+    // the edit is kept at once; only the redraw waits for Tab's focus to land
+    // (leaving the deal or reloading in that beat used to lose the edit)
+    setFigure(key, v, false);
     inp.value = fmt(kind, v);
     if (key === 'lot_sf') { const s = lab.querySelector('small'); if (s) s.textContent = ok(v) ? `${(v / 43560).toFixed(3)} acres` : ''; }
-    srcHolder.replaceChildren(sourceTag(key));
-  }));
+    const d = deal;
+    redrawKeepingFocus(document.body, () => {
+      if (deal !== d) return; // the deal was left before the redraw
+      renderDerived();
+      srcHolder.replaceChildren(sourceTag(key));
+    });
+  });
   const labCell = el('div', 'fl-cell');
   labCell.append(lab, affectsButton(`What changing ${label} affects`, () => showImpact([`figures.${key}`])));
   li.appendChild(labCell);
@@ -1080,7 +1087,8 @@ function figRow(key, label, kind) {
   return li;
 }
 
-function setFigure(key, v) {
+/** Put a figure on the deal and save it; `redraw` false leaves the redraw to the caller. */
+function setFigure(key, v, redraw = true) {
   const before = deal.figures[key];
   if (v === null || v === undefined || v === '') delete deal.figures[key]; else deal.figures[key] = v;
   const s = deal.sources[key];
@@ -1088,7 +1096,7 @@ function setFigure(key, v) {
   else if (v !== null && v !== undefined) deal.sources[key] = { hand: true };
   if (key === 'address' && (!deal.name || deal.name === before)) deal.name = v || deal.name;
   touch();
-  renderDerived();
+  if (redraw) renderDerived();
 }
 
 function sourceTag(key) {
@@ -1491,7 +1499,11 @@ function renderScenario(m) {
     i.inputMode = 'decimal';
     i.value = ok(val) ? dec(val, 2) : '';
     i.setAttribute('aria-label', `${label} target, percent`);
-    i.addEventListener('change', () => redrawKeepingFocus(document.body, () => { const v = parsePct(i.value); tg[key] = ok(v) && v > 0 && v < 100 ? v : null; touch(); renderDerived(); }));
+    i.addEventListener('change', () => {
+      const v = parsePct(i.value); tg[key] = ok(v) && v > 0 && v < 100 ? v : null; touch();
+      const d = deal;
+      redrawKeepingFocus(document.body, () => { if (deal === d) renderDerived(); });
+    });
     left.append(txt, i, el('span', null, '%'));
     if (why) left.appendChild(el('span', 'why', why));
     li.appendChild(left);

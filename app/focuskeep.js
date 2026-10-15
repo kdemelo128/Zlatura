@@ -7,7 +7,9 @@
  * its id or aria-label once the new one is drawn, and puts the cursor back.
  *
  * A change fires while Tab is still on its way (focus is on nothing yet), so
- * then the redraw waits a beat for focus to land and restores that field. */
+ * then the redraw waits a beat for focus to land and restores that field.
+ * Only the redraw waits: callers save the edit first, so leaving the screen or
+ * reloading in that beat keeps it. */
 
 const FIELDS = 'input, select, textarea, button, a[href], [tabindex]';
 

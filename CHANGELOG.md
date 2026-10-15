@@ -1,5 +1,28 @@
 # Changelog
 
+## 4.7.7: an edit is kept when you leave the deal or close the app straight after it (on the development branch; not merged or deployed)
+
+Since 4.7.3, a figure typed on the deal and committed with Tab was saved a
+moment late. The focus fix (`app/focuskeep.js`) waited for Tab's focus to
+land before running the field's whole change handler, and the save was
+inside it. Leaving the deal in that moment lost the edit and raised a page
+error; closing or switching away from the app on a phone could lose it too.
+The 4.7.6 browser checks caught it (deal persistence failed about 3 runs
+in 4).
+
+- **The edit is saved at once; only the redraw waits** for focus to land.
+  This covers the deal's figures, the What-if targets and every field in the
+  lease editor.
+- **A redraw that comes after the deal was left is skipped**, so nothing is
+  drawn into, or read from, a deal that is no longer open.
+- **Tested by a new browser flow** (`lostedit-flow`). It commits each kind
+  of field exactly as Tab does, then leaves the deal or closes the app in the
+  same instant. All 6 checks fail on 4.7.6 and pass now. Undoing any one of
+  the three fixes fails its own check. The typing checks from 4.7.3 still
+  pass (185).
+
+Saved results and figures are unchanged (golden outputs identical).
+
 ## 4.7.6: a failed browser check now fails the run (on the development branch; not merged or deployed)
 
 Tests only; the app is unchanged. Most browser flows printed PASS and FAIL

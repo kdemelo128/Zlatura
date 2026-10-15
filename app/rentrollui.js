@@ -972,7 +972,8 @@ function scheduleSheet(rr, L, changed) {
   const body = api.sheetOpen({ eyebrow: `Unit ${L.unit || ''}`, title: L.vacant ? 'Vacant space' : (L.tenant || 'Lease schedule'), sub: 'Rent as dated periods. Documented terms come from the lease; projected ones are assumptions.', foot: [revert, doneB] });
   revert.addEventListener('click', () => { for (const k of Object.keys(L)) delete L[k]; Object.assign(L, JSON.parse(JSON.stringify(snapshot))); changed(); draw(); toast('Lease put back as it was.'); });
   doneB.addEventListener('click', () => api.sheetClose());
-  const edit = () => redrawKeepingFocus(body, () => { changed(); draw(); });
+  // the edit is kept at once; only the redraw waits for Tab's focus to land
+  const edit = () => { changed(); redrawKeepingFocus(body, draw); };
 
   function draw() {
     const keepScroll = body.scrollTop;
