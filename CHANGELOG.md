@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.7.12: reuse before you build, one register of third-party code, and two proposals (on the development branch; not merged or deployed)
+## 4.7.12: reuse before you build, one register of third-party code, and three proposals (on the development branch; not merged or deployed)
 
 Docs only, plus one comment in `app/ocr.js`; the app's behaviour is
 unchanged.
@@ -30,7 +30,7 @@ unchanged.
   texts out of the app's install set, as it already did for `.md` files. A
   new check keeps them out, and requires a license text for each shipped
   library.
-- **Two proposals, research only.** Nothing in the plan changes until the
+- **Three proposals, research only.** Nothing in the plan changes until the
   owner approves:
   - `docs/proposals/prior-art.md`: what to reuse for the upcoming work.
     Nothing new is needed except `.xls` (SheetJS, already approved, can't
@@ -41,6 +41,13 @@ unchanged.
     Zlatura's plan, how "Export everything" would end lock-in, a first-run
     path on a phone, and a ranked list of features that would make a
     broker switch.
+  - `docs/proposals/production-readiness.md`: the owner's checklist of about
+    150 items mapped to Zlatura, each with its tier, status and verdict.
+    It has a fix-now list, the design decisions accounts must be built with
+    from the start, and what a solo owner working with AI doesn't cover.
+    One finding is real today: `t12.js` and `omstatement.js` round money on
+    their own instead of with the engine's `toCents`. It's listed as F1 for
+    the owner's approval, not fixed here.
 
 Saved results and figures are unchanged (golden outputs identical).
 

@@ -16,12 +16,13 @@ section with grep, never in full.
   - the partial-year T-12 fix (#28, 4.7.10);
   - the CI browser subset, branch rules and `sync-main` (#29, 4.7.11).
 - **In progress:** "reuse before you build", `THIRD_PARTY.md`, and the
-  prior-art and competitive-gap proposals (4.7.12, PR open, docs only).
+  prior-art, competitive-gap and production-readiness proposals (4.7.12, PR
+  open, docs only).
   Waiting for the owner's approval of the proposals; no other PR is open.
 - **Next (build order, one PR at a time, owner merges each):**
-  1. [PR open, 4.7.12] reuse rule, `THIRD_PARTY.md`, prior-art and
-     competitive-gap proposals (the reorder in `competitive-gap.md` (d)
-     waits on the owner);
+  1. [PR open, 4.7.12] reuse rule, `THIRD_PARTY.md`, prior-art,
+     competitive-gap and production-readiness proposals (the reorder and the
+     fix-now list wait on the owner);
   2. changelog fragments, if approved (`docs/proposals/changelog-fragments.md`);
   3. T-12 multi-format import (`docs/proposals/t12-multiformat.md`);
   4. OM red-flag check, then the pro forma vs T-12 bridge (waterfall);
