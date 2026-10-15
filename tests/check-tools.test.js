@@ -58,3 +58,20 @@ test('check:quick and check:full exist, run every gate and fail the command on a
   assert.match(src, /if \(failed\.length\) \{.*process\.exit\(1\); \}/);
   assert.equal(spawnSync('node', [path.join(ROOT, 'tests/tools/check.mjs'), 'bogus']).status, 2);
 });
+
+test('the CI browser job runs the owner’s four flows, each one run.sh knows, and only it skips the recalc', () => {
+  const ci = fs.readFileSync(path.join(ROOT, '.github/workflows/test.yml'), 'utf8');
+  const run = fs.readFileSync(path.join(ROOT, 'tests/e2e/run.sh'), 'utf8');
+  const m = ci.match(/run: bash tests\/e2e\/run\.sh ([a-z0-9 -]+)\n/);
+  assert.ok(m, 'the CI job runs tests/e2e/run.sh with a list of flows');
+  const flows = m[1].trim().split(/\s+/);
+  assert.deepEqual(flows, ['typing-flow', 'lostedit-flow', 'deal-persistence', 'deal-export']);
+  const all = run.match(/^FLOWS=\$\{\*:-"([^"]+)"\}$/m)[1].split(/\s+/);
+  for (const f of flows) {
+    assert.ok(all.includes(f), `${f} is in run.sh's full list`);
+    assert.ok(fs.existsSync(path.join(ROOT, 'tests/e2e', `${f}.mjs`)), `${f}.mjs exists`);
+  }
+  assert.match(ci, /E2E_SKIP_RECALC: '1'/);
+  assert.match(run, /if \[ "\$\{E2E_SKIP_RECALC:-\}" = 1 \]; then .*else\n.*recalc\.py/s);
+  assert.doesNotMatch(fs.readFileSync(path.join(ROOT, 'tests/tools/check.mjs'), 'utf8'), /E2E_SKIP_RECALC/); // check:full always recalculates
+});
