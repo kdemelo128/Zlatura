@@ -21,26 +21,29 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.12; reuse before you build, THIRD_PARTY.md, prior-art and competitive-gap proposals (2026-10-15).
+Last updated: 4.7.13; changelog fragments, and the owner's approved build order (2026-10-15).
 
 ## Now
 
-- **Current step:** the owner's "reuse before you build" rule, the
-  `THIRD_PARTY.md` register and two proposals (4.7.12, PR open; docs only):
-  `prior-art.md`, `competitive-gap.md` and `production-readiness.md`, which
-  wait on the owner before any change to the plan. The CI browser subset (4.7.11) is merged (#29),
-  as are the partial-year T-12 fix (4.7.10, #28), project settings
-  (4.7.9, #27), the efficiency setup (4.7.8, #26), the lost-edit fix (#25)
-  and item 1 (#23, #24). Next: changelog fragments if approved, then item 4, the T-12
-  multi-format import. Gate 2 passed: both Part 2 proposals approved by
-  the owner 2026-10-15 (all recommendations: 22 in `t12-multiformat.md`, 18 in `ui-revamp.md`
-  section 11). Bugs C, A and B are merged (4.7.3–4.7.5).
+- **Current step:** changelog fragments (4.7.13, PR open): a PR's entry is
+  a file in `docs/changelog/unreleased/`, which `npm run bump` folds in, and
+  `sync-main` resolves the conflicts that recur. The owner approved the
+  three 4.7.12 proposals on 2026-10-15; the build order below includes
+  them. The reuse rule and the proposals are merged (4.7.12, #30), and so
+  are the CI subset (4.7.11, #29), the partial-year T-12 fix (4.7.10, #28),
+  project settings (#27), the efficiency setup (#26), the lost-edit fix
+  (#25) and item 1 (#23, #24). Gate 2 passed: both Part 2 proposals
+  approved by the owner 2026-10-15 (all recommendations: 22 in
+  `t12-multiformat.md`, 18 in `ui-revamp.md` section 11). Bugs C, A and B
+  are merged (4.7.3–4.7.5).
 - **Lost edit (since 4.7.3), fixed in 4.7.7:** `app/focuskeep.js` held the
   whole change handler, the save included, until Tab's focus landed, so
   leaving the deal or closing the app in that beat lost the edit. Now the
   save is immediate and only the redraw waits (deal figures, What-if
   targets, lease editor); `lostedit-flow` covers each.
-- **Build order (owner, 2026-10-15), one PR and one agent at a time,
+- **Build order (owner, 2026-10-15; revised 2026-10-15 with the approved
+  competitive-gap and production-readiness decisions), one PR at a time,
+  `check:quick` before every push, `check:full` before opening each PR,
   stopping for the owner's merge after each:**
   1. [x] Browser flows exit with an error when a check fails, proved by a
      flow made to fail on purpose (4.7.6).
@@ -49,13 +52,41 @@ Last updated: 4.7.12; reuse before you build, THIRD_PARTY.md, prior-art and comp
      partial; annualizing only with the owner's explicit confirmation.
   3. [x] The CI browser subset (typing, lost edit, deal persistence, deal
      export), timed, with the cost if the repo goes private (4.7.11, #29).
-  4. T-12 multi-format import (`docs/proposals/t12-multiformat.md`).
-  5. OM red-flag check, then the pro forma vs T-12 bridge as an interactive
+  4. [x] Changelog fragments, folded by `npm run bump`; `sync-main` resolves
+     the conflicts that recur (4.7.13, PR open).
+  5. F1, money rounding: first only the before/after table of every figure
+     that changes when `t12.js` and `omstatement.js` use the engine's
+     `toCents`; no code change; stop for the owner.
+  6. F2 (old CSVs, Windows-1252), F5 (CI audit, pinned actions), F6/F7
+     (hostile-text pack, timezones) and F10 (stolen-laptop and
+     disaster-recovery plans), one PR each.
+  7. T-12 multi-format import (`docs/proposals/t12-multiformat.md`). `.xls`
+     only if SheetJS can be fetched and its license is Apache-2.0 or MIT,
+     then pinned and vendored with a `THIRD_PARTY.md` entry; otherwise
+     skipped, and the owner told.
+  8. F3 (the Back button), F4 (strict CSP), F8 ("Recently deleted", 30
+     days, approved) and F9 (an optional backup password with a clear
+     lost-password warning, approved), one PR each.
+  9. OM red-flag check, then the pro forma vs T-12 bridge as an interactive
      waterfall.
-  6. UI revamp in phases behind the "New look" toggle: foundation and theme,
-     Home and navigation, customization, live charts, motion, screen
-     clean-ups, then the Feature map test.
-  7. The rest of Phase 2, then Phases 3 to 8.
+  10. "Export everything": one zip of the backup, workbooks, CSVs, JSON, the
+     original files and a published JSON Schema (approved;
+     `competitive-gap.md` (b)).
+  11. UI revamp in phases behind the "New look" toggle: foundation and theme;
+     Home and navigation, with the first-run path to a finished deal brief
+     on a phone; customization; live charts; motion; screen clean-ups, then
+     Guided Mode; the Feature map test. F11 (split `dealui.js`) happens
+     inside it.
+  12. The rest of Phase 2, with 7.3 pricing early. Then, ahead of their
+     phases (approved reorder): the confidential tag (19.2) before Phase 5's
+     outreach and Phase 6's live AI; the 17.3 Bid Leveler with the deal fee
+     record (5.1) and the fee CSV, before Phase 3; 17.1 companies and 17.2
+     buyer match before the rest of Phase 5; listing copy for marketplaces
+     (13.1) with Part 13.
+  13. Phases 3 to 8. F12 (AI server limits) before any AI server
+     deployment. Phase 7 prerequisites: an independent code review, the
+     accounts, domain and repo in the company's name, and section 4 of
+     `production-readiness.md`.
 - **Changes to saved results or financial meaning** inside the approved
   proposals go in their own small PR, with the before/after golden-output
   difference shown before the owner merges.
@@ -112,14 +143,18 @@ These came after the master plan and are worked first.
 - [x] Branch rules and `npm run sync-main` (4.7.11); `check:full` ends by
   failing if the branch is behind main or has conflict markers; merged (#29)
 - [x] Reuse before you build (4.7.12): the rule, `THIRD_PARTY.md` (was
-  `VENDOR.md`) with license texts and checksums; PR open
-- [ ] Prior-art summary for the upcoming work (`docs/proposals/prior-art.md`):
-  waiting for the owner
-- [ ] Competitive gap (`docs/proposals/competitive-gap.md`): waiting for the
-  owner; the build order is unchanged until approved
-- [ ] Production readiness (`docs/proposals/production-readiness.md`):
-  waiting for the owner (the section below)
-- [ ] Changelog fragments: proposed (`docs/proposals/changelog-fragments.md`)
+  `VENDOR.md`) with license texts and checksums; merged (#30)
+- [x] Prior-art summary (`docs/proposals/prior-art.md`): approved
+  2026-10-15. No new libraries now; `.xls` only with an Apache-2.0 or MIT
+  SheetJS that can be fetched, else skipped
+- [x] Competitive gap (`docs/proposals/competitive-gap.md`): approved
+  2026-10-15, with the reorder and the four additions (fee record, fee CSV,
+  listing copy, "Export everything"); in the build order above
+- [x] Production readiness (`docs/proposals/production-readiness.md`):
+  approved 2026-10-15, in the order in the build order above
+- [x] Changelog fragments (4.7.13): `docs/changelog/unreleased/`, folded by
+  `npm run bump`; `sync-main` resolves `CHANGELOG.md` and version-line
+  conflicts; PR open
 - [~] WebKit (iPhone Safari's engine) runs: `PW_BROWSER=webkit` added (4.7.1).
   **Blocked here:** WebKit isn't installed in this environment, so runs here
   are Chromium at iPhone size.
@@ -171,15 +206,15 @@ Behind the "New look" toggle, after 2b.
   must be added to it.
 
 ### Production readiness (owner's checklist, 2026-10-15)
-Proposal only, in `docs/proposals/production-readiness.md`. The owner's
+Approved by the owner 2026-10-15, in `docs/proposals/production-readiness.md`. The owner's
 checklist of about 150 items is mapped to Zlatura in 104 rows:
 - **A** (61): applies now to the local-first app;
 - **A/B** (8): applies now, and again once accounts arrive;
 - **B** (25): designed in before accounts, sync and hosting (Phase 7);
 - **C** (4): only if Zlatura bills customers;
 - **D** (6): doesn't apply, with the reason.
-Each row has its status and a verdict. The build order is unchanged until
-the owner approves. Fix-now items, each its own PR:
+Each row has its status and a verdict. The fix-now items, each its own PR,
+in the order of the build order above:
 - [ ] F1 money: one rounding rule. `t12.js` and `omstatement.js` round on
   their own, not with the engine's `toCents`: 1.005 gives 1.00, not 1.01
   (approval: a before/after table)
@@ -189,12 +224,15 @@ the owner approves. Fix-now items, each its own PR:
 - [ ] F5 dependency audit in CI, and actions pinned to commit SHAs
 - [ ] F6 hostile-text pack (apostrophes, emoji, right-to-left, formulas);
   F7 tests run in other timezones
-- [ ] F8 "Recently deleted" for 30 days (approval: retention)
-- [ ] F9 an optional password on backups (approval: format change)
+- [ ] F8 "Recently deleted" for 30 days (approved)
+- [ ] F9 an optional password on backups, with a clear lost-password
+  warning (approved)
 - [ ] F10 stolen-laptop and disaster-recovery plans, one page each
 - [ ] F11 split `dealui.js` (2,701 lines), inside the UI revamp
 - [ ] F12 AI server limits before any deployment: spend cap, a token per
   device, prompt-injection tests
+- [ ] Phase 7 prerequisites: an independent code review; the accounts,
+  domain and repo in the company's name (owner, 2026-10-15; no action now)
 - [ ] Before Phase 7, from day one: tenant isolation, object-level checks,
   sessions, rate limits, audit of views, reversible migrations, tested
   restore (section 4 of the proposal)

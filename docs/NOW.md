@@ -4,7 +4,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.12 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.13 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -14,24 +14,30 @@ section with grep, never in full.
   - project settings, Sonnet at medium effort and unused plugins off (#27,
     4.7.9);
   - the partial-year T-12 fix (#28, 4.7.10);
-  - the CI browser subset, branch rules and `sync-main` (#29, 4.7.11).
-- **In progress:** "reuse before you build", `THIRD_PARTY.md`, and the
-  prior-art, competitive-gap and production-readiness proposals (4.7.12, PR
-  open, docs only).
-  Waiting for the owner's approval of the proposals; no other PR is open.
-- **Next (build order, one PR at a time, owner merges each):**
-  1. [PR open, 4.7.12] reuse rule, `THIRD_PARTY.md`, prior-art,
-     competitive-gap and production-readiness proposals (the reorder and the
-     fix-now list wait on the owner);
-  2. changelog fragments, if approved (`docs/proposals/changelog-fragments.md`);
-  3. T-12 multi-format import (`docs/proposals/t12-multiformat.md`);
-  4. OM red-flag check, then the pro forma vs T-12 bridge (waterfall);
-  5. UI revamp behind "New look", in phases (`docs/proposals/ui-revamp.md`);
-  6. the rest of Phase 2, then Phases 3 to 8.
-- **Open decisions for the owner:** the questions at the end of
-  `docs/PLAN_STATUS.md`.
+  - the CI browser subset, branch rules and `sync-main` (#29, 4.7.11);
+  - reuse before you build, `THIRD_PARTY.md` and three proposals (#30,
+    4.7.12), approved by the owner 2026-10-15.
+- **In progress:** changelog fragments (4.7.13, PR open). The changelog
+  entry is now a file in `docs/changelog/unreleased/<branch>.md`, which
+  `npm run bump` folds in; never edit `CHANGELOG.md` by hand.
+- **Next (one PR at a time; the full order is in `docs/PLAN_STATUS.md`, "Now"):**
+  1. F1: the before/after table for the money rounding only, no code
+     change; stop for the owner;
+  2. F2, F5, F6/F7, F10, one PR each;
+  3. T-12 multi-format import (`.xls` only with an Apache-2.0 or MIT SheetJS
+     that can be fetched; otherwise skip it and tell the owner);
+  4. F3, F4, F8 (30 days), F9 (optional password, lost-password warning);
+  5. OM red-flag check and the T-12 bridge; then "Export everything";
+  6. UI revamp in phases (first-run path in Home; Guided Mode after the
+     clean-ups; F11 inside it);
+  7. the rest of Phase 2 with the approved reorder, then Phases 3 to 8 (F12
+     before any AI server deployment; Phase 7 prerequisites recorded).
+- **Open decisions for the owner:** the F1 table, when shown; the questions
+  at the end of `docs/PLAN_STATUS.md`.
 - **Owner's standing instructions (2026-10-15):** no PR watching or
-  polling; `check:quick` while developing, `check:full` once before each PR;
+  polling; `check:quick` before every push, `check:full` before opening
+  each PR; tell the owner which PR to merge, with a phone checklist if
+  anything is visible;
   the branch rules in `docs/working-rules.md` ("Branches and PRs").
 - **State note** (write here before any long task, so a fresh session can
   resume): none.
