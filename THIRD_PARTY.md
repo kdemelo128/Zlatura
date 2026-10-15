@@ -1,68 +1,84 @@
-# Third-party code
+# Bundled third-party files
 
-Every library Zlatura ships or tests with: its version, license, and why it
-is there. Adding a library, or copying code from another repository, needs
-the owner's approval first (`docs/working-rules.md`, "Reuse before you
-build"). The calculation engine and the money logic (`app/engine/`,
-`app/deal.js`) use no outside code.
+Everything the app needs ships with it, so the page makes no outbound request
+and works with no connection. Each library carries its version in its file
+name: the service worker serves these files cache-first, and a new version
+under a new name is the only way an installed copy can be sure to pick it up.
 
-## Shipped with the app (`vendor/`, loaded in the browser, offline)
-
-Each file is pinned to an exact version. Its license text is in
-`vendor/licenses/`, and its SHA-256 is below. "Upstream" means the file as
-published in the npm package. Each was compared byte for byte on
-2026-10-15.
-
-| Library | Version | License | File | Why | Upstream match |
-|---|---|---|---|---|---|
-| ExcelJS | 4.4.0 | MIT | `vendor/exceljs-4.4.0.min.js` (948 KB) | reads and writes .xlsx: imports, templates, Excel exports | the published `dist/exceljs.min.js` without its last line (the `sourceMappingURL` comment) |
-| fflate | 0.8.3 | MIT | `vendor/fflate-0.8.3.min.js` (33 KB) | zip: backups, packages, .xlsx parts | identical (`umd/index.js`) |
-| pdf.js | 4.7.76 (legacy build) | Apache-2.0 | `vendor/pdf-4.7.76-legacy.min.js` (381 KB) | text and positions from PDFs: OMs, rent rolls, statements | identical (`legacy/build/pdf.min.mjs`) |
-| pdf.js worker | 4.7.76 (legacy build) | Apache-2.0 | `vendor/pdf-4.7.76-legacy.worker.min.js` (1.4 MB) | the PDF parser, off the main thread | the same code, but control characters inside some string literals are written as `\x` escapes. The published file has them as raw bytes; it looks re-saved by a tool. Proposed: re-vendor the published bytes |
-| Tesseract.js | 7.0.0 | Apache-2.0 | `vendor/ocr/tesseract-7.0.0.esm.min.js`, `…worker.min.js` | OCR of scanned pages, on request only | the published `dist/` files without their last line (the `sourceMappingURL` comment) |
-| Tesseract.js core | 7.0.0 | Apache-2.0 | `vendor/ocr/tesseract-core-7.0.0-simd-lstm.wasm.js` (3.9 MB) | the OCR engine (WebAssembly) | identical |
-| English trained data (`4.0.0_best_int`) | from `@tesseract.js-data/eng` 1.0.0 | Apache-2.0, from Tesseract's tessdata_best (not checked from this session); the npm wrapper says MIT and ships no license file | `vendor/ocr/eng-4.0.0-best-int/eng.traineddata.gz` (2.9 MB) | the OCR language model | identical |
-
-SHA-256:
-
-```
-b35a8b1fd1a5fe3e853a7dc4006294281dd2430ee3108fd30d5417ab7c9a5d56  vendor/exceljs-4.4.0.min.js
-462ef8041fc970e3615a20a9dd2b2e3047a073b2da729ef4f02b634bba8b7b83  vendor/fflate-0.8.3.min.js
-e0215a6a1063bb912cbbfd3ffac76438c328b99a3b826d6bdb3cde9cf874c2a3  vendor/pdf-4.7.76-legacy.min.js
-1a26e1004519cdc3335fd72003352a9a2fdd583072e8b2a676406c5ad2735742  vendor/pdf-4.7.76-legacy.worker.min.js
-bc422741067054cecf2e299a66b32f90b13591f1bdbd42a72d627d165240e8d4  vendor/ocr/tesseract-7.0.0.esm.min.js
-f113187fae220d9f895d7bd28d2b94d7640261ae91031b0d6005c2773fcb9861  vendor/ocr/tesseract-7.0.0.worker.min.js
-c58b46a4c796c0b8afccf77591d5b875b6896b45d402bbce8caa6f5362447b38  vendor/ocr/tesseract-core-7.0.0-simd-lstm.wasm.js
-45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91  vendor/ocr/eng-4.0.0-best-int/eng.traineddata.gz
-```
-
-## Used only to test (npm devDependencies, never shipped)
-
-| Library | Version | License | Why |
+| Path | Package | Version | Licence |
 |---|---|---|---|
-| @xmldom/xmldom | 0.9.12 | MIT | a DOM for template and workbook tests in Node |
-| axe-core | 4.10.2 | MPL-2.0 | accessibility checks in the browser flows (test-only; MPL-2.0 is allowed here only because it never ships) |
-| exceljs | 4.4.0 | MIT | the same library as above, for Node tests |
-| fflate | 0.8.3 | MIT | the same library as above, for Node tests |
-| typescript | 6.0.2 | Apache-2.0 | the type check (`types/`) |
-| playwright | 1.56.1 | Apache-2.0 | the browser flows: global in the cloud image, `npm install --no-save` in CI |
+| `vendor/pdf-4.7.76-legacy.min.js`, `vendor/pdf-4.7.76-legacy.worker.min.js` | [pdf.js](https://github.com/mozilla/pdf.js) (`pdfjs-dist`, `legacy/build`) | 4.7.76 | Apache-2.0 |
+| `vendor/exceljs-4.4.0.min.js` | [ExcelJS](https://github.com/exceljs/exceljs) (`dist/exceljs.min.js`) | 4.4.0 | MIT |
+| `vendor/fflate-0.8.3.min.js` | [fflate](https://github.com/101arrowz/fflate) (`umd/index.js`) | 0.8.3 | MIT |
+| `vendor/ocr/tesseract-7.0.0.esm.min.js`, `vendor/ocr/tesseract-7.0.0.worker.min.js` | [tesseract.js](https://github.com/naptha/tesseract.js) (`dist/tesseract.esm.min.js`, `dist/worker.min.js`) | 7.0.0 | Apache-2.0 (bundles: buffer and regenerator-runtime, MIT; ieee754, BSD-3-Clause; zlib.js, MIT) |
+| `vendor/ocr/tesseract-core-7.0.0-simd-lstm.wasm.js` | [tesseract.js-core](https://github.com/naptha/tesseract.js-core) (`tesseract-core-simd-lstm.wasm.js`: Tesseract and Leptonica built to WebAssembly) | 7.0.0 | Apache-2.0 (Tesseract); Leptonica, BSD-2-Clause |
+| `vendor/ocr/eng-4.0.0-best-int/eng.traineddata.gz` | [@tesseract.js-data/eng](https://www.npmjs.com/package/@tesseract.js-data/eng) (`4.0.0_best_int/eng.traineddata.gz`, from tesseract-ocr/tessdata_best) | 1.0.0 | package MIT; the trained data Apache-2.0 |
+| `fonts/public-sans-*.woff2` | [Public Sans](https://public-sans.digital.gov/) via `@fontsource/public-sans` | 5.1.0 | OFL-1.1 |
 
-## The optional AI server (`server/`, not part of the offline app)
+## Why the legacy build of pdf.js
 
-| Library | Version | License | Why |
-|---|---|---|---|
-| @anthropic-ai/sdk | 0.133.0 | MIT | the firm's server calls Claude for AI readings, when AI is turned on |
+The standard build of pdf.js 4.7 calls `Promise.withResolvers`, which Safari
+added in 17.4; on an older iPhone every PDF fails to open. The legacy build
+polyfills it. Its oldest remaining requirement is one class static block in
+`pdf.min.js`, which Safari has supported since 16.4 (iOS 16.4, March 2023). Both
+were measured by parsing the files rather than taken from documentation.
 
-## Audit
+## The scanned-page reader (vendor/ocr/, 4.7.4)
 
-`npm audit` on 2026-10-15: 0 vulnerabilities in the root, 0 in `server/`.
-The vendored files aren't covered by `npm audit`. Check them by hand
-against each project's security advisories when a version changes. pdf.js
-4.7.76 is past CVE-2024-4367 (fixed in 4.2.67).
+Read a scanned rent roll page only when the broker taps "Read this scanned
+page" (`app/ocr.js`). Sizes: the library 63,174 bytes, its worker 111,269,
+the WebAssembly engine 3,899,472, the English data 2,952,873: 7,026,788 in
+all (6.7 MB). They are **not** in the service worker's install set, so
+installing the app costs what it did; the service worker keeps them, once
+fetched, in a cache of their own (`zlatura-ocr-tesseract-7.0.0`) that app
+updates leave alone, so a page can be read offline after the first time.
+Before the first use, offline, reading a page fails with a message and
+nothing else is affected.
 
-## The project's own license
+Only the SIMD, LSTM-only build of the engine is shipped: every browser the
+app supports has WebAssembly SIMD (Safari since 16.4, the app's floor for
+pdf.js already), and the app checks for it before offering the reader. The
+non-SIMD and "relaxed SIMD" builds and the legacy-engine data (10.9 MB) are
+left out. The library is pointed at these files by path (`workerPath`,
+`corePath`, `langPath`, no blob worker, no IndexedDB cache), so it never
+falls back to its default CDN.
 
-`LICENSE` is MIT today. If the project becomes proprietary, the libraries
-above still fit: they are MIT, Apache-2.0 or BSD-style. Their license texts
-must keep shipping with the files, and Apache-2.0's NOTICE terms must be
-kept where a project has a NOTICE file. None of these packages ships one.
+Taken with `npm pack tesseract.js@7.0.0 tesseract.js-core@7.0.0
+@tesseract.js-data/eng@1.0.0` (npm checks each tarball against the
+registry's sha512): tesseract.js-7.0.0.tgz sha256 `9a93bf51…4b606a`,
+tesseract.js-core-7.0.0.tgz `ba584355…718ee0`,
+tesseract.js-data-eng-1.0.0.tgz `c9bddf2e…27f7bb`. The only edit: the
+trailing `//# sourceMappingURL=` comments are removed from the two
+tesseract.js files, as for ExcelJS. The data file is gzip (binary); the
+repository test for control characters skips `.gz` files.
+
+## Edits to the published files
+
+- The two pdf.js files are renamed from `.mjs` to `.js` so every static host
+  serves them with a JavaScript content type. They are still ES modules.
+- `pdf-4.7.76-legacy.worker.min.js` had 30 raw control bytes (ESC and similar)
+  inside string literals in its font code. They are written as `\xHH` escapes,
+  which mean the same thing; some hosts refuse files containing raw control
+  characters. A tokenizer comparison of the original and edited files finds all
+  426,344 tokens identical in value.
+- The trailing `//# sourceMappingURL=` comment is removed from
+  `exceljs-4.4.0.min.js`, because the map file it names is not shipped.
+
+## Updating a library
+
+1. `npm pack <package>@<version>` and take the file named in the table.
+2. Save it under `vendor/` with the new version in its name, and delete the old one.
+3. Update the name in `app/kit.js`, in the `ASSETS` list in `sw.js`, and here
+   (for the OCR files: in `app/ocr.js` and `OCR_CACHE` in `sw.js`; they stay
+   out of `ASSETS`).
+4. Bump `CACHE` in `sw.js`. `npm test` fails if the list and the files disagree.
+
+## Used only by the tests
+
+`npm ci` installs these for `npm test`; none of them ships with the site.
+
+| Package | Version | Why |
+|---|---|---|
+| `exceljs` | 4.4.0 | builds workbooks in the workbook tests, and the templates the template tests fill |
+| `fflate` | 0.8.3 | reads and writes the .xlsx packages in the tests |
+| `@xmldom/xmldom` | 0.9.12 | stands in for the browser's DOMParser when the template tests run in Node |
