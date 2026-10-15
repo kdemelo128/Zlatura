@@ -35,6 +35,9 @@ Last updated: 4.7.5, Bug B built (2026-10-15).
   each PR; no polling check-ins; short reports; on a usage limit, write a
   short state note here first.
 - **Next gate:** the three bug-fix PRs, open for merge.
+- **Part 2b written** (2026-10-15): the UI revamp proposal and wireframes,
+  `docs/proposals/ui-revamp.md` and `docs/proposals/ui/`, waiting for the
+  owner's approval; nothing is built until then.
 - **Questions for the owner:** where the master plan and the later
   instructions differ, at the end of this file.
 
@@ -42,7 +45,7 @@ Last updated: 4.7.5, Bug B built (2026-10-15).
 
 | Group | Done | Partial | In progress | Not started | Blocked | Items |
 |---|---|---|---|---|---|---|
-| The owner's directive | 7 | 1 | 0 | 10 | 0 | 18 |
+| The owner's directive | 7 | 1 | 1 | 9 | 0 | 18 |
 | Rules and process (Parts 0, 1.3, 22, 23, 24) | 19 | 7 | 1 | 0 | 0 | 27 |
 | The 15 pillars (Part 2) | 1 | 8 | 0 | 6 | 0 | 15 |
 | Phase 0: audit and baseline | 9 | 0 | 0 | 0 | 0 | 9 |
@@ -55,7 +58,7 @@ Last updated: 4.7.5, Bug B built (2026-10-15).
 | Phase 7: workspaces and integrations | 1 | 4 | 0 | 9 | 0 | 14 |
 | Phase 8: final audit | 1 | 2 | 0 | 7 | 1 | 11 |
 | Real-world validation | 0 | 0 | 0 | 0 | 5 | 5 |
-| **All** | **100** | **122** | **1** | **143** | **8** | **374** |
+| **All** | **100** | **122** | **2** | **142** | **8** | **374** |
 
 The pillars are counted on their own as well as through the items of the
 phases that build them.
@@ -95,8 +98,10 @@ These came after the master plan and are worked first.
 ### Part 2: design proposals
 These stop for approval.
 - [ ] 2a. T-12 multi-format import (`docs/proposals/t12-multiformat.md`)
-- [ ] 2b. UI revamp (`docs/proposals/ui-revamp.md`, wireframes in
-  `docs/proposals/ui/`)
+- [>] 2b. UI revamp (`docs/proposals/ui-revamp.md`, wireframes in
+  `docs/proposals/ui/`): written 2026-10-15 on `claude/proposal-ui-revamp`,
+  waiting for the owner's approval of its 18 decisions (section 11). Nothing
+  in `app/` changed.
 
 ### UI revamp
 Behind the "New look" toggle, after 2b.
