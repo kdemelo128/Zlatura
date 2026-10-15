@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.7.9: project settings for model, effort and plugins (on the development branch; not merged or deployed)
+
+Settings and docs only; the app is unchanged. The owner decided the three
+questions from 4.7.8 (`docs/proposals/efficiency-setup.md`, "Decided").
+
+- **Main session on Sonnet at medium effort** (`"model": "sonnet"`,
+  `"effortLevel": "medium"` in `.claude/settings.json`). The designer agent
+  stays on Opus and the builder on Sonnet.
+- **32 plugins Zlatura doesn't use are off for this project only**
+  (`enabledPlugins` in `.claude/settings.json`). `engineering`, `design`,
+  `pdf-viewer` and `figma` stay on. The list, and how to turn one back on,
+  are in the proposal's "Decided" section.
+- **The CI browser subset** (typing, lost edit, deal persistence, deal
+  export) is approved and comes in its own PR after the partial-year T-12
+  fix.
+
+Saved results and figures are unchanged (golden outputs identical).
+
 ## 4.7.8: cheaper sessions, with every check kept (on the development branch; not merged or deployed)
 
 Tooling and docs only; the app is unchanged. Each session read the long
