@@ -22,6 +22,8 @@ const text = async (sel) => ((await page.locator(sel).count()) ? (await page.loc
 const val = (k) => page.inputValue(`#fig-${k}`).catch(() => null);
 const axe = async (name, scope) => {
   if (!(await page.evaluate(() => !!window.axe))) await page.addScriptTag({ path: AXE });
+  // a screen fades in (styles.css .view): checked mid-fade, its text is part transparent and reads as low contrast
+  await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect && a.effect.getTiming().iterations !== Infinity).map((a) => a.finished.catch(() => {}))));
   const v = await page.evaluate(async (sc) => (await window.axe.run(document.querySelector(sc), { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }, resultTypes: ['violations'] })).violations.map((x) => `${x.id}: ${x.nodes.map((n) => n.target.join(' ')).slice(0, 3).join(' | ')}`), scope);
   check(`axe: ${name}`, v.length === 0, v.join('\n    '));
 };

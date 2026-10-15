@@ -1,5 +1,31 @@
 # Changelog
 
+## 4.7.11: a small browser check on every push (on the development branch; not merged or deployed)
+
+CI and tests only; the app is unchanged. Before, GitHub Actions ran only the
+Node tests. The browser flows ran only in a Claude session, through
+`npm run check:full`.
+
+- **A second CI job, `browser`**, runs four flows on Chromium at iPhone size
+  on every push (owner, 2026-10-15): `typing-flow`, `lostedit-flow`,
+  `deal-persistence` and `deal-export`.
+  - Playwright's Chromium is cached between runs.
+  - The Python packages the fixture scripts need are pinned in
+    `tests/e2e/requirements.txt`.
+- **`E2E_SKIP_RECALC=1`** leaves out `run.sh`'s LibreOffice recalculation,
+  which CI doesn't have. `check:full` always runs it, and so do the full
+  suite and WebKit, where installed.
+- **Timed:** the first run (cache empty) took 1 min 46 s, of which 65 s was
+  the four flows. See the PR for the warm run and the cost if the
+  repository goes private.
+- **Tested by `tests/check-tools.test.js`:** the job runs exactly these four
+  flows, each one `run.sh` knows, and only CI skips the recalc. It fails on
+  4.7.8.
+- This branch also carries 4.7.9's tests-only fix: axe waits for a screen's
+  fade-in before checking contrast.
+
+Saved results and figures are unchanged (golden outputs identical).
+
 ## 4.7.8: cheaper sessions, with every check kept (on the development branch; not merged or deployed)
 
 Tooling and docs only; the app is unchanged. Each session read the long
