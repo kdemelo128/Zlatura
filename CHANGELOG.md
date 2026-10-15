@@ -60,6 +60,8 @@ $1,500,000 price, with a 65% loan at 6.75% over 30 years.
   - the partial-year question removed (10 browser checks fail).
 - The impact map shows the warning moved by the T-12 and by each of the
   four figures.
+- This branch also carries 4.7.9's tests-only fix: axe waits for a
+  screen's fade-in before checking contrast (`omrr-flow`, `omstmt-flow`).
 
 ## 4.7.8: cheaper sessions, with every check kept (on the development branch; not merged or deployed)
 
