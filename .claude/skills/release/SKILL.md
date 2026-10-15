@@ -5,18 +5,31 @@ description: Zlatura's release steps for every PR: version bump, CHANGELOG, docs
 
 # Release steps (every PR)
 
-Do these in the PR's **last commit**, after `npm run sync-main` has merged
-the latest main in: `CHANGELOG.md`, `docs/NOW.md`, `docs/PLAN_STATUS.md` and
-the version files are edited nowhere else, so they can't clash.
+**While working:** write the PR's changelog entry as a fragment,
+`docs/changelog/unreleased/<branch>.md` (`claude/foo` becomes
+`claude-foo.md`):
 
-1. Bump the version with `npm run bump -- <x.y.z>`. It updates `package.json`,
-   `package-lock.json` (lines 3 and 9), `sw.js` and `app/exporters.js`, and
-   fails if any of them doesn't change.
-2. `CHANGELOG.md`: a new entry at the top,
-   `## x.y.z: <what a broker gets, in plain words> (on the development branch; not merged or deployed)`.
-   Write the cause, then bold-led bullets for what changed, then how it was
-   tested, and whether saved results changed (golden identical, or the
-   approved change).
+```
+# <what a broker gets, in plain words>
+
+<the cause; bold-led bullets for what changed; how it was tested; whether
+saved results changed (golden identical, or the approved change)>
+```
+
+Never edit `CHANGELOG.md` by hand.
+
+**In the PR's last commit**, after `npm run sync-main` has merged the latest
+main in (`docs/NOW.md`, `docs/PLAN_STATUS.md` and the version files are
+edited nowhere else, so they can't clash):
+
+1. `npm run bump -- <x.y.z>` sets the version in `package.json`,
+   `package-lock.json` (lines 3 and 9), `sw.js` and `app/exporters.js`. It
+   folds the one fragment into `CHANGELOG.md` as
+   `## x.y.z: <title> (on the development branch; not merged or deployed)`
+   and deletes it. It changes nothing if a file is out of step, or if there
+   isn't exactly one well-formed fragment.
+2. Check that the fragment is gone, and that the entry reads right at the
+   top of `CHANGELOG.md`.
 3. `docs/NOW.md`: version, merged, in progress, next, open decisions, state
    note. Keep it about 30 lines.
 4. `docs/PLAN_STATUS.md`: edit by section (grep for "Last updated" and

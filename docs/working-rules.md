@@ -88,10 +88,17 @@ These stop merge conflicts from recurring.
 - **One PR open for the owner's merge at a time**, unless two are truly
   independent and touch different files. The next PR's branch never starts
   from an unmerged one.
-- **`CHANGELOG.md`, `docs/NOW.md`, `docs/PLAN_STATUS.md` and the version
-  files** (`package.json`, `package-lock.json`, `sw.js`,
-  `app/exporters.js`) are edited only in the last commit of a PR, after
-  main has been merged in, so they can't clash with anything.
+- **The changelog entry is a fragment**, `docs/changelog/unreleased/<branch>.md`
+  (approved 2026-10-15; `docs/proposals/changelog-fragments.md`). A PR
+  never edits `CHANGELOG.md` by hand. `npm run bump -- x.y.z`, in the PR's
+  last commit, folds the one fragment in and deletes it.
+- **`docs/NOW.md`, `docs/PLAN_STATUS.md` and the version files**
+  (`package.json`, `package-lock.json`, `sw.js`, `app/exporters.js`) are
+  edited only in the last commit of a PR, after main has been merged in.
+- **`npm run sync-main` resolves the two conflicts that recur** on its own:
+  `CHANGELOG.md` (both entries kept, newest version first; not when one
+  version holds two different entries) and a version line (the higher
+  version kept). Anything else is listed for a person to resolve.
 - **A PR is called ready to merge only when GitHub says it is mergeable,
   with CI passing.** Checks passing locally are not enough.
 - **`check:full`'s last step** (`tests/tools/sync-main.mjs --check`) fails if

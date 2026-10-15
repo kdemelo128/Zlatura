@@ -21,8 +21,10 @@ The longer wording of every rule below is in `docs/working-rules.md`.
   - one PR open for the owner's merge at a time, unless two are
     independent and touch different files; never branch from an unmerged
     branch;
-  - edit `CHANGELOG.md`, `docs/NOW.md`, `docs/PLAN_STATUS.md` and the
-    version files only in a PR's last commit, after merging main;
+  - the changelog entry is a fragment in `docs/changelog/unreleased/`;
+    `npm run bump` folds it into `CHANGELOG.md` in the PR's last commit.
+    Edit `docs/NOW.md`, `docs/PLAN_STATUS.md` and the version files only in
+    that commit, after merging main;
   - never call a PR ready unless GitHub shows it mergeable with CI passing.
 - **Approval gates (the only places to stop and wait):** bug-fix PRs and
   Part 2 proposals once open; before any change to saved-deal results, the
@@ -79,7 +81,7 @@ The longer wording of every rule below is in `docs/working-rules.md`.
 
 ## After every PR
 
-Run the `release` skill: bump the version, update `CHANGELOG.md`,
+Run the `release` skill: bump the version (it folds the changelog fragment),
 `docs/NOW.md`, `docs/PLAN_STATUS.md` and, where a status moved,
 `docs/acceptance-matrix.md`. Report with the `pr-report` skill, plus the
 `hand-test` skill's phone checklist.
@@ -109,8 +111,8 @@ Run the `release` skill: bump the version, update `CHANGELOG.md`,
 ## Commands
 
 - Type check: `npx tsc -p types/tsconfig.json`; Node tests: `npm test`.
-- Bring a branch up to date with main: `npm run sync-main` (lists any
-  conflicted files).
+- Bring a branch up to date with main: `npm run sync-main`. It resolves
+  `CHANGELOG.md` and version-line conflicts itself and lists any others.
 - Browser suite: `bash tests/e2e/run.sh [flow …]` (Chromium);
   `PW_BROWSER=webkit bash tests/e2e/run.sh` where WebKit is installed.
 - Golden by hand, old-code runs and a stray server on 8080: the

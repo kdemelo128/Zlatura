@@ -1,5 +1,54 @@
 # Changelog
 
+## 4.7.13: changelog entries that can't conflict, and the owner's approved build order (on the development branch; not merged or deployed)
+
+Tooling and docs only; the app is unchanged. Before, every PR wrote its
+entry at the top of `CHANGELOG.md`. Two PRs open at once always conflicted
+there, and in the version lines (#28 against #27).
+
+- **The changelog entry is now a fragment.** Each PR adds one file,
+  `docs/changelog/unreleased/<branch>.md`: a `# title` line, then the
+  entry. It never edits `CHANGELOG.md` by hand (`tests/tools/changelog.mjs`).
+- **`npm run bump -- x.y.z` folds it in.** It runs in the PR's last commit:
+  - it sets the version in the five places, as before;
+  - it puts the fragment at the top of `CHANGELOG.md` as
+    `## x.y.z: <title> (…)`, and deletes the fragment;
+  - all or nothing: it changes nothing if there's no fragment, two
+    fragments, or a malformed one (no title, empty, a version in the title,
+    or a version heading inside).
+  - This entry is the first one written this way.
+- **`npm run sync-main` resolves the two conflicts that recur:**
+  - `CHANGELOG.md`: both entries kept, newest version first. Not when one
+    version number holds two different entries: a person decides those;
+  - a version line in `package.json`, `package-lock.json`, `sw.js` or
+    `app/exporters.js`: the higher version, whichever side has it.
+
+  Anything else is listed for a person, as before. Once nothing is left,
+  the merge is committed.
+- **A test checks** that the top changelog entry's version equals
+  `package.json`'s, and that any fragment waiting is well formed.
+- **The owner's decisions** on the three 4.7.12 proposals are recorded in
+  `docs/PLAN_STATUS.md` and `docs/NOW.md`:
+  - the revised build order;
+  - production readiness F1 to F12, in the approved order;
+  - the competitive-gap reorder and its four additions;
+  - `.xls` only if an Apache-2.0 or MIT SheetJS can be fetched;
+  - an independent review and account ownership as Phase 7 prerequisites.
+- **The rules say so:** `CLAUDE.md`, `docs/working-rules.md` and the
+  `release` skill.
+
+**Tested** in `tests/check-tools.test.js`:
+- the fold, byte for byte, and every refusal changing nothing;
+- `sync-main` in throwaway repositories: #28's conflict resolved on its
+  own; a higher version on main kept; an unrelated conflict left for a
+  person; one version written two ways not guessed.
+- The new tests fail on 4.7.12. Seven mutations are each caught: no
+  fragment allowed, the fragment left behind, the entry at the bottom, a
+  version heading inside allowed, oldest first, always the branch's version,
+  and two entries under one version merged.
+
+Saved results and figures are unchanged (golden outputs identical).
+
 ## 4.7.12: reuse before you build, one register of third-party code, and three proposals (on the development branch; not merged or deployed)
 
 Docs only, plus one comment in `app/ocr.js`; the app's behaviour is

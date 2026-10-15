@@ -60,3 +60,17 @@ Fragments remove the cause for the changelog itself.
 2. Fold where? *Recommend:* in each PR's last commit, as now, so a PR keeps
    its own version number. Folding on main can come later if the version
    files still clash.
+
+## Decided (owner, 2026-10-15)
+
+Approved, built in 4.7.13 as recommended: folded in each PR's last commit
+by `npm run bump`, so a PR keeps its own version number.
+- Fragments are named by branch (`docs/changelog/unreleased/<branch>.md`).
+  `bump` needs exactly one, well formed.
+- `npm run sync-main` also resolves the two conflicts that recur
+  (`CHANGELOG.md`, and the version lines), so a second open PR doesn't
+  stall on them.
+- The `check:full` guard proposed above ("a PR that changes `app/` adds a
+  fragment") isn't needed as a separate check: `bump` refuses without a
+  fragment, and a test checks that the top entry's version matches
+  `package.json`.
