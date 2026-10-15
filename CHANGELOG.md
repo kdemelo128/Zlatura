@@ -1,5 +1,41 @@
 # Changelog
 
+## 4.7.8: cheaper sessions, with every check kept (on the development branch; not merged or deployed)
+
+Tooling and docs only; the app is unchanged. Each session read the long
+`CLAUDE.md` and much of `docs/PLAN_STATUS.md` before starting, and the
+release steps and checks were typed out by hand every time.
+
+- **`docs/NOW.md`** is the one file a session reads first: the version, what
+  is merged, what is in progress, the build order, the open decisions and a
+  state note for resuming after a usage limit.
+- **A shorter `CLAUDE.md`** (91 lines, was 127). Every rule is kept, and
+  their longer wording is in `docs/working-rules.md`.
+- **Four skills that load only when needed**: `release`, `pr-report`,
+  `hand-test` and `quality-gates`.
+- **Read-deny rules** (`.claude/settings.json`) keep large or private files
+  out of a session: `node_modules`, `.git`, the OCR and minified vendor
+  files, `private/`, browser-test output and the lockfiles.
+- **One command per check.** `npm run check:quick` runs the unit tests the
+  change can affect, the type check and the golden check against
+  `origin/main`. `npm run check:full` runs the whole Node suite, the type
+  check, the golden check and the full browser suite. Every step runs even
+  when one fails, and any failure fails the command. A change to the
+  displayed figures fails the golden check unless the owner approved it
+  (`GOLDEN_CHANGE_APPROVED=1` still prints the before/after table).
+- **`npm run bump -- x.y.z`** sets the version in all five places it is
+  written. If any file is out of step, it changes nothing.
+- **`tests/e2e/run.sh` takes several flow names**; before, only the first
+  was run.
+- **Three decisions for the owner** are in
+  `docs/proposals/efficiency-setup.md`: the default model and effort, a
+  browser subset in CI, and the plugins to turn off.
+- **Tested by `tests/check-tools.test.js`**: the bump in each file, refusals
+  that change nothing, and that both checks exist, run every gate and fail
+  on any failure.
+
+Saved results and figures are unchanged (golden outputs identical).
+
 ## 4.7.7: an edit is kept when you leave the deal or close the app straight after it (on the development branch; not merged or deployed)
 
 Since 4.7.3, a figure typed on the deal and committed with Tab was saved a

@@ -4,7 +4,7 @@
 # Playwright, Python with reportlab, Pillow and openpyxl, and LibreOffice
 # (all present in the Claude Code cloud image); ffmpeg is optional.
 #   tests/e2e/run.sh            # every workflow
-#   tests/e2e/run.sh live-flow  # one
+#   tests/e2e/run.sh live-flow  # one, or several: run.sh typing-flow lostedit-flow
 set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p files shots
@@ -30,7 +30,7 @@ trap 'kill $SERVER 2>/dev/null || true' EXIT
 sleep 1
 # another server already on the port would be tested in its place, from wherever it serves
 if ! kill -0 "$SERVER" 2>/dev/null; then echo "Port 8080 is in use: stop whatever holds it and run again." >&2; exit 2; fi
-FLOWS=${1:-"workflows rentroll-flow bigroll-flow template-flow tools-flow ai-flow home-flow shell-flow rename-flow engine-flow history-flow snapshot-flow impact-flow migrate-flow t12-flow upgrade-flow limits-flow backup-flow a11y-flow live-flow voice-flow final-e2e deal-persistence lostedit-flow deal-isolation comps-reload errors-flow pwa-flow tpl-flow comps-flow deal-export omrr-flow omstmt-flow typing-flow mobile-audit perf-flow"}
+FLOWS=${*:-"workflows rentroll-flow bigroll-flow template-flow tools-flow ai-flow home-flow shell-flow rename-flow engine-flow history-flow snapshot-flow impact-flow migrate-flow t12-flow upgrade-flow limits-flow backup-flow a11y-flow live-flow voice-flow final-e2e deal-persistence lostedit-flow deal-isolation comps-reload errors-flow pwa-flow tpl-flow comps-flow deal-export omrr-flow omstmt-flow typing-flow mobile-audit perf-flow"}
 # every flow runs even when one fails; any flow that exits with an error
 # (a failed check, no checks, or a crash) is listed and the run fails
 FAILED=()

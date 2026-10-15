@@ -10,7 +10,7 @@ import { spawnSync } from 'node:child_process';
 
 const E2E = new URL('./e2e/', import.meta.url).pathname;
 const FINISH = new URL('./e2e/finish.mjs', import.meta.url).href;
-const flows = fs.readFileSync(E2E + 'run.sh', 'utf8').match(/^FLOWS=\$\{1:-"([^"]+)"\}$/m)[1].split(/\s+/);
+const flows = fs.readFileSync(E2E + 'run.sh', 'utf8').match(/^FLOWS=\$\{\*:-"([^"]+)"\}$/m)[1].split(/\s+/);
 
 /** Runs a tiny flow that ends with finish(R), as a file named `name`.mjs; returns its exit code and output. */
 function run(results, env = {}, name = 'tiny-flow') {
