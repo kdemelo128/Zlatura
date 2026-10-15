@@ -4,7 +4,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.10 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.11 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -12,14 +12,15 @@ section with grep, never in full.
   - the lost-edit fix (#25, 4.7.7);
   - the efficiency setup (#26, 4.7.8);
   - project settings, Sonnet at medium effort and unused plugins off (#27,
-    4.7.9).
-- **In progress:** the partial-year T-12 fix (4.7.10, PR #28, with the
-  before/after table), and the CI browser subset (4.7.11) after it.
+    4.7.9);
+  - the partial-year T-12 fix (#28, 4.7.10).
+- **In progress:** the CI browser subset, the branch rules and
+  `npm run sync-main` (4.7.11, PR open). Waiting for the owner's merge; no
+  other PR is open.
 - **Next (build order, one PR at a time, owner merges each):**
-  1. [PR open, #28, 4.7.10] partial-year T-12 fix;
-  2. the CI browser subset, its own small PR: typing-flow, lostedit-flow,
-     deal-persistence, deal-export; timed, with the cost if the repo goes
-     private;
+  1. [PR open, 4.7.11] the CI browser subset, with the branch rules and
+     `sync-main`;
+  2. changelog fragments, if approved (`docs/proposals/changelog-fragments.md`);
   3. T-12 multi-format import (`docs/proposals/t12-multiformat.md`);
   4. OM red-flag check, then the pro forma vs T-12 bridge (waterfall);
   5. UI revamp behind "New look", in phases (`docs/proposals/ui-revamp.md`);
@@ -27,6 +28,7 @@ section with grep, never in full.
 - **Open decisions for the owner:** the questions at the end of
   `docs/PLAN_STATUS.md`.
 - **Owner's standing instructions (2026-10-15):** no PR watching or
-  polling; `check:quick` while developing, `check:full` once before each PR.
+  polling; `check:quick` while developing, `check:full` once before each PR;
+  the branch rules in `docs/working-rules.md` ("Branches and PRs").
 - **State note** (write here before any long task, so a fresh session can
   resume): none.
