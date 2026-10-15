@@ -346,6 +346,20 @@ rule('noiOmT12', 'OM NOI against the T-12’s', ['d.t12', 'd.t12Om'], (m, { d },
       return `${s}${om.noi > t.noi ? `${s ? ' ' : ''}The OM’s NOI may be pro forma, or leave out expenses.` : ''}`;
     });
 });
+/* A partial T-12 put onto the deal as it stood (before 4.7.10 asked first): its months read as a year.
+ * `d.t12.taken` is what "Use the T-12's figures" set each figure to (impact.js analysisInput); a figure
+ * still holding it is a partial year read as annual. Typing the year's figure, or annualizing, clears it. */
+const AS_YEAR = { noi: 'NOI', gross: 'gross income', opex: 'operating expenses', taxes: 'real estate taxes' };
+const asYearWhen = 'only for a deal holding a partial T-12’s figures as a year’s';
+rule('t12PartialAsYear', 'A partial T-12’s figures read as a year’s', ['d.t12', ...Object.keys(AS_YEAR).map((k) => ({ path: `d.${k}`, when: asYearWhen }))], (m, { d }, C) => {
+  const t = d.t12;
+  if (!t || !t.taken) return; // set only for a statement of 1 to 11 months
+  const keys = Object.keys(AS_YEAR).filter((k) => k in t.taken && ok(d[k]) && d[k] === t.taken[k]);
+  if (!keys.length) return;
+  const names = keys.map((k) => AS_YEAR[k]);
+  const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
+  C.push({ level: 'warn', text: `The deal’s ${list} ${names.length > 1 ? 'are' : 'is'} the T-12’s ${t.months} month${t.months === 1 ? '' : 's'}${period(t)}, not a full year’s, so every figure worked out from ${names.length > 1 ? 'them' : 'it'} reads a partial year as annual. Use the T-12’s figures again to annualize them, or type the year’s figures.` });
+});
 rule('noiT12RentRoll', 'T-12 NOI against the rent roll’s forward-looking year 1', ['d.t12', 'd.rrNoi1'], (m, { d }, C) => {
   const t = d.t12;
   if (!t12Ready(t)) return;

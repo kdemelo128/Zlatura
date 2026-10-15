@@ -205,11 +205,37 @@ test('a deal with a T-12: its lines, the OM’s figures and the rent roll move o
   for (const id of ['check.noiOmT12', 'check.noiT12RentRoll', 'check.noiOmRentRoll']) assert.ok((seenMoving.get(id) || new Set()).has('t12'), `${id} moved by the T-12`);
 });
 
+// a nine-month T-12 put onto the deal as it stood, as "Use the T-12's figures" did before 4.7.10 (invented)
+export const partialDeal = () => {
+  const rows = T12_ROWS.map((r, i) => ({ r: r.r, cells: i ? [r.cells[0], ...r.cells.slice(1, 10), r.cells[1] * 9] : [...r.cells.slice(0, 10), 'Total'] }));
+  const t12 = importStatement(rows, { file: 'invented.xlsx' });
+  const d = { ...t12Deal(), name: 'A partial T-12 read as a year', t12, sources: {} };
+  const T = { noi: 9 * (69000 - 18000), gross: 9 * 69000, opex: 9 * 18000, taxes: 9 * 9000 };
+  t12.applied = { at: 0, before: { noi: d.figures.noi, gross: d.figures.gross, opex: d.figures.opex, taxes: d.figures.taxes }, rrOpex: false };
+  for (const k of Object.keys(T)) { d.figures[k] = T[k]; d.sources[k] = { t12: true, hand: false, file: 'invented.xlsx', line: 'T-12, Jan 2025 to Sep 2025 (9 months)', orig: T[k] }; }
+  return d;
+};
+
+test('a deal holding a partial T-12 as a year: the warning, and what moves it, are on the map', async () => {
+  const deal = partialDeal();
+  assert.equal(deal.t12.months.length, 9);
+  const missing = [];
+  for (const ch of changesFor(deal, { leases: 2 })) {
+    if (!/^(t12|figures\.(noi|gross|opex|taxes))$/.test(ch.input)) continue;
+    const r = await tryChange(deal, ch, {});
+    for (const k of r.missing) missing.push(`changing ${ch.label} moved ${k}, but the map doesn't say so`);
+    for (const k of r.moved) { if (!seenMoving.has(k)) seenMoving.set(k, new Set()); seenMoving.get(k).add(ch.input); }
+  }
+  assert.deepEqual([...new Set(missing)], []);
+  for (const x of ['t12', 'figures.noi', 'figures.gross', 'figures.opex', 'figures.taxes']) assert.ok((seenMoving.get('check.t12PartialAsYear') || new Set()).has(x), `check.t12PartialAsYear moved by ${x}`);
+});
+
 test('each formula’s declared reads are each read on some deal, and each input it reads is seen to move it', () => {
   const traced = new Map();
   const rr = richRentRoll();
   const more = [{ d: { price: 9e6, noi: 6e5, bsf: 32000, rentRoll: [{ sf: 1000, annual: 50000, end: '2030-01-01T00:00:00.000Z' }], rentRollAsOf: rr.settings.asOf } },
-    { d: analysisInput(t12Deal(), { project: (r, o) => projectionSummary(project(r, o)) }) }];
+    { d: analysisInput(t12Deal(), { project: (r, o) => projectionSummary(project(r, o)) }) },
+    { d: analysisInput(partialDeal()) }];
   for (const c of [...ALL, ...more]) for (const [id, s] of traceAnalysis(c.d, c.comps || null).reads) { if (!traced.has(id)) traced.set(id, new Set()); for (const p of s) traced.get(id).add(p); }
   const unread = [];
   const unmoved = [];

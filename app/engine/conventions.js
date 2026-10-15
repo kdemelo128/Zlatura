@@ -24,7 +24,7 @@ export const CONVENTIONS = [
   { id: 'comps.priced', label: 'Comps in $/SF figures', value: 'Only comps with a price and building SF above zero' },
   { id: 'money', label: 'Money kept', value: 'Totals to whole cents; rates per SF or per unit to four decimals' },
   { id: 'noi.threeWays', label: 'NOI three ways (a deal with a T-12)', value: 'The OM’s, the T-12’s and the rent roll’s forward-looking year 1 compared in pairs, the gap as a share of the larger: within 2% they agree; 2% to 5% is noted; above 5% is a warning. A T-12 of fewer than 12 months, or with lines still to review, isn’t compared' },
-  { id: 't12.months', label: 'A T-12 of fewer than 12 months', value: 'Its months as they are: never scaled up to a year' },
+  { id: 't12.months', label: 'A T-12 of fewer than 12 months', value: 'Its months as they are, never used as a year’s figures. Scaled up (× 12 ÷ its months) only when you confirm it, and then marked annualized' },
 ];
 /** The NOI three ways thresholds, in percent of the larger NOI (convention noi.threeWays). */
 export const NOI_GAP = { agree: 2, warn: 5 };

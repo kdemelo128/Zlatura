@@ -7,7 +7,7 @@
 import { el, toast, actionSheet, money0, niceDate, getXlsx } from './kit.js';
 import { readGrids, unreadable } from './sheetread.js';
 import {
-  CATEGORIES, CATEGORY, SIDES, bestSheet, statementTotals, openLines, openChecks, fileLine, periodText, rematch,
+  CATEGORIES, CATEGORY, SIDES, bestSheet, statementTotals, annualized, openLines, openChecks, fileLine, periodText, rematch,
 } from './t12.js';
 import { corrections, rememberLabel } from './t12labels.js';
 import { NOI_GAP } from './engine/conventions.js';
@@ -35,6 +35,13 @@ export function renderT12Card(box, h) {
   const lines = openLines(t);
   const checks = openChecks(t);
   box.appendChild(el('p', 'sub', `${t.file || 'Statement'}${t.sheet && t.sheet !== 'CSV' ? ` · ${t.sheet}` : ''} · ${periodText(t)} · imported ${niceDate(t.importedAt)}`));
+  const n = t.months.length;
+  if (n && n < 12) {
+    const ann = t.applied && t.applied.annualized;
+    const p = el('p', 'hint t12-partial', `A partial year: ${n} month${n === 1 ? '' : 's'}. The totals below are those months as read, not a year’s.${ann ? ` The deal uses them annualized (× 12 ÷ ${ann}), as you confirmed.` : ''}`);
+    p.id = 't12-partial';
+    box.appendChild(p);
+  }
   if (lines.length || checks.length) {
     const p = el('p', 'warn-text t12-open');
     p.append(`${[lines.length ? `${lines.length} line${lines.length === 1 ? '' : 's'} to file` : '', checks.length ? `${checks.length} thing${checks.length === 1 ? '' : 's'} to check` : ''].filter(Boolean).join(' and ')}. `);
@@ -57,7 +64,8 @@ export function renderT12Card(box, h) {
     for (const c of CATEGORIES.filter((x) => x.side === side)) if (T.by[c.id]) row(c.label, T.by[c.id]);
     row(side === 'income' ? 'Effective gross income' : 'Operating expenses', side === 'income' ? T.egi : T.opex, 'total');
   }
-  row(T.unassigned ? 'NOI (lines still to file are left out)' : 'NOI', T.noi, 'total grand');
+  const noiLabel = n && n < 12 ? `NOI, ${n} month${n === 1 ? '' : 's'}` : 'NOI';
+  row(T.unassigned ? `${noiLabel} (lines still to file are left out)` : noiLabel, T.noi, 'total grand');
   const below = CATEGORIES.filter((c) => c.side === 'below' && T.by[c.id]);
   if (below.length) {
     const tr = el('tr', 'sep'); const th = el('th', null, SIDES.below); th.colSpan = 2; tr.appendChild(th); tb.appendChild(tr);
@@ -234,30 +242,47 @@ export function categorySelect(l) {
   return sel;
 }
 
-/** "Use the T-12's figures": EGI, operating expenses, taxes and NOI onto the deal (and the rent roll's expenses, if asked), one undoable step. */
+/**
+ * "Use the T-12's figures": EGI, operating expenses, taxes and NOI onto the deal (and the rent roll's
+ * expenses, if asked), one undoable step. The deal's figures are a year's, so a statement of fewer than
+ * 12 months is never put in as it stands: the broker keeps it as a partial year (nothing on the deal
+ * changes), or annualizes it (× 12 ÷ its months), seeing each annual figure and confirming first.
+ */
 async function useFigures(h) {
   const d = h.deal;
   const t = d.t12;
   const T = statementTotals(t);
   if (T.unassigned) { toast(`File the ${openLines(t).length} line${openLines(t).length === 1 ? '' : 's'} still waiting in Review first: the totals aren’t complete.`, { label: 'Review', run: () => h.openReview() }, 7000); return; }
-  const partial = t.months.length && t.months.length < 12;
-  const sets = [['gross', 'Gross income (EGI)', T.egi], ['opex', 'Operating expenses', T.opex], ['taxes', 'Real estate taxes', T.taxes], ['noi', 'NOI, in place', T.noi]];
+  const n = t.months.length;
+  const A = annualized(T);
+  /** @type {{ egi: number, opex: number, taxes: number, noi: number }} */
+  let vals = T;
+  if (A) {
+    const pick = await actionSheet(`This T-12 is ${n} month${n === 1 ? '' : 's'}, not a full year`, [
+      { label: 'Keep it as a partial year', sub: `Nothing on the deal changes. The T-12’s ${n}-month NOI (${usd(T.noi)}) stays on this card as a partial year, not compared with a year’s figures.`, value: 'keep', primary: true },
+      { label: 'Annualize it, then use the figures…', sub: `Scales each total by 12 ÷ ${n}. You see the annual figures and confirm before anything changes.`, value: 'annualize' },
+    ]);
+    if (pick !== 'annualize') { if (pick === 'keep') toast(`Nothing changed: the T-12 stays a ${n}-month partial year.`); return; }
+    vals = A;
+  }
+  const sets = [['gross', 'Gross income (EGI)', vals.egi], ['opex', 'Operating expenses', vals.opex], ['taxes', 'Real estate taxes', vals.taxes], ['noi', A ? 'NOI, annualized' : 'NOI, in place', vals.noi]];
   const what = sets.map(([k, label, v]) => `${label}: ${usd(d.figures[k])} → ${usd(v)}`).join(' · ');
+  const caveat = A ? ` From ${n} months × 12 ÷ ${n}: seasonal income and costs, one-time items and lease-up are scaled with everything else.` : '';
   /** @type {any[]} */
-  const opts = [{ label: 'Use them', sub: `${what}.${partial ? ` These are ${t.months.length} months, not scaled up to a year.` : ''}`, value: 'deal', primary: true }];
-  if (d.rr && d.rr.leases && d.rr.leases.length) opts.push({ label: 'Use them, and the rent roll’s operating expenses too', sub: `The rent roll’s operating expenses: ${usd(d.rr.settings.opex)} → ${usd(T.opex)}.`, value: 'both' });
-  const v = await actionSheet('Use the T-12’s figures?', opts);
+  const opts = [{ label: A ? 'Annualize and use them' : 'Use them', sub: `${what}.${caveat}`, value: 'deal', primary: true }];
+  if (d.rr && d.rr.leases && d.rr.leases.length) opts.push({ label: A ? 'Annualize and use them, and the rent roll’s operating expenses too' : 'Use them, and the rent roll’s operating expenses too', sub: `The rent roll’s operating expenses: ${usd(d.rr.settings.opex)} → ${usd(vals.opex)}.`, value: 'both' });
+  const v = await actionSheet(A ? `Annualize ${n} months to a year and use them?` : 'Use the T-12’s figures?', opts);
   if (!v) return;
   const snap = h.snapshot('Before using the T-12’s figures');
   const before = t.applied ? t.applied.before : { noi: d.figures.noi ?? null, gross: d.figures.gross ?? null, opex: d.figures.opex ?? null, taxes: d.figures.taxes ?? null };
-  t.applied = { at: Date.now(), before, rrOpex: v === 'both' };
+  t.applied = { at: Date.now(), before, rrOpex: v === 'both', ...(A ? { annualized: n } : {}) };
   const months = periodText(t);
   for (const [k, , val] of sets) {
     d.figures[k] = val;
-    d.sources[k] = { t12: true, hand: false, file: t.file, line: `T-12, ${months}`, orig: val };
+    d.sources[k] = { t12: true, hand: false, file: t.file, line: `T-12, ${months}${A ? `, annualized × 12 ÷ ${n}` : ''}`, orig: val, ...(A ? { annualized: n } : {}) };
   }
-  if (v === 'both') d.rr.settings.opex = T.opex;
-  h.touch({ kind: 'import', label: `Used the T-12’s figures (EGI, expenses, taxes, NOI${v === 'both' ? ', and the rent roll’s expenses' : ''})`, snapshot: snap });
+  if (v === 'both') d.rr.settings.opex = vals.opex;
+  h.touch({ kind: 'import', label: `Used the T-12’s figures${A ? `, annualized from ${n} months` : ''} (EGI, expenses, taxes, NOI${v === 'both' ? ', and the rent roll’s expenses' : ''})`, snapshot: snap });
   h.rerender();
-  toast('The T-12’s figures are in the deal. Undo puts the earlier ones back.');
+  toast(A ? `The T-12’s ${n} months, annualized, are in the deal. Undo puts the earlier figures back.` : 'The T-12’s figures are in the deal. Undo puts the earlier ones back.');
 }

@@ -1,5 +1,66 @@
 # Changelog
 
+## 4.7.10: a partial-year T-12 is never used as a year's figures (on the development branch; not merged or deployed)
+
+Before, "Use the T-12's figures" on a T-3, T-6 or T-9 put its totals onto
+the deal as they stood. The deal's figures are a year's, so a nine-month
+NOI was read as the annual NOI. The cap rate, value, debt coverage, loan
+size and returns were all worked out from a partial year. The sheet only
+noted "not scaled up to a year".
+
+- **It asks first.** On a statement of 1 to 11 months, the first choice is
+  "Keep it as a partial year": nothing on the deal changes. The other is
+  "Annualize it". That shows each annual figure (× 12 ÷ its months) and
+  what annualizing can get wrong (seasonal items, one-time costs,
+  lease-up), and changes nothing until you confirm. Cancel at either step
+  changes nothing.
+- **Annualized figures say so.** Each figure's source reads "T-12, Jan
+  2025 to Sep 2025 (9 months), annualized × 12 ÷ 9". The card says the deal
+  uses them annualized, as confirmed. One Undo puts the earlier figures
+  back.
+- **The math, in whole cents, in one place** (`t12.js annualized`). EGI,
+  expenses and taxes are each scaled. NOI is the scaled EGI less the scaled
+  expenses, so it still adds up.
+- **The card says "A partial year"**, and labels its NOI with the months
+  ("NOI, 9 months").
+- **A deal saved earlier** that holds a partial year as a year's figures is
+  not changed. It gets a warning in "What doesn't add up", naming the
+  figures, the months and the way out. The warning goes when the figures
+  are annualized or typed as a year's.
+- **The convention** (`t12.months`) now reads: never used as a year's
+  figures; scaled up only when you confirm it, and then marked annualized.
+
+**Saved results are unchanged.** The golden outputs are identical: 646
+displayed figures and 618 saved results. No golden deal holds a partial
+T-12. The behaviour changed on the invented nine-month deal of the new
+flow:
+
+| | EGI | Expenses | NOI | Cap rate | DSCR | Warning |
+|---|---|---|---|---|---|---|
+| 4.7.9, "Use them" | $108,000 | $23,400 | $84,600 | 5.64% | 1.11x | none |
+| 4.7.10, "Keep it as a partial year" (the default) | $150,000 | $30,000 | $120,000 | 8.00% | 1.58x | none |
+| 4.7.10, "Annualize", confirmed | $144,000 | $31,200 | $112,800 | 7.52% | 1.49x | none |
+| 4.7.10, a deal saved by 4.7.9 as in the first row | $108,000 | $23,400 | $84,600 | 5.64% | 1.11x | yes |
+
+The deal's own figures were $150,000, $30,000 and $120,000 on a
+$1,500,000 price, with a 65% loan at 6.75% over 30 years.
+
+**Tested.**
+- `tests/t12-partial.test.js` (6 tests) can't load on 4.7.9, which has no
+  `annualized`.
+- The new `tests/impact.test.js` case fails on 4.7.9.
+- The new `t12partial-flow` (19 checks) fails 12 on 4.7.9, the bug among
+  them. All pass now.
+- Mutation checks, each caught:
+  - no scaling;
+  - NOI scaled by itself;
+  - a full year annualized;
+  - a typed figure still warned about;
+  - an annualized figure taken as partial;
+  - the partial-year question removed (10 browser checks fail).
+- The impact map shows the warning moved by the T-12 and by each of the
+  four figures.
+
 ## 4.7.9: project settings for model, effort and plugins (on the development branch; not merged or deployed)
 
 Settings and docs only; the app is unchanged. The owner decided the three
