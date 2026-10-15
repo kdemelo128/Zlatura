@@ -1,5 +1,56 @@
 # Changelog
 
+## 4.7.5: income and expenses read from an OM's statement correctly, and checked (on the development branch; not merged or deployed)
+
+Bug B. Figures read from an offering memorandum's operating statement could
+come from the wrong column (the oldest year, a per-unit column, the pro
+forma), ignore "($ in 000s)", take a per-unit row as a total, and go straight
+into the deal even when the statement didn't add up. The statement is now
+read as a table, checked by its own arithmetic, and every figure says where
+it came from.
+
+- **The right column.** Columns are found from where the figures sit and
+  named from the headings above them, including a heading that spans two
+  columns ("Pro Forma" over Year 1 and Year 2). In-place figures come from
+  the latest actual column, a T-12 first; pro forma NOI from the first pro
+  forma column. A statement with only Year 1, Year 2… uses Year 1 as NOI,
+  labelled "Year 1 (projected)", with medium confidence. Plain years in the
+  past are actual; this year and later are projected.
+- **Units and scale.** "($ in 000s)", "$000", "in thousands" and "in
+  millions" in the title, the headings or a note scale every figure, and say
+  so. Per SF, per unit and % columns are never read as totals, nor is a row
+  such as "Expenses Per Unit". A column with no heading whose figures times
+  the building SF (or unit count) give another column is read as per SF (or
+  per unit). "Real Estate Tax Reimbursements" is no longer taken for the tax
+  bill.
+- **A figure that can't be right stays put.** A cell that fails a check
+  (a negative NOI, say) leaves that row unread and says why; the next column
+  is never taken instead.
+- **Checked by its own arithmetic.** For each column: the lines add up to
+  each subtotal, the income lines to EGI, EGI less expenses to NOI, taxes are
+  within expenses, and expenses are below EGI, within the larger of 0.5% or
+  half a printed unit per line. Growth from one column to the next of more
+  than 25% (income, expenses) is noted and more than 50% (NOI) flagged; never
+  blocking. The arithmetic is the T-12 import's own (one copy of the math).
+- **A statement that doesn't add up holds NOI, EGI and expenses back.** The
+  Data QC panel in Key figures shows each check with its page, row, column and
+  the cell marked on the line as printed. A failed check waits there and in
+  Review with one-click fixes: keep as printed, use the subtotals (EGI less
+  expenses), use the sum of the lines, or use another column. Your choice is
+  recorded on the deal, and Undo takes it back.
+- **Sources.** Each figure from a statement keeps its row, column, cell,
+  scale and check, and shows under its label in words, not colour alone:
+  "Actual 2025 · p.4 · high". The other columns of the same row are offered
+  as alternatives.
+- **Your saved deals.** Deals read before this version are kept exactly as
+  they were and are not read again; read the OM again to check it. Every
+  figure in the 618 saved deal results and 646 displayed figures is
+  unchanged.
+- **Tests:** 34 new statement tests (on page text and on PDFs, the checks,
+  each fix, undo and a backup made by 4.7.4), and a new browser flow that
+  reads an invented OM in thousands with a Per Unit column and a NOI that
+  doesn't add up, fixes it in Review and undoes the fix.
+
 ## 4.7.4: rent rolls read from an OM correctly, with checks you can see (on the development branch; not merged or deployed)
 
 Bug A. A rent roll read from an offering memorandum could lose rows, invent

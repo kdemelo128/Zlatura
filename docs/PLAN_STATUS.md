@@ -21,13 +21,13 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.4, Bug A built (2026-10-14).
+Last updated: 4.7.5, Bug B built (2026-10-15).
 
 ## Now
 
-- **Current step:** Part 1, Bug B. Bug A is built (4.7.4, committed on
-  `claude/bug-a-om-rent-roll`, stacked on Bug C; PR pending). Bug C is built
-  (4.7.3), PR open for merge.
+- **Current step:** Gate 1: three bug PRs open; then Part 2 proposals.
+  Bug B is built (4.7.5, committed on `claude/bug-b-om-income`, stacked on
+  Bug A's 4.7.4 commit; PR pending). Bugs A and C are merged into main.
 - **Bugs A and B:** diagnosed; all recommendations approved 2026-10-14.
 - **Usage rules (2026-10-14):** one agent at a time, never parallel Opus;
   routine work in the main session; read big files by section or grep; run
@@ -42,7 +42,7 @@ Last updated: 4.7.4, Bug A built (2026-10-14).
 
 | Group | Done | Partial | In progress | Not started | Blocked | Items |
 |---|---|---|---|---|---|---|
-| The owner's directive | 6 | 1 | 1 | 10 | 0 | 18 |
+| The owner's directive | 7 | 1 | 0 | 10 | 0 | 18 |
 | Rules and process (Parts 0, 1.3, 22, 23, 24) | 19 | 7 | 1 | 0 | 0 | 27 |
 | The 15 pillars (Part 2) | 1 | 8 | 0 | 6 | 0 | 15 |
 | Phase 0: audit and baseline | 9 | 0 | 0 | 0 | 0 | 9 |
@@ -55,7 +55,7 @@ Last updated: 4.7.4, Bug A built (2026-10-14).
 | Phase 7: workspaces and integrations | 1 | 4 | 0 | 9 | 0 | 14 |
 | Phase 8: final audit | 1 | 2 | 0 | 7 | 1 | 11 |
 | Real-world validation | 0 | 0 | 0 | 0 | 5 | 5 |
-| **All** | **99** | **122** | **2** | **143** | **8** | **374** |
+| **All** | **100** | **122** | **1** | **143** | **8** | **374** |
 
 The pillars are counted on their own as well as through the items of the
 phases that build them.
@@ -83,11 +83,14 @@ These came after the master plan and are worked first.
   `app/ocr.js` with tesseract.js under `vendor/ocr/`; migration step
   `rr-qc`; `tests/tools/rr-local.mjs` for real rent rolls). Synthetic
   fixtures only; PR pending.
-- [>] Bug B: income and expenses read from OM statements are often wrong
-  (diagnosed; recommendations approved: Year-1-only labelled projected at
-  medium confidence; a failed check blocks NOI, EGI and opex; tolerance the
-  larger of half a printed unit per line or 0.5%; growth note above 25%,
-  warning above 50%, never blocking; additive provenance fields)
+- [x] Bug B: income and expenses read from OM statements are often wrong.
+  Built in 4.7.5 (`app/omstatement.js` reads each statement as a table by
+  position: column kinds, spanning headings, scale, per SF and per unit
+  columns kept out of totals; `t12.js statementChecks` does the arithmetic;
+  a failed check holds NOI, EGI and opex back in `deal.omRead`, a Data QC
+  panel and Review items `omcheck` with one-click fixes, undoable; each
+  figure keeps its row, column, cell, scale and check; design
+  `docs/proposals/om-statement.md`). Synthetic fixtures only; PR pending.
 
 ### Part 2: design proposals
 These stop for approval.
@@ -354,18 +357,25 @@ here, where most of the money logic is built, and is checked on every PR.*
   detected
 - [~] 6.2.2 Text, tables and images with page references: text with page and
   line; the rent roll table read by position, each cell with its page, line
-  and column (4.7.4, `omroll.js`); a scanned rent roll page read by OCR on
+  and column (4.7.4, `omroll.js`); operating statements read by position,
+  each figure with its row, column and cell (4.7.5, `omstatement.js`); a
+  scanned rent roll page read by OCR on
   request, labelled OCR (4.7.4, `ocr.js`); no images
 - [~] 6.2.3 Each proposed field with value, unit, page, quote, confidence and
   validation status: page, line and confidence; units implicit per field; on
   the AI path every quote is checked against the PDF text
-  (`reconcile.js`). Synthetic only (`om.test.js`); Bug B open.
+  (`reconcile.js`). Statement figures also keep their row, column, cell,
+  scale and check, with confidence in words (4.7.5). Synthetic only
+  (`om.test.js`, `omstatement.test.js`).
 - [x] 6.2.4 Cross-field validators: price/SF, NOI ÷ price against the cap,
   rent roll against the stated figures (`engine/figures.js`, `deal.test.js`).
   Synthetic only.
 - [~] 6.2.4 Unit, sign, date and magnitude validators: a few (NOI above
-  gross, EGI well above potential rent, zero or negative NOI); no general
-  check per field
+  gross, EGI well above potential rent, zero or negative NOI); for operating
+  statements (4.7.5): scale, per SF and per unit columns, a range check per
+  cell, lines against subtotals, EGI less expenses against NOI, taxes within
+  expenses, expenses below EGI, growth between columns; no general check per
+  field
 - [~] 6.2.5 Review screen (accept, edit, reject, defer): the AI path has one;
   the built-in reader writes figures straight to the deal, each tagged and
   editable; no "defer"
@@ -512,7 +522,9 @@ multi-format import" waits on proposal 2a.
   deal. The DC zoning list (`zoning.js`) for comps is not this.
 - [~] 7.7 Auditability: source tags per deal figure (OM page and line,
   typed, edited, derived, AI, tool, scenario), each deal's History of edits,
-  T-12 lines with their sheet row; no sheet-and-cell source for deal figures
+  T-12 lines with their sheet row; OM statement figures with their row,
+  column and cell (4.7.5); no sheet-and-cell source for the other deal
+  figures
 - [~] 7.8 Baseline and named scenarios, kept apart until "Save to deal…"
   with the list of changes (What if, `dealui.js`)
 - [ ] 7.8 Branchable scenarios (broker case against independent case, and

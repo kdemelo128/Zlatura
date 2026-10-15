@@ -295,8 +295,13 @@ export function statementTotals(t) {
 /**
  * What the statement's own numbers say that doesn't add up, and what is
  * missing: [{ id, kind, text, amount }]. `id` is stable, so "seen" can be kept.
+ * `tol(stated, lines)` is how far a stated figure may sit from what its
+ * lines add up to (default a dollar): an OM statement printed in thousands
+ * passes its own rounding (omstatement.js).
+ * @param {any} t
+ * @param {{ tol?: (stated: number, lines: number) => number }} [opts]
  */
-export function statementChecks(t) {
+export function statementChecks(t, { tol = () => 1 } = {}) {
   const out = [];
   const T = statementTotals(t);
   const money = (x) => `$${Math.round(Math.abs(x)).toLocaleString('en-US')}`;
@@ -306,9 +311,12 @@ export function statementChecks(t) {
   const off = t.lines.filter((l) => l.fileTotal !== null && Math.abs(l.fileTotal - l.total) > 1);
   if (off.length) out.push({ id: 'linetotals', kind: 'sumTotal', text: `${off.length} line${off.length === 1 ? '’s' : 's’'} months don’t add up to the file’s Total column (${off.slice(0, 3).map((l) => `${l.label}: months ${money(l.total)}, Total ${money(l.fileTotal)}`).join('; ')}${off.length > 3 ? '; …' : ''}). The months are used.`, amount: off.reduce((s, l) => s + Math.abs(l.fileTotal - l.total), 0) });
   if (!T.unassigned) {
+    const sideOf = (l) => (l.category ? CATEGORY[l.category].side : l.section);
+    const count = { egi: t.lines.filter((l) => sideOf(l) === 'income').length, opex: t.lines.filter((l) => sideOf(l) === 'expense').length };
+    count.noi = count.egi + count.opex;
     for (const [k, label] of [['egi', 'effective gross income'], ['opex', 'operating expenses'], ['noi', 'NOI']]) {
       const s = t.stated[k];
-      if (s && Math.abs(Math.abs(s.value) - Math.abs(T[k])) > 1) out.push({ id: `stated.${k}`, kind: 'stated', text: `The file states ${label} of ${money(s.value)} (row ${s.r}); its lines add up to ${money(T[k])}.`, amount: Math.abs(Math.abs(s.value) - Math.abs(T[k])) });
+      if (s && Math.abs(Math.abs(s.value) - Math.abs(T[k])) > tol(s.value, count[k])) out.push({ id: `stated.${k}`, kind: 'stated', text: `The file states ${label} of ${money(s.value)} (row ${s.r}); its lines add up to ${money(T[k])}.`, amount: Math.abs(Math.abs(s.value) - Math.abs(T[k])) });
     }
   }
   const byId = new Map(t.lines.map((l) => [l.id, l]));
@@ -316,7 +324,7 @@ export function statementChecks(t) {
     const ls = s.covers.map((id) => byId.get(id)).filter(Boolean);
     if (!ls.length) continue;
     const sum = cents(ls.reduce((a, l) => a + l.total, 0));
-    if (Math.abs(Math.abs(sum) - Math.abs(s.value)) > 1) out.push({ id: `sub.${s.r}`, kind: 'stated', text: `“${s.label}” (row ${s.r}) is ${money(s.value)}; the ${ls.length} line${ls.length === 1 ? '' : 's'} above it add up to ${money(sum)}.`, amount: Math.abs(Math.abs(sum) - Math.abs(s.value)) });
+    if (Math.abs(Math.abs(sum) - Math.abs(s.value)) > tol(s.value, ls.length)) out.push({ id: `sub.${s.r}`, kind: 'stated', text: `“${s.label}” (row ${s.r}) is ${money(s.value)}; the ${ls.length} line${ls.length === 1 ? '' : 's'} above it add up to ${money(sum)}.`, amount: Math.abs(Math.abs(sum) - Math.abs(s.value)) });
   }
   return out;
 }

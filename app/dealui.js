@@ -26,6 +26,7 @@ import { project, rentRollSummary } from './lease.js';
 import { projectionNow, projectionLater, projectionSync, projectionError } from './projector.js';
 import { legacyRows, omRollRecord, applyHeldRows, addOcrRows, ocrReading } from './rentroll.js';
 import { qcPanel } from './dataqcui.js';
+import { omReadRecord, applyOmFix, heldFields, basisText } from './omstatement.js';
 import { resolveCheck, blockingChecks, qcCounts } from './dataqc.js';
 import { readScannedPage, ocrSupported } from './ocr.js';
 import { pending as stepsDue, applyStep } from './migrate.js';
@@ -420,7 +421,7 @@ async function readOmFile(file) {
     toast(`${file.name} can’t be read: ${pdfProblem(err, file)}`, null, 8000);
     return;
   }
-  const om = readOm(pages, { layouts: layouts.length === pages.length ? layouts : null });
+  const om = readOm(pages, { layouts: layouts.length === pages.length ? layouts : null, asOf: localDate() });
   reading = null;
   if (om.chars < 200) {
     // every page a scan: the Data QC record lists them, so one can be read by OCR
@@ -438,13 +439,18 @@ async function readOmFile(file) {
     const key = k === 'lot' ? 'lot_sf' : k;
     if (!(key in KIND)) continue;
     figures[key] = f.value;
-    sources[key] = { page: f.page, line: f.line, confidence: f.confidence, alts: f.alts || [], count: f.count || 1, orig: f.value };
+    sources[key] = { page: f.page, line: f.line, confidence: f.confidence, alts: f.alts || [], count: f.count || 1, orig: f.value,
+      // read from a statement table: its row, column (and kind), the cell as printed, the table's scale and the column's check
+      ...(f.col ? { row: f.row, lineNo: f.lineNo, col: f.col, colKind: f.colKind, cell: f.cell, scale: f.scale, unit: f.unit, table: f.table, check: f.check } : {}) };
   }
+  // the operating statements, checked (Data QC): a failed check holds NOI, EGI and expenses back until the broker chooses a fix
+  const stmt = omReadRecord(om, { figures, sources, file: file.name });
   // the rent roll, checked (Data QC): a failed check holds it back until the broker resolves or accepts it
-  const { qc, rows } = omRollRecord(om, { figures, sources, asOf: localDate(), file: file.name });
+  const { qc, rows } = omRollRecord(om, { figures: stmt.figures, sources: stmt.sources, asOf: localDate(), file: file.name });
   deal = newDeal({
     name: figures.address || file.name.replace(/\.pdf$/i, ''),
-    source: file.name, readAt: Date.now(), pages: om.pages, figures, sources,
+    source: file.name, readAt: Date.now(), pages: om.pages, figures: stmt.figures, sources: stmt.sources,
+    ...(stmt.omRead ? { omRead: stmt.omRead } : {}),
     rentRoll: rows,
     rentRollPage: om.rentRoll ? om.rentRoll.page : null,
     unpriced: om.unpriced,
@@ -457,7 +463,8 @@ async function readOmFile(file) {
   touch();
   store.askToPersist();
   const held = qc && qc.held ? qc.held.length : 0;
-  toast(`Read ${om.pages} page${om.pages === 1 ? '' : 's'}: ${n} figure${n === 1 ? '' : 's'} found${om.rentRoll ? ` and a rent roll of ${om.rentRoll.rows.length}` : ''}.${held ? ' A rent roll check failed, so the rent roll is held back: see Data QC.' : ''}${om.scanned.length ? ` ${om.scanned.length} page${om.scanned.length === 1 ? ' has' : 's have'} no text.` : ''} Tap a page tag to see where each came from.`, null, 7000);
+  const stHeld = stmt.omRead ? heldFields(stmt.omRead).length : 0;
+  toast(`Read ${om.pages} page${om.pages === 1 ? '' : 's'}: ${n} figure${n === 1 ? '' : 's'} found${om.rentRoll ? ` and a rent roll of ${om.rentRoll.rows.length}` : ''}.${stHeld ? ' The operating statement doesn’t add up, so NOI, EGI and expenses are held back: see Data QC.' : ''}${held ? ' A rent roll check failed, so the rent roll is held back: see Data QC.' : ''}${om.scanned.length ? ` ${om.scanned.length} page${om.scanned.length === 1 ? ' has' : 's have'} no text.` : ''} Tap a page tag to see where each came from.`, null, 7000);
   idle(() => getXlsx().catch(() => {}));
 }
 
@@ -994,6 +1001,8 @@ const BREAK_EVEN_WHY = {
 
 const CORE = new Set(['price', 'noi', 'cap', 'occ', 'address', 'city', 'state', 'ptype', 'bsf', 'lot_sf', 'year', 'zoning', 'gross', 'opex', 'taxes']);
 const present = (k) => deal.figures[k] !== null && deal.figures[k] !== undefined && deal.figures[k] !== '';
+/** A figure a failed statement check holds back, not yet typed by hand. */
+const heldBack = (k) => !!deal.omRead && heldFields(deal.omRead).includes(k) && !present(k);
 
 function figuresCard() {
   const c = el('section', 'card');
@@ -1002,6 +1011,8 @@ function figuresCard() {
   h.appendChild(el('h2', null, 'Key figures'));
   h.appendChild(el('span', 'count', deal.source ? 'tap a tag to see its page' : 'type as you would say them: 4.5m, 850k, 6.25%'));
   c.appendChild(h);
+  // the OM's operating statement as read, checked (Data QC): what passed, and what holds NOI back
+  if (deal.omRead && deal.omRead.checks && deal.omRead.checks.length) c.appendChild(omQcPanel(deal));
   for (const [title, rows] of SECTIONS) {
     // the lease rows only when the OM has a lease to speak of
     if (title === 'Lease' && !rows.some(([k]) => deal.figures[k]) && !deal.showLease) {
@@ -1010,7 +1021,7 @@ function figuresCard() {
       c.appendChild(b);
       continue;
     }
-    const show = rows.filter(([k]) => title === 'Lease' || CORE.has(k) || present(k) || deal.showAll);
+    const show = rows.filter(([k]) => title === 'Lease' || CORE.has(k) || present(k) || heldBack(k) || deal.showAll);
     hidden += rows.length - show.length;
     if (!show.length) continue;
     c.appendChild(el('div', 'sec-label', title)).style.margin = '12px 16px 4px';
@@ -1025,7 +1036,7 @@ function figuresCard() {
   }
   // where each kind of figure comes from, in one line
   const lg = el('div', 'lineage');
-  lg.innerHTML = '<span class="src high"><i></i>p.4</span> read from the OM: green printed in a summary or more than once, blue a labelled line, amber a weak match · '
+  lg.innerHTML = '<span class="src high"><i></i>p.4</span> read from the OM: green printed in a summary or more than once, or from a statement that adds up; blue a labelled line or a column with no basis printed; amber a weak match or a statement that doesn’t add up (each says so in words under its label) · '
     + '<span class="src derived">derived</span> worked out from the others · <span class="src hand">edited</span> <span class="src hand">typed</span> entered by you · '
     + 'scenario figures live only in Live deal below.';
   c.appendChild(lg);
@@ -1039,6 +1050,9 @@ function figRow(key, label, kind) {
   inp.id = `fig-${key}`;
   lab.htmlFor = inp.id;
   if (key === 'lot_sf' && ok(deal.figures.lot_sf)) lab.appendChild(el('small', null, `${(deal.figures.lot_sf / 43560).toFixed(3)} acres`));
+  // where a statement figure came from, in words (not colour alone): "Actual 2025 · p.4 · high"; or why it is held back
+  else if (heldBack(key)) lab.appendChild(el('small', 'fig-held', 'held back: the statement doesn’t add up (Data QC)'));
+  else if (deal.sources[key] && deal.sources[key].page && !deal.sources[key].hand && !deal.sources[key].ai && !deal.sources[key].t12) lab.appendChild(el('small', 'fig-basis', basisText(deal.sources[key])));
   inp.value = fmt(kind, deal.figures[key]);
   inp.autocomplete = 'off';
   if (kind !== 'text') inp.inputMode = 'decimal';
@@ -1109,7 +1123,9 @@ function sourceTag(key) {
   if (!s.hand) b.appendChild(el('i'));
   b.appendChild(document.createTextNode(s.hand ? 'edited' : `p.${s.page}`));
   b.style.cursor = 'pointer';
+  // the label stays the same as the figure changes (focuskeep.js finds the button again by it); the confidence is in words under the figure's label
   b.setAttribute('aria-label', `${LABEL[key]}: where it came from`);
+  if (!s.hand) b.title = basisText(s);
   b.addEventListener('click', () => showSource(key));
   return b;
 }
@@ -1123,7 +1139,18 @@ function showSource(key) {
   const sec = el('section');
   sec.appendChild(el('h3', null, `Page ${s.page}${s.count > 1 ? ` · printed ${s.count} times` : ''}`));
   sec.appendChild(el('div', 'snippet', s.line || ''));
-  if (conf) sec.appendChild(el('p', 'hint-sm', conf)).style.marginTop = '8px';
+  if (s.col) {
+    // read from a statement table: the row, the column and the cell as printed
+    const d = el('dl', 'src-cell');
+    const add = (k, v) => { if (!v) return; d.appendChild(el('dt', null, k)); d.appendChild(el('dd', null, v)); };
+    add('Row', s.row);
+    add('Column', s.col);
+    add('Cell as printed', s.cell ? `“${s.cell}”${s.scale && s.scale !== 1 ? ` × ${s.scale.toLocaleString('en-US')} (the table is in ${s.scale === 1e3 ? 'thousands' : 'millions'})` : ''}` : '');
+    add('Statement check', s.check === 'resolved' ? `didn’t add up; you chose: ${s.fix || 'keep as printed'}` : s.check === 'pass' ? 'its column adds up' : s.check === 'fail' ? 'its column doesn’t add up (see Data QC)' : 'nothing in its column to check it against');
+    add('Confidence', s.check === 'resolved' ? 'checked by you' : s.confidence);
+    sec.appendChild(d);
+  }
+  if (conf && !s.col) sec.appendChild(el('p', 'hint-sm', conf)).style.marginTop = '8px';
   body.appendChild(sec);
   if (s.confirmed && s.confirmed.length) {
     const sc = el('section');
@@ -1149,7 +1176,7 @@ function showSource(key) {
       const b = el('button', 'li');
       b.type = 'button';
       const m = el('div', 'li-main');
-      m.appendChild(el('div', 'li-title', `${show(kind, a.value)}${a.page ? ` · page ${a.page}` : ''}${a.ai ? ' · read by AI' : ''}`));
+      m.appendChild(el('div', 'li-title', `${show(kind, a.value)}${a.col ? ` · ${a.col}` : ''}${a.page ? ` · page ${a.page}` : ''}${a.ai ? ' · read by AI' : ''}`));
       m.appendChild(el('div', 'li-sub', a.line));
       b.appendChild(m);
       b.appendChild(el('span', 'chip chip-accent', 'Use'));
@@ -1165,10 +1192,12 @@ function pick(key, value, from) {
   const s = deal.sources[key];
   if (value !== s.orig) {
     // the chosen reading becomes the OM's figure, and the old one an alternative
-    s.alts = [{ value: s.orig, page: s.page, line: s.line }, ...(s.alts || []).filter((a) => a.value !== value)];
+    s.alts = [{ value: s.orig, page: s.page, line: s.line, ...(s.col ? { col: s.col, cell: s.cell } : {}) }, ...(s.alts || []).filter((a) => a.value !== value)];
     s.orig = value;
     s.page = from.page;
     s.line = from.line;
+    // another column of the same statement row: the source says which
+    if (from.col) { s.col = from.col; s.cell = from.cell; } else { delete s.col; delete s.cell; delete s.colKind; delete s.row; }
     s.ai = !!from.ai;
     s.doc = from.doc;
     s.verified = from.verified;
@@ -1663,6 +1692,52 @@ async function resolveQc(d, list) {
   }, { kind: 'edit', label: list.length === 1 ? `Data QC: accepted “${list[0].text.slice(0, 70)}${list[0].text.length > 70 ? '…' : ''}”` : `Data QC: ${list.length} failed checks accepted as read` });
   document.dispatchEvent(new CustomEvent('reviewchange'));
   toast(res === 'applied' ? 'Accepted. Every failed check is resolved, so the OM’s rent roll is now the deal’s.' : res === 'ocr' ? 'Accepted. The rows read by OCR are added to the rent roll, marked OCR.' : res === 'kept' ? 'Accepted. The rent roll already has units, so the OM’s rows were kept aside, not put over them.' : 'Accepted.');
+}
+
+/**
+ * The Data QC panel for the OM's operating statement (omstatement.js's
+ * checks): each check with its page, row and cell; a failed one holds NOI,
+ * EGI and expenses back until a fix is chosen here or in Review. With
+ * nothing open it folds away to one line.
+ */
+function omQcPanel(d) {
+  const r = d.omRead;
+  const n = qcCounts(r);
+  const held = heldFields(r);
+  const panel = qcPanel({
+    id: 'deal-omqc', title: 'Data QC: operating statement', qc: r,
+    intro: `The statement${r.tables.length === 1 ? '' : 's'} as read from ${pagesText([...new Set(r.tables.map((t) => t.page))])} of the OM: each column’s arithmetic, and the page, row and cell each check points to.`,
+    blockedText: n.blocking ? `${held.length ? held.map((k) => LABEL[k] || k).join(', ') : 'NOI, EGI and expenses'} ${held.length === 1 ? 'is' : 'are'} held back: ${n.blocking} check${n.blocking === 1 ? '' : 's'} failed. Choose a fix for each, here or in Review.` : '',
+    onResolve: (c) => omFix(d, c, 'printed'),
+    extra: (c) => (c.resolved || c.level !== 'fail' ? [] : (c.fixes || []).filter((f) => f.id !== 'printed').map((f) => {
+      const b = el('button', 'btn btn-sm btn-gray qc-fix', f.label);
+      b.type = 'button';
+      b.dataset.fix = f.id;
+      b.addEventListener('click', () => omFix(d, c, f.id));
+      return b;
+    })),
+  });
+  if (n.open) return panel;
+  const det = el('details', 'qc-fold');
+  det.id = 'deal-omqc-fold';
+  det.appendChild(el('summary', null, `Data QC: operating statement · ${[n.pass && `${n.pass} pass`, n.info && `${n.info} note${n.info === 1 ? '' : 's'}`, n.fail + n.warn && `${n.fail + n.warn} resolved`].filter(Boolean).join(' · ')}`));
+  det.appendChild(panel);
+  return det;
+}
+
+/** A statement check resolved with one of its fixes, as one history entry (Undo puts it back). */
+async function omFix(d, c, fixId) {
+  /** @type {any} */
+  let res = null;
+  const fix = (c.fixes || []).find((f) => f.id === fixId);
+  await updateDeal(d.id, (x) => {
+    if (!x.omRead) return false;
+    res = applyOmFix(x, c.id, fixId);
+    return !!res;
+  }, { kind: 'edit', label: `Data QC: ${fix ? fix.label : c.level === 'fail' ? 'kept as printed' : 'marked right'} (${c.colLabel || 'statement'}, page ${c.page})` });
+  document.dispatchEvent(new CustomEvent('reviewchange'));
+  if (!res) return;
+  toast(res.applied.length ? `Done. ${res.applied.map((k) => LABEL[k] || k).join(', ')} now ${res.applied.length === 1 ? 'is' : 'are'} the deal’s.` : res.waiting.length ? 'Done. Another failed check still holds figures back.' : 'Done.');
 }
 
 /** What a check line offers beyond resolving it: reading a scanned page, or the rows OCR read. */

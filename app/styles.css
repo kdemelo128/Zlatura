@@ -749,6 +749,16 @@ button.src::after { content: ""; position: absolute; inset: -11px -6px; }
 .qc-ocr-rows table { margin-top: 6px; }
 .qc-legacy { margin: 0; }
 .qc-info .qc-level { background: rgba(127, 127, 127, .12); color: var(--muted); }
+/* the cell a check points to, marked on the line as printed (Bug B) */
+.qc-cell { background: var(--warn-soft); color: var(--ink); border-radius: 3px; padding: 0 2px; outline: 1px solid var(--warn); }
+.qc-fold { padding: 0 16px 8px; }
+.qc-fold > summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; font-size: var(--t-13); color: var(--muted); }
+.qc-fold #deal-omqc { margin: 0; }
+.figs .fl small.fig-basis { color: var(--muted); }
+.figs .fl small.fig-held { color: var(--warn); font-weight: 600; }
+.src-cell { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 10px 0 0; font-size: var(--t-14); }
+.src-cell dt { color: var(--muted); }
+.src-cell dd { margin: 0; overflow-wrap: anywhere; }
 .col-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto auto; gap: 6px; align-items: center; }
 .col-row .input { min-width: 0; }
 .scn-basis { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 0 var(--s5) var(--s3); font-size: var(--t-13); color: var(--muted); }

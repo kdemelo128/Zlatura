@@ -11,6 +11,8 @@ import { listTemplates, putTemplate } from './library.js';
 import { CATEGORY, markSeen } from './t12.js';
 import { categorySelect, fileT12Line } from './t12ui.js';
 import { resolveCheck, resolveLabel } from './dataqc.js';
+import { lineWithCell } from './dataqcui.js';
+import { applyOmFix } from './omstatement.js';
 import { applyHeldRows, addOcrRows } from './rentroll.js';
 
 let visible = false;
@@ -48,7 +50,7 @@ async function render() {
   const head = el('div', 'view-head');
   head.appendChild(el('h1', null, 'Review'));
   const n = reviewCount(groups);
-  head.appendChild(el('p', null, n ? `${n} item${n === 1 ? '' : 's'} waiting, most money at stake first. Each choice is recorded where it belongs, and on a deal it can be undone.` : 'Nothing is waiting. T-12 lines to file, T-12 figures that don’t add up, rent roll checks from an OM, AI readings not yet applied and template cells mapped with low confidence appear here.'));
+  head.appendChild(el('p', null, n ? `${n} item${n === 1 ? '' : 's'} waiting, most money at stake first. Each choice is recorded where it belongs, and on a deal it can be undone.` : 'Nothing is waiting. T-12 lines to file, T-12 figures that don’t add up, rent roll and operating statement checks from an OM, AI readings not yet applied and template cells mapped with low confidence appear here.'));
   root.appendChild(head);
   const stack = el('div', 'stack');
   for (const g of groups) stack.appendChild(groupCard(g));
@@ -119,6 +121,19 @@ function itemRow(g, it) {
       }, { kind: 'edit', label: `Rent roll check accepted: ${it.text.slice(0, 80)}${it.text.length > 80 ? '…' : ''}` });
       changed(applied === 'applied' ? 'Accepted. Every failed check is resolved, so the OM’s rent roll is now the deal’s.' : applied === 'ocr' ? 'Accepted. The rows read by OCR are added to the rent roll, marked OCR.' : applied === 'kept' ? 'Accepted. The deal’s rent roll already has units, so the OM’s rows were kept aside, not put over them.' : 'Accepted. It stays on the deal’s Data QC list.');
     });
+  } else if (it.kind === 'omcheck') {
+    text.append(el('b', null, `Operating statement ${it.level === 'fail' ? 'check failed' : 'check'}: `), el('span', null, it.text));
+    if (it.where) text.append(el('span', 'sub', ` ${it.where}`));
+    if (it.lineText) text.append(' ', lineWithCell({ lineText: it.lineText, cell: it.cell ? { text: it.cell, at: it.cellAt } : null }));
+    const fix = async (f) => {
+      /** @type {any} */
+      let res = null;
+      await updateDeal(g.id, (d) => { if (!d.omRead) return false; res = applyOmFix(d, it.checkId, f.id); return !!res; },
+        { kind: 'edit', label: `Data QC: ${f.label} (${it.col || 'statement'}, page ${it.page})` });
+      changed(res && res.applied.length ? `Done. ${res.applied.length === 1 ? 'The figure is' : `${res.applied.length} figures are`} now the deal’s; Undo on the deal puts it back.` : res && res.waiting.length ? 'Done. Another failed check still holds figures back.' : 'Done. It stays on the deal’s Data QC list.');
+    };
+    if (it.level === 'fail' && it.fixes.length) for (const f of it.fixes) btn(f.label, f.id === 'printed' ? 'btn-gray' : 'btn-primary', () => fix(f)).dataset.fix = f.id;
+    else btn(resolveLabel({ level: it.level, kind: it.checkKind }), 'btn-gray', () => fix({ id: 'printed', label: it.level === 'fail' ? 'kept as printed' : 'marked right' }));
   } else if (it.kind === 'ai') {
     text.append(el('b', null, `AI reading not applied: ${it.label} ${typeof it.value === 'number' ? usd(it.value) : `“${it.value}”`}`), el('span', 'sub', ` ${it.doc}${it.page ? `, page ${it.page}` : ''}${it.status ? ` · ${it.status.replace(/-/g, ' ')}` : ''}`));
     btn('Dismiss', 'btn-gray', async () => {

@@ -9,6 +9,21 @@ import { el } from './kit.js';
 import { LEVELS, LEVEL_WORD, qcCounts, whereText, resolveLabel } from './dataqc.js';
 
 /**
+ * The line as printed, with the cell the check points to marked (a <mark>,
+ * so it is announced, not only coloured): at `cell.at` when the check says
+ * where, else the cell's last appearance on the line.
+ */
+export function lineWithCell(c) {
+  const code = el('code', 'qc-line');
+  const t = String(c.lineText || '');
+  const cell = c.cell && c.cell.text ? String(c.cell.text) : '';
+  let at = cell && Number.isInteger(c.cell.at) && t.slice(c.cell.at, c.cell.at + cell.length) === cell ? c.cell.at : cell ? t.lastIndexOf(cell) : -1;
+  if (at < 0) { code.textContent = t; return code; }
+  code.append(t.slice(0, at), el('mark', 'qc-cell', cell), t.slice(at + cell.length));
+  return code;
+}
+
+/**
  * opts: { id, title, qc, intro, blockedText, onResolve(check), onAcceptAll(), extra(check) => Node[] }
  * Returns the panel element.
  */
@@ -51,12 +66,12 @@ export function qcPanel({ id, title = 'Data QC', qc, intro = '', blockedText = '
     if (where || c.lineText || (c.stated && c.stated.page)) {
       const d = el('details', 'qc-where');
       d.appendChild(el('summary', null, where || 'Where'));
-      if (c.lineText) d.appendChild(el('code', 'qc-line', c.lineText));
+      if (c.lineText) d.appendChild(lineWithCell(c));
       if (c.stated && c.stated.page) d.appendChild(el('p', 'hint-sm', `The OM states it on page ${c.stated.page}${c.stated.line ? `: “${c.stated.line}”` : ''}.`));
       body.appendChild(d);
     }
     const acts = el('div', 'qc-acts');
-    if (c.resolved) acts.appendChild(el('span', 'qc-done', c.resolved.how === 'accepted' ? 'Accepted' : 'Resolved'));
+    if (c.resolved) acts.appendChild(el('span', 'qc-done', c.resolved.how === 'accepted' ? 'Accepted' : c.resolved.how === 'fixed' && c.resolved.note ? `Fixed: ${c.resolved.note}` : 'Resolved'));
     else if (onResolve && (c.level === 'fail' || c.level === 'warn')) {
       const b = el('button', `btn btn-sm ${c.level === 'fail' ? 'btn-primary' : 'btn-gray'}`, resolveLabel(c));
       b.type = 'button';

@@ -42,7 +42,15 @@ QC" rather than inventing checks for it.
 - `app/review.js` lists open checks of a record as items (kind `rrcheck`
   today); `reviewui.js` resolves them through the same `resolveCheck`.
 
-## For Bug B and the T-12
+## Bug B (built in 4.7.5)
+
+The OM's operating statement uses these parts: its record is `deal.omRead`
+(`app/omstatement.js`), its panel `deal-omqc`, its Review kind `omcheck`;
+a fail holds NOI, EGI and opex back and offers fixes
+(`docs/proposals/om-statement.md`). `dataqcui.js` gained `lineWithCell`,
+which marks the cell a check points to on the printed line.
+
+## For the T-12
 
 Give the statement import its own record (for example `deal.statementQc`)
 of the same shape, produce its checks (each line against the printed
