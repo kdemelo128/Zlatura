@@ -67,4 +67,6 @@ test('run.sh runs every flow, lists the ones that failed and exits with an error
   assert.match(sh, /recalc\.py "\$x" \|\| FAILED\+=/);
   assert.match(sh, /if \[ \$\{#FAILED\[@\]\} -gt 0 \]; then .*exit 1; fi/);
   assert.match(fs.readFileSync(E2E + 'recalc.py', 'utf8'), /if errs or mism: sys\.exit\(1\)/);
+  // only workbooks this run made are recalculated: old outputs are cleared before the flows
+  assert.ok(sh.indexOf('rm -f files/out-*') > 0 && sh.indexOf('rm -f files/out-*') < sh.indexOf('for f in $FLOWS'));
 });

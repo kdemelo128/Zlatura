@@ -1,5 +1,33 @@
 # Changelog
 
+## 4.7.6: a failed browser check now fails the run (on the development branch; not merged or deployed)
+
+Tests only; the app is unchanged. Most browser flows printed PASS and FAIL
+lines but exited with success either way, eight only printed values for a
+person to read, and `tests/e2e/run.sh` ignored exit codes, so a failing
+check could pass the suite unnoticed.
+
+- **Every flow ends through one `finish()`** (`tests/e2e/finish.mjs`): it
+  prints the totals and exits with an error when a check failed or no
+  check ran. The eight print-only flows (deal persistence and isolation,
+  comps reload, error messages, offline, template, comps, mobile audit)
+  now check the values they used to print.
+- **`run.sh` runs every flow, lists the ones that failed and exits with an
+  error.** A LibreOffice recalculation with a formula error or a mismatch
+  counts too. Workbooks left by an earlier run are cleared first, so only
+  this run's are checked.
+- **The deal export is in the suite.** `deal-export` (deal workbook, deal
+  brief, comp workbook with the deal tab) was a print-only script outside
+  the suite; it now checks all three, and both workbooks are recalculated.
+- **Proved on purpose:** `E2E_FORCE_FAIL=<flow>` adds a failing check to
+  that flow; the run then exits 1 and names it. On the old code a flow
+  with a failing check exited 0. `tests/e2e-finish.test.js` covers both.
+- **What it found:** the T-12 flow crashed on load in the first part of
+  this change (fixed here), and the deal persistence flow fails about 3
+  runs in 4: an edit typed and committed with Tab is lost when you leave
+  the deal or reload straight away (since 4.7.3). That bug gets its own
+  fix next.
+
 ## 4.7.5: income and expenses read from an OM's statement correctly, and checked (on the development branch; not merged or deployed)
 
 Bug B. Figures read from an offering memorandum's operating statement could
