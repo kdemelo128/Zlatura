@@ -21,15 +21,14 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.8; efficiency setup, tooling and docs only (2026-10-15).
+Last updated: 4.7.9; project settings for model, effort and plugins (2026-10-15).
 
 ## Now
 
-- **Current step:** efficiency setup (4.7.8, PR open; no app change):
-  `docs/NOW.md`, a shorter `CLAUDE.md`, on-demand skills, read-deny rules,
-  `check:quick`, `check:full` and `bump`. Three decisions for the owner are
-  in `docs/proposals/efficiency-setup.md`. The lost-edit fix (4.7.7) is
-  merged (#25), and so is item 1 (#23, #24). Next: item 2, the partial-year T-12
+- **Current step:** project settings (4.7.9, PR open; no app change): the
+  owner's three decisions from 4.7.8 (`docs/proposals/efficiency-setup.md`,
+  "Decided"). The efficiency setup (4.7.8) is merged (#26), as are the
+  lost-edit fix (#25) and item 1 (#23, #24). Next: item 2, the partial-year T-12
   fix. Gate 2 passed: both Part 2 proposals approved by the owner 2026-10-15
   (all recommendations: 22 in `t12-multiformat.md`, 18 in `ui-revamp.md`
   section 11). Bugs C, A and B are merged (4.7.3–4.7.5).
@@ -45,13 +44,16 @@ Last updated: 4.7.8; efficiency setup, tooling and docs only (2026-10-15).
   2. Partial-year T-12 fix: "Use the T-12's figures" never saves a T-3, T-6
      or T-9 as the annual NOI; partial shown as partial; annualizing only
      with the owner's explicit confirmation, never silently.
-  3. T-12 multi-format import (`docs/proposals/t12-multiformat.md`).
-  4. OM red-flag check, then the pro forma vs T-12 bridge as an interactive
+  3. The CI browser subset (typing, lost edit, deal persistence, deal
+     export), its own small PR, timed, with the cost if the repo goes
+     private (owner, 2026-10-15).
+  4. T-12 multi-format import (`docs/proposals/t12-multiformat.md`).
+  5. OM red-flag check, then the pro forma vs T-12 bridge as an interactive
      waterfall.
-  5. UI revamp in phases behind the "New look" toggle: foundation and theme,
+  6. UI revamp in phases behind the "New look" toggle: foundation and theme,
      Home and navigation, customization, live charts, motion, screen
      clean-ups, then the Feature map test.
-  6. The rest of Phase 2, then Phases 3 to 8.
+  7. The rest of Phase 2, then Phases 3 to 8.
 - **Changes to saved results or financial meaning** inside the approved
   proposals go in their own small PR, with the before/after golden-output
   difference shown before the owner merges.
@@ -99,8 +101,9 @@ These came after the master plan and are worked first.
 - [x] The master plan in the repository root, as the owner pasted it (4.7.2)
 - [x] Efficiency setup (4.7.8): `docs/NOW.md`, a shorter `CLAUDE.md` with
   `docs/working-rules.md`, on-demand skills, read-deny rules,
-  `npm run check:quick`, `check:full` and `bump`; PR open. Three decisions
-  for the owner in `docs/proposals/efficiency-setup.md`
+  `npm run check:quick`, `check:full` and `bump`; merged (#26)
+- [x] Project settings (4.7.9): main session on Sonnet at medium effort; 32
+  unused plugins off for this project; PR open
 - [~] WebKit (iPhone Safari's engine) runs: `PW_BROWSER=webkit` added (4.7.1).
   **Blocked here:** WebKit isn't installed in this environment, so runs here
   are Chromium at iPhone size.

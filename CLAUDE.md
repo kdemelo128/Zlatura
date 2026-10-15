@@ -75,6 +75,8 @@ Run the `release` skill: bump the version, update `CHANGELOG.md`,
 
 ## Model routing
 
+- **Main session:** Sonnet at medium effort (`.claude/settings.json`);
+  `/model` and `/effort` change a session when a task needs more.
 - **designer** (Opus, `.claude/agents/designer.md`): proposals, root causes,
   parsing, money logic, data format and migrations, security, phase review.
 - **builder** (Sonnet, `.claude/agents/builder.md`): approved designs, UI,
