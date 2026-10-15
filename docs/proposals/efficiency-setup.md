@@ -7,7 +7,8 @@ a session, four on-demand skills (`release`, `pr-report`, `hand-test`,
 `quality-gates`), read-deny rules for large or private files, and
 `npm run check:quick`, `check:full` and `bump`. Three choices cost money or
 change how work runs, so they are left to the owner. Each has a
-recommendation; nothing below has been applied yet.
+recommendation. **The owner decided all three on 2026-10-15; see "Decided"
+at the end.**
 
 ## 1. Default model and effort
 
@@ -85,3 +86,39 @@ with `enabledPlugins` set to false in `.claude/settings.json`:
 Turning a plugin off is undone by turning it back on. Plugins synced from
 the account may have to be turned off in claude.ai settings rather than in
 the repository; this hasn't been tested yet.
+
+## Decided (owner, 2026-10-15)
+
+1. **Model and effort: applied in 4.7.9**, in `.claude/settings.json` only:
+   `"model": "sonnet"` and `"effortLevel": "medium"` for the main session.
+   The designer agent stays on Opus and the builder on Sonnet
+   (`.claude/agents/`). It takes effect from the next session started in this
+   repository; `/model` and `/effort` still change a running session.
+2. **CI browser subset: approved, small.** The flows are `typing-flow`,
+   `lostedit-flow`, `deal-persistence` and `deal-export`. It is built in its
+   own PR after the partial-year T-12 fix, then timed, with the cost if the
+   repository goes private.
+3. **Plugins: applied in 4.7.9**, in this project's `.claude/settings.json`
+   only, not globally. Kept: `engineering`, `design`, `pdf-viewer` and
+   `figma`. These 32 are set to `false` under `enabledPlugins`:
+   - from `anthropic-plugin-directory`: `adobe-for-creativity`,
+     `animatedwebs`, `bigdata-com`, `bio-research`, `box`, `brand-voice`,
+     `canva`, `claude-for-financial-advisors`, `cowork-plugin-management`,
+     `customer-support`, `daloopa`, `data`, `datarobot-agent-skills`,
+     `desktop-commander`, `enterprise-search`, `finance`,
+     `human-resources`, `legal`, `lseg`, `marketing`, `operations`,
+     `product-management`, `productivity`, `sales`, `small-business`,
+     `sp-global`, `vpai`, `wix`;
+   - from `knowledge-work-plugins`: `brightdata-plugin`,
+     `product-tracking-skills`, `searchfit-seo`, `slack-by-salesforce`.
+
+   **To turn one back on:** in `.claude/settings.json`, delete its line under
+   `enabledPlugins` (or set it to `true`), then start a new session. To turn
+   one on only for yourself, without changing the repository, add
+   `"enabledPlugins": { "<name>@<marketplace>": true }` to
+   `.claude/settings.local.json` (git-ignored).
+
+   Whether the claude.ai-synced plugins honour a project's `enabledPlugins`
+   is checked at the start of the next session (the skill list should no
+   longer show them). This session started before the change, so it can't
+   show it.

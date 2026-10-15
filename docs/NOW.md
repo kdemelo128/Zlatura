@@ -9,14 +9,14 @@ section with grep, never in full.
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
   - browser flows fail the run on a failed check (#23, #24, 4.7.6);
-  - the lost-edit fix (#25, 4.7.7).
-- **In progress:** two PRs open, the owner merges each:
-  - project settings (4.7.9): Sonnet at medium effort, 32 unused plugins
-    off, a flaky axe check fixed;
-  - the partial-year T-12 fix (4.7.10), with the before/after table in the
-    PR. Merge after 4.7.9; then main is merged in and the versions settled.
+  - the lost-edit fix (#25, 4.7.7);
+  - the efficiency setup (#26, 4.7.8);
+  - project settings, Sonnet at medium effort and unused plugins off (#27,
+    4.7.9).
+- **In progress:** the partial-year T-12 fix (4.7.10, PR #28, with the
+  before/after table), and the CI browser subset (4.7.11) after it.
 - **Next (build order, one PR at a time, owner merges each):**
-  1. [PR open, 4.7.10] partial-year T-12 fix;
+  1. [PR open, #28, 4.7.10] partial-year T-12 fix;
   2. the CI browser subset, its own small PR: typing-flow, lostedit-flow,
      deal-persistence, deal-export; timed, with the cost if the repo goes
      private;
