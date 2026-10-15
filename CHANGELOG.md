@@ -15,6 +15,11 @@ questions from 4.7.8 (`docs/proposals/efficiency-setup.md`, "Decided").
 - **The CI browser subset** (typing, lost edit, deal persistence, deal
   export) is approved and comes in its own PR after the partial-year T-12
   fix.
+- **A browser check that failed about 2 runs in 3 is fixed** (tests only).
+  The axe check of the Review queue (`omrr-flow`, and the same helper in
+  `omstmt-flow`) could run while the screen was still fading in. Its text
+  was then part transparent, so it read as low contrast. The check now waits
+  for the fade to end. It failed 2 of 3 runs before and passed 6 of 6 after.
 
 Saved results and figures are unchanged (golden outputs identical).
 
