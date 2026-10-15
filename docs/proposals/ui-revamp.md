@@ -262,7 +262,7 @@ therefore never inject CSS.
   reader summary) and one file per chart. Estimated 10–14 KB for the core and
   3–6 KB per chart, unminified (there is no build step). The comps charts in
   `app/glance.js` (hand-rolled SVG, 277 lines) are the precedent. No new
-  vendored file, so nothing to add to `VENDOR.md`. SVG rather than canvas:
+  vendored file, so nothing to add to `THIRD_PARTY.md`. SVG rather than canvas:
   every chart here has at most a few dozen marks, SVG is accessible, prints,
   and follows CSS colour tokens for light and dark.
 - **Data adapters, not maths.** `app/viz/data.js` holds one pure function per

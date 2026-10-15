@@ -1,5 +1,49 @@
 # Changelog
 
+## 4.7.12: reuse before you build, one register of third-party code, and two proposals (on the development branch; not merged or deployed)
+
+Docs only, plus one comment in `app/ocr.js`; the app's behaviour is
+unchanged.
+
+- **A new standing rule, "reuse before you build"** (owner, 2026-10-15). It
+  is in `CLAUDE.md`, `docs/working-rules.md`, the designer's proposal steps
+  and the `pr-report` skill:
+  - before any proposal or larger build: check what the repo already ships,
+    then do a capped prior-art search, with a "Prior art" table in the
+    proposal or PR;
+  - permissive licenses only (MIT, BSD, Apache-2.0, ISC; MPL-2.0 with
+    approval), never GPL, AGPL or unlicensed code;
+  - any new library, or code copied from a repository, is an approval gate.
+    It is pinned, vendored with its license text and checksum, and listed;
+  - never outside code for the engine or the money logic.
+- **`THIRD_PARTY.md`** replaces `VENDOR.md` as the one register:
+  - every shipped library and font, with its version, license, why it's
+    there, and its SHA-256;
+  - how each file compares with the published package: identical, or the
+    edits made and why;
+  - the test-only and server packages;
+  - the `npm audit` result: 0 vulnerabilities in the root and in `server/`.
+- **License texts** now ship beside the files, in `vendor/licenses/`:
+  ExcelJS, fflate, pdf.js, Tesseract.js, Tesseract.js core and Public Sans
+  (OFL-1.1). They come from the published packages.
+- **The service-worker test** (`tests/repo.test.js`) now leaves the license
+  texts out of the app's install set, as it already did for `.md` files. A
+  new check keeps them out, and requires a license text for each shipped
+  library.
+- **Two proposals, research only.** Nothing in the plan changes until the
+  owner approves:
+  - `docs/proposals/prior-art.md`: what to reuse for the upcoming work.
+    Nothing new is needed except `.xls` (SheetJS, already approved, can't
+    be fetched from here). Drag and drop is a later approval if wanted. It
+    also covers the ExcelJS maintenance risk and the pdf.js upgrade
+    question.
+  - `docs/proposals/competitive-gap.md`: the leaders' modules against
+    Zlatura's plan, how "Export everything" would end lock-in, a first-run
+    path on a phone, and a ranked list of features that would make a
+    broker switch.
+
+Saved results and figures are unchanged (golden outputs identical).
+
 ## 4.7.11: a small browser check on every push, and branches kept current with main (on the development branch; not merged or deployed)
 
 CI, tooling and docs only; the app is unchanged.

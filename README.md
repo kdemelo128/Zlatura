@@ -564,7 +564,7 @@ app/store.js          keeping work, deals and the template on the device
 app/zoning.js         DC max-FAR table and Montgomery County zone names
 app/sample.js         the invented example set
 sw.js                 offline cache
-vendor/, fonts/       bundled dependencies (see VENDOR.md)
+vendor/, fonts/       bundled dependencies (see THIRD_PARTY.md)
 ```
 
 ## How it was checked
@@ -655,9 +655,9 @@ can't be checked against a text layer, so they show as unchecked.
   `script-src 'self'` plus the hashes of the three small inline start-up
   scripts in `index.html`, and `frame-ancestors 'none'`.
 - **Dependencies.** The app bundles its libraries in `vendor/` (see
-  VENDOR.md); the AI server has one, the official Anthropic SDK. `npm audit`
+  THIRD_PARTY.md); the AI server has one, the official Anthropic SDK. `npm audit`
   reports no known vulnerabilities in either.
 
 ## Licence
 
-MIT; see `LICENSE`. Bundled dependencies keep their own licences; see `VENDOR.md`.
+MIT; see `LICENSE`. Bundled dependencies keep their own licences; see `THIRD_PARTY.md`.

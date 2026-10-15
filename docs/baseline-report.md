@@ -33,7 +33,7 @@ or storage (`deal.js`, `calc.js`, `tools.js`, `lease.js`, `rentroll.js`,
 `glance.js`, `home.js`) still do some arithmetic inline (section 5).
 
 Dependencies: the app ships three vendored libraries (pdf.js 4.7.76 legacy,
-ExcelJS 4.4.0, fflate 0.8.3; `VENDOR.md`). Dev dependencies: `@xmldom/xmldom`,
+ExcelJS 4.4.0, fflate 0.8.3; `VENDOR.md`, now `THIRD_PARTY.md`). Dev dependencies: `@xmldom/xmldom`,
 `axe-core`, `exceljs`, `fflate`. The AI server depends on `@anthropic-ai/sdk`.
 `npm audit`: **0 vulnerabilities** in both packages.
 
