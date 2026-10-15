@@ -10,14 +10,20 @@ import { spawnSync } from 'node:child_process';
 const ROOT = path.resolve(new URL('..', import.meta.url).pathname);
 const FILES = ['package.json', 'package-lock.json', 'sw.js', 'app/exporters.js'];
 
-function copyTree() {
+const FRAGMENT = '# an invented release, in plain words\n\n- **One change**, tested.\n';
+/** The release files in a throwaway folder, with one changelog fragment waiting (unless `fragment` is null). */
+function copyTree(fragment = FRAGMENT) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zl-bump-'));
-  for (const f of [...FILES, 'tests/tools/bump-version.mjs']) {
+  for (const f of [...FILES, 'CHANGELOG.md', 'tests/tools/bump-version.mjs', 'tests/tools/changelog.mjs']) {
     fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
     fs.copyFileSync(path.join(ROOT, f), path.join(dir, f));
   }
+  fs.mkdirSync(path.join(dir, 'docs/changelog/unreleased'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'docs/changelog/unreleased/README.md'), 'not a fragment\n');
+  if (fragment !== null) fs.writeFileSync(path.join(dir, 'docs/changelog/unreleased/claude-invented.md'), fragment);
   return dir;
 }
+const snapshot = (dir) => Object.fromEntries([...FILES, 'CHANGELOG.md'].map((f) => [f, fs.readFileSync(path.join(dir, f), 'utf8')]));
 const bump = (dir, v) => spawnSync('node', [path.join(dir, 'tests/tools/bump-version.mjs'), ...(v ? [v] : [])], { encoding: 'utf8' });
 
 test('bump sets the version in package.json, package-lock.json lines 3 and 9, sw.js and app/exporters.js', () => {
@@ -31,6 +37,47 @@ test('bump sets the version in package.json, package-lock.json lines 3 and 9, sw
   assert.match(fs.readFileSync(path.join(dir, 'sw.js'), 'utf8'), /^const VERSION = '9\.8\.7';$/m);
   assert.match(fs.readFileSync(path.join(dir, 'app/exporters.js'), 'utf8'), /^export const VERSION = '9\.8\.7';$/m);
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('bump folds the one changelog fragment into CHANGELOG.md, at the top, and removes it', () => {
+  const dir = copyTree();
+  const before = fs.readFileSync(path.join(dir, 'CHANGELOG.md'), 'utf8');
+  const r = bump(dir, '9.8.7');
+  assert.equal(r.status, 0, r.stderr);
+  const after = fs.readFileSync(path.join(dir, 'CHANGELOG.md'), 'utf8');
+  // the new entry first; every earlier one after it, byte for byte
+  assert.equal(after, `# Changelog\n\n## 9.8.7: an invented release, in plain words (on the development branch; not merged or deployed)\n\n- **One change**, tested.\n\n${before.slice('# Changelog\n\n'.length)}`);
+  assert.ok(!fs.existsSync(path.join(dir, 'docs/changelog/unreleased/claude-invented.md')), 'the fragment is removed');
+  assert.ok(fs.existsSync(path.join(dir, 'docs/changelog/unreleased/README.md')), 'the folder README stays');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('bump changes nothing with no fragment, two fragments, or a malformed one', () => {
+  for (const [why, make, msg] of [
+    ['none', () => copyTree(null), /no changelog fragment is waiting/],
+    ['two', () => { const d = copyTree(); fs.writeFileSync(path.join(d, 'docs/changelog/unreleased/claude-other.md'), FRAGMENT); return d; }, /2 changelog fragments are waiting/],
+    ['no title', () => copyTree('an entry with no title line\n'), /the first line must be "# <title>"/],
+    ['empty', () => copyTree('# a title\n\n'), /the entry is empty/],
+    ['a version in the title', () => copyTree('# 9.8.7: a title\n\nbody\n'), /the title is the plain words only/],
+    ['a version heading inside', () => copyTree('# a title\n\n## 1.2.3: another\n'), /holds a version heading/],
+  ]) {
+    const dir = make();
+    const before = snapshot(dir);
+    const r = bump(dir, '9.8.7');
+    assert.equal(r.status, 1, `${why}: ${r.stderr}`);
+    assert.match(r.stderr, msg, why);
+    assert.match(r.stderr, /nothing changed/, why);
+    assert.deepEqual(snapshot(dir), before, `${why}: nothing changed`);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the changelog’s top entry is the version package.json says, and any fragment waiting is well formed', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  const log = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
+  assert.equal((/^## (\d+\.\d+\.\d+):/m.exec(log) || [])[1], pkg.version);
+  const r = spawnSync('node', [path.join(ROOT, 'tests/tools/changelog.mjs'), '--check'], { cwd: ROOT, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stdout);
 });
 
 test('bump refuses a bad version, and a file out of step, changing nothing', () => {
@@ -144,4 +191,54 @@ test('check:full ends with the sync-main check, and npm run sync-main exists', (
   const steps = [...src.matchAll(/step\('([^']+)'/g)].map((m) => m[1]);
   assert.equal(steps[steps.length - 1], 'current with main, no conflict markers');
   assert.match(src, /if \(mode === 'full'\) step\('current with main, no conflict markers', 'node', \['tests\/tools\/sync-main\.mjs', '--check'\]\);/);
+});
+
+/* the two conflicts that recur (#28 against #27): both PRs wrote the top of CHANGELOG.md and the version */
+const LOG = (...vs) => `# Changelog\n\n${vs.map((v) => `## ${v}: release ${v} (on the development branch; not merged or deployed)\n\nWhat ${v} did.\n\n`).join('')}`;
+const PKG = (v) => `{\n  "name": "zlatura",\n  "version": "${v}",\n  "private": true\n}\n`;
+function releaseRepos() {
+  const R = repos();
+  // the start, on main: 4.7.0
+  R.commit('CHANGELOG.md', LOG('4.7.0')); R.commit('package.json', PKG('4.7.0'));
+  spawnSync('git', ['push', '-q', 'origin', 'feature:main'], { cwd: R.mine });
+  spawnSync('git', ['pull', '-q', 'origin', 'main'], { cwd: path.join(R.dir, 'theirs') });
+  return R;
+}
+
+test('sync-main: CHANGELOG.md and version conflicts resolve on their own: both entries, newest first, the higher version', () => {
+  const R = releaseRepos();
+  const SW = (v) => `const VERSION = '${v}';\nconst CACHE = \`zlatura-\${VERSION}\`;\n`;
+  R.commit('sw.js', SW('4.7.0')); spawnSync('git', ['push', '-q', 'origin', 'feature:main'], { cwd: R.mine }); spawnSync('git', ['pull', '-q', 'origin', 'main'], { cwd: path.join(R.dir, 'theirs') });
+  R.moveMain('CHANGELOG.md', LOG('4.7.1', '4.7.0')); R.moveMain('package.json', PKG('4.7.1')); R.moveMain('sw.js', SW('4.7.9'));
+  R.commit('CHANGELOG.md', LOG('4.7.2', '4.7.0')); R.commit('package.json', PKG('4.7.2')); R.commit('sw.js', SW('4.7.2'));
+  const sync = R.run();
+  assert.equal(sync.status, 0, sync.stdout + sync.stderr);
+  assert.match(sync.stdout, /Resolved on their own: CHANGELOG\.md, package\.json, sw\.js/);
+  // the higher version wins, whichever side has it
+  assert.equal(fs.readFileSync(path.join(R.mine, 'sw.js'), 'utf8'), SW('4.7.9'));
+  assert.match(sync.stdout, /Merged origin\/main: /);
+  assert.equal(fs.readFileSync(path.join(R.mine, 'CHANGELOG.md'), 'utf8'), LOG('4.7.2', '4.7.1', '4.7.0'));
+  assert.equal(fs.readFileSync(path.join(R.mine, 'package.json'), 'utf8'), PKG('4.7.2'));
+  assert.equal(R.run('--check').status, 0, 'current with main, no markers');
+  fs.rmSync(R.dir, { recursive: true, force: true });
+});
+
+test('sync-main: anything else stays for a person, and so does one version written two ways', () => {
+  const R = releaseRepos();
+  R.moveMain('CHANGELOG.md', LOG('4.7.1', '4.7.0')); R.moveMain('notes.md', 'one\nTHEIRS\nthree\n');
+  R.commit('CHANGELOG.md', LOG('4.7.2', '4.7.0')); R.commit('notes.md', 'one\nMINE\nthree\n');
+  const sync = R.run();
+  assert.equal(sync.status, 1);
+  assert.match(sync.stdout, /Resolved on their own: CHANGELOG\.md/);
+  assert.match(sync.stdout, /left 1 conflicted file; resolve, then commit:\n {2}notes\.md/);
+  spawnSync('git', ['merge', '--abort'], { cwd: R.mine });
+  // two PRs that both took 4.7.1, with different entries, in one conflict: not guessed
+  R.commit('CHANGELOG.md', '# Changelog\n\n## 4.7.1: mine\nMine did this.\n\n## 4.7.0: release 4.7.0 (on the development branch; not merged or deployed)\n\nWhat 4.7.0 did.\n\n');
+  R.moveMain('CHANGELOG.md', '# Changelog\n\n## 4.7.1: theirs\nTheirs did that.\n\n## 4.7.0: release 4.7.0 (on the development branch; not merged or deployed)\n\nWhat 4.7.0 did.\n\n');
+  R.commit('notes.md', 'one\nTHEIRS\nthree\n');
+  const again = R.run();
+  assert.equal(again.status, 1);
+  assert.doesNotMatch(again.stdout, /Resolved on their own/);
+  assert.match(again.stdout, /CHANGELOG\.md/);
+  fs.rmSync(R.dir, { recursive: true, force: true });
 });
