@@ -3,6 +3,7 @@
  * change before it is written. */
 
 import { inspectWorkbook, suggestCellMap, previewCells, fillCells } from './template.js';
+import { readText } from './textfile.js';
 import { DEAL_FIELDS, DEAL_FIELD, dealValues, RR_TABLE_FIELDS, rrFieldForHeader } from './dealfields.js';
 import { COLUMNS, gridContext } from './rentroll.js';
 import {
@@ -168,7 +169,9 @@ async function importPackage() {
   const file = await pickFile('.json,application/json');
   if (!file) return;
   try {
-    const p = readPackage(await file.text());
+    const r = await readText(file);
+    const p = readPackage(r.text);
+    if (r.note) toast(`${file.name}: ${r.note}`, null, 12000);
     const fflate = await getFflate();
     const info = inspectWorkbook(fflate, p.bytes, xmlApi());
     const t = newTemplate({ name: p.name, bytes: p.bytes, fileName: p.fileName, info, mapping: p.mapping, category: p.category });

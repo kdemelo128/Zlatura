@@ -2,6 +2,7 @@
  * a backup of everything in one file, and restoring one. */
 
 import * as store from './store.js';
+import { readText } from './textfile.js';
 import { snapshotData } from './history.js';
 import { buildBackup, readBackup, planRestore, changedSteps, LOCAL_KEYS } from './backup.js';
 import { migrateDeal } from './migrate.js';
@@ -124,7 +125,9 @@ export async function makeBackup({ withHistory = true } = {}) {
 
 async function restore(file, api) {
   let backup;
-  try { backup = readBackup(await file.text()); } catch (e) { toast(e.message, null, 7000); return; }
+  let note = null;
+  try { const r = await readText(file); note = r.note; backup = readBackup(r.text); } catch (e) { toast(e.message, null, 7000); return; }
+  if (note) toast(`${file.name}: ${note}`, null, 12000);
   const c = await current();
   const merge = planRestore(backup, c, 'merge');
   const made = backup.createdAt ? niceDate(backup.createdAt) : 'an unknown date';

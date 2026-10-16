@@ -1,0 +1,2 @@
+# encoding fixtures are compared byte for byte: never convert their line endings or text
+tests/fixtures/encoding/*.csv -text

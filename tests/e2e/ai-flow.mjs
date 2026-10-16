@@ -4,6 +4,7 @@
  * including an invented passage and a conflict -- so this checks the app's
  * own checks and review, not the model. No live model is called. */
 import http from 'node:http';
+import fs from 'node:fs';
 import { phone, BASE, SHOTS, finish } from './lib.mjs';
 import { handler, config } from '../../server/index.mjs';
 const { default: Anthropic } = await import('../../server/node_modules/@anthropic-ai/sdk/index.mjs');
@@ -161,6 +162,18 @@ await sheetPick('Send and read');
 await page.waitForSelector('#ai-apply', { timeout: 60000 });
 const scan = await page.$$eval('#sheet-body .ai-row', (rows) => rows.map((r) => ({ t: r.innerText, c: r.querySelector('input').checked, d: r.querySelector('input').disabled })));
 check('a scan: every passage marked as not checkable, none ticked, still choosable', scan.length === 5 && scan.every((x) => /Can’t be checked \(scan\)/.test(x.t) && !x.c && !x.d), JSON.stringify(scan.map((x) => [x.c, x.d])));
+await page.locator('#sheet-foot button', { hasText: 'Discard' }).click();
+await page.waitForTimeout(200);
+// F2: a text document saved as Windows-1252 goes to the model with its accents and curly apostrophe, and the review says how it was read
+fs.writeFileSync(F + 'enc-notes.txt', Buffer.from([...Buffer.from('Seller notes: Caf'), 0xe9, ...Buffer.from(' Lumi'), 0xe8, ...Buffer.from('re lease with O'), 0x92, ...Buffer.from('Brien, asking $6,450,000.\n')]));
+const [ch3] = await Promise.all([page.waitForEvent('filechooser'), menu('Read documents with AI')]);
+await ch3.setFiles(F + 'enc-notes.txt');
+await sheetPick('Send and read');
+await page.waitForSelector('#ai-apply', { timeout: 60000 });
+const sentText = JSON.stringify(calls.at(-1).messages);
+check('a Windows-1252 text document reaches the model as written', sentText.includes('Seller notes: Café Lumière lease with O’Brien') && !sentText.includes('\uFFFD') && !/\\ufffd/i.test(sentText), sentText.slice(0, 300));
+const encNote = (await page.locator('#sheet-body .ai-encoding').allTextContents()).join(' ');
+check('and the review says it was read as Windows-1252', /^enc-notes\.txt: Read as Windows-1252 .* Check that these read right: Café, Lumière, O’Brien\.$/.test(encNote), encNote);
 await page.locator('#sheet-foot button', { hasText: 'Discard' }).click();
 await page.waitForTimeout(200);
 check('call action items became the deal’s next steps', /Send the T-12 \(Seller\)/.test(await page.textContent('#deal-crm')) && /from call notes/.test(await page.textContent('#deal-crm')));

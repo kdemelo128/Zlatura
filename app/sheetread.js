@@ -1,6 +1,7 @@
 /* sheetread.js -- a spreadsheet's cells as plain values, read on the device:
  * the rent roll import and the T-12 import both start here. Pure apart from
  * readGrids(), which loads ExcelJS when a workbook needs it. */
+import { readText } from './textfile.js';
 
 /** A cell's value as text, a number or an ISO date (YYYY-MM-DD): formulas give their cached result. */
 export function cellValue(v) {
@@ -39,10 +40,14 @@ export const isCsv = (file) => /\.csv$/i.test(file.name) || file.type === 'text/
 /**
  * Every visible sheet of a workbook (or the one table of a CSV) as rows of
  * values: [{ sheet, rows: [{ r (1-based row number), cells: [] }] }], empty
- * rows left out, at most `maxRows` rows a sheet.
+ * rows left out, at most `maxRows` rows a sheet. A CSV's grid also has
+ * `encoding` and `note` (textfile.js): the note says when it wasn't plain UTF-8.
  */
 export async function readGrids(file, getXlsx, { maxRows = 400 } = {}) {
-  if (isCsv(file)) return [{ sheet: 'CSV', rows: csvRows(await file.text()).map((cells, i) => ({ r: i + 1, cells })).filter((x) => x.cells.some((v) => String(v).trim())) }];
+  if (isCsv(file)) {
+    const { text, encoding, note } = await readText(file);
+    return [{ sheet: 'CSV', rows: csvRows(text).map((cells, i) => ({ r: i + 1, cells })).filter((x) => x.cells.some((v) => String(v).trim())), encoding, note }];
+  }
   const { ExcelJS } = await getXlsx();
   const wb = new ExcelJS.Workbook();
   try { await wb.xlsx.load(await file.arrayBuffer()); } catch { throw new Error('That file could not be opened as an Excel workbook. It may be damaged, password protected or not really .xlsx.'); }

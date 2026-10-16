@@ -4,7 +4,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.14 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.15 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -17,13 +17,14 @@ section with grep, never in full.
   - the CI browser subset, branch rules and `sync-main` (#29, 4.7.11);
   - reuse before you build, `THIRD_PARTY.md` and three proposals (#30,
     4.7.12), approved by the owner 2026-10-15;
-  - changelog fragments, and the approved build order (#31, 4.7.13).
-- **In progress:** F1, one money rounding rule (4.7.14, PR open): the
-  engine's `toCents` in `t12.js`, `omstatement.js`, `om.js` and
-  `template.js`; a T-12 months-vs-year flag.
+  - changelog fragments, and the approved build order (#31, 4.7.13);
+  - F1, one money rounding rule (#32, 4.7.14).
+- **In progress:** F2, old CSVs (4.7.15, PR open): one reader for every
+  text file (`app/textfile.js`): a byte-order mark decides, valid UTF-8 as
+  before, else Windows-1252 with a note; ambiguous files show both readings.
 - **Next (one PR at a time; the full order is in `docs/PLAN_STATUS.md`, "Now"):**
-  1. [PR open, 4.7.14] F1, one money rounding rule;
-  2. F2, F5, F6/F7, F10, one PR each;
+  1. [PR open, 4.7.15] F2, old CSVs (Windows-1252);
+  2. F5, F6/F7, F10, one PR each;
   3. T-12 multi-format import (`.xls` only with an Apache-2.0 or MIT SheetJS
      that can be fetched; otherwise skip it and tell the owner);
   4. F3, F4, F8 (30 days), F9 (optional password, lost-password warning);

@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ExcelJS from 'exceljs';
 import { gridsOf, csvRows } from '../../app/sheetread.js';
+import { decodeText } from '../../app/textfile.js';
 import { bestSheet, openLines, statementChecks, CATEGORY } from '../../app/t12.js';
 
 const ROOT = new URL('../../', import.meta.url).pathname;
@@ -24,7 +25,7 @@ for (const f of files) {
   const tag = `file ${n}`; // the file's name may name the property: it isn't printed
   try {
     let grids;
-    if (/\.csv$/i.test(f)) grids = [{ sheet: 'CSV', rows: csvRows(fs.readFileSync(f, 'utf8')).map((cells, i) => ({ r: i + 1, cells })).filter((x) => x.cells.some((v) => String(v).trim())) }];
+    if (/\.csv$/i.test(f)) grids = [{ sheet: 'CSV', rows: csvRows(decodeText(fs.readFileSync(f)).text).map((cells, i) => ({ r: i + 1, cells })).filter((x) => x.cells.some((v) => String(v).trim())) }];
     else { const wb = new ExcelJS.Workbook(); await wb.xlsx.load(fs.readFileSync(f)); grids = gridsOf(wb, { maxRows: 1500 }); }
     const t = bestSheet(grids, {});
     const by = (how) => t.lines.filter((l) => l.how === how).length;
