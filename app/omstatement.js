@@ -34,6 +34,7 @@
  * Data QC shape (dataqc.js). Design: docs/proposals/om-statement.md. */
 
 import { pageLines } from './omroll.js';
+import { toCents } from './engine/money.js';
 import { readStatement, normalizeSigns, statementChecks, statementTotals, matchLabel, amountOf, CATEGORY } from './t12.js';
 import { blockingChecks, resolveCheck } from './dataqc.js';
 
@@ -273,7 +274,8 @@ function finishTable(P, cur, page, n, { isStatementRow, asOfYear }) {
 
 const PLACEHOLDER = '(no line items printed)';
 const money = (x) => `${x < 0 ? '−' : ''}$${Math.abs(Math.round(x)).toLocaleString('en-US')}`;
-const toc = (x) => Math.round(x * 100) / 100;
+// money to whole cents with the engine's one rule
+const toc = toCents;
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
 
 /**

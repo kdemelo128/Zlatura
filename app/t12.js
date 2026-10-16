@@ -9,6 +9,8 @@
  * (UsdPerMonth) and its total for the period (UsdPerYear over 12 months; over
  * fewer months it is what those months add up to, never scaled up). */
 
+import { toCents } from './engine/money.js';
+
 /* ------------------------------------------------------------ categories */
 
 /**
@@ -107,7 +109,8 @@ export function amountOf(v) {
   const n = Number(s);
   return neg ? -n : n;
 }
-const cents = (x) => Math.round(x * 100) / 100;
+// money to whole cents with the engine's one rule (half away from zero, exact for decimal input: 1.005 → 1.01)
+const cents = toCents;
 
 /* --------------------------------------------------------------- months */
 
@@ -324,6 +327,11 @@ export function statementChecks(t, { tol = () => 1 } = {}) {
   if (n && n < 12) out.push({ id: 'months', kind: 'partial', text: `Only ${n} month${n === 1 ? '' : 's'} (${monthLabel(t.months[0])} to ${monthLabel(t.months[n - 1])}): the totals are for those months and are not scaled up to a year.`, amount: Math.abs(T.noi) });
   if (!n) out.push({ id: 'months', kind: 'partial', text: 'No monthly columns: only the annual total was read.', amount: Math.abs(T.noi) });
   const off = t.lines.filter((l) => l.fileTotal !== null && Math.abs(l.fileTotal - l.total) > 1);
+  // each shown month is rounded to the cent on its own, the year once from the file's amounts: when the file
+  // holds fractions of a cent the two can disagree. Flagged; neither figure is changed (owner, 2026-10-15)
+  const cents2 = (x) => `$${Math.abs(x).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const drift = t.lines.filter((l) => l.months.length > 1 && Math.abs(cents(l.months.reduce((s, v) => s + v, 0)) - l.total) > 0.01 + 1e-9);
+  if (drift.length) out.push({ id: 'monthsround', kind: 'rounding', text: `${drift.length} line${drift.length === 1 ? '’s' : 's’'} shown months add up to more than a cent away from the year shown (${drift.slice(0, 3).map((l) => `${l.label}: months ${cents2(cents(l.months.reduce((s, v) => s + v, 0)))}, year ${cents2(l.total)}`).join('; ')}${drift.length > 3 ? '; …' : ''}). The file has amounts to a fraction of a cent: each month is rounded on its own, the year once. Neither figure is changed.`, amount: drift.reduce((s, l) => s + Math.abs(cents(l.months.reduce((a, v) => a + v, 0)) - l.total), 0) });
   if (off.length) out.push({ id: 'linetotals', kind: 'sumTotal', text: `${off.length} line${off.length === 1 ? '’s' : 's’'} months don’t add up to the file’s Total column (${off.slice(0, 3).map((l) => `${l.label}: months ${money(l.total)}, Total ${money(l.fileTotal)}`).join('; ')}${off.length > 3 ? '; …' : ''}). The months are used.`, amount: off.reduce((s, l) => s + Math.abs(l.fileTotal - l.total), 0) });
   if (!T.unassigned) {
     const sideOf = (l) => (l.category ? CATEGORY[l.category].side : l.section);
