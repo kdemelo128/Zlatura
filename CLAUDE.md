@@ -16,7 +16,7 @@ The longer wording of every rule below is in `docs/working-rules.md`.
   - every branch starts from the latest main;
   - before opening a PR, and again before saying it's ready: run
     `npm run sync-main`, resolve conflicts yourself, re-run `check:quick`
-    (and `check:full` if more than docs changed), and confirm on GitHub
+    (and `check:full` if `app/` or `tests/` changed), and confirm on GitHub
     that there are no conflicts;
   - one PR open for the owner's merge at a time, unless two are
     independent and touch different files; never branch from an unmerged
@@ -73,7 +73,10 @@ The longer wording of every rule below is in `docs/working-rules.md`.
   served with `BASE=`.
 - `npm run check:quick` while developing: affected unit tests, the type
   check and the golden check.
-- `npm run check:full` once before each PR: the Node suite, the type check,
+- A PR that changes only docs or CI configuration runs `check:quick`, and
+  GitHub CI must then pass. Anything that touches `app/` or `tests/` runs
+  `check:full`.
+- `npm run check:full` once before each such PR: the Node suite, the type check,
   the golden check and the full browser suite (Chromium, phone and desktop
   sizes, axe, perf budget of 150 ms per edit, character-by-character typing).
   Mutation checks and Data QC are in the `quality-gates` skill.
@@ -93,6 +96,10 @@ Run the `release` skill: bump the version (it folds the changelog fragment),
   change.
 - Batch related steps; point at exact files and line ranges; don't re-read
   a file you just wrote; keep reports short; no polling check-ins.
+- Batch searches into one call; read only line ranges; grep the totals out
+  of long logs; ask GitHub for minimal output (`minimal_output`).
+- `/clear` after every merged PR, and at a natural break in a long PR
+  (write the state note in `docs/NOW.md` first).
 - Before any long task (and on a usage limit) write a state note in
   `docs/NOW.md`. Compact or start fresh between PRs.
 - If a cheaper step would skip a quality gate, tell the owner.
@@ -101,8 +108,13 @@ Run the `release` skill: bump the version (it folds the changelog fragment),
 
 - **Main session:** Sonnet at medium effort (`.claude/settings.json`);
   `/model` and `/effort` change a session when a task needs more.
-- **designer** (Opus, `.claude/agents/designer.md`): proposals, root causes,
-  parsing, money logic, data format and migrations, security, phase review.
+- **designer** (Opus, `.claude/agents/designer.md`) decides and reviews:
+  proposals, root-cause diagnosis, a short design note before a parsing,
+  money, data-format, migration or security change, and one review of the
+  finished diff before each such PR. Run as an agent, so Opus's context
+  stays short.
+- **Main session (Sonnet)** writes the code and tests, including for
+  parsing and money changes once the designer's note is in.
 - **builder** (Sonnet, `.claude/agents/builder.md`): approved designs, UI,
   wiring, docs, test updates, routine fixes; after two failures on the same
   problem it goes back to the designer. Delegate only large, self-contained
