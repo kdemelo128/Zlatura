@@ -21,21 +21,19 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.13; changelog fragments, and the owner's approved build order (2026-10-15).
+Last updated: 4.7.14; money rounds to the cent by one rule everywhere (F1) (2026-10-16).
 
 ## Now
 
-- **Current step:** changelog fragments (4.7.13, PR open): a PR's entry is
-  a file in `docs/changelog/unreleased/`, which `npm run bump` folds in, and
-  `sync-main` resolves the conflicts that recur. The owner approved the
-  three 4.7.12 proposals on 2026-10-15; the build order below includes
-  them. The reuse rule and the proposals are merged (4.7.12, #30), and so
-  are the CI subset (4.7.11, #29), the partial-year T-12 fix (4.7.10, #28),
-  project settings (#27), the efficiency setup (#26), the lost-edit fix
-  (#25) and item 1 (#23, #24). Gate 2 passed: both Part 2 proposals
-  approved by the owner 2026-10-15 (all recommendations: 22 in
-  `t12-multiformat.md`, 18 in `ui-revamp.md` section 11). Bugs C, A and B
-  are merged (4.7.3–4.7.5).
+- **Current step:** F1 (4.7.14, PR open): `t12.js`, `omstatement.js`,
+  `om.js` and `template.js` round money with the engine's `toCents`, and a
+  T-12 line whose shown months don't add up to its year within a cent is
+  flagged. Changelog fragments (4.7.13) are merged (#31), and so are the
+  4.7.12 proposals (#30, approved), the CI subset (#29), the partial-year
+  T-12 fix (#28), project settings (#27), the efficiency setup (#26), the
+  lost-edit fix (#25) and item 1 (#23, #24). Gate 2 passed: both Part 2
+  proposals approved by the owner 2026-10-15. Bugs C, A and B are merged
+  (4.7.3–4.7.5).
 - **Lost edit (since 4.7.3), fixed in 4.7.7:** `app/focuskeep.js` held the
   whole change handler, the save included, until Tab's focus landed, so
   leaving the deal or closing the app in that beat lost the edit. Now the
@@ -53,10 +51,10 @@ Last updated: 4.7.13; changelog fragments, and the owner's approved build order 
   3. [x] The CI browser subset (typing, lost edit, deal persistence, deal
      export), timed, with the cost if the repo goes private (4.7.11, #29).
   4. [x] Changelog fragments, folded by `npm run bump`; `sync-main` resolves
-     the conflicts that recur (4.7.13, PR open).
-  5. F1, money rounding: first only the before/after table of every figure
-     that changes when `t12.js` and `omstatement.js` use the engine's
-     `toCents`; no code change; stop for the owner.
+     the conflicts that recur (4.7.13, #31).
+  5. [x] F1, money rounding: the before/after table shown and approved
+     (2026-10-15); `t12.js`, `omstatement.js`, `om.js` and `template.js` use
+     `toCents`; the T-12 months-vs-year flag (4.7.14, PR open).
   6. F2 (old CSVs, Windows-1252), F5 (CI audit, pinned actions), F6/F7
      (hostile-text pack, timezones) and F10 (stolen-laptop and
      disaster-recovery plans), one PR each.
@@ -154,7 +152,7 @@ These came after the master plan and are worked first.
   approved 2026-10-15, in the order in the build order above
 - [x] Changelog fragments (4.7.13): `docs/changelog/unreleased/`, folded by
   `npm run bump`; `sync-main` resolves `CHANGELOG.md` and version-line
-  conflicts; PR open
+  conflicts; merged (#31)
 - [~] WebKit (iPhone Safari's engine) runs: `PW_BROWSER=webkit` added (4.7.1).
   **Blocked here:** WebKit isn't installed in this environment, so runs here
   are Chromium at iPhone size.
@@ -215,9 +213,9 @@ checklist of about 150 items is mapped to Zlatura in 104 rows:
 - **D** (6): doesn't apply, with the reason.
 Each row has its status and a verdict. The fix-now items, each its own PR,
 in the order of the build order above:
-- [ ] F1 money: one rounding rule. `t12.js` and `omstatement.js` round on
-  their own, not with the engine's `toCents`: 1.005 gives 1.00, not 1.01
-  (approval: a before/after table)
+- [x] F1 money: one rounding rule. `t12.js`, `omstatement.js`, `om.js` and
+  `template.js` use the engine's `toCents`; a T-12 line whose shown months
+  don't add up to its year within a cent is flagged (4.7.14, PR open)
 - [ ] F2 old CSVs: a Windows-1252 fallback
 - [ ] F3 the phone's Back button returns to the last screen
 - [ ] F4 a strict Content-Security-Policy, with `script-src`

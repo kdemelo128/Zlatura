@@ -30,6 +30,7 @@
  * spaces, so a line splits into the cells a reader sees. */
 
 import { rentRoll } from './omroll.js';
+import { toCents } from './engine/money.js';
 import { statementTables, inferUnits, pickColumns, tableChecks, columnName, rowSections } from './omstatement.js';
 
 /* ------------------------------------------------------------ the cells */
@@ -508,7 +509,7 @@ function candidates(pages, { layouts = null, asOfYear = new Date().getFullYear()
           if (k === null || k === undefined) continue;
           const cell = r.cells[k];
           if (!cell || cell.dash) continue;               // printed blank: nothing to read, and no other column taken instead
-          const value = Math.round(cell.value * (t.scale || 1) * 100) / 100;
+          const value = toCents(cell.value * (t.scale || 1));
           const F = FIELDS[key];
           const name = columnName(t, k, picks);
           if (!plausible(F, value)) {
@@ -524,7 +525,7 @@ function candidates(pages, { layouts = null, asOfYear = new Date().getFullYear()
           const known = col.kind === 'actual' && picks.inplaceHow === 'actual' && key !== 'noi_pf';
           const conf = check === 'fail' ? 'low' : known && check === 'pass' ? 'high' : 'medium';
           const alts = usable.filter((c) => c.idx !== k && r.cells[c.idx] && !r.cells[c.idx].dash)
-            .map((c) => ({ value: Math.round(r.cells[c.idx].value * (t.scale || 1) * 100) / 100, page: t.page, line: r.lineText.trim().replace(/\s{2,}/g, '   '), col: columnName(t, c.idx, picks), cell: r.cells[c.idx].text }));
+            .map((c) => ({ value: toCents(r.cells[c.idx].value * (t.scale || 1)), page: t.page, line: r.lineText.trim().replace(/\s{2,}/g, '   '), col: columnName(t, c.idx, picks), cell: r.cells[c.idx].text }));
           list.push({ key, value, page: t.page, line: r.lineText.trim().replace(/\s{2,}/g, '   '), score: f.weight + pageBonus + finBonus,
             stmt: { table: t.id, row: r.label, lineNo: r.line + 1, col: name, colIndex: k, colKind: picks.inplaceHow === 'year1' && k === picks.inplace ? 'year1' : col.kind, cell: cell.text, scale: t.scale || 1, unit: 'total', check, conf, alts } });
         }

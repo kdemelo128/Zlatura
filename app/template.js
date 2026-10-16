@@ -21,6 +21,8 @@
  * XML is handled through DOMParser/XMLSerializer, injected so the tests can
  * run it outside a browser. */
 
+import { toCents } from './engine/money.js';
+
 const MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 const REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 const PKG_REL = 'http://schemas.openxmlformats.org/package/2006/relationships';
@@ -409,7 +411,7 @@ function setValue(doc, c, type, value, styles, fallbackStyle) {
     s = styles.withFormat(s || 0, DEFAULT_FMT[type] || '#,##0');
   }
   if (type === 'int' || type === 'money') v = Math.round(v);
-  else if (type === 'money2') v = Math.round(v * 100) / 100;
+  else if (type === 'money2') v = toCents(v);
   else v = Math.round(v * 1e6) / 1e6;
   const ve = doc.createElementNS(MAIN, 'v');
   ve.textContent = String(v);
