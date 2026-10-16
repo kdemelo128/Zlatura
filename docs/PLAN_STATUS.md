@@ -21,11 +21,11 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.15; a CSV saved by an older Excel or Windows reads right, and says how it was read (F2) (2026-10-16).
+Last updated: 4.7.16; working rules updated (model routing, check rule, usage rules); docs only (2026-10-16).
 
 ## Now
 
-- **Current step:** F2 (4.7.15, PR open): every file read as text goes
+- **Current step:** docs PR 4.7.16 (working rules; PR open), then F5. F2 (4.7.15, merged #33): every file read as text goes
   through `app/textfile.js`, so a Windows-1252 CSV keeps its accents and
   curly quotes and the app says how it read the file. F1 (4.7.14, one
   rounding rule) is merged (#32), and so are changelog fragments (4.7.13,
@@ -56,7 +56,7 @@ Last updated: 4.7.15; a CSV saved by an older Excel or Windows reads right, and 
   5. [x] F1, money rounding: the before/after table shown and approved
      (2026-10-15); `t12.js`, `omstatement.js`, `om.js` and `template.js` use
      `toCents`; the T-12 months-vs-year flag (4.7.14, #32).
-  6. [x] F2 (old CSVs, Windows-1252; 4.7.15, PR open), F5 (CI audit, pinned actions), F6/F7
+  6. [x] F2 (old CSVs, Windows-1252; 4.7.15, merged #33), F5 (CI audit, pinned actions), F6/F7
      (hostile-text pack, timezones) and F10 (stolen-laptop and
      disaster-recovery plans), one PR each.
   7. T-12 multi-format import (`docs/proposals/t12-multiformat.md`). `.xls`
