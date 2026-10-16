@@ -21,14 +21,15 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.14; money rounds to the cent by one rule everywhere (F1) (2026-10-16).
+Last updated: 4.7.15; a CSV saved by an older Excel or Windows reads right, and says how it was read (F2) (2026-10-16).
 
 ## Now
 
-- **Current step:** F1 (4.7.14, PR open): `t12.js`, `omstatement.js`,
-  `om.js` and `template.js` round money with the engine's `toCents`, and a
-  T-12 line whose shown months don't add up to its year within a cent is
-  flagged. Changelog fragments (4.7.13) are merged (#31), and so are the
+- **Current step:** F2 (4.7.15, PR open): every file read as text goes
+  through `app/textfile.js`, so a Windows-1252 CSV keeps its accents and
+  curly quotes and the app says how it read the file. F1 (4.7.14, one
+  rounding rule) is merged (#32), and so are changelog fragments (4.7.13,
+  #31), and so are the
   4.7.12 proposals (#30, approved), the CI subset (#29), the partial-year
   T-12 fix (#28), project settings (#27), the efficiency setup (#26), the
   lost-edit fix (#25) and item 1 (#23, #24). Gate 2 passed: both Part 2
@@ -54,8 +55,8 @@ Last updated: 4.7.14; money rounds to the cent by one rule everywhere (F1) (2026
      the conflicts that recur (4.7.13, #31).
   5. [x] F1, money rounding: the before/after table shown and approved
      (2026-10-15); `t12.js`, `omstatement.js`, `om.js` and `template.js` use
-     `toCents`; the T-12 months-vs-year flag (4.7.14, PR open).
-  6. F2 (old CSVs, Windows-1252), F5 (CI audit, pinned actions), F6/F7
+     `toCents`; the T-12 months-vs-year flag (4.7.14, #32).
+  6. [x] F2 (old CSVs, Windows-1252; 4.7.15, PR open), F5 (CI audit, pinned actions), F6/F7
      (hostile-text pack, timezones) and F10 (stolen-laptop and
      disaster-recovery plans), one PR each.
   7. T-12 multi-format import (`docs/proposals/t12-multiformat.md`). `.xls`
@@ -215,8 +216,10 @@ Each row has its status and a verdict. The fix-now items, each its own PR,
 in the order of the build order above:
 - [x] F1 money: one rounding rule. `t12.js`, `omstatement.js`, `om.js` and
   `template.js` use the engine's `toCents`; a T-12 line whose shown months
-  don't add up to its year within a cent is flagged (4.7.14, PR open)
-- [ ] F2 old CSVs: a Windows-1252 fallback
+  don't add up to its year within a cent is flagged (4.7.14, #32)
+- [x] F2 old CSVs: every text file read through `app/textfile.js`; a
+  Windows-1252 fallback, with a note saying how each file was read (4.7.15,
+  PR open)
 - [ ] F3 the phone's Back button returns to the last screen
 - [ ] F4 a strict Content-Security-Policy, with `script-src`
 - [ ] F5 dependency audit in CI, and actions pinned to commit SHAs
