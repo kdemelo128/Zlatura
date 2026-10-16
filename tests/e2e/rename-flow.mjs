@@ -110,6 +110,7 @@ try {
   check('the comp set came across', (await page.locator('#sales-table tbody tr').count()) === compsBefore, String(compsBefore));
   await page.click('.sidebar .tab[data-view="settings"]');
   await page.waitForSelector('#settings-data #backup-make');
+  await page.waitForFunction(() => /moved here from Comp Loader/.test(document.querySelector('#settings-data')?.textContent || ''), null, { timeout: 10000 }).catch(() => {});
   check('Settings says the data moved and the old copy is kept', /moved here from Comp Loader/.test(await page.textContent('#settings-data')));
   check('Settings shows the tagline and the name’s meaning', /Every source\. Every assumption\. Every number\./.test(await page.textContent('#settings-about')) && /zlato/.test(await page.textContent('#settings-about')));
 
