@@ -7,6 +7,7 @@
  * through NOI. Every change goes through `onChange`, which saves the deal. */
 
 import { cellValue, csvRows, unreadable, isCsv } from './sheetread.js';
+import { readText } from './textfile.js';
 import { waltMethod } from './engine/walt.js';
 import {
   project, rentRollSummary, validateRentRoll, validateLease, generateSteps, monthlyAmount, inPlace, rollover,
@@ -832,11 +833,11 @@ async function importDialog(rr, changed) {
   inp.click();
 }
 
-/** The rows of the first sheet that looks like a rent roll: [{ headers, rows, sheet }]. */
+/** The rows of the first sheet that looks like a rent roll: { headers, rows, sheet }, and a CSV's encoding note (textfile.js). */
 async function readTable(file) {
   const no = unreadable(file, 'rent roll');
   if (no) throw new Error(no);
-  if (isCsv(file)) return parseCsv(await file.text());
+  if (isCsv(file)) { const { text, note } = await readText(file); return { ...parseCsv(text), note }; }
   const { ExcelJS } = await getXlsx();
   const wb = new ExcelJS.Workbook();
   try { await wb.xlsx.load(await file.arrayBuffer()); } catch { throw new Error('That file could not be opened as an Excel workbook. It may be damaged, password protected or not really .xlsx.'); }
@@ -881,6 +882,7 @@ function mapImport(rr, table, fileLabel, changed) {
   const done = el('button', 'btn btn-primary', 'Import');
   done.type = 'button';
   const body = api.sheetOpen({ eyebrow: 'Import rent roll', title: fileLabel, sub: `${table.sheet} · ${table.rows.length} rows. Check how each column is read.`, foot: [done] });
+  if (table.note) { const n = el('p', 'warn-text', table.note); n.id = 'rr-encoding'; body.appendChild(n); }
   const fields = [['', '— skip —'], ['unit', 'Unit / suite'], ['tenant', 'Tenant'], ['unitType', 'Unit type'], ['sf', 'SF'], ['status', 'Status'], ['leaseStart', 'Lease start'], ['leaseEnd', 'Lease end'], ['monthly', 'Monthly rent'], ['annual', 'Annual rent'], ['psf', 'Rent / SF / yr'], ['marketRent', 'Market rent'], ['deposit', 'Security deposit']];
   table.headers.forEach((h, i) => {
     if (!h) return;

@@ -171,8 +171,10 @@ export async function importFile(h, file) {
   const no = unreadable(file, 'T-12');
   if (no) { toast(no, null, 8000); return; }
   let t;
+  let note = null;
   try {
     const grids = await readGrids(file, getXlsx, { maxRows: 1500 });
+    note = grids[0] && grids[0].note;
     t = bestSheet(grids, { file: file.name, corrections: await corrections() });
   } catch (e) { toast(e.message || String(e), null, 9000); return; }
   if (h.deal !== d) return; // another deal was opened meanwhile
@@ -182,7 +184,8 @@ export async function importFile(h, file) {
   const n = t.lines.length;
   h.touch({ kind: 'import', label: `T-12 imported: ${n} line${n === 1 ? '' : 's'}${open ? `, ${open} to file` : ''}`, snapshot: snap });
   h.redraw();
-  toast(`T-12 read: ${n} line${n === 1 ? '' : 's'}, ${periodText(t)}.${open ? ` ${open} line${open === 1 ? '' : 's'} to file in Review.` : ''}`, open ? { label: 'Review', run: () => h.openReview() } : null, 7000);
+  // a CSV that wasn't plain UTF-8 says how it was read (textfile.js), and stays up longer
+  toast(`T-12 read: ${n} line${n === 1 ? '' : 's'}, ${periodText(t)}.${open ? ` ${open} line${open === 1 ? '' : 's'} to file in Review.` : ''}${note ? ` ${note}` : ''}`, open ? { label: 'Review', run: () => h.openReview() } : null, note ? 15000 : 7000);
 }
 
 /** File a line (and the others with its label), remembering the label when asked. Shared with the Review Queue. */

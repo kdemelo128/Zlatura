@@ -20,6 +20,7 @@ import { isPriced } from './engine/comps.js';
 import { toCents } from './engine/money.js';
 import { setConventions } from './engine/conventions.js';
 import { pdfPages } from './pdftext.js';
+import { readText } from './textfile.js';
 import { loadComps, ppsf, mdy, MAX_COMPS } from './costar.js';
 import { buildWorkbook, byPpsf } from './workbook.js';
 import { zoningLookup, zoningInfo } from './zoning.js';
@@ -857,8 +858,11 @@ async function saveProject() {
 
 async function openProject(file) {
   let p;
+  let note = null;
   try {
-    p = store.readProject(JSON.parse(await file.text()));
+    const r = await readText(file);
+    note = r.note;
+    p = store.readProject(JSON.parse(r.text));
   } catch (err) {
     toast(err instanceof SyntaxError ? `That file is not a ${PRODUCT} project.` : err.message);
     return;
@@ -875,7 +879,7 @@ async function openProject(file) {
   renderAll();
   scheduleSave();
   const n = state.sales.length + state.market.length;
-  toast(`Opened ${file.name}: ${n} comp${n === 1 ? '' : 's'}.`, { label: 'Undo', run: () => restoreSnapshot(snap) });
+  toast(`Opened ${file.name}: ${n} comp${n === 1 ? '' : 's'}.${note ? ` ${note}` : ''}`, { label: 'Undo', run: () => restoreSnapshot(snap) }, note ? 12000 : undefined);
 }
 
 /* ----------------------------------------------------------- comp detail */

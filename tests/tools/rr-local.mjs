@@ -20,6 +20,7 @@ import { pdfPages } from '../../app/pdftext.js';
 import { readOm } from '../../app/om.js';
 import { omRollRecord } from '../../app/rentroll.js';
 import { cellValue, csvRows } from '../../app/sheetread.js';
+import { decodeText } from '../../app/textfile.js';
 
 globalThis.window = globalThis.window || {};
 globalThis.document = globalThis.document || { addEventListener() {}, dispatchEvent() {} };
@@ -62,7 +63,7 @@ for (const f of files) {
       }
     } else {
       let table = null;
-      if (/\.csv$/i.test(f)) table = headerAndRows(csvRows(fs.readFileSync(f, 'utf8')).filter((r) => r.some((x) => String(x).trim())), 'CSV');
+      if (/\.csv$/i.test(f)) table = headerAndRows(csvRows(decodeText(fs.readFileSync(f)).text).filter((r) => r.some((x) => String(x).trim())), 'CSV');
       else {
         const wb = new ExcelJS.Workbook();
         await wb.xlsx.load(fs.readFileSync(f));

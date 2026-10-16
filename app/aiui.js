@@ -8,6 +8,7 @@
  * turned on and the send is confirmed. */
 
 import * as ai from './ai.js';
+import { decodeText } from './textfile.js';
 import { buildFacts } from './aifacts.js';
 import { normalizeValue, verifyQuote, reconcile, sameValue } from './reconcile.js';
 import { el, toast, actionSheet, getPdfjs, money0, money2, pct, int, niceDate, copyText } from './kit.js';
@@ -116,6 +117,7 @@ export async function readWithAi(h, files) {
   if (go !== 'yes') return;
   const docs = [];
   const texts = [];
+  const notes = [];
   for (const f of files) {
     const bytes = new Uint8Array(await f.arrayBuffer());
     if (/\.pdf$/i.test(f.name)) {
@@ -124,7 +126,8 @@ export async function readWithAi(h, files) {
       texts.push(pages);
       docs.push({ name: f.name, mediaType: 'application/pdf', data: ai.toBase64(bytes) });
     } else {
-      const text = new TextDecoder().decode(bytes);
+      const { text, note } = decodeText(bytes);
+      if (note) notes.push(`${f.name}: ${note}`);
       texts.push([text]);
       docs.push({ name: f.name, mediaType: 'text/plain', text });
     }
@@ -139,7 +142,7 @@ export async function readWithAi(h, files) {
     body.appendChild(el('p', 'warn-text', e.message));
     return;
   }
-  reviewExtraction(h, out, { files: files.map((f) => f.name), texts });
+  reviewExtraction(h, out, { files: files.map((f) => f.name), texts, notes });
 }
 
 /** The review: every figure, checked against its passage and the deal. Exported for tests. */
@@ -175,6 +178,7 @@ function reviewExtraction(h, out, meta) {
   const cancel = btn('btn-gray', 'Discard', () => h.api.sheetClose());
   const body = h.api.sheetOpen({ eyebrow: `AI · ${out.model || ''}`, title: 'Check what was read', sub: `${rows.length} figure${rows.length === 1 ? '' : 's'} from ${meta.files.join(', ')}. Tick the ones to put in the deal.`, foot: [cancel, apply] });
   const picks = new Map();
+  for (const n of meta.notes || []) body.appendChild(el('p', 'warn-text ai-encoding', n));
   if (!rows.length) body.appendChild(el('p', 'hint', 'No figures for this deal’s fields were found in these documents.'));
   const list = el('div', 'ai-rows');
   for (const r of rows) {
