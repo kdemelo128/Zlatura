@@ -13,9 +13,14 @@
  *   rent and gross potential rent, each check with its page, row and cell
  *   (the panel: dataqcui.js; the design: docs/proposals/data-qc.md).
  *
+ * - compareRolls: the rent roll already on the deal against a newly read one,
+ *   unit by unit (the PDF import's preview). It never changes either.
+ *
  * Pure functions, no DOM: tested in Node (tests/reconcile.test.js). */
 
 import { leaseStats } from './engine/figures.js';
+import { toCents } from './engine/money.js';
+import { inPlace } from './lease.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 
@@ -266,4 +271,50 @@ export function rentRollQc(figures, roll, { sources = {}, scanned = [], asOf = n
     add({ id: 'units', kind: 'units', level: 'warn', page: roll.page, stated: stated('units'), text: `The OM states ${f.units} units; the rent roll has ${rows.length} rows.` });
   }
   return checks;
+}
+
+/* ------------------------------------------------- two rolls, compared */
+
+const key = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+const day = (x) => (x ? String(x).slice(0, 10) : null);
+
+/**
+ * The rent roll on the deal against rows just read (omroll.js rows): units are matched by suite, then by tenant name
+ * for those left, each matched once. Rent is the annual rent in place on `asOf`, compared in whole cents (the
+ * engine's rounding); a field is a difference only when both sides have it, a unit only on one side is listed
+ * alone. Nothing is changed and nothing is chosen: the broker decides what to keep.
+ * @param {any[]} leases the deal's leases (lease.js)
+ * @param {any[]} rows rows read from the document
+ * @param {string} asOf ISO date the in-place rent is taken on
+ * @returns {{ same: number, onlyCurrent: any[], onlyNew: any[], differs: { unit: string, tenant: string, field: string, current: any, incoming: any }[] }}
+ */
+export function compareRolls(leases, rows, asOf) {
+  const left = new Set(rows.map((_, i) => i));
+  const pairs = [];
+  const take = (L, find) => {
+    for (const i of left) if (find(rows[i])) { left.delete(i); pairs.push([L, rows[i]]); return true; }
+    return false;
+  };
+  const unmatched = [];
+  for (const L of leases) if (!(key(L.unit) && take(L, (r) => key(r.suite) === key(L.unit)))) unmatched.push(L);
+  const onlyCurrent = [];
+  for (const L of unmatched) if (!(key(L.tenant) && take(L, (r) => !r.vacant && key(r.tenant) === key(L.tenant)))) onlyCurrent.push(L);
+  const onlyNew = [...left].map((i) => rows[i]);
+  const differs = [];
+  let same = 0;
+  for (const [L, r] of pairs) {
+    const before = differs.length;
+    const add = (field, current, incoming) => differs.push({ unit: L.unit || r.suite || '', tenant: L.tenant || r.tenant || '', field, current, incoming });
+    if (!!L.vacant !== !!r.vacant) add('status', L.vacant ? 'Vacant' : 'Leased', r.vacant ? 'Vacant' : 'Leased');
+    else if (!L.vacant) {
+      const cur = toCents(inPlace(L, asOf).monthly * 12);
+      if (cur > 0 && Number.isFinite(r.annual) && r.annual > 0 && cur !== toCents(r.annual)) add('rent', cur, toCents(r.annual));
+      if (key(L.tenant) && key(r.tenant) && key(L.tenant) !== key(r.tenant)) add('tenant', L.tenant, r.tenant);
+      if (day(L.leaseStart) && day(r.start) && day(L.leaseStart) !== day(r.start)) add('start', day(L.leaseStart), day(r.start));
+      if (day(L.leaseEnd) && day(r.end) && day(L.leaseEnd) !== day(r.end)) add('end', day(L.leaseEnd), day(r.end));
+    }
+    if (L.sf > 0 && r.sf > 0 && L.sf !== r.sf) add('SF', L.sf, r.sf);
+    if (differs.length === before) same += 1;
+  }
+  return { same, onlyCurrent, onlyNew, differs };
 }

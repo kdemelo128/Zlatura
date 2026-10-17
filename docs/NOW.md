@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.24 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.25 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -44,8 +44,7 @@ section with grep, never in full.
   - the rent roll PDF upload (#45, 4.7.23): *Import from PDF…* with preview,
     Data QC, layout guard, Undo; source kind `pdf` and file name per lease
     (schema 4, silent migration step `rr-pdf-source`).
-- **In progress (one PR open):** the property-manager profile (4.7.24, PR
-  opening): "Monthly Charges"/fees are a recovery column, never rent; two
+- **Merged:** the property-manager profile (4.7.24, #46): "Monthly Charges"/fees are a recovery column, never rent; two
   rent columns that disagree are one failed check; Past Due/Balance noted,
   not failed; a "4 Units" subtotal; a lease-to year split onto the next line.
   Reader-only, no data-format change, golden identical.
@@ -105,5 +104,6 @@ section with grep, never in full.
   each PR; tell the owner which PR to merge, with a phone checklist if
   anything is visible;
   the branch rules in `docs/working-rules.md` ("Branches and PRs").
+- **Roll comparison (4.7.25, PR opening):** the PDF preview lists how the PDF differs from the current rent roll before Replace/Add (`compareRolls`, `app/reconcile.js`). The property-manager profile (#46) is merged.
 - **State note** (write here before any long task, so a fresh session can
   resume): none.
