@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.7.18: Proposal: why an OM's rent does not fill the boxes, and a rent roll PDF as its own document (on the development branch; not merged or deployed)
+
+Nothing in the app changes; this is a written proposal (`docs/proposals/rentroll-pdf-and-om-fill.md`) waiting for the owner's approval.
+
+- **The bug, reproduced** with invented PDFs: a rent roll in thousands is read as $60 a year and held; the OM's stated in-place rent is read and then dropped (it has no box); nothing fills Building SF, Occupancy or Units from the rent roll; a property-manager style report is misread (monthly charges taken as rent, a subtotal counted as a tenant, a wrapped lease-end year lost). Plain annual and monthly columns read correctly.
+- **The feature:** a rent roll PDF uploaded on its own: detect it, read it by position, preview with Data QC, approve, populate the rent roll, and reconcile line by line with an OM roll if one is loaded.
+- **The owner's support code** reviewed (no secrets, no network calls, real data kept in `private/`): file by file, adopt, adapt or skip; and how it informs a later underwriting feature.
+- **Tested:** read-only reproduction; no `app/` or `tests/` change. Golden outputs identical.
+
 ## 4.7.17: CI now scans for known-vulnerable packages and pins its own tools (on the development branch; not merged or deployed)
 
 Nothing changes in the app. The test workflow had no dependency scan (`npm audit` had been clean once, by hand) and its four GitHub Actions followed moving tags.
