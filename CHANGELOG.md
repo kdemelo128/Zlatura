@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.7.20: check:quick can no longer miss a file the offline app needs (on the development branch; not merged or deployed)
+
+Nothing changes in the app. During 1a, a new file (`app/scale.js`) was left out of the service worker's cache list. `check:quick` passed, because it runs only the tests that name a changed module, and CI failed three times.
+
+- **Always run:** `check:quick` now always runs `tests/repo.test.js` (the offline cache lists every file the app needs, every import exists, no request leaves the site, the cache is named for the release) as well as the saved-results test.
+- **Selection moved:** the "which tests" logic is now `tests/tools/affected.mjs`, so it can be tested; `check.mjs` imports it.
+- **Tested:** two new tests in `tests/check-tools.test.js` (the always-run set holds for any change; the selection stays selective). They fail on the old code (the module does not exist), and undoing the always-run entry fails them. End to end: a new app file not in `sw.js` makes `check:quick` exit 1; before, it passed.
+- **Not changed:** `check:full`, CI, the app, saved results (golden identical).
+
 ## 4.7.19: An OM rent roll printed in thousands now reads at its real rents (on the development branch; not merged or deployed)
 
 A rent roll headed "($ in thousands)", "($000s)" or "in millions" was read at face value: a 60.0 became a $60 rent, every row failed the range check, the whole roll was held, and "Accept as read" would have stored $60 rents. `omstatement.js` already understood scale; `omroll.js` did not.
