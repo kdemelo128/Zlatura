@@ -101,7 +101,8 @@ test('check:quick and check:full exist, run every gate and fail the command on a
   assert.match(src, /step\('type check', 'npx', \['tsc', '-p', 'types\/tsconfig\.json'\]\)/);
   assert.match(src, /golden\(\);/);
   assert.match(src, /if \(mode === 'full'\) step\(.*'bash', \['tests\/e2e\/run\.sh'\]\)/);
-  assert.match(src, /'tests\/analyze-golden\.test\.js'/); // saved results always run in quick
+  assert.match(fs.readFileSync(path.join(ROOT, 'tests/tools/affected.mjs'), 'utf8'), /'tests\/analyze-golden\.test\.js'/); // saved results always run in quick
+  assert.match(src, /affectedTests\(changed, ROOT\)/);
   assert.match(src, /if \(failed\.length\) \{.*process\.exit\(1\); \}/);
   assert.equal(spawnSync('node', [path.join(ROOT, 'tests/tools/check.mjs'), 'bogus']).status, 2);
 });
@@ -241,4 +242,23 @@ test('sync-main: anything else stays for a person, and so does one version writt
   assert.doesNotMatch(again.stdout, /Resolved on their own/);
   assert.match(again.stdout, /CHANGELOG\.md/);
   fs.rmSync(R.dir, { recursive: true, force: true });
+});
+
+/* check:quick must never skip the tests that read the whole repository: a new app file named by no test (4.7.19:
+ * app/scale.js missing from sw.js) passed quick and failed CI three times. */
+const { affectedTests, ALWAYS } = await import('./tools/affected.mjs');
+
+test('check:quick always runs the saved-results test and the repository test (offline cache list, imports, no outside requests)', () => {
+  for (const changed of [[], ['app/brandnew-module.js'], ['sw.js'], ['docs/NOW.md']]) {
+    const picked = affectedTests(changed, ROOT);
+    for (const t of ALWAYS) assert.ok(picked.includes(t), `${t} missing for ${JSON.stringify(changed)}`);
+  }
+  assert.ok(ALWAYS.includes('tests/repo.test.js') && ALWAYS.includes('tests/analyze-golden.test.js'));
+});
+
+test('check:quick stays selective: a change picks the tests that name its module, not every test', () => {
+  const all = fs.readdirSync(path.join(ROOT, 'tests')).filter((f) => f.endsWith('.test.js')).length;
+  const picked = affectedTests(['app/lease.js'], ROOT);
+  assert.ok(picked.includes('tests/lease.test.js'));
+  assert.ok(picked.length < all, `${picked.length} of ${all}`);
 });

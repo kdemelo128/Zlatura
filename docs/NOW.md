@@ -30,14 +30,16 @@ section with grep, never in full.
   - the docs PR (#34, 4.7.16): routing, check rule, usage rules;
   - F5, CI audit and pinned actions (#35, 4.7.17); Dependabot for actions is on;
   - the rent roll proposal (#40, 4.7.18), approved by the owner 2026-10-17
-    (`docs/proposals/rentroll-pdf-and-om-fill.md`, answers in section g).
-- **In progress:** 1a (4.7.19, PR open): an OM rent roll printed in thousands
-  or millions is read at its real rents (`app/scale.js`, `omroll.js`). Then 1b
-  (stated rent to the cross-check only; "use this?" taps for SF, occupancy,
-  units), 1c (header), the PDF upload, the property-manager profile, the roll
-  comparison. The owner will put their OM in `private/om/`; run `rr-local.mjs`
-  on it and report counts only. Dependabot PRs #36-#39 reviewed in a table, not
-  merged.
+    (`docs/proposals/rentroll-pdf-and-om-fill.md`, answers in section g);
+  - 1a, an OM rent roll in thousands or millions (#41, 4.7.19); Dependabot
+    #36-#39 (cache, setup-node, setup-python, checkout) merged.
+- **In progress:** the `check:quick` gate fix (4.7.20, PR open): quick always
+  runs `tests/repo.test.js` (a new app file missing from `sw.js` failed CI
+  three times in 1a). Then 1b (stated rent to the cross-check only; "use this?"
+  taps for SF, occupancy, units), 1c (header), the PDF upload, the
+  property-manager profile, the roll comparison. **Waiting for the owner's OM**
+  (the attachment did not reach the container): put it in `private/om/`, run
+  `node tests/tools/rr-local.mjs` on it, report counts only.
 - **Next (one PR at a time; the full order is in `docs/PLAN_STATUS.md`, "Now"):**
   0. the rent roll fixes (1a-1c, 2, 3, 4 in the proposal), then the
      `impact-flow` bug (intermittent axe colour-contrast failure on the phone
