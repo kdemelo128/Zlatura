@@ -4,6 +4,7 @@
  * assumption, the comps). Pure, no DOM. */
 
 import { waltMethod } from './engine/walt.js';
+import { ROLL_TOOL } from './dealfields.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const money = (n) => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
@@ -22,6 +23,7 @@ function show(kind, v) {
 export function sourceLabel(s) {
   if (!s) return 'unknown source';
   if (s.ai) return `read by AI from ${s.doc || 'a document'}${s.page ? ` p.${s.page}` : ''}${s.verified ? ', passage checked' : ', passage not checked'}${s.hand ? ', then edited' : ''}`;
+  if (s.tool === ROLL_TOOL) return 'taken from the rent roll by the broker';
   if (s.tool) return `typed (from the ${s.tool} tool)`;
   if (s.hand && !s.page) return 'typed by the broker';
   if (s.hand) return `edited by the broker (the OM p.${s.page} reads ${s.orig})`;
