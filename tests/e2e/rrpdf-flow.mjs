@@ -119,7 +119,7 @@ await closeSheet();
 // D. a scanned rent roll: OCR only when asked
 const ocrBefore = requests.filter((u) => /vendor\/ocr\//.test(u)).length;
 await openPdf('rr-scan.pdf');
-check('a scan says it has no text layer, and OCR files were not requested', /no text layer/.test(await text('#rrpdf-qc')) && ocrBefore === 0 && requests.filter((u) => /vendor\/ocr\//.test(u)).length === 0, (await text('#rrpdf-qc')).slice(0, 160));
+check('a scan says it has no text layer, and OCR files were not requested', /A page can be read with OCR, on request/.test(await text('#sheet-body')) && /no text layer/.test(await text('#rrpdf-qc')) && ocrBefore === 0 && requests.filter((u) => /vendor\/ocr\//.test(u)).length === 0, (await text('#rrpdf-qc')).slice(0, 160));
 await page.locator('#rrpdf-qc button.qc-ocr').first().click();
 await page.waitForSelector('#rrpdf-qc .qc-item[data-check="ocr:1"]', { timeout: 150000 });
 check('OCR read after the tap, from this site only; its rows wait behind a failed check', /read by OCR/.test(await text('#rrpdf-qc .qc-item[data-check="ocr:1"]')) && requests.filter((u) => /vendor\/ocr\//.test(u)).every((u) => u.startsWith(BASE)) && await page.locator('#rrpdf-use').isDisabled());

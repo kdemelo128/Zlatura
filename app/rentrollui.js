@@ -947,16 +947,10 @@ function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
     if (!record) {
       // not yet a rent roll: say what it is, and offer to read it as one when there is a table to read
       const kind = doc.kind;
-      const msg = kind === 'scanned' ? 'This PDF has no text layer (a scan or a picture), so nothing could be read from it. A page can be read with OCR, on request: nothing leaves your device.'
-        : PDF_OTHER[kind] ? `This looks like ${PDF_OTHER[kind]}.` : kind === 'unknown' ? doc.why[0] : '';
-      if (kind === 'rentroll') { startRecord(); draw(); return; }
+      const msg = PDF_OTHER[kind] ? `This looks like ${PDF_OTHER[kind]}.` : kind === 'unknown' ? doc.why[0] : '';
+      if (kind === 'rentroll' || kind === 'scanned') { startRecord(); draw(); return; }
       body.appendChild(el('p', null, msg));
       if (doc.why.length && kind !== 'unknown') body.appendChild(el('p', 'hint-sm', doc.why.join(' ')));
-      if (kind === 'scanned') {
-        startRecord();
-        draw();
-        return;
-      }
       if (doc.roll) {
         const b = el('button', 'btn btn-gray', 'It is a rent roll: read it');
         b.type = 'button';
@@ -968,6 +962,7 @@ function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
       return;
     }
     // a rent roll: the checks, the rows, then the choice
+    if (doc.kind === 'scanned') body.appendChild(el('p', null, 'This PDF has no text layer (a scan or a picture), so nothing could be read from it. A page can be read with OCR, on request: nothing leaves your device.'));
     const blocking = blockingChecks(record.qc).length;
     body.appendChild(qcPanel({
       id: 'rrpdf-qc', title: 'Data QC', qc: record.qc,

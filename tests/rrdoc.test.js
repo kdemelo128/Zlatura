@@ -180,3 +180,19 @@ test('PDF: an operating statement is named, and a scan is a scan', async () => {
   assert.equal((await read('stmt-doc')).kind, 't12');
   assert.equal((await read('rr-scan')).kind, 'scanned');
 });
+
+test('the Excel export labels a lease read from a rent roll PDF with the file, never "entered by hand"', async () => {
+  const ExcelJS = (await import('exceljs')).default;
+  await import('../app/workbook.js');
+  const { addRentRollTabs } = await import('../app/rrbook.js');
+  const rr = fromOmRows(d0rows(), { kind: 'pdf', file: 'sample-roll.pdf' });
+  const wb = new ExcelJS.Workbook();
+  addRentRollTabs(wb, { figures: {} }, rr);
+  const labels = [];
+  wb.eachSheet((ws) => ws.eachRow((row) => row.eachCell((c) => { if (typeof c.value === 'string') labels.push(c.value); })));
+  assert.ok(labels.some((t) => /rent roll PDF \(sample-roll\.pdf/.test(t)), labels.filter((t) => /PDF|hand/.test(t)).join(' | '));
+  assert.ok(!labels.includes('entered by hand'));
+});
+function d0rows() {
+  return docKind([`Rent Roll\nAs of: 10/01/2026\n\n${table}`]).roll.rows;
+}

@@ -54,7 +54,7 @@ export function addRentRollTabs(wb, deal, rr) {
     f(ws, `J${r}`, rate(`G${r}`, `$G$${first + rr.leases.length + 1}`), sum.annualRent && !L.vacant && ip.monthly ? (ip.monthly * 12) / sum.annualRent : null, PCT1, { align: 'right' });
     const yl = !L.vacant && ip.monthly && dayOf(L.leaseEnd) !== null ? Math.max(0, (dayOf(L.leaseEnd) - dayOf(asOf)) / 365.25) : null;
     f(ws, `K${r}`, `IF(OR(F${r}="",D${r}<>"Leased"),"",MAX(0,(F${r}-$B$3)/365.25))`, yl, NUM1, { align: 'right' });
-    v(ws, `L${r}`, L.source && L.source.kind === 'om' ? `OM${L.source.page ? ` p. ${L.source.page}` : ''}` : L.source && L.source.kind === 'import' ? `imported (${L.source.file || ''})` : 'entered by hand', null, { color: 'FF595959' });
+    v(ws, `L${r}`, L.source && L.source.kind === 'om' ? `OM${L.source.page ? ` p. ${L.source.page}` : ''}` : L.source && L.source.kind === 'import' ? `imported (${L.source.file || ''})` : L.source && L.source.kind === 'pdf' ? `rent roll PDF (${L.source.file || ''}${L.source.page ? ` p. ${L.source.page}` : ''})` : 'entered by hand', null, { color: 'FF595959' });
   });
   const last = first + rr.leases.length - 1;
   const t = last + 2;
