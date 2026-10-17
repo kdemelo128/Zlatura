@@ -26,6 +26,13 @@
  *     multiplied by 12 silently, and a figure out of range is flagged, not
  *     "corrected".
  *
+ *   - Scale. "($ in thousands)", "$000s" or "in millions" in a column heading, or
+ *     in the lines just above the header (up to the first line with a figure),
+ *     scales that table's money columns (never SF, share or rent per SF), by
+ *     `toCents(value * scale)`; the cell keeps the text as printed, and an info
+ *     check says what was done. A scale that leaves the rents out of range is
+ *     flagged by the range check like any other figure, never accepted quietly.
+ *
  * Every row keeps where each of its values came from (page, line, column and
  * the text printed) and a confidence, lowered for each guess made. Values
  * worked out from others are listed in `derived`. Pure: no DOM.
@@ -36,6 +43,7 @@
 
 import { splitCells, parseDate } from './om.js';
 import { toCents, toRate } from './engine/money.js';
+import { scaleOf } from './scale.js';
 
 /* ------------------------------------------------------------ the lines */
 
@@ -595,6 +603,43 @@ function readings(t) {
 
 const READING_WORD = { annual: 'annual rent', monthly: 'monthly rent', psf: 'rent per SF a year', mpsf: 'rent per SF a month' };
 
+
+/* ------------------------------------------------------------ the scale */
+
+const SCALED = ['annual', 'monthly', 'rent', 'market', 'recov', 'deposit'];   // money columns; rent per SF, SF and shares are never scaled
+
+/**
+ * The scale each money column of a table is printed in: its own heading's
+ * ("Annual Rent ($000s)"), else the table's caption, read from the lines just
+ * above the header up to the first line with a figure (the last row of some
+ * other table), so a caption belonging to another table is not borrowed.
+ * { [kind]: { scale, text } }, only for a scale other than 1.
+ */
+function tableScales(t, P) {
+  const lines = P[t.page - 1] || [];
+  const at = t.line - 1;
+  const above = [];
+  for (let k = at - 1; k >= Math.max(0, at - 3); k--) { if (hasFigure(lines[k])) break; above.unshift(lines[k].text); }
+  const caption = scaleOf(above.join('\n'));
+  const out = {};
+  for (const c of t.cols) {
+    if (!SCALED.includes(c.kind) || out[c.kind]) continue;
+    const own = scaleOf(c.label);
+    const sc = own.scale !== 1 ? own : caption;
+    if (sc.scale !== 1) out[c.kind] = sc;
+  }
+  return out;
+}
+
+/** The scaled money of a table's rows and totals (before the rent is read as annual or monthly). */
+function applyScales(t) {
+  const kinds = Object.keys(t.scales);
+  if (!kinds.length) return;
+  const up = (o) => { for (const k of kinds) if (Number.isFinite(o[k])) o[k] = toCents(o[k] * t.scales[k].scale); };
+  for (const r of t.rows) up(r.raw);
+  for (const T of t.totals) up(T);
+}
+
 /* ---------------------------------------------------------------- rows */
 
 const KEEP = ['tenant', 'suite', 'sf', 'start', 'end', 'endText', 'mtm', 'annual', 'monthly', 'psf', 'vacant'];
@@ -767,9 +812,14 @@ export function rentRoll(pages, { layouts = null } = {}) {
   const best = tables.reduce((a, b) => (tableScore(b, P) > tableScore(a, P) ? b : a));
   const chosen = tables.filter((t) => t === best || sameHeader(t.cols, best.cols));
   const issues = [];
+  best.scales = tableScales(best, P);
   const rows = []; const totals = []; const segments = []; const pageSet = new Set();
   for (const t of chosen) {
     for (const seg of t.segments) joinLines(seg, geo);
+    // a later table with the same header and no caption of its own is printed in the first one's scale
+    const own = t === best ? best.scales : tableScales(t, P);
+    t.scales = Object.keys(own).length ? own : best.scales;
+    applyScales(t);
     t.units = readings(t);
     t.unknownCols = t.cols.filter((c) => c.kind === 'other' && !/^(?:#|no\.?)$/i.test(c.label.trim())).map((c) => `“${c.label}”`).join(', ');
     const base = rows.length;
@@ -784,6 +834,11 @@ export function rentRoll(pages, { layouts = null } = {}) {
       index.set(r, base + mine.length);
       mine.push(row);
       pageSet.add(r.page);
+    }
+    for (const [k, sc] of Object.entries(t.scales)) {
+      const col = t.cols.find((c) => c.kind === k);
+      issues.push({ kind: 'scale', level: 'info', page: t.page, line: t.line, row: null, col: col ? col.idx : null, cell: col ? { page: t.page, line: t.line, col: col.idx, text: col.label } : null, lineText: col ? col.label : '',
+        text: `The “${col ? col.label : k}” column on page ${t.page} is printed in ${sc.scale === 1e3 ? 'thousands' : 'millions'} (“${sc.text}”): its figures, and its Total row, are read ×${sc.scale.toLocaleString('en-US')}. The cells keep the text as printed.`, amount: 0 });
     }
     // totals cover rows by their place in this table
     const at = (k) => (k >= t.rows.length ? base + mine.length : index.get(t.rows[k]));

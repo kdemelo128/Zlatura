@@ -200,7 +200,19 @@ export function specQcOm() {
     { scan: [{ x: 40, y: 740, s: 'Annex Rent Roll', size: 14, bold: true }, ...headItems(710).map((h) => ({ ...h, size: 7.5 })), ...scan.items.map((it) => ({ ...it, size: 8 }))] },
   ];
 }
-export const PDF_SPECS = { 'rr-continued': specContinued, 'rr-wrapped': specWrapped, 'om-rr-qc': specQcOm };
+/* The same rent roll printed in thousands: "($ in thousands)" under the title, the annual rent as 60.0 and the
+ * monthly rent as 5.000, rent per SF still in dollars. Its Total row prints 215.0. Built so the reader has to
+ * scale it to read $60,000 rents (and so a reader with no scale reads $60). */
+export function specThousands() {
+  const k = (v, d) => (v ? (Number(v.replace(/[$,]/g, '')) / 1000).toFixed(d) : '');
+  const rows = PDF_ROWS.map((r) => [r[0], r[1], r[2], r[3], r[4], k(r[5], 1), r[6], k(r[7], 3), r[8]]);
+  const a = rowsFrom(rows, 676);
+  const sum = [{ x: 40, y: 740, s: 'Investment Summary', size: 14, bold: true },
+    ...[['Asking Price', '$3,400,000'], ['Building Size', '9,000 SF'], ['Occupancy', '80.0%'], ['Base Rent', '$215,000'], ['Cap Rate', '6.10%']]
+      .flatMap(([kk, v], i) => [{ x: 40, y: 700 - i * 16, s: kk, size: 10 }, { x: 300, y: 700 - i * 16, s: v, right: true, size: 10 }])];
+  return [sum, [{ x: 40, y: 740, s: 'Rent Roll', size: 14, bold: true }, { x: 40, y: 726, s: '($ in thousands)', size: 7 }, ...headItems(710), ...a.items, ...totalItems(a.y - 4, '9,000', '215.0')]];
+}
+export const PDF_SPECS = { 'rr-continued': specContinued, 'rr-wrapped': specWrapped, 'om-rr-qc': specQcOm, 'om-rr-thousands': specThousands };
 
 /** Case 1 as a PDF: the rent roll split over two pages, no header on the second. */
 export const pdfContinued = () => pdfOf(specContinued());
