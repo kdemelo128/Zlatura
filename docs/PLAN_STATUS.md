@@ -21,11 +21,11 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.18; rent roll PDF and OM-fill proposal written, waiting for approval (2026-10-17).
+Last updated: 4.7.18; rent roll PDF and OM-fill proposal approved by the owner (2026-10-17).
 
 ## Now
 
-- **Current step:** rent roll proposal (4.7.18, waiting for approval), then its fixes, the `impact-flow` bug, then F6/F7. F2 (4.7.15, merged #33): every file read as text goes
+- **Current step:** rent roll proposal (4.7.18, approved; PR open), then its fixes, the `impact-flow` bug, then F6/F7. F2 (4.7.15, merged #33): every file read as text goes
   through `app/textfile.js`, so a Windows-1252 CSV keeps its accents and
   curly quotes and the app says how it read the file. F1 (4.7.14, one
   rounding rule) is merged (#32), and so are changelog fragments (4.7.13,

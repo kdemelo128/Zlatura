@@ -1,6 +1,6 @@
 # Rent roll from a PDF, OM fill bug, and the owner's support code
 
-Status: **proposal, waiting for the owner's approval.** Nothing here is built.
+Status: **approved by the owner 2026-10-17** (answers in section g). Nothing here is built yet.
 Written 2026-10-17 against main at 4.7.17. Read-only work: no `app/` or `tests/`
 file changed. Invented fixtures only; the support code stays in the git-ignored
 `private/support-code/` and is described here by structure, never by its
@@ -204,7 +204,7 @@ what they were (no migration re-reads them).
 
 ## (d) Test plan and PR sizes
 
-Order: bug first, then the feature. The `impact-flow` axe bug (queued by the
+Order (owner, 2026-10-17): bug first (1a, 1b, 1c), then the PDF upload, then the property-manager profile, then the roll comparison. Until the profile exists, Data QC refuses layouts it does not recognise, so the preview protects the owner. The `impact-flow` axe bug (queued by the
 owner) goes after the rent roll fixes.
 
 | # | PR | Size | Fails on old code by |
@@ -212,9 +212,9 @@ owner) goes after the rent roll fixes.
 | 1a | Bug F2: scale in the OM rent roll (thousands) | S | invented PDFs with a thousands header |
 | 1b | Bug F3 and F4: the stated in-place rent reaches the cross-check; the roll offers its SF and occupancy as "use this?" taps | S-M | invented OM with stated rent and no summary lines |
 | 1c | Bug F6: a header whose wrapped line holds only a rent label | S | the top-aligned two-line header |
-| 2 | Property-manager profile in the rent roll reader (F5 a-c) | M | the invented manager report (pm layout) |
-| 3 | Upload a rent roll PDF: detect, preview, Data QC, approve | M | new flow; nothing to compare with the old app |
-| 4 | Reconcile two rolls line by line | M | an OM roll + a PDF roll with known differences |
+| 2 | Upload a rent roll PDF: detect, preview, Data QC, approve (data-format fields, migration entry, backup round trips) | M | new flow; nothing to compare with the old app |
+| 3 | Property-manager profile in the rent roll reader (F5 a-c) | M | the invented manager report (pm layout) |
+| 4 | Reconcile two rolls line by line; the dropped roll kept in History | M | an OM roll + a PDF roll with known differences |
 | 5 | Adopted checks from the support code, each its own small PR | S each | per check |
 | 6 | `impact-flow` axe contrast (owner-queued) | S | the flow itself, intermittent on clean main |
 
@@ -271,23 +271,28 @@ PR 4, using the check list and test cases here.
 - One PR per fix; after each I say what to merge and what to check on the
   phone. **Confirmed.**
 
-## (g) Decisions needed from the owner
+## (g) The owner's decisions (2026-10-17)
 
-1. **Approve the order** in (d): 1a, 1b, 1c, then 2, 3, 4, then the adopted
-   checks, then `impact-flow`. Say if you want 3 (the PDF upload) before 2.
-2. **F3:** pass the stated rent to the cross-check only (no new box, no
-   data-format change; recommended), or add an "In-place rent (stated)" box
-   (data-format change).
-3. **F4:** offer the rent roll's SF and occupancy as a tap ("use the rent
-   roll's 6,500 SF?"), never automatic. Yes, or no fill at all?
-4. **Which boxes do you mean?** If you can run `rr-local.mjs` on the OM that
-   failed (counts only), I can say which finding you hit. Otherwise I fix all of
-   F2-F6 in order.
-5. **Rent roll PDF (c):** additive data-format fields (`lease.source` gains
-   `kind: 'pdf'` and the file name; optional file hash in `rrQc`). Approve?
-6. **Second roll:** compare then choose, the other dropped and recoverable by
-   Undo (recommended), or keep a named alternative roll on the deal (new stored
-   data)?
-7. **Underwriting (e):** write it as its own proposal after PR 4?
-8. **Dependabot** is already approved and `impact-flow` is queued after the
-   rent roll fixes (your message of 2026-10-17).
+1. **Order:** 1a scale, 1b stated rent and the "use this?" taps, 1c header; then
+   the PDF upload, then the property-manager profile, then the roll comparison.
+   The upload comes before the profile because the owner needs the upload flow
+   first; Data QC refuses unrecognised layouts meanwhile.
+2. **Stated rent (F3):** sent only to the cross-check. No new box, no
+   data-format change.
+3. **SF, occupancy and units (F4):** offered as a "use this?" tap, never filled
+   automatically.
+4. **PDF source kind and file name on each lease:** approved as an additive
+   data-format change. It needs a migration-registry entry, a test that an old
+   backup restores unchanged, and a test that a backup with the new fields
+   round-trips.
+5. **Two rolls that differ:** compare, then the owner chooses, and the other
+   roll is dropped. **The dropped roll is kept in History and recoverable by
+   Undo, not lost.** (No second roll stored on the deal.)
+6. **Underwriting (e):** write the proposal from the support code after the
+   PDF-upload and roll-comparison PRs.
+
+Also: the owner will put their own OM in `private/om/` and say so; I then run
+`node tests/tools/rr-local.mjs` on it and report counts only (rows read, checks
+failed, rows held, scale words seen), to tell which cause they hit. No content
+of the file goes in any commit, report or PR. `impact-flow` is queued after the
+rent roll fixes. Dependabot stays.

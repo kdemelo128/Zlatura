@@ -28,11 +28,12 @@ section with grep, never in full.
     (`app/textfile.js`): a byte-order mark decides, valid UTF-8 as before,
     else Windows-1252 with a note; ambiguous files show both readings.
   - the docs PR (#34, 4.7.16): routing, check rule, usage rules.
-- **In progress:** the rent roll proposal (4.7.18, branch
-  `claude/rentroll-pdf-proposal`, not yet a PR): why an OM's rent does not fill
-  the boxes, a rent roll PDF as its own document, and the owner's support code
-  (`docs/proposals/rentroll-pdf-and-om-fill.md`). Waiting for the owner's
-  answers (section g). F5 (#35, 4.7.17) is merged.
+- **In progress:** the rent roll proposal (4.7.18, PR open, approved by the
+  owner 2026-10-17; `docs/proposals/rentroll-pdf-and-om-fill.md`, answers in
+  section g). Then 1a (thousands scale), 1b, 1c, the PDF upload, the
+  property-manager profile, the roll comparison. F5 (#35, 4.7.17) is merged.
+  The owner will put their OM in `private/om/`; run `rr-local.mjs` on it and
+  report counts only.
 - **Next (one PR at a time; the full order is in `docs/PLAN_STATUS.md`, "Now"):**
   0. the rent roll fixes (1a-1c, 2, 3, 4 in the proposal), then the
      `impact-flow` bug (intermittent axe colour-contrast failure on the phone
