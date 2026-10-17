@@ -221,19 +221,21 @@ export function specDdRoll() {
     ...headItems(700), ...a.items, ...totalItems(a.y - 4, '9,000', '$215,000'), { x: 40, y: 150, s: note, size: 7 }]];
 }
 /** The property manager's report (rr-pm), optionally with a "4 Units" subtotal and a Total (sub), or the first lease's end year printed on the next line (wrap). */
-function pmReport({ sub = false, wrap = false, wrapBelow = null, year = '2030' } = {}) {
+function pmReport({ sub = false, wrap = false, wrapBelow = null, year = '2030', combined = false } = {}) {
   const X = { unit: 30, ten: 62, sf: 215, rent: 270, chg: 345, dep: 405, from: 415, to: 470, pd: 580 };
   const U = [['A1', 'Maple Leaf Bakery', '2,000', '5,000.00', '400.00', '5,000.00', '01/01/2021', '12/31/2030'], ['A2', 'Quillfeather Books', '1,500', '3,500.00', '300.00', '3,500.00', '06/01/2022', '05/31/2027'], ['B1', 'Copperline Yoga', '1,200', '3,000.00', '250.00', '3,000.00', '03/01/2023', '02/28/2033']];
   if (sub) U.push(['B2', 'Pinecone Cafe', '1,000', '2,500.00', '200.00', '2,500.00', '09/01/2024', '08/31/2029']);
   const it = [{ x: 30, y: 750, s: 'Rent roll with Monthly Charges', size: 12, bold: true }, { x: 30, y: 736, s: 'As of: 10/01/2026', size: 7 }, { x: 30, y: 724, s: 'Properties: Sample Plaza - 1 Invented Way Sampletown, MD 20000', size: 7 },
     { x: 30, y: 300, s: 'Report created from the property management system. Rent is the contractual monthly rent; monthly charges are billed separately.', size: 6 }];
-  [['Unit', X.unit, 0], ['Tenant', X.ten, 0], ['Sqft', X.sf, 1], ['Rent', X.rent, 1], ['Monthly Charges', X.chg, 1], ['Deposit', X.dep, 1], ['Lease From', X.from, 0], ['Lease To', X.to, 0], ['Past Due', X.pd, 1]]
-    .forEach(([t, x, r]) => it.push({ x, y: 700, s: t, right: !!r, bold: true, size: 7 }));
+  // combined: rent and charges printed as one figure under one heading (the broker must be asked)
+  const heads = [['Unit', X.unit, 0], ['Tenant', X.ten, 0], ['Sqft', X.sf, 1], combined ? ['Rent & Charges', X.chg, 1] : ['Rent', X.rent, 1], ...(combined ? [] : [['Monthly Charges', X.chg, 1]]), ['Deposit', X.dep, 1], ['Lease From', X.from, 0], ['Lease To', X.to, 0], ['Past Due', X.pd, 1]];
+  heads.forEach(([t, x, r]) => it.push({ x, y: 700, s: t, right: !!r, bold: true, size: 7 }));
   const gap = wrap ? 24 : 16;
   U.forEach((u, k) => {
     const y = 680 - k * gap;
     const split = wrap && k === 0 ? ['12/31/', year] : null;
-    [[u[0], X.unit, 0], [u[1], X.ten, 0], [u[2], X.sf, 1], [u[3], X.rent, 1], [u[4], X.chg, 1], [u[5], X.dep, 1], [u[6], X.from, 0], [split ? split[0] : u[7], X.to, 0], ['0.00', X.pd, 1]].forEach(([t, x, r]) => it.push({ x, y, s: t, right: !!r, size: 7 }));
+    const money = combined ? [[`${(Number(u[3].replace(/,/g, '')) + Number(u[4].replace(/,/g, ''))).toLocaleString('en-US')}.00`, X.chg, 1]] : [[u[3], X.rent, 1], [u[4], X.chg, 1]];
+    [[u[0], X.unit, 0], [u[1], X.ten, 0], [u[2], X.sf, 1], ...money, [u[5], X.dep, 1], [u[6], X.from, 0], [split ? split[0] : u[7], X.to, 0], ['0.00', X.pd, 1]].forEach(([t, x, r]) => it.push({ x, y, s: t, right: !!r, size: 7 }));
     if (split) it.push({ x: wrapBelow ? X.pd : X.to, y: y - 8, s: split[1], right: !!wrapBelow, size: 7 });
   });
   if (sub) {
@@ -247,6 +249,7 @@ export const specPmReport = () => pmReport();
 export const specPmSub = () => pmReport({ sub: true });
 export const specPmWrap = () => pmReport({ wrap: true });
 /** The year printed under the Past Due column instead of the Lease To one. */
+export const specPmCombined = () => pmReport({ combined: true });
 export const specPmWrapBackwards = () => pmReport({ wrap: true, year: '2020' });
 export const specPmWrapElsewhere = () => pmReport({ wrap: true, wrapBelow: true });
 export function specStatementDoc() {
@@ -284,7 +287,7 @@ export function specTwoLine() {
   const a = rowsFrom(PDF_ROWS, 636);
   return [[...text, { x: 40, y: 690, s: 'Rent Roll', size: 14, bold: true }, ...head, { ...rent, s: 'Rent', y: 654 }, ...a.items, ...totalItems(a.y - 4, '9,000', '$215,000')]];
 }
-export const PDF_SPECS = { 'rr-continued': specContinued, 'rr-wrapped': specWrapped, 'om-rr-qc': specQcOm, 'om-rr-thousands': specThousands, 'om-rr-nosummary': specNoSummary, 'om-rr-twoline': specTwoLine, 'rr-dd': specDdRoll, 'rr-pm': specPmReport, 'rr-pm-sub': specPmSub, 'rr-pm-wrap': specPmWrap, 'rr-pm-wrap-elsewhere': specPmWrapElsewhere, 'rr-pm-wrap-backwards': specPmWrapBackwards, 'stmt-doc': specStatementDoc, 'rr-scan': specScannedRoll };
+export const PDF_SPECS = { 'rr-continued': specContinued, 'rr-wrapped': specWrapped, 'om-rr-qc': specQcOm, 'om-rr-thousands': specThousands, 'om-rr-nosummary': specNoSummary, 'om-rr-twoline': specTwoLine, 'rr-dd': specDdRoll, 'rr-pm': specPmReport, 'rr-pm-sub': specPmSub, 'rr-pm-combined': specPmCombined, 'rr-pm-wrap': specPmWrap, 'rr-pm-wrap-elsewhere': specPmWrapElsewhere, 'rr-pm-wrap-backwards': specPmWrapBackwards, 'stmt-doc': specStatementDoc, 'rr-scan': specScannedRoll };
 
 /** Case 1 as a PDF: the rent roll split over two pages, no header on the second. */
 export const pdfContinued = () => pdfOf(specContinued());

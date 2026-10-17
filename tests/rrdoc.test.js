@@ -217,6 +217,14 @@ test('PDF: a property manager’s report reads its Rent column; Monthly Charges 
   assert.ok(qc.checks.some((c) => c.kind === 'layout' && c.level === 'info' && /Past Due/.test(c.text)));
 });
 
+test('PDF: a report with rent and charges printed as one figure is held, with its rent kept as read', async () => {
+  const d = await read('rr-pm-combined');
+  const { qc, held } = pdfRollRecord(d, { asOf: '2026-10-17', file: 'x.pdf' });
+  assert.equal(held, true);
+  assert.ok(qc.checks.some((c) => c.kind === 'layout' && c.level === 'fail' && /Rent & Charges/.test(c.text)));
+  assert.deepEqual(qc.held.map((r) => r.monthly), [5400, 3800, 3250]);
+});
+
 test('PDF: a "4 Units" subtotal and a Total are not rows; the four leases are counted once', async () => {
   const d = await read('rr-pm-sub');
   assert.equal(d.kind, 'rentroll');
