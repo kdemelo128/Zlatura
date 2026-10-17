@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.17 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.18 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -28,10 +28,15 @@ section with grep, never in full.
     (`app/textfile.js`): a byte-order mark decides, valid UTF-8 as before,
     else Windows-1252 with a note; ambiguous files show both readings.
   - the docs PR (#34, 4.7.16): routing, check rule, usage rules.
-- **In progress:** F5 (4.7.17, PR open): CI `npm audit` for both lock files,
-  actions pinned to commit SHAs, Dependabot for actions; the owner turns on
-  GitHub security alerts (Settings, Code security).
+- **In progress:** the rent roll proposal (4.7.18, branch
+  `claude/rentroll-pdf-proposal`, not yet a PR): why an OM's rent does not fill
+  the boxes, a rent roll PDF as its own document, and the owner's support code
+  (`docs/proposals/rentroll-pdf-and-om-fill.md`). Waiting for the owner's
+  answers (section g). F5 (#35, 4.7.17) is merged.
 - **Next (one PR at a time; the full order is in `docs/PLAN_STATUS.md`, "Now"):**
+  0. the rent roll fixes (1a-1c, 2, 3, 4 in the proposal), then the
+     `impact-flow` bug (intermittent axe colour-contrast failure on the phone
+     sheet, also on clean main; owner-queued 2026-10-17);
   1. F6/F7, F10, one PR each;
   2. T-12 multi-format import (`.xls` only with an Apache-2.0 or MIT SheetJS
      that can be fetched; otherwise skip it and tell the owner);

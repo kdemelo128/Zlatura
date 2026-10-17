@@ -50,7 +50,81 @@ oracle are the two places that would, so both are skipped as code.
 
 ## (b) Bug: the OM's rent does not fill the boxes
 
-*Filled in below from the diagnosis.*
+### How it was reproduced
+
+Invented PDFs (positioned text, `tests/rr-fixtures.js` `pdfOf`) through the real
+path: pdf.js -> `readOm` -> `omReadRecord` -> `omRollRecord` -> `fromOmRows` ->
+the grid's `annual` column. 24 header and layout variants, plus an invented
+property-manager report. Scripts are in the session scratchpad, not committed;
+the build PRs will turn them into proper tests. The designer (Opus) re-ran them,
+checked each finding in the code and corrected one of mine (the matrix script
+skipped the `KIND` filter `dealui.js` applies, so its "rent" warning cannot
+occur in the real app).
+
+**The OM's "annual rent" does not fail in the plain cases:** annual columns,
+monthly columns, a bare "Rent" column, cents, no `$`, "Annual Base Rent",
+"Current Annual Rent", "Rent/Mo", a rent-per-SF-only column, a Total row or none,
+a title of "Tenant Schedule" or "Lease Schedule" or none: all 17 read and map to
+leases (a 60,000 rent shows as 60,000 in the grid). So the report has several
+causes, below, none of them "monthly vs annual detection" (that part works, and
+warns when a header does not say).
+
+### Findings
+
+| # | Finding | Which of your three? | Where | Fix shape |
+|---|---|---|---|---|
+| F1 | Annual and monthly columns read and map correctly | n/a | n/a | none |
+| F2 | **A rent roll in thousands** ("($ in thousands)", "($000s)", "($000)") is read as $60 a year. Four range fails, all rows **held**, the rent roll stays empty, and the Data QC says the leases add up to $192. "Accept as read" then stores $60 rents. `omstatement.js` already handles scale; `omroll.js` has none | **read but not mapped** (the scale is printed, never applied) | `omroll.js` `finishRow` 658-668, `rentroll.js:247, 273-275` | reuse `scaleOf` (`omstatement.js:95`); scale only from the table's own header and the 1-3 lines above it; multiply money columns only, with `toCents(v * scale)`; say so in the row's `why` and an info check; if still implausible, flag and ask |
+| F3 | **The OM's stated in-place rent is read, then thrown away.** `rent_inplace` has no box, so `dealui.js:440` skips it; the rent check in `reconcile.js:248-253` can therefore never run in the app. Nothing else is dropped this way (`FIELDS` minus `KIND` is only `rent_inplace`) | **read but not mapped** | `dealui.js:440`, `reconcile.js:248` | smallest: pass `om.fields.rent_inplace` to `omRollRecord` only (not stored as a figure), unless the statement check holds it back; no new box, no data-format change. Adding a box instead is a data-format change: approval |
+| F4 | **Nothing fills Building SF, Occupancy, Units or Gross potential rent from the rent roll.** They fill only from labelled lines in the OM's text. The rent roll card shows its own tiles (in-place rent, occupancy), and none while rows are held | **not mapped** | `engine/figures.js:174` derives only price, NOI, cap | any auto-fill changes saved figures (approval); it would also make the reconcile checks for SF and occupancy compare the roll with itself (Part 21.2). Offer it as "use the rent roll's 6,500 SF?" with a tap, never silently, and never derive GPR |
+| F5 | **A property-manager report is misread** (invented layout: Rent, Monthly Charges, Deposit, Lease From/To, Past Due, unit-count subtotals) | see below | `omroll.js` | see below |
+| F6 | A two-line header whose second line holds only "Rent" (labels top-aligned) finds **no rent roll**; bottom-aligned works | **not read** | `headerAt` 302, `readBody` 455-457, 762 | also take the deeper header merge when every cell of the next line merges into an existing header cell and the score is no lower |
+
+F5 in detail (all four confirmed by the designer):
+
+- (a) **"Monthly Charges" is read as the monthly rent**, so a 5,000 rent shows as
+  400 (annual 4,800 for 60,000). `kindScores` 114-117 scores it `monthly` because
+  "charges" is not a non-rent word; `readings` 560/586 then lets the first column
+  win and the Rent column's figure is dropped without a word. Fix: treat
+  `charges`/`fees` as recoveries when the label has no rent word, and add a
+  warning when two columns compete for one reading. Hazard: a combined "Rent &
+  Charges" column must not lose its rent.
+- (b) **"4 Units" (a subtotal) is counted as a tenant row** (SF doubled), so
+  the subtotal and total checks fail and the whole roll is held. `classify`
+  326-334. Fix: add unit-count labels to `SUMMARY` and `subtotalLabel`, still
+  guarded by `sumsMatch`.
+- (c) **The lease-to year printed on the next line is lost** (end "12/31/"):
+  the lone year becomes its own row and is dropped. Fix in `joinLines`: join a
+  lone date cell onto the row above when that row's date in the same column
+  failed to parse, then re-read it. Hazard: a stray date joining the wrong row.
+- (d) Past Due is classed `other`, which is right; it only costs 0.1 of every
+  row's confidence. Low priority.
+
+### What the owner sees today, in one line each
+
+- Thousands: nothing populates, until "Accept as read" fills $60 rents.
+- Property-manager report: held, or (if accepted) rents of a fraction of the truth.
+- OM whose summary has no labelled lines: the rent roll fills, the figure boxes do not.
+- OM that states in-place rent: the box does not exist, and the cross-check
+  against the roll never runs.
+
+I cannot see the owner's OM. To tell which one they hit, run
+`node tests/tools/rr-local.mjs` on it (in `private/`, counts only: rows read,
+checks failed, rows held, scale words seen). If rows are read and applied but a
+box is empty, it is F3/F4; if rows are held, it is F2 or F5.
+
+### Golden outputs
+
+F3 and F4 touch only `dealui.js`, and both golden harnesses read `om.js`
+directly (`golden.mjs:107-114`, `analyze-cases.js:46-49`), so they cannot move.
+F2, F5 and F6 change `omroll.js`, which feeds both. Proof, per PR: run
+`tests/analyze-golden.test.js` and `golden.mjs --diff` before and after, and add
+a test that every page in `tests/e2e/files/pages.json` and `tests/rr-fixtures.js`
+gives deep-equal `readOm` rows before and after, with mutation checks on each new
+pattern. Silent money hazards to test for: a statement's "($ in thousands)"
+caption on the same page scaling rents 1,000x (scope the scale to the table);
+a combined "Rent & Charges" column; rows already held from an old read stay at
+what they were (no migration re-reads them).
 
 ## (c) Feature: a rent roll PDF as its own document
 
@@ -135,8 +209,10 @@ owner) goes after the rent roll fixes.
 
 | # | PR | Size | Fails on old code by |
 |---|---|---|---|
-| 1 | Bug: scale in the OM rent roll, the stated in-place rent kept, boxes filled from the roll as proposals (see b) | S + S + M, as up to three PRs, one item each | invented PDFs: thousands header, no-summary OM, stated-rent OM |
-| 2 | Property-manager profile in the rent roll reader | M | the invented manager report (pm layout) |
+| 1a | Bug F2: scale in the OM rent roll (thousands) | S | invented PDFs with a thousands header |
+| 1b | Bug F3 and F4: the stated in-place rent reaches the cross-check; the roll offers its SF and occupancy as "use this?" taps | S-M | invented OM with stated rent and no summary lines |
+| 1c | Bug F6: a header whose wrapped line holds only a rent label | S | the top-aligned two-line header |
+| 2 | Property-manager profile in the rent roll reader (F5 a-c) | M | the invented manager report (pm layout) |
 | 3 | Upload a rent roll PDF: detect, preview, Data QC, approve | M | new flow; nothing to compare with the old app |
 | 4 | Reconcile two rolls line by line | M | an OM roll + a PDF roll with known differences |
 | 5 | Adopted checks from the support code, each its own small PR | S each | per check |
@@ -194,3 +270,24 @@ PR 4, using the check list and test cases here.
   a PR, changelog as a fragment. **Confirmed.**
 - One PR per fix; after each I say what to merge and what to check on the
   phone. **Confirmed.**
+
+## (g) Decisions needed from the owner
+
+1. **Approve the order** in (d): 1a, 1b, 1c, then 2, 3, 4, then the adopted
+   checks, then `impact-flow`. Say if you want 3 (the PDF upload) before 2.
+2. **F3:** pass the stated rent to the cross-check only (no new box, no
+   data-format change; recommended), or add an "In-place rent (stated)" box
+   (data-format change).
+3. **F4:** offer the rent roll's SF and occupancy as a tap ("use the rent
+   roll's 6,500 SF?"), never automatic. Yes, or no fill at all?
+4. **Which boxes do you mean?** If you can run `rr-local.mjs` on the OM that
+   failed (counts only), I can say which finding you hit. Otherwise I fix all of
+   F2-F6 in order.
+5. **Rent roll PDF (c):** additive data-format fields (`lease.source` gains
+   `kind: 'pdf'` and the file name; optional file hash in `rrQc`). Approve?
+6. **Second roll:** compare then choose, the other dropped and recoverable by
+   Undo (recommended), or keep a named alternative roll on the deal (new stored
+   data)?
+7. **Underwriting (e):** write it as its own proposal after PR 4?
+8. **Dependabot** is already approved and `impact-flow` is queued after the
+   rent roll fixes (your message of 2026-10-17).
