@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.25 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.27 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -105,5 +105,6 @@ section with grep, never in full.
   anything is visible;
   the branch rules in `docs/working-rules.md` ("Branches and PRs").
 - **Roll comparison (4.7.25, PR opening):** the PDF preview lists how the PDF differs from the current rent roll before Replace/Add (`compareRolls`, `app/reconcile.js`). The property-manager profile (#46) is merged.
+- **Standing rule added (4.7.27, PR opening):** the owner's support code is checked on every rent roll, T-12, NOI, WALT, Review Queue and Data QC PR (`docs/working-rules.md`). Underwriting proposal: #48, waiting for the owner.
 - **State note** (write here before any long task, so a fresh session can
   resume): none.
