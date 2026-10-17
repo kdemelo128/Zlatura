@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.7.22: The impact-flow browser check no longer fails at random (on the development branch; not merged or deployed)
+
+Nothing changes in the app. `impact-flow`'s axe check on the sheet at phone size failed about 2 runs in 3 with a colour-contrast violation (1 to 4 elements; the "From the OM" eyebrow measured 4.42:1 against the 4.5 floor), also on clean main. It made `check:full` unreliable.
+
+- **Cause:** the flow opened the sheet and ran axe the moment its content appeared, while the sheet was still sliding and fading in, so axe read half-faded text colours. The desktop check passed because that sheet had been open for a while. Other flows' axe helpers already wait for animations to finish; this one did not.
+- **Fix:** wait for every running animation to finish, plus 600 ms, before each axe run. A failure now names the element and its contrast ratio. The app is not touched: at rest the sheet has no violations.
+- **Tested:** `impact-flow` alone, 8 runs in a row: 30 of 30 checks pass every time (before: 1 run in 4 passed, the others failed on `#sheet-eyebrow` 4.42). Golden outputs identical.
+- **Other flows:** `a11y-flow`, `bigroll-flow` and `snapshot-flow` also run axe without the animation wait; none has failed, left as they are.
+
 ## 4.7.19: An OM rent roll printed in thousands now reads at its real rents (on the development branch; not merged or deployed)
 
 A rent roll headed "($ in thousands)", "($000s)" or "in millions" was read at face value: a 60.0 became a $60 rent, every row failed the range check, the whole roll was held, and "Accept as read" would have stored $60 rents. `omstatement.js` already understood scale; `omroll.js` did not.
