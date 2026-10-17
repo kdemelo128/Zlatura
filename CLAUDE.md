@@ -46,6 +46,12 @@ The longer wording of every rule below is in `docs/working-rules.md`.
   - any new library or copied code is an approval gate: pin it, vendor it
     with its license text and checksum, and list it in `THIRD_PARTY.md`;
   - never outside code for the engine or money logic.
+- **The owner's support code is a standing source** (`docs/working-rules.md`):
+  for any rent roll, T-12, NOI, WALT, Review Queue or Data QC work, look at
+  `private/support-code/src/` and its mapping first, adopt the checks that
+  apply as app checks with invented-fixture tests, say in the PR what was
+  adopted, covered or not applicable, and never commit or quote anything from
+  it.
 - **No feature is removed.** Everything stays reachable; whatever is touched
   gets better.
 - **Golden outputs stay identical** unless the owner approves the change,

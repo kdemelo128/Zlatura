@@ -144,3 +144,29 @@ These stop merge conflicts from recurring.
    every new dependency gets a wrapper module and tests.
 6. **Research stays cheap.** The designer judges a shortlist; it doesn't
    browse. Keep summaries to a page.
+
+## The owner's support code is a standing source (owner, 2026-10-17)
+
+The owner's underwriting support code (Python, in the git-ignored
+`private/support-code/src/`) is a worked design: its checks, rules and test
+cases are mined for every PR that touches the rent roll, the T-12, NOI, WALT,
+the Review Queue or Data QC.
+
+1. **Look first.** Before such a proposal or PR, read the matching part of the
+   code, and its mapping to the app: the file-by-file table in
+   `docs/proposals/rentroll-pdf-and-om-fill.md` (a), and the check-by-check
+   mapping (adopt, already covered, not applicable) in
+   `docs/proposals/underwriting.md` once it is merged.
+2. **Adopt what applies, in the app's own words.** Rewrite the idea as an app
+   check in the existing module (never a second copy of the math, never
+   copied code). Its test is rewritten from the code's test cases with
+   *invented* fixtures, and must fail on the old code.
+3. **Say what happened in the PR body:** which support-code checks this PR
+   adopted, which the app already covered, and which do not apply. If the
+   folder is not in the container, say so; don't guess its contents.
+4. **Nothing from it is ever committed or quoted:** no names, addresses,
+   figures, template names or paths. Run the same shared-figures and
+   shared-names check against `private/` that was used for the proposal
+   before opening a PR that cites it, and report only the count.
+5. An adopted check that changes a stored field, a saved result or a golden
+   output is still an approval gate, with the before/after table.
