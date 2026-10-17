@@ -221,7 +221,18 @@ export function specNoSummary() {
   const a = rowsFrom(PDF_ROWS, 640);
   return [[...text, { x: 40, y: 690, s: 'Rent Roll', size: 14, bold: true }, ...headItems(662), ...a.items, ...totalItems(a.y - 4, '9,000', '$215,000')]];
 }
-export const PDF_SPECS = { 'rr-continued': specContinued, 'rr-wrapped': specWrapped, 'om-rr-qc': specQcOm, 'om-rr-thousands': specThousands, 'om-rr-nosummary': specNoSummary };
+/* The rent roll with its Annual Rent label over two lines, "Annual" over "Rent", the other labels on the first line
+ * only (how a designer top-aligns a wrapped header). The reader used to end the header after "Annual", read "Rent"
+ * as a body line, and find no table. */
+export function specTwoLine() {
+  const text = ['Market Overview', 'The submarket is a stable neighbourhood retail corridor with steady foot traffic, a mix of local', 'tenants and good access from two arterial roads. Several recent lease signings nearby show healthy demand', 'for small-shop space, and the surrounding blocks are fully built out with little new competing supply.']
+    .map((t, i) => ({ x: 40, y: 740 - i * 14, s: t, size: i ? 8 : 14, bold: !i }));
+  const head = headItems(662).map((h) => (h.s === 'Annual Rent' ? { ...h, s: 'Annual' } : h));
+  const rent = headItems(662).find((h) => h.s === 'Annual Rent');
+  const a = rowsFrom(PDF_ROWS, 636);
+  return [[...text, { x: 40, y: 690, s: 'Rent Roll', size: 14, bold: true }, ...head, { ...rent, s: 'Rent', y: 654 }, ...a.items, ...totalItems(a.y - 4, '9,000', '$215,000')]];
+}
+export const PDF_SPECS = { 'rr-continued': specContinued, 'rr-wrapped': specWrapped, 'om-rr-qc': specQcOm, 'om-rr-thousands': specThousands, 'om-rr-nosummary': specNoSummary, 'om-rr-twoline': specTwoLine };
 
 /** Case 1 as a PDF: the rent roll split over two pages, no header on the second. */
 export const pdfContinued = () => pdfOf(specContinued());

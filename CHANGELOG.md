@@ -1,14 +1,15 @@
 # Changelog
 
-## 4.7.21: An OM's stated rent is now checked against its rent roll, and the rent roll can offer Building SF and Units (on the development branch; not merged or deployed)
+## 4.7.21: An OM's stated rent is checked against its rent roll, the roll can offer Building SF and Units, and a two-line header is read (on the development branch; not merged or deployed)
 
-Two gaps from the rent roll proposal (F3 and F4). The OM's stated in-place rent was read, then thrown away (the deal has no box for it), so the rent roll check against it never ran. And a deal whose OM prints no building figures left Building SF and Units empty although the rent roll was read.
+Three gaps from the rent roll proposal (F3, F4 and F6). The OM's stated in-place rent was read, then thrown away (the deal has no box for it), so the rent roll check against it never ran. And a deal whose OM prints no building figures left Building SF and Units empty although the rent roll was read.
 
 - **Stated rent, checked only:** the stated in-place rent now reaches the rent roll's Data QC (`The OM's $215,000 of in-place rent agrees with the rent roll's …`, or a warning with both figures and the Total row). It is not a figure: no new box, nothing new stored, no change to saved deals. Left out when a statement table read it and that table's check failed.
 - **Offered, never filled:** when Building SF or Units is empty, the Rent roll card says what the roll supplies ("The rent roll's 6 units add up to 9,000 SF, as listed. A building's gross area can be larger.", "The rent roll lists 6 units.") with a **Use** button. Nothing fills until you tap. A box that already has a value is never offered over. A taken figure is badged "rent roll" (in the figure list, the workbook and the AI facts), never "typed"; it is one step in History, and **Undo** takes it back.
+- **A two-line header is read (F6):** a label split over two lines with only that one cell on the second ("Annual" over "Rent", the other labels on the first line) used to end the header after "Annual", so "Rent" was read as a body line and the OM showed no rent roll at all. A deeper header line is now taken when every cell on it sits under a figure, date or share column of the header and is itself such a word. Never a name column (a tenant called "Rent-A-Center" stays a tenant) and never a section heading.
 - **No self-check:** the rent roll's cross-check warnings skip a figure you took from the rent roll (it would be checked against itself).
 - **Occupancy is not offered:** the deal already shows the rent roll's occupancy, labelled "rent roll", wherever the OM states none; a stored copy would drop that label, drift from the roll, and be checked against the roll it came from. (A deviation from the owner's answer 3, which listed occupancy; easy to add back if wanted.)
-- **Tested:** `tests/rr-stated.test.js` (12 tests; the file fails on the old code; 9 mutations each caught); the browser flow `rrstated-flow` on the phone-size page (18 checks; 10 fail on the old app); golden outputs identical (618 saved results, 646 figures).
+- **Tested:** `tests/rr-stated.test.js` (12 tests; the file fails on the old code; 9 mutations each caught) and `tests/rr-header.test.js` (5 tests, 1 fails on the old code; 4 mutations each caught); the browser flows `rrstated-flow` (18 checks; 10 fail on the old app) and `rrheader-flow` (7 checks; 3 fail on the old app) on the phone-size page; the reader's output is identical before and after on all 26 existing fixtures; golden outputs identical (618 saved results, 646 figures).
 - **Not tested:** a real OM, Safari.
 
 ## 4.7.19: An OM rent roll printed in thousands now reads at its real rents (on the development branch; not merged or deployed)
