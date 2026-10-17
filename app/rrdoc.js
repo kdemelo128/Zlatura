@@ -48,6 +48,7 @@ export function docKind(pages, layouts = null) {
 
 const CHARGE_WORD = /\b(?:charges?|fees?|cam|reimb\w*|escrow)\b/i;
 const MONEY_UNKNOWN = /\b(?:charges?|fees?|due|balance|amount|total|cam|nnn|escrow|taxes|insurance)\b|\$/i;
+const NOT_RENT = /\b(?:past due|balance|delinquen\w*|arrears|prepaid)\b/i;
 const RENT_WORD = /\b(?:rent|rental|base|contract|in[- ]place|current|lease rate)\b/i;
 
 /**
@@ -60,12 +61,16 @@ export function layoutChecks(roll) {
   const out = [];
   const cols = roll.columns || [];
   const bareRent = cols.some((c) => c.kind === 'rent');
+  // a rent reading that already failed as a competing column is not failed a second time
+  const competes = (c) => (roll.issues || []).some((i) => i.kind === 'compete' && i.level === 'fail' && (i.cols || []).includes(cols.indexOf(c)));
   cols.forEach((c, idx) => {
     const base = { kind: 'layout', level: 'fail', page: roll.page || null, line: null, row: null, col: idx, colLabel: c.label, cell: { text: c.label }, lineText: c.label, amount: 0 };
     const rentKind = ['annual', 'monthly', 'rent', 'psf', 'mpsf'].includes(c.kind);
     if (rentKind && CHARGE_WORD.test(c.label)) {
       out.push({ ...base, id: `layout:${idx}`, text: `The “${c.label}” column was read as rent, but its heading says charges or fees. Charges are not rent: check it against the page before using this rent roll.` });
-    } else if (bareRent && ['annual', 'monthly', 'psf', 'mpsf'].includes(c.kind) && !RENT_WORD.test(c.label)) {
+    } else if (c.kind === 'other' && NOT_RENT.test(c.label)) {
+      out.push({ ...base, level: 'info', id: `layout:${idx}`, text: `The “${c.label}” column is a balance, not rent, and is not used.` });
+    } else if (bareRent && !competes(c) && ['annual', 'monthly', 'psf', 'mpsf'].includes(c.kind) && !RENT_WORD.test(c.label)) {
       out.push({ ...base, id: `layout:${idx}`, text: `This rent roll has a “Rent” column and a “${c.label}” column that was also read as rent. The reader cannot tell which is the rent: check the page before using it.` });
     } else if (c.kind === 'other' && MONEY_UNKNOWN.test(c.label)) {
       out.push({ ...base, id: `layout:${idx}`, text: `The “${c.label}” column looks like money, and this reader does not know what it is, so this layout is not recognised. Check the page before using this rent roll.` });
@@ -85,9 +90,10 @@ export function pdfRollRecord(doc, { asOf = null, file = '', scanned = [] } = {}
   const { qc, rows } = omRollRecord({ rentRoll: roll, scanned }, { figures: {}, sources: {}, asOf, file });
   if (!roll) return { qc, rows: [], held: false };
   const extra = layoutChecks(roll);
+  const holds = extra.some((c) => c.level === 'fail');
   const all = rows.length ? rows : (qc.held || []);
-  if (extra.length) {
-    qc.checks.push(...extra);
+  qc.checks.push(...extra);
+  if (holds) {
     qc.held = all;
     qc.applied = false;
     return { qc, rows: [], held: true };

@@ -69,18 +69,45 @@ const pmRows = [
 ];
 const pmText = `Rent roll with Monthly Charges\nAs of: 10/01/2026\n\n${tbl(PM, pmRows)}\n\n${filler}`;
 
-test('a layout the reader does not know is not used until the broker looks: charges read as rent are a fail that holds the rows', () => {
-  const d = docKind([pmText]);
+const RC = [{ h: 'Unit', w: 5 }, { h: 'Tenant', w: 22 }, { h: 'Sqft', w: 6, r: 1 }, { h: 'Rent & Charges', w: 15, r: 1 }];
+const rcRows = [['A1', 'Maple Leaf Bakery', '2,000', '5,400.00'], ['A2', 'Quillfeather Books', '1,500', '3,800.00']];
+
+test('a layout the reader does not know is not used until the broker looks: one column of rent and charges together is a fail that holds the rows, rent kept as read', () => {
+  const d = docKind([`Rent roll\nAs of: 10/01/2026\n\n${tbl(RC, rcRows)}\n\n${filler}`]);
   assert.equal(d.kind, 'rentroll');
   const checks = layoutChecks(d.roll);
-  assert.ok(checks.length >= 1);
+  assert.equal(checks.length, 1);
   assert.ok(checks.every((c) => c.level === 'fail' && c.kind === 'layout'));
-  assert.ok(checks.some((c) => /Monthly Charges/.test(c.text)));
+  assert.match(checks[0].text, /Rent & Charges/);
   const { qc, rows: used, held } = pdfRollRecord(d, { asOf: '2026-10-17', file: 'pm.pdf' });
   assert.equal(held, true);
   assert.equal(used.length, 0);
   assert.equal(qc.held.length, 2);
+  assert.deepEqual(qc.held.map((r) => r.monthly), [5400, 3800]);
   assert.equal(qc.applied, false);
+});
+
+test('a charges column is a recovery, whatever the money words around it', async () => {
+  const { kindScores } = await import('../app/omroll.js');
+  for (const h of ['Monthly Charges', 'Fees', 'Current Charges', 'Monthly Fees']) {
+    const s = kindScores(h);
+    assert.ok(s.recov > 0, h);
+    assert.ok(!['annual', 'monthly', 'rent', 'psf', 'mpsf'].some((k) => k in s), `${h} is not a rent kind`);
+  }
+  assert.ok('rent' in kindScores('Rent & Charges') || 'monthly' in kindScores('Monthly Rent & Charges'));
+});
+
+test('two rent columns that read the same way and differ are a fail naming both; the same figures twice are only noted', () => {
+  const head = [...base, { h: 'Rent', w: 9, r: 1 }, { h: 'Monthly Rent', w: 12, r: 1 }];
+  const differ = docKind([`Rent roll\nAs of: 10/01/2026\n\n${tbl(head, two([['5,000.00', '4,000.00'], ['3,500.00', '3,000.00']]))}\n\n${filler}`]);
+  const f = differ.roll.issues.filter((i) => i.kind === 'compete');
+  assert.equal(f.length, 1);
+  assert.equal(f[0].level, 'fail');
+  assert.match(f[0].text, /“Rent” and “Monthly Rent”|“Monthly Rent” and “Rent”/);
+  assert.equal(pdfRollRecord(differ, { asOf: '2026-10-17', file: 'x.pdf' }).held, true);
+  assert.equal(layoutChecks(differ.roll).filter((c) => /cannot tell which is the rent/.test(c.text)).length, 0, 'one problem, one fail');
+  const same = docKind([`Rent roll\nAs of: 10/01/2026\n\n${tbl(head, two([['5,000.00', '5,000.00'], ['3,500.00', '3,500.00']]))}\n\n${filler}`]);
+  assert.ok(same.roll.issues.filter((i) => i.kind === 'compete').every((i) => i.level === 'info'));
 });
 
 test('a clean rent roll has no layout check', () => {
@@ -94,7 +121,7 @@ const base = [{ h: 'Unit', w: 5 }, { h: 'Tenant', w: 22 }, { h: 'Sqft', w: 6, r:
 const two = (cells) => [['A1', 'Maple Leaf Bakery', '2,000', ...cells[0]], ['A2', 'Quillfeather Books', '1,500', ...cells[1]]];
 
 test('layout rule: a rent-kind column headed charges or fees is not rent', () => {
-  const roll = only([...base, { h: 'Monthly Charges', w: 15, r: 1 }], two([['400.00'], ['300.00']]));
+  const roll = only([...base, { h: 'Rent & Charges', w: 15, r: 1 }], two([['5,400.00'], ['3,800.00']]));
   const c = layoutChecks(roll);
   assert.equal(c.length, 1);
   assert.match(c[0].text, /heading says charges or fees/);
@@ -108,10 +135,19 @@ test('layout rule: a second rent column beside a bare “Rent” column, saying 
 });
 
 test('layout rule: an unknown column headed like money means the layout is not recognised', () => {
+  const roll = only([...base, { h: 'Annual Rent', w: 11, r: 1 }, { h: 'Amount Due', w: 11, r: 1 }], two([['60,000.00', '0.00'], ['42,000.00', '0.00']]));
+  const c = layoutChecks(roll);
+  assert.equal(c.length, 1);
+  assert.equal(c[0].level, 'fail');
+  assert.match(c[0].text, /“Amount Due” column looks like money/);
+});
+
+test('layout rule: a Past Due or balance column is known not to be rent: noted, never a fail', () => {
   const roll = only([...base, { h: 'Annual Rent', w: 11, r: 1 }, { h: 'Past Due', w: 9, r: 1 }], two([['60,000.00', '0.00'], ['42,000.00', '0.00']]));
   const c = layoutChecks(roll);
   assert.equal(c.length, 1);
-  assert.match(c[0].text, /“Past Due” column looks like money/);
+  assert.equal(c[0].level, 'info');
+  assert.match(c[0].text, /“Past Due” column is a balance/);
 });
 
 test('layout rule: a Rent column with Rent/SF and Monthly Rent beside it is the normal case, no check', () => {
@@ -168,12 +204,69 @@ test('PDF: a due-diligence rent roll is a rent roll of six rows, clean', async (
   assert.equal(qc.checks.filter((c) => c.level === 'fail').length, 0);
 });
 
-test('PDF: a property manager’s report is a rent roll the reader does not know, so it is held', async () => {
+test('PDF: a property manager’s report reads its Rent column; Monthly Charges is not rent and Past Due is not used', async () => {
   const d = await read('rr-pm');
   assert.equal(d.kind, 'rentroll');
-  const { qc, held } = pdfRollRecord(d, { asOf: '2026-10-17', file: 'rr-pm.pdf' });
-  assert.equal(held, true);
-  assert.ok(qc.checks.some((c) => c.kind === 'layout' && /Monthly Charges/.test(c.text)));
+  const mc = d.roll.columns.find((c) => /Monthly Charges/.test(c.label));
+  assert.equal(mc.kind, 'recov');
+  const { qc, rows: used, held } = pdfRollRecord(d, { asOf: '2026-10-17', file: 'rr-pm.pdf' });
+  assert.equal(held, false);
+  assert.deepEqual(used.map((r) => r.monthly), [5000, 3500, 3000]);
+  assert.deepEqual(used.map((r) => r.annual), [60000, 42000, 36000]);
+  assert.equal(qc.checks.filter((c) => c.level === 'fail').length, 0);
+  assert.ok(qc.checks.some((c) => c.kind === 'layout' && c.level === 'info' && /Past Due/.test(c.text)));
+});
+
+test('PDF: a "4 Units" subtotal and a Total are not rows; the four leases are counted once', async () => {
+  const d = await read('rr-pm-sub');
+  assert.equal(d.kind, 'rentroll');
+  assert.equal(d.roll.rows.length, 4);
+  assert.equal(d.roll.rows.reduce((n, r) => n + r.sf, 0), 5700);
+  assert.equal(d.roll.issues.filter((i) => i.kind === 'total' && i.level === 'fail').length, 0);
+  assert.equal(pdfRollRecord(d, { asOf: '2026-10-17', file: 'x.pdf' }).held, false);
+});
+
+test('a tenant named "4 Units" whose figures do not add up is a row, with a warning', () => {
+  const rows = [['A1', 'Maple Leaf Bakery', '2,000', '5,000.00'], ['A2', '4 Units', '1,500', '3,500.00']];
+  const roll = docKind([`Rent roll\nAs of: 10/01/2026\n\n${tbl([...base, { h: 'Monthly Rent', w: 14, r: 1 }], rows)}\n\n${filler}`]).roll;
+  assert.equal(roll.rows.length, 2);
+  assert.equal(roll.rows[1].tenant, '4 Units');
+  assert.ok(roll.issues.some((i) => i.kind === 'unitlabel' && i.level === 'warn'));
+});
+
+test('a unit count that disagrees with the rows it covers is a fail', () => {
+  const rows = [['A1', 'Maple Leaf Bakery', '2,000', '5,000.00'], ['A2', 'Quillfeather Books', '1,500', '3,500.00'], ['', '3 Units', '3,500', '8,500.00']];
+  const roll = docKind([`Rent roll\nAs of: 10/01/2026\n\n${tbl([...base, { h: 'Monthly Rent', w: 14, r: 1 }], rows)}\n\n${filler}`]).roll;
+  assert.equal(roll.rows.length, 2);
+  assert.ok(roll.issues.some((i) => i.kind === 'total' && i.field === 'units' && i.level === 'fail'));
+});
+
+test('PDF: a lease-to year printed on the next line is joined to its date, and is not a row', async () => {
+  const d = await read('rr-pm-wrap');
+  assert.equal(d.roll.rows.length, 3);
+  assert.equal(d.roll.rows[0].end.toISOString().slice(0, 10), '2030-12-31');
+  assert.ok(d.roll.rows[0].why.some((w) => /two lines/.test(w)));
+  assert.equal(d.roll.issues.filter((i) => i.level === 'fail').length, 0);
+});
+
+test('PDF: a split year that would end the lease before it starts is refused with a failed check, not joined', async () => {
+  const d = await read('rr-pm-wrap-backwards');
+  assert.equal(d.roll.rows.length, 3);
+  assert.equal(d.roll.rows[0].end, null);
+  assert.ok(d.roll.issues.some((i) => i.kind === 'split' && i.level === 'fail'));
+  assert.equal(pdfRollRecord(d, { asOf: '2026-10-17', file: 'x.pdf' }).held, true);
+});
+
+test('a "4 Units" line with no figures is a wall, never glued onto the next tenant’s name', () => {
+  const rows = [['A1', 'Maple Leaf Bakery', '2,000', '5,000.00'], ['', '4 Units', '', ''], ['A2', 'Quillfeather Books', '1,500', '3,500.00']];
+  const roll = docKind([`Rent roll\nAs of: 10/01/2026\n\n${tbl([...base, { h: 'Monthly Rent', w: 14, r: 1 }], rows)}\n\n${filler}`]).roll;
+  assert.deepEqual(roll.rows.map((r) => r.tenant), ['Maple Leaf Bakery', 'Quillfeather Books']);
+});
+
+test('PDF: a lone year that lines up with Past Due, not Lease To, is not joined to a date', async () => {
+  const d = await read('rr-pm-wrap-elsewhere');
+  assert.equal(d.roll.rows[0].end, null);
+  assert.ok(!d.roll.rows[0].why.some((w) => /two lines, and the lines were joined/.test(w)));
 });
 
 test('PDF: an operating statement is named, and a scan is a scan', async () => {
