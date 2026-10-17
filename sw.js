@@ -48,6 +48,7 @@ const ASSETS = [
   'app/kit.js',
   'app/om.js',
   'app/omroll.js',
+  'app/scale.js',
   'app/omstatement.js',
   'app/dataqc.js',
   'app/dataqcui.js',
