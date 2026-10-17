@@ -40,16 +40,21 @@ section with grep, never in full.
     cross-check only; Building SF and Units offered as a "Use" tap (Occupancy
     not offered: the deal already shows the roll's, labelled); a two-line
     header is read.
-- **In progress (two PRs open):**
-  - `impact-flow` axe flake (#44, 4.7.22): flow-only fix, app untouched;
-  - the rent roll PDF upload (4.7.23, PR opening): *Import from PDF…* with
-    preview, Data QC, layout guard, Undo; source kind `pdf` and file name per
-    lease (schema 4, silent migration step `rr-pdf-source`).
+  - `impact-flow` axe flake (#44, 4.7.22): flow-only fix;
+  - the rent roll PDF upload (#45, 4.7.23): *Import from PDF…* with preview,
+    Data QC, layout guard, Undo; source kind `pdf` and file name per lease
+    (schema 4, silent migration step `rr-pdf-source`).
+- **Merged:** the property-manager profile (4.7.24, #46): "Monthly Charges"/fees are a recovery column, never rent; two
+  rent columns that disagree are one failed check; Past Due/Balance noted,
+  not failed; a "4 Units" subtotal; a lease-to year split onto the next line.
+  Reader-only, no data-format change, golden identical.
   - **Owes the owner:** whether an accepted failed check on a PDF import is
     kept as a record (a new stored field; today it is in the history label only).
-  - Next: the property-manager profile, then the roll comparison. **Waiting for
-    the owner's OM** (the attachment did not reach the container): put it in
-    `private/om/`, run `node tests/tools/rr-local.mjs` on it, report counts only.
+  - **Known flake:** `rename-flow` "Settings says the data moved and the old
+    copy is kept" failed once in `check:full` and passed on re-run alone.
+  - Next: the roll comparison. **Waiting for the owner's OM** (the attachment
+    did not reach the container): put it in `private/om/`, run
+    `node tests/tools/rr-local.mjs` on it, report counts only.
 - **Standing rules (owner, 2026-10-17):**
   1. After opening a PR go straight to the next queue item on a fresh branch
      from the latest main (or the previous branch if it depends on it); at most
@@ -69,8 +74,8 @@ section with grep, never in full.
      projections flow works on real deals; don't start them unless asked.
 - **Queue (in order):** (a) the `check:quick` gate fix [merged, #42]; (b) 1b + 1c
   [PR #43]; (c) `impact-flow`, the intermittent axe contrast failure, so
-  `check:full` is reliable [PR open: the flow waited for no animation]; (d) the rent roll PDF upload; (e) the
-  property-manager profile; (f) the roll comparison; (g) the underwriting
+  `check:full` is reliable [PR open: the flow waited for no animation]; (d) the rent roll PDF upload [merged, #45]; (e) the
+  property-manager profile [PR opening]; (f) the roll comparison; (g) the underwriting
   proposal from the support code; (h) after the Oct 21 usage reset: T-12
   multi-format import, OM red flags, pro forma vs T-12 bridge. Then F6/F7, F10,
   F3, F4, F8, F9 and the rest in `docs/PLAN_STATUS.md`, "Now".
@@ -99,6 +104,6 @@ section with grep, never in full.
   each PR; tell the owner which PR to merge, with a phone checklist if
   anything is visible;
   the branch rules in `docs/working-rules.md` ("Branches and PRs").
-- **Roll comparison (4.7.25, PR opening):** the PDF preview lists how the PDF differs from the current rent roll before Replace/Add (`compareRolls`, `app/reconcile.js`). Merge the property-manager PR (4.7.24) first; this branch is from main and its docs lines will need `npm run sync-main`.
+- **Roll comparison (4.7.25, PR opening):** the PDF preview lists how the PDF differs from the current rent roll before Replace/Add (`compareRolls`, `app/reconcile.js`). The property-manager profile (#46) is merged.
 - **State note** (write here before any long task, so a fresh session can
   resume): none.

@@ -3,8 +3,9 @@
  *      until "Use this rent roll"; it then fills the rent roll, each lease's source says the PDF, its file, page and
  *      line; Undo takes it back; a second import asks Replace or Add (none chosen), warns about suites already
  *      there, and Replace leaves six units;
- *   B. a property manager's report (rr-pm.pdf), whose layout the reader does not know: a failed check holds it,
- *      "Use" stays off until the check is accepted, and closing the sheet stores nothing;
+ *   B. a property manager's report (rr-pm.pdf) reads clean (Monthly Charges is not rent; Past Due is noted); the same
+ *      report with rent and charges printed as one figure (rr-pm-combined.pdf) is held by a failed check: "Use" stays off
+ *      until the check is accepted, and closing the sheet stores nothing;
  *   C. an OM (om-retail.pdf) and an operating statement (stmt-doc.pdf) are named and not read;
  *   D. a scanned rent roll (rr-scan.pdf): OCR files are not requested until its button is tapped; its rows wait
  *      behind a failed check, then are used, marked OCR;
@@ -95,11 +96,15 @@ await page.click('#rrpdf-use');
 await page.waitForTimeout(800);
 check('Replace leaves six units, not twelve', (await units()) === 6, String(await units()));
 
-// B. a layout the reader does not know
+// B. a property manager's report reads clean; one with rent and charges combined is held
 await openPdf('rr-pm.pdf');
+const clean = await text('#sheet-body');
+check('the property manager’s report has no failed check, reads its Rent column, and notes Past Due', (await page.locator('#rrpdf-qc .qc-item.qc-fail').count()) === 0 && /60,000/.test(clean) && /42,000/.test(clean) && /Past Due/.test(await text('#rrpdf-qc')), JSON.stringify({ fails: await page.locator('#rrpdf-qc .qc-item.qc-fail').count(), has60000: /60,000/.test(clean), pd: /Past Due/.test(await text('#rrpdf-qc')) }) + clean.slice(300, 700));
+await closeSheet();
+await openPdf('rr-pm-combined.pdf');
 const pm = await text('#rrpdf-qc');
 check('a different report is compared with the current roll, listing what is only on one side', /0 of 6 units match/.test(await text('#rrpdf-compare-sum')) && /only in the PDF/.test(await text('.rrpdf-compare')), await text('.rrpdf-compare'));
-check('the property manager’s report is held by a failed check naming the column', /Monthly Charges/.test(pm) && (await page.locator('#rrpdf-qc .qc-item.qc-fail').count()) >= 1, pm.slice(0, 260));
+check('a report with rent and charges as one figure is held by a failed check naming the column', /Rent & Charges/.test(pm) && (await page.locator('#rrpdf-qc .qc-item.qc-fail').count()) >= 1, pm.slice(0, 260));
 await page.locator('input[name="rrpdf-mode"][value="replace"]').check();   // so the only thing holding Use off is the failed check
 await page.waitForTimeout(200);
 check('Use is off while a check fails (even with Replace chosen)', (await page.locator('#rrpdf-use').isDisabled()) && /failed check/.test((await page.locator('#rrpdf-use').getAttribute('title')) || ''), (await page.locator('#rrpdf-use').getAttribute('title')) || '');
