@@ -85,6 +85,7 @@ await page.click('#rrpdf-use');
 await page.waitForTimeout(700);
 check('(six units in again)', (await units()) === 6);
 await openPdf('rr-dd.pdf');
+check('the same PDF again is compared with the roll it made: every unit matches', /All 6 units match/.test(await text('#rrpdf-compare-sum')), await text('#rrpdf-compare-sum'));
 check('with units already there, neither Replace nor Add is chosen and Use is off', (await page.locator('input[name="rrpdf-mode"]:checked').count()) === 0 && (await page.locator('#rrpdf-use').isDisabled()));
 await page.locator('input[name="rrpdf-mode"][value="add"]').check();
 await page.waitForTimeout(200);
@@ -97,6 +98,7 @@ check('Replace leaves six units, not twelve', (await units()) === 6, String(awai
 // B. a layout the reader does not know
 await openPdf('rr-pm.pdf');
 const pm = await text('#rrpdf-qc');
+check('a different report is compared with the current roll, listing what is only on one side', /0 of 6 units match/.test(await text('#rrpdf-compare-sum')) && /only in the PDF/.test(await text('.rrpdf-compare')), await text('.rrpdf-compare'));
 check('the property manager’s report is held by a failed check naming the column', /Monthly Charges/.test(pm) && (await page.locator('#rrpdf-qc .qc-item.qc-fail').count()) >= 1, pm.slice(0, 260));
 await page.locator('input[name="rrpdf-mode"][value="replace"]').check();   // so the only thing holding Use off is the failed check
 await page.waitForTimeout(200);

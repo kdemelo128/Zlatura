@@ -18,6 +18,7 @@ import {
   gridContext, viewRows, ocrReading,
 } from './rentroll.js';
 import { docKind, pdfRollRecord } from './rrdoc.js';
+import { compareRolls } from './reconcile.js';
 import { qcPanel } from './dataqcui.js';
 import { blockingChecks, resolveCheck } from './dataqc.js';
 import { readScannedPage, ocrSupported } from './ocr.js';
@@ -911,6 +912,32 @@ async function importPdfDialog(rr, changed) {
   inp.click();
 }
 
+/** The differences between the rent roll on the deal and one just read, as a list the broker reads before replacing or adding. */
+function comparison(c, have) {
+  const box = el('section', 'rrpdf-compare');
+  box.setAttribute('aria-label', 'Compared with the current rent roll');
+  box.appendChild(el('h3', null, 'Compared with the current rent roll'));
+  const n = c.differs.length + c.onlyCurrent.length + c.onlyNew.length;
+  const said = n ? `${c.same} of ${have} unit${have === 1 ? '' : 's'} match; ${c.differs.length} difference${c.differs.length === 1 ? '' : 's'}, ${c.onlyCurrent.length} only in the current roll, ${c.onlyNew.length} only in the PDF.` : `All ${c.same} unit${c.same === 1 ? '' : 's'} match: the PDF and the current rent roll agree.`;
+  const p = el('p', n ? 'hint-sm' : 'ok-text', said);
+  p.id = 'rrpdf-compare-sum';
+  box.appendChild(p);
+  const fmt = (f, v) => (f === 'rent' ? money0(v) : f === 'SF' ? int(v) : String(v));
+  const items = [
+    ...c.differs.map((d) => `${d.unit || d.tenant || 'A unit'}${d.unit && d.tenant ? ` (${d.tenant})` : ''}: ${d.field} is ${fmt(d.field, d.current)} now and ${fmt(d.field, d.incoming)} in the PDF`),
+    ...c.onlyCurrent.map((L) => `${L.unit || L.tenant || 'A unit'} is in the current roll only`),
+    ...c.onlyNew.map((r) => `${r.suite || r.tenant || 'A unit'} is in the PDF only`),
+  ];
+  if (items.length) {
+    const ul = el('ul', 'hint-sm');
+    for (const t of items.slice(0, 40)) ul.appendChild(el('li', null, t));
+    if (items.length > 40) ul.appendChild(el('li', null, `…and ${items.length - 40} more`));
+    box.appendChild(ul);
+  }
+  box.appendChild(el('p', 'hint-sm', 'Nothing is changed by this list. Replace keeps the PDF’s rows (Undo brings the current roll back); Add keeps both; closing this sheet keeps the current roll.'));
+  return box;
+}
+
 const PDF_OTHER = { om: 'an offering memorandum. Read it from the Deal screen (Read an OM), which also reads its rent roll', t12: 'an operating statement. Use “Import a T-12” on the deal’s Overview' };
 
 /** The preview sheet: what the document is, then (once it is a rent roll) its checks, its rows and the choice to use it. */
@@ -1007,6 +1034,8 @@ function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
       wrap.appendChild(t);
       body.appendChild(wrap);
     }
+    // the current rent roll against this one, before the broker chooses
+    if (rr.leases.length && rows.length) body.appendChild(comparison(compareRolls(rr.leases, rows, rr.settings.asOf || localDate()), rr.leases.length));
     // replace or add, when the deal already has units: nothing is chosen for the broker
     if (rr.leases.length && rows.length) {
       const g = el('fieldset', 'rrpdf-mode');

@@ -209,3 +209,35 @@ test('OCR words become the same lines, so the same reader runs; every row is mar
   assert.ok(d.rr.leases.every((L) => L.source.ocr === true && L.source.page === 3));
   assert.equal(addOcrRows(d, 3, '2026-10-14'), 0, 'once');
 });
+
+/* two rolls, compared (the PDF import's preview) */
+import { compareRolls } from '../app/reconcile.js';
+import { fromOmRows } from '../app/lease.js';
+const cmpRows = [
+  { suite: 'A1', tenant: 'Maple Leaf Bakery', sf: 2000, annual: 60000, start: '2021-01-01', end: '2030-12-31' },
+  { suite: 'A2', tenant: 'Quillfeather Books', sf: 1500, annual: 42000, start: '2022-06-01', end: '2027-05-31' },
+  { suite: 'B1', tenant: 'Copperline Yoga', sf: 1200, annual: 36000, start: '2023-03-01', end: '2033-02-28' },
+];
+const cmpCur = (rows) => fromOmRows(rows, { asOf: '2026-10-01' }).leases;
+
+test('compareRolls: identical rolls have no differences', () => {
+  const c = compareRolls(cmpCur(cmpRows), cmpRows, '2026-10-01');
+  assert.deepEqual([c.same, c.differs.length, c.onlyCurrent.length, c.onlyNew.length], [3, 0, 0, 0]);
+});
+
+test('compareRolls: rent, SF and dates that differ are listed with both values; a cent of rent is a difference', () => {
+  const now = cmpRows.map((r) => ({ ...r }));
+  now[0].annual = 60000.01; now[1].sf = 1550; now[2].end = '2034-02-28';
+  const c = compareRolls(cmpCur(cmpRows), now, '2026-10-01');
+  assert.equal(c.same, 0);
+  assert.deepEqual(c.differs.map((d) => [d.unit, d.field, d.current, d.incoming]), [['A1', 'rent', 60000, 60000.01], ['A2', 'SF', 1500, 1550], ['B1', 'end', '2033-02-28', '2034-02-28']]);
+});
+
+test('compareRolls: a unit on one side only is listed alone; a suite change still matches by tenant; a vacancy is a status difference', () => {
+  const now = [{ ...cmpRows[0], suite: 'A-1' }, { suite: 'A2', vacant: true, sf: 1500 }, { suite: 'C9', tenant: 'Newcomer Tea', sf: 900, annual: 20000, start: '2025-01-01', end: '2028-12-31' }];
+  const c = compareRolls(cmpCur(cmpRows), now, '2026-10-01');
+  assert.deepEqual(c.onlyCurrent.map((L) => L.unit), ['B1']);
+  assert.deepEqual(c.onlyNew.map((r) => r.suite), ['C9']);
+  assert.deepEqual(c.differs.map((d) => [d.unit, d.field]), [['A2', 'status']]);
+  assert.equal(c.same, 1);
+});
