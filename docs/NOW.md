@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.23 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.25 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -99,5 +99,6 @@ section with grep, never in full.
   each PR; tell the owner which PR to merge, with a phone checklist if
   anything is visible;
   the branch rules in `docs/working-rules.md` ("Branches and PRs").
+- **Roll comparison (4.7.25, PR opening):** the PDF preview lists how the PDF differs from the current rent roll before Replace/Add (`compareRolls`, `app/reconcile.js`). Merge the property-manager PR (4.7.24) first; this branch is from main and its docs lines will need `npm run sync-main`.
 - **State note** (write here before any long task, so a fresh session can
   resume): none.

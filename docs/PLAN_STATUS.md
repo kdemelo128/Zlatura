@@ -21,7 +21,7 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.23; rent roll PDF upload (PR opening), `impact-flow` fix (#44); 1b + 1c merged (#43) (2026-10-17).
+Last updated: 4.7.25; roll comparison (PR opening); rent roll PDF upload (PR opening), `impact-flow` fix (#44); 1b + 1c merged (#43) (2026-10-17).
 
 ## Now
 
