@@ -21,11 +21,11 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.21; 1b + 1c, stated rent, "Use" taps and a two-line header (PR #43 open); gate fix merged (#42) (2026-10-17).
+Last updated: 4.7.23; rent roll PDF upload (PR opening), `impact-flow` fix (#44); 1b + 1c merged (#43) (2026-10-17).
 
 ## Now
 
-- **Current step:** rent roll 1b + 1c (4.7.21, PR #43 open; 1a merged #41, gate fix merged #42, proposal #40 merged), then the `impact-flow` bug, the PDF upload, the profile, the comparison, then F6/F7. F2 (4.7.15, merged #33): every file read as text goes
+- **Current step:** rent roll PDF upload (4.7.23, PR opening) and the `impact-flow` fix (#44); 1a, 1b + 1c, the gate fix and the proposal are merged (#41, #43, #42, #40). Then the profile, the comparison, then F6/F7. F2 (4.7.15, merged #33): every file read as text goes
   through `app/textfile.js`, so a Windows-1252 CSV keeps its accents and
   curly quotes and the app says how it read the file. F1 (4.7.14, one
   rounding rule) is merged (#32), and so are changelog fragments (4.7.13,

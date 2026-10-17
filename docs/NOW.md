@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.22 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.23 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -36,14 +36,20 @@ section with grep, never in full.
   - the `check:quick` gate fix (#42, 4.7.20): quick always runs
     `tests/repo.test.js` (a new app file missing from `sw.js` failed CI three
     times in 1a).
-- **In progress:** 1b + 1c (4.7.21, PR #43 open):
-  the OM's stated rent reaches the rent roll cross-check only (no box, nothing
-  stored); the rent roll offers Building SF and Units as a "Use" tap for empty
-  boxes (Occupancy not offered: the deal already shows the roll's, labelled);
-  1c, a two-line header, is in the same PR. Then the PDF upload, the property-manager profile, the roll
-  comparison. **Waiting for the owner's OM** (the attachment did not reach the
-  container): put it in `private/om/`, run `node tests/tools/rr-local.mjs` on it,
-  report counts only.
+  - 1b + 1c (#43, 4.7.21): the OM's stated rent reaches the rent roll
+    cross-check only; Building SF and Units offered as a "Use" tap (Occupancy
+    not offered: the deal already shows the roll's, labelled); a two-line
+    header is read.
+- **In progress (two PRs open):**
+  - `impact-flow` axe flake (#44, 4.7.22): flow-only fix, app untouched;
+  - the rent roll PDF upload (4.7.23, PR opening): *Import from PDF…* with
+    preview, Data QC, layout guard, Undo; source kind `pdf` and file name per
+    lease (schema 4, silent migration step `rr-pdf-source`).
+  - **Owes the owner:** whether an accepted failed check on a PDF import is
+    kept as a record (a new stored field; today it is in the history label only).
+  - Next: the property-manager profile, then the roll comparison. **Waiting for
+    the owner's OM** (the attachment did not reach the container): put it in
+    `private/om/`, run `node tests/tools/rr-local.mjs` on it, report counts only.
 - **Standing rules (owner, 2026-10-17):**
   1. After opening a PR go straight to the next queue item on a fresh branch
      from the latest main (or the previous branch if it depends on it); at most
