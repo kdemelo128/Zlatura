@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.19 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.21 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -31,13 +31,14 @@ section with grep, never in full.
   - F5, CI audit and pinned actions (#35, 4.7.17); Dependabot for actions is on;
   - the rent roll proposal (#40, 4.7.18), approved by the owner 2026-10-17
     (`docs/proposals/rentroll-pdf-and-om-fill.md`, answers in section g).
-- **In progress:** 1a (4.7.19, PR open): an OM rent roll printed in thousands
-  or millions is read at its real rents (`app/scale.js`, `omroll.js`). Then 1b
-  (stated rent to the cross-check only; "use this?" taps for SF, occupancy,
-  units), 1c (header), the PDF upload, the property-manager profile, the roll
-  comparison. The owner will put their OM in `private/om/`; run `rr-local.mjs`
-  on it and report counts only. Dependabot PRs #36-#39 reviewed in a table, not
-  merged.
+- **In progress:** 1b (4.7.21, PR open; merge the `check:quick` gate PR #42 first):
+  the OM's stated rent reaches the rent roll cross-check only (no box, nothing
+  stored); the rent roll offers Building SF and Units as a "Use" tap for empty
+  boxes (Occupancy not offered: the deal already shows the roll's, labelled).
+  Then 1c (header), the PDF upload, the property-manager profile, the roll
+  comparison. **Waiting for the owner's OM** (the attachment did not reach the
+  container): put it in `private/om/`, run `node tests/tools/rr-local.mjs` on it,
+  report counts only.
 - **Next (one PR at a time; the full order is in `docs/PLAN_STATUS.md`, "Now"):**
   0. the rent roll fixes (1a-1c, 2, 3, 4 in the proposal), then the
      `impact-flow` bug (intermittent axe colour-contrast failure on the phone
