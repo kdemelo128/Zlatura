@@ -1129,6 +1129,7 @@ function sourceTag(key) {
     b.addEventListener('click', () => showSource(key));
     return b;
   }
+  if (s.tool === ROLL_TOOL) { const t = el('span', 'src hand', 'rent roll'); t.title = 'Taken from the rent roll by the broker'; return t; }
   if (s.hand && !s.page) return el('span', 'src hand', 'typed');
   if (!s.page && !s.hand) {
     const t = el('span', 'src low', 'guess');

@@ -58,22 +58,33 @@ const sumOf = (rows) => rentRollSummary(fromOmRows(rows, { asOf: '2026-10-17' })
 // the rows as a deal stores them (dates as ISO text), as the app builds its rent roll from
 const sum = sumOf(omRollRecord({ rentRoll: roll }, { figures: {}, asOf: '2026-10-17' }).rows);
 
-test('empty boxes are offered the rent roll’s SF, units and occupancy, with the words for each', () => {
+test('empty boxes are offered the rent roll’s SF and units, with the words for each', () => {
   const o = rollOffers({}, sum);
-  assert.deepEqual(o.map((x) => x.key), ['bsf', 'units', 'occ']);
+  assert.deepEqual(o.map((x) => x.key), ['bsf', 'units']);
   assert.equal(o[0].value, 7500);
   assert.match(o[0].text, /5 units add up to 7,500 SF, as listed/);
   assert.equal(o[1].value, 5);
-  assert.equal(o[2].value, 100);
-  assert.match(o[2].text, /fill 100\.0% \(7,500 of 7,500 SF\)/);
+});
+
+test('occupancy is never offered: the engine already shows the rent roll’s, labelled, and a copy would be checked against itself', () => {
+  assert.ok(!rollOffers({}, sum).some((x) => x.key === 'occ'));
+  assert.ok(!rollOffers({ bsf: 10000 }, sum).some((x) => x.key === 'occ'));
 });
 
 test('a figure that already has a value is never offered over', () => {
   assert.deepEqual(rollOffers({ bsf: 9000, units: 6, occ: 80 }, sum), []);
-  const o = rollOffers({ bsf: 10000 }, sum);
-  assert.deepEqual(o.map((x) => x.key), ['units', 'occ']);
-  assert.equal(o[1].value, 75);                       // 7,500 leased of the stated 10,000
-  assert.match(o[1].text, /7,500 of 10,000 SF, on the building SF above/);
+  assert.deepEqual(rollOffers({ bsf: 10000 }, sum).map((x) => x.key), ['units']);
+  assert.deepEqual(rollOffers({ units: 5 }, sum).map((x) => x.key), ['bsf']);
+});
+
+test('a figure taken from the rent roll is called that, never “typed”', async () => {
+  const { sourceOf } = await import('../app/dealfields.js');
+  const { sourceLabel } = await import('../app/aifacts.js');
+  const deal = { figures: { bsf: 7500 }, sources: { bsf: { hand: true, tool: ROLL_TOOL } } };
+  assert.equal(sourceOf(deal, 'bsf'), 'taken from the rent roll by the broker');
+  assert.equal(sourceLabel({ hand: true, tool: ROLL_TOOL }), 'taken from the rent roll by the broker');
+  assert.equal(sourceLabel({ hand: true, tool: 'Cap rate' }), 'typed (from the Cap rate tool)');   // another tool is labelled as before
+  assert.equal(sourceOf({ figures: { bsf: 1 }, sources: { bsf: { hand: true } } }, 'bsf'), 'typed by the broker');
 });
 
 test('no offers without a rent roll', () => {

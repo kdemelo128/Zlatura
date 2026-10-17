@@ -23,6 +23,7 @@
  *   CoStar Notes     the full notes behind each comp
  */
 import { addRentRollTabs } from './rrbook.js';
+import { ROLL_TOOL } from './dealfields.js';
 import { netEffectiveRent, nerExcel } from './engine/leasing.js';
 import * as S from './stats.js';
 import { ZONING, zoningInfo, MOCO_NOTE } from './zoning.js';
@@ -1222,7 +1223,7 @@ function dealTab(wb, deal, m, comps, meta) {
   const src = (k) => {
     const f = deal.sources && deal.sources[k];
     if (m.derived[k]) return 'derived';
-    return f && f.page ? `OM p. ${f.page}` : (f && f.hand ? 'entered by hand' : '');
+    return f && f.page ? `OM p. ${f.page}` : (f && f.tool === ROLL_TOOL ? 'from the rent roll' : (f && f.hand ? 'entered by hand' : ''));
   };
   const input = (r, text, key, value, fmt) => {
     label(ws, `A${r}`, text);

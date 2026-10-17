@@ -11,6 +11,8 @@ import { rentRollQc } from './reconcile.js';
 import { blockingChecks } from './dataqc.js';
 import { rentRoll as readRentRollTable } from './omroll.js';
 import { toCents, toRate } from './engine/money.js';
+import { ROLL_TOOL } from './dealfields.js';
+export { ROLL_TOOL };
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const pos = (x) => ok(x) && x > 0;
@@ -264,28 +266,23 @@ export function omRollRecord(om, { figures = {}, sources = {}, asOf = null, file
 
 /* ------------------------------------------- figures the rent roll can offer */
 
-/** Marks a figure the broker took from the rent roll (the way applyFromTools marks one taken from a tool). */
-export const ROLL_TOOL = 'the rent roll';
 const n0 = (x) => Math.round(x).toLocaleString('en-US');
 
 /**
- * What the rent roll can offer for a deal figure that is still empty: Building SF, Units and Occupancy, each with
- * the words that say where it comes from. Offered, never filled: the broker taps "Use". A figure that already has a
- * value (read from the OM or typed) is never offered over. `sum` is a rentRollSummary.
- * @returns {{ key: 'bsf'|'units'|'occ', label: string, value: number, text: string }[]}
+ * What the rent roll can offer for a deal figure that is still empty: Building SF and Units, each with the words
+ * that say where it comes from. Not Occupancy: the engine already shows the rent roll's occupancy where the OM states
+ * none, labelled "rent roll", and a stored copy would be checked against the roll it came from (and drift from it).
+ * Offered, never filled: the broker taps "Use". A figure that already has a value (read from the OM or typed) is
+ * never offered over. `sum` is a rentRollSummary.
+ * @returns {{ key: 'bsf'|'units', label: string, value: number, text: string }[]}
  */
 export function rollOffers(figures, sum) {
   const f = figures || {};
-  /** @type {{ key: 'bsf'|'units'|'occ', label: string, value: number, text: string }[]} */
+  /** @type {{ key: 'bsf'|'units', label: string, value: number, text: string }[]} */
   const out = [];
   if (!sum || !sum.units) return out;
   if (!ok(f.bsf) && pos(sum.totalSf)) out.push({ key: 'bsf', label: 'Building SF', value: sum.totalSf, text: `The rent roll’s ${sum.units} units add up to ${n0(sum.totalSf)} SF, as listed. A building’s gross area can be larger.` });
   if (!ok(f.units)) out.push({ key: 'units', label: 'Units', value: sum.units, text: `The rent roll lists ${sum.units} unit${sum.units === 1 ? '' : 's'}.` });
-  const basis = ok(f.bsf) && f.bsf > 0 ? f.bsf : sum.totalSf;
-  if (!ok(f.occ) && pos(basis) && ok(sum.leasedSf)) {
-    const occ = (sum.leasedSf / basis) * 100;
-    out.push({ key: 'occ', label: 'Occupancy', value: occ, text: `The rent roll’s leased units fill ${occ.toFixed(1)}% (${n0(sum.leasedSf)} of ${n0(basis)} SF${ok(f.bsf) && f.bsf > 0 ? ', on the building SF above' : ''}).` });
-  }
   return out;
 }
 

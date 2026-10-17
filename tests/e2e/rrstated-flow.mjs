@@ -49,7 +49,8 @@ await page.waitForTimeout(400);
 const val = (id) => page.locator(`#${id}`).count().then((n) => (n ? page.inputValue(`#${id}`) : ''));
 check('before any tap, Building SF, Units and Occupancy are empty', (await val('fig-bsf')) === '' && (await val('fig-units')) === '' && (await val('fig-occ')) === '', `${await val('fig-bsf')}|${await val('fig-units')}|${await val('fig-occ')}`);
 const offers = await text('#deal-rr-offers');
-check('three offers, each saying where it comes from', /Building SF: The rent roll’s 6 units add up to 9,000 SF, as listed/.test(offers) && /Units: The rent roll lists 6 units/.test(offers) && /Occupancy: The rent roll’s leased units fill 80\.0% \(7,200 of 9,000 SF\)/.test(offers), offers);
+check('two offers, Building SF and Units, each saying where it comes from; none for Occupancy', /Building SF: The rent roll’s 6 units add up to 9,000 SF, as listed/.test(offers) && /Units: The rent roll lists 6 units/.test(offers) && !/Occupancy/.test(offers) && (await page.locator('#deal-rr-offers [data-offer]').count()) === 2, offers);
+check('the Overview already shows the rent roll’s 80.0% occupancy, labelled', /80\.0%/.test(await text('#deal-rr')) , (await text('#deal-rr')).slice(0, 200));
 check('the offers say nothing is filled until Use is tapped', /nothing is filled until you tap Use/.test(offers));
 await page.screenshot({ path: `${SHOTS}rrstated-offers.png`, fullPage: true });
 check('nothing overflows on a phone', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
@@ -58,8 +59,10 @@ await axe('the rent roll card with offers', '#deal-rr');
 await page.locator('#deal-rr-offers [data-offer="bsf"] button').click().catch(() => {});
 await page.waitForTimeout(500);
 check('Use fills Building SF with 9,000', /^9,?000$/.test(await val('fig-bsf')), await val('fig-bsf'));
-check('the other two stay empty and are still offered', (await val('fig-units')) === '' && (await page.locator('#deal-rr-offers [data-offer="units"]').count()) === 1 && (await page.locator('#deal-rr-offers [data-offer="occ"]').count()) === 1);
-check('the Building SF offer is gone, and Occupancy now says it is on the building SF', (await page.locator('#deal-rr-offers [data-offer="bsf"]').count()) === 0 && /on the building SF above/.test(await text('#deal-rr-offers [data-offer="occ"]')), await text('#deal-rr-offers'));
+check('Units stays empty and is still offered', (await val('fig-units')) === '' && (await page.locator('#deal-rr-offers [data-offer="units"]').count()) === 1);
+check('the Building SF offer is gone', (await page.locator('#deal-rr-offers [data-offer="bsf"]').count()) === 0, await text('#deal-rr-offers'));
+const bsfRow = await page.evaluate(() => document.querySelector('#fig-bsf')?.closest('li')?.innerText.replace(/\s+/g, ' ') || '');
+check('the box is badged “rent roll”, not “typed”', /Building SF rent roll/.test(bsfRow) && !/typed/.test(bsfRow), bsfRow);
 const b = await savedDeal();
 check('stored as taken from the rent roll, nothing else', b && b.figures.bsf === 9000 && b.sources.bsf && b.sources.bsf.hand === true && b.sources.bsf.tool === 'the rent roll' && !('units' in b.figures && b.figures.units), JSON.stringify(b && b.sources.bsf));
 
@@ -73,7 +76,6 @@ check('Use fills Units with 6', (await val('fig-units')) === '6', await val('fig
 await page.reload({ waitUntil: 'load' });
 await page.waitForSelector('#deal-rr-offers', { timeout: 8000 }).catch(() => {});
 check('after a reload the taken figure is still there, and still marked', (await val('fig-units')) === '6' && (await savedDeal()).sources.units.tool === 'the rent roll', await val('fig-units'));
-check('the figure shows as typed, not as read from the OM', /typed/.test(await text('#pane-overview .fig-units, #pane-overview [data-fig="units"], #fig-units-row') || await page.evaluate(() => (document.querySelector('#fig-units')?.closest('.fig, .field, .row, div')?.innerText || ''))));
 
 // C. no request to another site
 check('no request to another site', requests.every((u) => u.startsWith(BASE) || u.startsWith('data:') || u.startsWith('blob:')), requests.filter((u) => !u.startsWith(BASE)).join(' '));
