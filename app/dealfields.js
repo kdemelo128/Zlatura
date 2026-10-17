@@ -37,11 +37,15 @@ export const DEAL_SECTIONS = [
 /** The same, flat: { key, label, kind, section }. */
 export const DEAL_INPUTS = DEAL_SECTIONS.flatMap(([section, rows]) => rows.map(([key, label, kind]) => ({ key, label, kind, section })));
 
+/** The mark on a figure the broker took from the rent roll (sources[key].tool), as one taken from a calculator tool carries its title. */
+export const ROLL_TOOL = 'the rent roll';
+
 /** Where a deal figure came from, in words. */
 export function sourceOf(deal, key, m) {
   if (m && m.derived && m.derived[key]) return 'calculated from the other figures';
   const s = deal.sources && deal.sources[key];
   if (!s) return deal.figures && deal.figures[key] !== undefined ? 'entered' : '';
+  if (s.tool === ROLL_TOOL) return 'taken from the rent roll by the broker';
   if (s.hand) return 'typed by the broker';
   if (s.t12) return s.line || 'the T-12';
   if (s.page) return `OM page ${s.page}`;

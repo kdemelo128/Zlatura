@@ -292,22 +292,35 @@ function assignCells(cells, cols) {
 const hasFigure = (L) => L.cells.some((c) => NUM_RE.test(c.text.trim()) || (/\d/.test(c.text) && isDateText(c.text)));
 const closeLines = (a, b) => (a.y !== null && b.y !== null ? Math.abs(a.y - b.y) <= 1.7 * Math.max(a.h || 8, b.h || 8) : b.i === a.i + 1);
 
-/** A rent roll header at line i (one to three lines deep), or null: { cols, n, score }. */
+/** Kinds a header's last line can complete ("Annual" over "Rent", "Lease" over "End"): figures, dates and shares, never a name. */
+const COMPLETES = new Set(['annual', 'monthly', 'rent', 'psf', 'mpsf', 'market', 'sf', 'start', 'end', 'term', 'recov', 'deposit', 'share']);
+
+/**
+ * A rent roll header at line i (one to three lines deep), or null: { cols, n, score }. A deeper line is taken when
+ * it makes the columns score clearly better, or when it only finishes a label already there: every one of its cells
+ * sits under a header cell that is itself a figure, date or share label (no new column, never a name column) and is
+ * itself such a word, and the columns score no worse ("Annual" with "Rent" under it alone, the other labels above).
+ */
 function headerAt(lines, i) {
   const L0 = lines[i];
   if (!L0 || L0.cells.length < 3 || hasFigure(L0)) return null;
   let best = null;
   let merged = L0.cells.map((c) => ({ ...c }));
   for (let k = 0; k < 3; k++) {
+    let finishes = false;
     if (k > 0) {
       const nx = lines[i + k];
       if (!nx || !nx.cells.length || hasFigure(nx) || !closeLines(lines[i + k - 1], nx)) break;
+      // every cell of the line sits under a header cell that is itself a figure, date or share column, and says such a thing
+      const under = (c) => merged.find((x) => (x.x0 ?? x.start) <= (c.x1 ?? c.end) + 1 && (c.x0 ?? c.start) <= (x.x1 ?? x.end) + 1);
+      const completes = nx.cells.every((c) => { const u = under(c); return u && Object.keys(kindScores(u.text)).some((kind) => COMPLETES.has(kind)) && Object.keys(kindScores(c.text)).some((kind) => COMPLETES.has(kind)); });
       merged = mergeHeader(merged, nx.cells);
+      finishes = completes;
     }
     const cols = assignKinds(merged);
     if (!cols) continue;
     const score = cols.reduce((s, c) => s + c.score, 0);
-    if (!best || score > best.score + 0.5) best = { cols, n: k + 1, score };
+    if (!best || score > best.score + 0.5 || (finishes && score >= best.score)) best = { cols, n: k + 1, score };
   }
   return best;
 }

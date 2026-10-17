@@ -32,27 +32,42 @@ section with grep, never in full.
   - the rent roll proposal (#40, 4.7.18), approved by the owner 2026-10-17
     (`docs/proposals/rentroll-pdf-and-om-fill.md`, answers in section g);
   - 1a, an OM rent roll in thousands or millions (#41, 4.7.19); Dependabot
-    #36-#39 (cache, setup-node, setup-python, checkout) merged.
-- **In progress:** the `check:quick` gate fix (4.7.20, PR open): quick always
-  runs `tests/repo.test.js` (a new app file missing from `sw.js` failed CI
-  three times in 1a). Then 1b (stated rent to the cross-check only; "use this?"
-  taps for SF, occupancy, units), 1c (header), the PDF upload, the
-  property-manager profile, the roll comparison. **Waiting for the owner's OM**
-  (the attachment did not reach the container): put it in `private/om/`, run
-  `node tests/tools/rr-local.mjs` on it, report counts only.
-- **Next (one PR at a time; the full order is in `docs/PLAN_STATUS.md`, "Now"):**
-  0. the rent roll fixes (1a-1c, 2, 3, 4 in the proposal), then the
-     `impact-flow` bug (intermittent axe colour-contrast failure on the phone
-     sheet, also on clean main; owner-queued 2026-10-17);
-  1. F6/F7, F10, one PR each;
-  2. T-12 multi-format import (`.xls` only with an Apache-2.0 or MIT SheetJS
-     that can be fetched; otherwise skip it and tell the owner);
-  3. F3, F4, F8 (30 days), F9 (optional password, lost-password warning);
-  4. OM red-flag check and the T-12 bridge; then "Export everything";
-  5. UI revamp in phases (first-run path in Home; Guided Mode after the
-     clean-ups; F11 inside it);
-  6. the rest of Phase 2 with the approved reorder, then Phases 3 to 8 (F12
-     before any AI server deployment; Phase 7 prerequisites recorded).
+    #36-#39 (cache, setup-node, setup-python, checkout) merged;
+  - the `check:quick` gate fix (#42, 4.7.20): quick always runs
+    `tests/repo.test.js` (a new app file missing from `sw.js` failed CI three
+    times in 1a).
+- **In progress:** 1b + 1c (4.7.21, PR #43 open):
+  the OM's stated rent reaches the rent roll cross-check only (no box, nothing
+  stored); the rent roll offers Building SF and Units as a "Use" tap for empty
+  boxes (Occupancy not offered: the deal already shows the roll's, labelled);
+  1c, a two-line header, is in the same PR. Then the PDF upload, the property-manager profile, the roll
+  comparison. **Waiting for the owner's OM** (the attachment did not reach the
+  container): put it in `private/om/`, run `node tests/tools/rr-local.mjs` on it,
+  report counts only.
+- **Standing rules (owner, 2026-10-17):**
+  1. After opening a PR go straight to the next queue item on a fresh branch
+     from the latest main (or the previous branch if it depends on it); at most
+     two PRs open at once; don't wait for a merge unless the next item depends
+     on it.
+  2. Stop and ask only for: a decision not yet made, a data-format change, a
+     figure that would change, a check that can't be fixed, or the end of the
+     queue. Never merge; the owner merges or turns on auto-merge.
+  3. `check:full` runs in the background (in a separate worktree if the next
+     item is started meanwhile), only for PRs that touch `app/` or `tests/`;
+     docs or CI-config-only PRs run `check:quick` and rely on GitHub CI.
+  4. Short reports: one block per PR: link, CI status, what changed in 2-3
+     lines, the phone check (or "none"), any decision owed; each says "merge
+     now" or "needs your decision".
+  5. Group small related fixes into one PR when the risk is low.
+  6. Defer F11, F12 and Phases 7 and 8 until the OM, rent roll, T-12 and
+     projections flow works on real deals; don't start them unless asked.
+- **Queue (in order):** (a) the `check:quick` gate fix [merged, #42]; (b) 1b + 1c
+  [PR #43]; (c) `impact-flow`, the intermittent axe contrast failure, so
+  `check:full` is reliable [PR open: the flow waited for no animation]; (d) the rent roll PDF upload; (e) the
+  property-manager profile; (f) the roll comparison; (g) the underwriting
+  proposal from the support code; (h) after the Oct 21 usage reset: T-12
+  multi-format import, OM red flags, pro forma vs T-12 bridge. Then F6/F7, F10,
+  F3, F4, F8, F9 and the rest in `docs/PLAN_STATUS.md`, "Now".
 - **Approved decisions (owner):**
   - no new libraries for now (any library is an approval gate);
   - the encoding warning stays off saved deals (no data-format change);
