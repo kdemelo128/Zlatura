@@ -30,8 +30,13 @@ section with grep, never in full.
   - the docs PR (#34, 4.7.16): routing, check rule, usage rules;
   - F5, CI audit and pinned actions (#35, 4.7.17); Dependabot for actions is on;
   - the rent roll proposal (#40, 4.7.18), approved by the owner 2026-10-17
-    (`docs/proposals/rentroll-pdf-and-om-fill.md`, answers in section g).
-- **In progress:** 1b (4.7.21, PR open; merge the `check:quick` gate PR #42 first):
+    (`docs/proposals/rentroll-pdf-and-om-fill.md`, answers in section g);
+  - 1a, an OM rent roll in thousands or millions (#41, 4.7.19); Dependabot
+    #36-#39 (cache, setup-node, setup-python, checkout) merged;
+  - the `check:quick` gate fix (#42, 4.7.20): quick always runs
+    `tests/repo.test.js` (a new app file missing from `sw.js` failed CI three
+    times in 1a).
+- **In progress:** 1b + 1c (4.7.21, PR #43 open):
   the OM's stated rent reaches the rent roll cross-check only (no box, nothing
   stored); the rent roll offers Building SF and Units as a "Use" tap for empty
   boxes (Occupancy not offered: the deal already shows the roll's, labelled);
@@ -56,8 +61,8 @@ section with grep, never in full.
   5. Group small related fixes into one PR when the risk is low.
   6. Defer F11, F12 and Phases 7 and 8 until the OM, rent roll, T-12 and
      projections flow works on real deals; don't start them unless asked.
-- **Queue (in order):** (a) the `check:quick` gate fix [PR #42]; (b) 1b + 1c
-  [this PR]; (c) `impact-flow`, the intermittent axe contrast failure, so
+- **Queue (in order):** (a) the `check:quick` gate fix [merged, #42]; (b) 1b + 1c
+  [PR #43]; (c) `impact-flow`, the intermittent axe contrast failure, so
   `check:full` is reliable; (d) the rent roll PDF upload; (e) the
   property-manager profile; (f) the roll comparison; (g) the underwriting
   proposal from the support code; (h) after the Oct 21 usage reset: T-12
