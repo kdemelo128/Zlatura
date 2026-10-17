@@ -116,3 +116,32 @@ test('a PDF rent roll in thousands: six units at their real rents, nothing held'
   assert.equal(qc.held, null);
   assert.equal(qc.checks.filter((c) => c.level === 'fail').length, 0, qc.checks.filter((c) => c.level === 'fail').map((c) => c.text).join(' | '));
 });
+
+/* the designer's review: what a caption must not scale */
+const RENT_COLS = [{ h: 'Suite', w: 5 }, { h: 'Tenant', w: 22 }, { h: 'SF', w: 6, r: 1 }, { h: 'Lease End', w: 11 }, { h: 'Rent', w: 8, r: 1 }];
+
+test('a bare “Rent” column that fits both a rate and a thousands total is asked about, not guessed', () => {
+  const rows = [['101', 'Maple Leaf Bakery', '2,000', '12/31/2030', '60.00'], ['102', 'Quillfeather Books', '1,500', '05/31/2027', '42.00']];
+  const rr = rentRoll([`Rent Roll\nDollars in thousands, except rent per SF\n${tbl(RENT_COLS, rows)}`]);
+  const ask = fails(rr).find((i) => i.kind === 'unit');
+  assert.ok(ask, 'a unit fail');
+  assert.match(ask.text, /doesn't say whether it is a total or rent per SF/);
+  const { rows: applied, qc } = omRollRecord({ rentRoll: rr }, { figures: {}, asOf: '2026-10-17' });
+  assert.equal(applied.length, 0, 'held until the broker looks');
+  assert.equal(qc.held.length, 2);
+});
+
+test('a bare “Rent” column that fits only a total is scaled without a question', () => {
+  const rows = [['101', 'Maple Leaf Bakery', '2,000', '12/31/2030', '60,000'], ['102', 'Quillfeather Books', '1,500', '05/31/2027', '42,000']];
+  const rr = rentRoll([`Rent Roll\n(dollars)\n${tbl(RENT_COLS, rows)}`]);
+  assert.equal(rr.issues.filter((i) => i.kind === 'scale').length, 0);
+  assert.deepEqual(rr.rows.map((r) => r.annual), [60000, 42000]);
+});
+
+test('a column headed per SF is never scaled, whatever the caption says', () => {
+  const cols = [{ h: 'Suite', w: 5 }, { h: 'Tenant', w: 22 }, { h: 'SF', w: 6, r: 1 }, { h: 'Annual Rent', w: 11, r: 1 }, { h: 'Market Rent PSF', w: 15, r: 1 }];
+  const rows = [['101', 'Maple Leaf Bakery', '2,000', '60.0', '$30.00'], ['102', 'Quillfeather Books', '1,500', '42.0', '$31.00']];
+  const rr = rentRoll([`Rent Roll ($ in thousands)\n\n${tbl(cols, rows)}`]);
+  assert.deepEqual(rr.rows.map((r) => r.annual), [60000, 42000]);
+  assert.deepEqual(rr.rows.map((r) => r.market), [30, 31]);
+});

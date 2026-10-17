@@ -623,12 +623,29 @@ function tableScales(t, P) {
   const caption = scaleOf(above.join('\n'));
   const out = {};
   for (const c of t.cols) {
-    if (!SCALED.includes(c.kind) || out[c.kind]) continue;
+    if (!SCALED.includes(c.kind) || out[c.kind] || W.per.test(norm(c.label))) continue;   // "Market Rent PSF", "CAM $/SF": a rate, never scaled
     const own = scaleOf(c.label);
-    const sc = own.scale !== 1 ? own : caption;
+    const sc = own.scale !== 1 ? own : { ...caption, caption: true };
     if (sc.scale !== 1) out[c.kind] = sc;
   }
   return out;
+}
+
+
+/**
+ * A bare "Rent" column under a caption that states a scale: the header does not
+ * say whether it is a total (scaled) or rent per SF (not scaled, as in "dollars in
+ * thousands, except rent per SF"). When both readings are plausible the broker is
+ * asked (a fail), never guessed. Returns the column, or null. Call before applyScales.
+ */
+function rentScaleDoubt(t) {
+  const sc = t.scales.rent;
+  if (!sc || !sc.caption) return null;
+  const pairs = t.rows.map((r) => r.raw).filter((r) => r.rent > 0 && r.sf > 0);
+  if (!pairs.length) return null;
+  const asRate = median(pairs.map((r) => r.rent));
+  const asTotal = median(pairs.map((r) => (r.rent * sc.scale) / r.sf));
+  return plausible(asRate) && plausible(asTotal) ? t.cols.find((c) => c.kind === 'rent') : null;
 }
 
 /** The scaled money of a table's rows and totals (before the rent is read as annual or monthly). */
@@ -819,6 +836,7 @@ export function rentRoll(pages, { layouts = null } = {}) {
     // a later table with the same header and no caption of its own is printed in the first one's scale
     const own = t === best ? best.scales : tableScales(t, P);
     t.scales = Object.keys(own).length ? own : best.scales;
+    const doubt = rentScaleDoubt(t);
     applyScales(t);
     t.units = readings(t);
     t.unknownCols = t.cols.filter((c) => c.kind === 'other' && !/^(?:#|no\.?)$/i.test(c.label.trim())).map((c) => `“${c.label}”`).join(', ');
@@ -834,6 +852,11 @@ export function rentRoll(pages, { layouts = null } = {}) {
       index.set(r, base + mine.length);
       mine.push(row);
       pageSet.add(r.page);
+    }
+    if (doubt) {
+      const sc = t.scales.rent;
+      issues.push({ kind: 'unit', level: 'fail', col: doubt.idx, page: t.page, line: t.line, row: null, cell: { page: t.page, line: t.line, col: doubt.idx, text: doubt.label }, lineText: doubt.label,
+        text: `The “${doubt.label}” column on page ${t.page} doesn't say whether it is a total or rent per SF, and the table's caption (“${sc.text}”) says its figures are scaled: its figures fit both a rent per SF as printed and a total read ×${sc.scale.toLocaleString('en-US')}. They were read as totals ×${sc.scale.toLocaleString('en-US')}; check the column before accepting.`, amount: 0 });
     }
     for (const [k, sc] of Object.entries(t.scales)) {
       const col = t.cols.find((c) => c.kind === k);
