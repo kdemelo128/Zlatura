@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.21 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.22 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -63,7 +63,7 @@ section with grep, never in full.
      projections flow works on real deals; don't start them unless asked.
 - **Queue (in order):** (a) the `check:quick` gate fix [merged, #42]; (b) 1b + 1c
   [PR #43]; (c) `impact-flow`, the intermittent axe contrast failure, so
-  `check:full` is reliable; (d) the rent roll PDF upload; (e) the
+  `check:full` is reliable [PR open: the flow waited for no animation]; (d) the rent roll PDF upload; (e) the
   property-manager profile; (f) the roll comparison; (g) the underwriting
   proposal from the support code; (h) after the Oct 21 usage reset: T-12
   multi-format import, OM red flags, pro forma vs T-12 bridge. Then F6/F7, F10,
