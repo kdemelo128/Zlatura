@@ -102,6 +102,21 @@ export const MIGRATIONS = [
       return { rounded: [] };
     },
   },
+  {
+    id: 'rr-pdf-source',
+    field: 'schema',
+    to: 4,
+    since: '4.7.23',
+    does: 'A lease can say it was read from a rent roll PDF of its own (source kind "pdf", with the file name, page and line). Nothing already stored changes: this marks the deal as written by a version that knows the new source, so an older app refuses its backup instead of showing the source wrongly.',
+    brief: 'ready for rent roll PDFs',
+    kind: 'create',
+    label: () => 'Ready for rent roll PDFs',
+    needed: (d) => (d.schema || 0) < 4,
+    up(d) {
+      d.schema = 4;
+      return { rounded: [] };
+    },
+  },
 ];
 
 /** The newest value of each version field this code writes. */

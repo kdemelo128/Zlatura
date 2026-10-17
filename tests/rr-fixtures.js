@@ -212,7 +212,40 @@ export function specThousands() {
       .flatMap(([kk, v], i) => [{ x: 40, y: 700 - i * 16, s: kk, size: 10 }, { x: 300, y: 700 - i * 16, s: v, right: true, size: 10 }])];
   return [sum, [{ x: 40, y: 740, s: 'Rent Roll', size: 14, bold: true }, { x: 40, y: 726, s: '($ in thousands)', size: 7 }, ...headItems(710), ...a.items, ...totalItems(a.y - 4, '9,000', '215.0')]];
 }
-export const PDF_SPECS = { 'rr-continued': specContinued, 'rr-wrapped': specWrapped, 'om-rr-qc': specQcOm, 'om-rr-thousands': specThousands };
+/* Rent roll PDFs that are documents of their own (queue item d), not OMs: a due-diligence rent roll, a property
+ * manager's report whose layout the reader does not know, an operating statement, and a scan of the rent roll. */
+export function specDdRoll() {
+  const a = rowsFrom(PDF_ROWS, 680);
+  const note = 'Prepared by the property manager for the buyer’s due diligence. Figures are as of the date above and are unaudited.';
+  return [[{ x: 40, y: 750, s: 'Rent Roll', size: 14, bold: true }, { x: 40, y: 736, s: 'As of: 10/01/2026', size: 8 }, { x: 40, y: 724, s: 'Sample Plaza, 1 Invented Way, Sampletown, MD 20000', size: 8 },
+    ...headItems(700), ...a.items, ...totalItems(a.y - 4, '9,000', '$215,000'), { x: 40, y: 150, s: note, size: 7 }]];
+}
+export function specPmReport() {
+  const X = { unit: 30, ten: 62, sf: 215, rent: 270, chg: 345, dep: 405, from: 415, to: 470, pd: 580 };
+  const U = [['A1', 'Maple Leaf Bakery', '2,000', '5,000.00', '400.00', '5,000.00', '01/01/2021', '12/31/2030'], ['A2', 'Quillfeather Books', '1,500', '3,500.00', '300.00', '3,500.00', '06/01/2022', '05/31/2027'], ['B1', 'Copperline Yoga', '1,200', '3,000.00', '250.00', '3,000.00', '03/01/2023', '02/28/2033']];
+  const it = [{ x: 30, y: 750, s: 'Rent roll with Monthly Charges', size: 12, bold: true }, { x: 30, y: 736, s: 'As of: 10/01/2026', size: 7 }, { x: 30, y: 724, s: 'Properties: Sample Plaza - 1 Invented Way Sampletown, MD 20000', size: 7 },
+    { x: 30, y: 300, s: 'Report created from the property management system. Rent is the contractual monthly rent; monthly charges are billed separately.', size: 6 }];
+  [['Unit', X.unit, 0], ['Tenant', X.ten, 0], ['Sqft', X.sf, 1], ['Rent', X.rent, 1], ['Monthly Charges', X.chg, 1], ['Deposit', X.dep, 1], ['Lease From', X.from, 0], ['Lease To', X.to, 0], ['Past Due', X.pd, 1]]
+    .forEach(([t, x, r]) => it.push({ x, y: 700, s: t, right: !!r, bold: true, size: 7 }));
+  U.forEach((u, k) => { const y = 680 - k * 16; [[u[0], X.unit, 0], [u[1], X.ten, 0], [u[2], X.sf, 1], [u[3], X.rent, 1], [u[4], X.chg, 1], [u[5], X.dep, 1], [u[6], X.from, 0], [u[7], X.to, 0], ['0.00', X.pd, 1]].forEach(([t, x, r]) => it.push({ x, y, s: t, right: !!r, size: 7 })); });
+  return [it];
+}
+export function specStatementDoc() {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const it = [{ x: 30, y: 750, s: 'Income Statement', size: 12, bold: true }, { x: 30, y: 736, s: 'Period Range: Jan 2025 to Dec 2025   Accounting Basis: Cash', size: 7 }, { x: 30, y: 700, s: 'Account Name', size: 6, bold: true }];
+  months.forEach((m, i) => it.push({ x: 140 + i * 36, y: 700, s: `${m} 2025`, size: 6, bold: true, right: true }));
+  [['Base Rent', 5000], ['Parking', 300], ['Real Estate Taxes', 900], ['Insurance', 350], ['Repairs and Maintenance', 250], ['Property Management', 200]].forEach(([l, v], r) => {
+    it.push({ x: 30, y: 684 - r * 12, s: l, size: 6 });
+    months.forEach((m, i) => it.push({ x: 140 + i * 36, y: 684 - r * 12, s: v.toLocaleString('en-US') + '.00', size: 6, right: true }));
+  });
+  it.push({ x: 30, y: 560, s: 'Net Operating Income and expenses are shown for the twelve months ending December 2025 as reported by the property manager.', size: 6 });
+  return [it];
+}
+export function specScannedRoll() {
+  const a = rowsFrom(PDF_ROWS, 680);
+  return [{ scan: [{ x: 40, y: 750, s: 'Rent Roll', size: 14, bold: true }, ...headItems(700).map((h) => ({ ...h, size: 7.5 })), ...a.items.map((it) => ({ ...it, size: 7.5 })), ...totalItems(a.y - 4, '9,000', '$215,000').map((it) => ({ ...it, size: 7.5 }))] }];
+}
+export const PDF_SPECS = { 'rr-continued': specContinued, 'rr-wrapped': specWrapped, 'om-rr-qc': specQcOm, 'om-rr-thousands': specThousands, 'rr-dd': specDdRoll, 'rr-pm': specPmReport, 'stmt-doc': specStatementDoc, 'rr-scan': specScannedRoll };
 
 /** Case 1 as a PDF: the rent roll split over two pages, no header on the second. */
 export const pdfContinued = () => pdfOf(specContinued());

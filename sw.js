@@ -77,6 +77,7 @@ const ASSETS = [
   'app/impact.js',
   'app/impactui.js',
   'app/rentroll.js',
+  'app/rrdoc.js',
   'app/rentrollui.js',
   'app/rrbook.js',
   'app/calc.js',

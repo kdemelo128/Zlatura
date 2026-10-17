@@ -11,12 +11,16 @@ import { readText } from './textfile.js';
 import { waltMethod } from './engine/walt.js';
 import {
   project, rentRollSummary, validateRentRoll, validateLease, generateSteps, monthlyAmount, inPlace, rollover,
-  dayOf, isoOf, addDays, addMonths, UNITS, DEFAULT_SETTINGS,
+  dayOf, isoOf, addDays, addMonths, UNITS, DEFAULT_SETTINGS, fromOmRows,
 } from './lease.js';
 import {
   COLUMNS, PRESETS, MARKET_UNIT, layoutFromPreset, visibleColumns, customColumn, newLease, duplicateLease,
-  gridContext, viewRows,
+  gridContext, viewRows, ocrReading,
 } from './rentroll.js';
+import { docKind, pdfRollRecord } from './rrdoc.js';
+import { qcPanel } from './dataqcui.js';
+import { blockingChecks, resolveCheck } from './dataqc.js';
+import { readScannedPage, ocrSupported } from './ocr.js';
 import { kvGet, kvSet } from './store.js';
 import { projectionNow, projectionLater } from './projector.js';
 import { LEASE_FIELDS } from './impact.js';
@@ -25,6 +29,7 @@ import { dateInput } from './dateinput.js';
 import { redrawKeepingFocus } from './focuskeep.js';
 import {
   el, svg, parseNum, parsePct, int, dec, money0, money2, pct, short, yrs, toast, actionSheet, getXlsx, deliver, XLSX,
+  getPdfjs, pdfProblem, localDate,
 } from './kit.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
@@ -742,6 +747,7 @@ const LEASE_INPUTS = LEASE_FIELDS.map(([k]) => `lease.${k}`);
 async function moreMenu(deal, rr, changed) {
   const v = await actionSheet('Rent roll', [
     { label: 'Import from Excel or CSV…', sub: 'a rent roll sheet with a header row', value: 'import' },
+    { label: 'Import from PDF…', sub: 'a rent roll PDF of its own (not an OM): you check it first', value: 'pdf' },
     { label: 'Export rent roll and cash flow (Excel)', value: 'xlsx' },
     { label: 'Export CSV', sub: 'the grid as shown', value: 'csv' },
     { label: 'What a column affects…', sub: 'every figure, scenario and export that moves with it', value: 'affects' },
@@ -749,6 +755,7 @@ async function moreMenu(deal, rr, changed) {
     { label: 'Clear the rent roll', value: 'clear', danger: true, disabled: !rr.leases.length },
   ]);
   if (v === 'import') importDialog(rr, changed);
+  else if (v === 'pdf') importPdfDialog(rr, changed);
   else if (v === 'xlsx') exportWorkbook(deal, rr);
   else if (v === 'csv') exportCsv(deal, rr);
   else if (v === 'affects') {
@@ -874,6 +881,173 @@ export function headerAndRows(grid, sheet) {
     }
   }
   return null;
+}
+
+/* ------------------------------------------------- a rent roll PDF of its own */
+
+/**
+ * "Import from PDF…": a PDF that is a rent roll on its own (a due-diligence rent roll, say), not an OM. It is read
+ * by position (omroll.js), checked (Data QC), shown in a preview, and used only when the broker taps "Use this rent
+ * roll"; nothing is stored before that. A failed check holds the rows back until each is resolved or accepted. A
+ * document that is an OM or an operating statement is named, not read, unless the broker says it is a rent roll.
+ */
+async function importPdfDialog(rr, changed) {
+  const inp = el('input');
+  inp.type = 'file';
+  inp.accept = '.pdf,application/pdf';
+  inp.addEventListener('change', async () => {
+    const f = inp.files[0];
+    if (!f) return;
+    if (!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf') { toast('That is not a PDF.'); return; }
+    let pages; let bytes; let pdfjs;
+    const layouts = [];
+    try {
+      pdfjs = await getPdfjs();
+      bytes = new Uint8Array(await f.arrayBuffer());
+      pages = await api.pdfPages(pdfjs, bytes.slice(), { layouts });
+    } catch (err) { toast(`${f.name} can’t be read: ${pdfProblem(err, f)}`, null, 8000); return; }
+    previewPdf(rr, changed, { file: f, pages, bytes, pdfjs, doc: docKind(pages, layouts.length === pages.length ? layouts : null) });
+  });
+  inp.click();
+}
+
+const PDF_OTHER = { om: 'an offering memorandum. Read it from the Deal screen (Read an OM), which also reads its rent roll', t12: 'an operating statement. Use “Import a T-12” on the deal’s Overview' };
+
+/** The preview sheet: what the document is, then (once it is a rent roll) its checks, its rows and the choice to use it. */
+function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
+  let record = null;                 // { qc, rows, held } once the broker has chosen to read it as a rent roll
+  let mode = rr.leases.length ? null : 'replace';
+  let ocrStatus = '';
+  const use = el('button', 'btn btn-primary', 'Use this rent roll');
+  use.type = 'button';
+  use.id = 'rrpdf-use';
+  const body = api.sheetOpen({ eyebrow: 'Import rent roll PDF', title: file.name, sub: `${pages.length} page${pages.length === 1 ? '' : 's'} · nothing is added until you tap “Use this rent roll”`, foot: [use] });
+
+  /** Rows that may be used now: those the checks let through, and the OCR rows whose check the broker accepted. */
+  const usable = () => {
+    const base = record.rows.length ? record.rows : (record.qc.held || []);
+    const ocr = (record.qc.ocr || []).filter((o) => { const c = record.qc.checks.find((x) => x.id === `ocr:${o.page}`); return o.rows.length && c && c.resolved; }).flatMap((o) => o.rows);
+    return [...base, ...ocr];
+  };
+  const startRecord = () => { record = pdfRollRecord(doc, { asOf: rr.settings.asOf || localDate(), file: file.name, scanned: doc.kind === 'scanned' ? pages.map((_, i) => i + 1) : [] }); };
+
+  async function readPage(p) {
+    if (ocrStatus) return;
+    try {
+      ocrStatus = 'Starting…'; draw();
+      const res = await readScannedPage(pdfjs, bytes.slice(), p, { onProgress: (t) => { ocrStatus = t; const st = body.querySelector('#rrpdf-ocr-status'); if (st) st.textContent = t; } });
+      ocrReading(record.qc, p, res);
+    } catch (err) { toast(`Page ${p} couldn’t be read: ${err.message || err}`, null, 8000); }
+    ocrStatus = '';
+    draw();
+  }
+
+  function draw() {
+    body.textContent = '';
+    if (!record) {
+      // not yet a rent roll: say what it is, and offer to read it as one when there is a table to read
+      const kind = doc.kind;
+      const msg = kind === 'scanned' ? 'This PDF has no text layer (a scan or a picture), so nothing could be read from it. A page can be read with OCR, on request: nothing leaves your device.'
+        : PDF_OTHER[kind] ? `This looks like ${PDF_OTHER[kind]}.` : kind === 'unknown' ? doc.why[0] : '';
+      if (kind === 'rentroll') { startRecord(); draw(); return; }
+      body.appendChild(el('p', null, msg));
+      if (doc.why.length && kind !== 'unknown') body.appendChild(el('p', 'hint-sm', doc.why.join(' ')));
+      if (kind === 'scanned') {
+        startRecord();
+        draw();
+        return;
+      }
+      if (doc.roll) {
+        const b = el('button', 'btn btn-gray', 'It is a rent roll: read it');
+        b.type = 'button';
+        b.id = 'rrpdf-read-anyway';
+        b.addEventListener('click', () => { startRecord(); draw(); });
+        body.appendChild(b);
+      }
+      use.disabled = true;
+      return;
+    }
+    // a rent roll: the checks, the rows, then the choice
+    const blocking = blockingChecks(record.qc).length;
+    body.appendChild(qcPanel({
+      id: 'rrpdf-qc', title: 'Data QC', qc: record.qc,
+      intro: 'The rent roll as read from the PDF: each check, and the page, row and cell it points to. Nothing is added until you tap “Use this rent roll”.',
+      blockedText: 'A failed check holds the rent roll back. Look at the page, then resolve each failed check or accept the reading as it stands.',
+      onResolve: (c) => { resolveCheck(record.qc, c.id, 'accepted'); draw(); },
+      onAcceptAll: () => { for (const c of record.qc.checks) if (c.level === 'fail' && !c.resolved) resolveCheck(record.qc, c.id, 'accepted'); draw(); },
+      extra: (c) => {
+        if (c.kind !== 'scanned' || c.resolved) return [];
+        if (!ocrSupported()) return [el('span', 'hint-sm', 'OCR needs a newer browser.')];
+        return (c.pages || [c.page]).slice(0, 6).map((p) => {
+          const b = el('button', 'btn btn-sm btn-gray qc-ocr', `Read page ${p} (OCR)`);
+          b.type = 'button';
+          b.addEventListener('click', () => readPage(p));
+          return b;
+        });
+      },
+    }));
+    if (ocrStatus) { const st = el('p', 'hint-sm', ocrStatus); st.id = 'rrpdf-ocr-status'; st.setAttribute('role', 'status'); body.appendChild(st); }
+    const rows = usable();
+    if (rows.length) {
+      body.appendChild(el('h3', null, `${rows.length} row${rows.length === 1 ? '' : 's'}${blocking ? ' (held back until the failed checks are resolved)' : ''}`));
+      const wrap = el('div', 'rrpdf-rows');
+      wrap.tabIndex = 0;
+      wrap.setAttribute('role', 'region');
+      wrap.setAttribute('aria-label', 'The rows read from the PDF');
+      wrap.style.cssText = 'overflow-x:auto;max-width:100%';
+      const t = el('table', 'proj');
+      const cap = el('caption', 'hint-sm', 'Unit, tenant, SF, annual rent as read, lease dates, and the page and line each row came from');
+      t.appendChild(cap);
+      const head = el('tr');
+      for (const h of ['Unit', 'Tenant', 'SF', 'Annual rent', 'Start', 'End', 'Page · line']) head.appendChild(el('th', null, h));
+      t.appendChild(el('thead')).appendChild(head);
+      const tb = el('tbody');
+      for (const r of rows) {
+        const tr = el('tr');
+        const d = (x) => (x ? String(x).slice(0, 10) : '');
+        for (const v of [r.suite || '', r.vacant ? 'Vacant' : (r.tenant || ''), ok(r.sf) ? int(r.sf) : '', ok(r.annual) ? money0(r.annual) : '', d(r.start), r.mtm ? 'MTM' : d(r.end), r.src ? `${r.src.page}${r.src.line ? ` · ${r.src.line}` : ''}` : '']) tr.appendChild(el('td', null, String(v)));
+        tb.appendChild(tr);
+      }
+      t.appendChild(tb);
+      wrap.appendChild(t);
+      body.appendChild(wrap);
+    }
+    // replace or add, when the deal already has units: nothing is chosen for the broker
+    if (rr.leases.length && rows.length) {
+      const g = el('fieldset', 'rrpdf-mode');
+      g.appendChild(el('legend', null, `The rent roll already has ${rr.leases.length} unit${rr.leases.length === 1 ? '' : 's'}`));
+      for (const [v, text] of [['replace', 'Replace the current rent roll with these rows'], ['add', 'Add these rows to the current ones']]) {
+        const lab = el('label', 'chk');
+        const radio = el('input');
+        radio.type = 'radio'; radio.name = 'rrpdf-mode'; radio.value = v; radio.checked = mode === v;
+        radio.addEventListener('change', () => { mode = v; draw(); });
+        lab.append(radio, document.createTextNode(` ${text}`));
+        g.appendChild(lab);
+      }
+      if (mode === 'add') {
+        const have = new Set(rr.leases.map((L) => String(L.unit || '').trim().toLowerCase()).filter(Boolean));
+        const dup = rows.filter((r) => r.suite && have.has(String(r.suite).trim().toLowerCase())).length;
+        if (dup) g.appendChild(el('p', 'warn-text', `${dup} suite${dup === 1 ? ' is' : 's are'} already in the rent roll: adding counts the same space twice.`));
+      }
+      body.appendChild(g);
+    }
+    use.disabled = !rows.length || blocking > 0 || !mode;
+    use.title = use.disabled ? (!rows.length ? 'No rows were read.' : blocking ? 'A failed check holds the rent roll back.' : 'Choose replace or add.') : '';
+  }
+
+  use.addEventListener('click', () => {
+    if (use.disabled || !record) return;
+    const rows = usable();
+    const accepted = record.qc.checks.filter((c) => c.level === 'fail' && c.resolved).length;
+    const snap = changed.snapshot('Before importing a rent roll PDF');
+    const old = rr.leases;
+    const leases = fromOmRows(rows, { asOf: rr.settings.asOf || localDate(), buildingSf: rr.settings.buildingSf, kind: 'pdf', file: file.name }).leases;
+    rr.leases = mode === 'add' ? [...old, ...leases] : leases;
+    api.sheetClose();
+    changed(true, { kind: 'import', label: `Imported ${leases.length} unit${leases.length === 1 ? '' : 's'} from the rent roll PDF “${file.name}”${mode === 'replace' && old.length ? ', replacing the rent roll' : ''}${accepted ? `; ${accepted} failed check${accepted === 1 ? '' : 's'} accepted` : ''}`, snapshot: snap });
+    toast(`${leases.length} unit${leases.length === 1 ? '' : 's'} imported from ${file.name}. Each rent is one documented period.`, { label: 'Undo', run: () => { rr.leases = old; changed(); } }, 9000);
+  });
+  draw();
 }
 
 /** Show how each column will be read, let the broker change it, then add the rows. */
