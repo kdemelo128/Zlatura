@@ -813,6 +813,7 @@ function recordStep(d, s, { rounded }, replayed = false) {
     if (rounded.length && !replayed) noteChange(d, { kind: s.kind, label: s.label(rounded) });
     return rounded.length > 0 || replayed;
   }
+  if (s.silent) return true;
   noteChange(d, { kind: s.kind, label: s.label(rounded), rounded });
   touch(d);
   return true;

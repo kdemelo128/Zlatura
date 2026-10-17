@@ -32,6 +32,7 @@ const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() 
  * @property {string} brief the same in a few words, for a list (the restore's summary and history label)
  * @property {string} kind the history entry's kind, when it changes something
  * @property {(rounded: any[]) => string} label the history entry's label
+ * @property {boolean} [silent] only marks the deal: no history entry and no new "last edited" date
  * @property {(d: any) => boolean} needed
  * @property {(d: any, ctx: { today: string }) => { rounded?: any[] }} up changes the deal in place
  */
@@ -99,6 +100,22 @@ export const MIGRATIONS = [
         columns: [], totals: [], segments: [], checks: [], held: null, applied: true, ocr: [],
       };
       d.schema = 3;
+      return { rounded: [] };
+    },
+  },
+  {
+    id: 'rr-pdf-source',
+    field: 'schema',
+    to: 4,
+    since: '4.7.23',
+    does: 'A lease can say it was read from a rent roll PDF of its own (source kind "pdf", with the file name, page and line). Nothing already stored changes: this marks the deal as written by a version that knows the new source, so an older app refuses its backup instead of showing the source wrongly.',
+    brief: 'ready for rent roll PDFs',
+    silent: true,
+    kind: 'create',
+    label: () => 'Ready for rent roll PDFs',
+    needed: (d) => (d.schema || 0) < 4,
+    up(d) {
+      d.schema = 4;
       return { rounded: [] };
     },
   },

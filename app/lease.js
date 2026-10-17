@@ -608,9 +608,12 @@ export const leaseId = () => `l${Date.now().toString(36)}${(seq++).toString(36)}
  * A rent roll from the rows the OM reader found: one documented period per
  * lease at the rent the OM prints, from its start (or the as-of date) to its
  * expiration. A row with no dates gets no period end and is flagged.
- * @param {OmRentRow[]} rows @param {{ asOf?: IsoDate, page?: number | null, buildingSf?: Sf | null }} [opts] @returns {RentRoll}
+ * @param {OmRentRow[]} rows @param {{ asOf?: IsoDate, page?: number | null, buildingSf?: Sf | null, kind?: 'om' | 'pdf', file?: string | null }} [opts] @returns {RentRoll}
+ * `kind: 'pdf'` (with the file name) marks each lease as read from a rent roll PDF of its own, not an OM.
  */
-export function fromOmRows(rows, { asOf, page = null, buildingSf = null } = {}) {
+export function fromOmRows(rows, { asOf, page = null, buildingSf = null, kind = 'om', file = null } = {}) {
+  const pdf = kind === 'pdf';
+  const fileName = file ? String(file).slice(0, 200) : null;
   const leases = (rows || []).map((r) => {
     const start = r.start ? String(r.start).slice(0, 10) : null;
     const end = r.end ? String(r.end).slice(0, 10) : null;
@@ -618,14 +621,14 @@ export function fromOmRows(rows, { asOf, page = null, buildingSf = null } = {}) 
       id: leaseId(), unit: r.suite || '', tenant: r.vacant ? '' : (r.tenant || ''), sf: pos(r.sf) ? r.sf : null,
       vacant: !!r.vacant, mtm: !!r.mtm, leaseStart: start, rentStart: null, leaseEnd: end, periods: [], abatements: [],
       // the page and line the row was printed on (omroll.js), and whether OCR read it
-      source: { kind: 'om', page: (r.src && r.src.page) || page, ...(r.src && r.src.line ? { line: r.src.line } : {}), ...(r.ocr ? { ocr: true } : {}) }, custom: {},
+      source: { kind, ...(pdf && fileName ? { file: fileName } : {}), page: (r.src && r.src.page) || page, ...(r.src && r.src.line ? { line: r.src.line } : {}), ...(r.ocr ? { ocr: true } : {}) }, custom: {},
     };
     if (r.holdover && !r.vacant) L.status = 'Holdover';
     if (!r.vacant && pos(r.annual)) {
       const pStart = start || asOf;
       const pEnd = end || (r.mtm ? addDays(addMonths(asOf, 1), -1) : null);
-      if (pStart && pEnd) L.periods.push({ start: pStart, end: pEnd, rate: r.annual, unit: 'year', source: 'documented', note: page ? `OM rent roll, page ${page}` : 'OM rent roll' });
-      else L.periods.push({ start: pStart, end: pStart, rate: r.annual, unit: 'year', source: 'documented', note: 'no expiration date in the OM' });
+      if (pStart && pEnd) L.periods.push({ start: pStart, end: pEnd, rate: r.annual, unit: 'year', source: 'documented', note: pdf ? `Rent roll PDF${fileName ? ` “${fileName}”` : ''}${(r.src && r.src.page) || page ? `, page ${(r.src && r.src.page) || page}` : ''}` : page ? `OM rent roll, page ${page}` : 'OM rent roll' });
+      else L.periods.push({ start: pStart, end: pStart, rate: r.annual, unit: 'year', source: 'documented', note: pdf ? 'no expiration date in the rent roll PDF' : 'no expiration date in the OM' });
     }
     return L;
   });
