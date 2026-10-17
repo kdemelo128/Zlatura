@@ -14,11 +14,14 @@
  * (BASE_REF, default origin/main) and fails on any change, unless the owner
  * approved it: GOLDEN_CHANGE_APPROVED=1 still prints the before/after table
  * but doesn't fail. Saved deal results (618) are checked by
- * tests/analyze-golden.test.js, which check:quick always runs. */
+ * tests/analyze-golden.test.js, which check:quick always runs, as it does
+ * tests/repo.test.js (the offline cache lists every file, every import exists,
+ * no request leaves the site): a new app file names no test, yet breaks those. */
 import { spawnSync, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { affectedTests } from './affected.mjs';
 
 const ROOT = path.resolve(new URL('../..', import.meta.url).pathname);
 const mode = process.argv[2];
@@ -38,21 +41,6 @@ function changedFiles() {
   const base = git('merge-base', BASE, 'HEAD');
   const out = [git('diff', '--name-only', base), git('diff', '--name-only'), git('ls-files', '--others', '--exclude-standard')];
   return [...new Set(out.join('\n').split('\n').filter(Boolean))];
-}
-
-/** Unit tests a change can affect: changed tests, and tests that name a changed app or server module. */
-function affectedTests(changed) {
-  const tests = fs.readdirSync(path.join(ROOT, 'tests')).filter((f) => f.endsWith('.test.js')).map((f) => `tests/${f}`);
-  const mods = changed.filter((f) => /^(app|server)\/.+\.js$/.test(f)).map((f) => path.basename(f));
-  const pick = new Set(['tests/analyze-golden.test.js']);
-  for (const t of tests) {
-    if (changed.includes(t)) { pick.add(t); continue; }
-    const src = fs.readFileSync(path.join(ROOT, t), 'utf8');
-    if (mods.some((m) => src.includes(`/${m}'`) || src.includes(`/${m}"`) || src.includes(`/${m}\``))) pick.add(t);
-  }
-  // a change to shared test helpers or fixtures can reach any test
-  if (changed.some((f) => /^tests\/(fixtures|tools|helpers)\//.test(f) && !/^tests\/tools\/(check|bump-version|sync-main)\.mjs$/.test(f))) return tests;
-  return [...pick].filter((t) => fs.existsSync(path.join(ROOT, t)));
 }
 
 /** Every displayed figure, base against the working tree. */
@@ -85,7 +73,7 @@ function golden() {
 
 if (mode === 'quick') {
   const changed = changedFiles();
-  const tests = affectedTests(changed);
+  const tests = affectedTests(changed, ROOT);
   console.log(`changed against ${BASE}: ${changed.length} files; unit tests to run: ${tests.join(' ')}`);
   step('unit tests (affected)', 'node', ['--test', ...tests]);
 } else {
