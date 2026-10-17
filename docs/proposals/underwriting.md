@@ -319,7 +319,7 @@ golden outputs are checked every time. No golden deal has a T-12 (2a section
 | U5 | Roll checks K20–K22, K24, K25, K27, K33 and same-lease, as rules in `figures.js` | M | B11/C08, C10, C12 | thresholds; blank against 0 | **may change**: `golden.mjs` records check text (`golden.mjs:75`), so golden rolls with these conditions gain rows. If so, I stop and show a before/after table | yes if golden moves |
 | U6 | T-12 checks K13 and K28 | S | C12 (lines) | the side test | 0 | no |
 | U7 | K37 recoveries counted twice: the designer's note first, then the check | S | a fixture with recoveries both in the T-12 and in the roll's projection feeding NOI | — | 0 expected | the note may raise a decision |
-| U8 (optional) | The T-12's monthly rent steps against the roll: rent start or missed month, Notes only, never applied | M | an invented 6-unit roll whose T-12 steps by one tenant's rent | the match tolerance | 0 | decision 7 |
+| U8 (deferred by the owner, 2026-10-17: not built until asked) | The T-12's monthly rent steps against the roll: rent start or missed month, Notes only, never applied | M | an invented 6-unit roll whose T-12 steps by one tenant's rent | the match tolerance | 0 | decision 7 |
 
 **Cost.** No paid service and no library. Build effort is roughly U1 + U2
 (two M PRs), plus four small ones. Install size and start-up time are
@@ -386,3 +386,25 @@ in lines × 12.
    beside it as its own labelled line, never in its place.
 10. **Data format (§3.7).** Three optional deal fields, no migration step, an
     old-backup fixture. *Recommend: approve.*
+
+## 7. Owner decisions (2026-10-17)
+
+All ten decisions in section 6 are **approved as recommended**, with these
+terms:
+
+- **Decision 7 (U8, rent-start evidence from the T-12): deferred.** It is not
+  built until the owner asks for it.
+- **Spike thresholds (decision 4) and the rent per SF band (decision 5) are
+  settings and warnings only.** They never block an import and never change a
+  number.
+- **Normalised NOI is always shown next to the reported figure and never
+  replaces it** (decision 9 stands: NOI three ways keeps comparing the
+  as-reported 12-month T-12).
+- **The strict review setting (decision 8) is off by default.**
+
+**Order:** the T-12 multi-format PRs 1 and 3 first (the new gap definition and
+N folded into PR 3), then U1 to U7. **U1 does not start until both T-12 PRs
+are merged.** U1 carries the data-format approval (section 3.7, decision 10),
+so it needs no further sign-off on the three optional fields.
+**Nothing starts before the Oct 21 usage reset.** Each build PR still runs the
+support-code check (`docs/working-rules.md`) and reports what it adopted.
