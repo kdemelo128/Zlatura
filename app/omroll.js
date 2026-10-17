@@ -103,13 +103,17 @@ const W = {
   notes: /\b(notes?|comments?|options?|renewals?|remarks?|guarant\w*)\b/,
 };
 
+const CHARGE = /\b(charges?|fees?)\b/;
+const STRICT_RENT = /\b(rent|rents|rental)\b/;
+
 /** How well a header cell's words fit each kind of column, 0 to 10. */
 export function kindScores(text) {
   const t = norm(text);
   const has = (k) => W[k].test(t);
   const s = {};
   const per = has('per'); const mo = has('month'); const yr = has('year'); const rent = has('rent');
-  const mkt = has('market'); const bump = has('bump'); const recov = has('recov'); const dep = has('deposit'); const share = has('share');
+  // "Monthly Charges" and "Fees" are billed on top of the rent: a charge word with no rent word of its own is a recovery, never a rent kind
+  const mkt = has('market'); const bump = has('bump'); const recov = has('recov') || (CHARGE.test(t) && !STRICT_RENT.test(t)); const dep = has('deposit'); const share = has('share');
   if (has('tenant')) s.tenant = 10;
   if (has('suite')) s.suite = has('type') ? 4 : 8;
   if (has('sf') && !per && !share && !rent && !mkt) s.sf = 9;
@@ -241,6 +245,8 @@ const TOTAL_WORD = /\b(?:totals?|sub-?totals?|grand total)\b/i;
 const SUMMARY = /^(?:averages?|avg\.?|summary|weighted average|occupied(?: sf| total| subtotal| space| area)?|(?:vacant|available|leased)(?: sf| total| subtotal| space| area))\s*:?$/i;
 const VACANT = /\b(?:vacant|vacancy|available|unleased|unoccupied)\b/i;
 const STATUS_ONLY = /^(?:occupied|leased|rented|current|occ\.?)$/i;
+/** "4 Units", "Total: 12 Units": a count printed where a subtotal's label goes. */
+const UNIT_COUNT = /^(?:total\s*:?\s*)?\d{1,4}\s+units?\s*:?$/i;
 const NOISE = /^(?:page\s+)?\d{1,3}(?:\s+of\s+\d{1,3})?$|\bcontinued\b|^rent roll\b|\bconfidential\b|all rights reserved|©|^offering memorandum$/i;
 const FOOTNOTE = /^(?:\*|\(\d+\)|\d+\)|notes?\b|source\b|footnotes?\b|†|‡|¹|²)/i;
 const HEADING_WORDS = /^(?:retail|office|industrial|residential|commercial|medical|restaurants?|anchors?|in-?line|shop space|pad sites?|out-?parcels?|ground floor|upper floors?|(?:first|second|third|fourth|\d+(?:st|nd|rd|th)) floor|building [a-z0-9]+|bldg\.? [a-z0-9]+|phase [a-z0-9]+|garage|storage|parking)(?: (?:space|tenants|suites|units))?:?$/i;
@@ -347,23 +353,25 @@ function classify(L, t) {
   const realSuite = !!suiteText && !/^(?:all|total|totals|n\/?a|-+|–|—)$/i.test(suiteText) && !TOTAL_WORD.test(suiteText);
   const vacant = [by.tenant, by.status, by.suite, by.other].some((a) => a && VACANT.test(a.text));
   const base = { L, cells, by, loose, figures, dates, words, realSuite, vacant };
-  const totalish = TOTAL_WORD.test(words) || textCells.some((a) => SUMMARY.test(a.text.trim()));
-  if (totalish && !dates.length && (figures.length || /total/i.test(words))) {
-    const named = textCells.find((a) => TOTAL_WORD.test(a.text) || SUMMARY.test(a.text.trim()));
-    if (!realSuite || sumsMatch(t, base)) return { ...base, type: 'total', label: (named ? named.text : words).trim() || 'Total' };
+  // a unit count is a total only when its figures add up to the rows above, even with the suite blank (a tenant may be named "4 Units")
+  const unitCount = UNIT_COUNT.test(words.trim()) || textCells.some((a) => UNIT_COUNT.test(a.text.trim()));
+  const totalish = TOTAL_WORD.test(words) || textCells.some((a) => SUMMARY.test(a.text.trim())) || unitCount;
+  if (totalish && !dates.length && (figures.length || (/total/i.test(words) && !unitCount))) {
+    const named = textCells.find((a) => TOTAL_WORD.test(a.text) || SUMMARY.test(a.text.trim()) || UNIT_COUNT.test(a.text.trim()));
+    if (unitCount ? sumsMatch(t, base) : !realSuite || sumsMatch(t, base)) return { ...base, type: 'total', label: (named ? named.text : words).trim() || 'Total' };
   }
   if (!textCells.length && !dates.length && figures.length && t.rows.length >= 2 && sumsMatch(t, base)) return { ...base, type: 'total', label: '', unlabelled: true };
   const lone = loose.length && loose.every((c) => /[a-z]/i.test(c.text));
   if (figures.length || vacant || (realSuite && by.tenant)) {
     if (!figures.length && !vacant && lone) return { ...base, type: 'mismatch' };
-    return { ...base, type: 'anchor', weak: !figures.length && !vacant };
+    return { ...base, type: 'anchor', weak: !figures.length && !vacant, unitLabel: unitCount };
   }
   // text only: a wrapped name, a section heading, or something else (the table has ended)
   const txt = L.cells.map((c) => c.text).join(' ').trim();
   if (FOOTNOTE.test(txt) || txt.length > 60 || loose.length) return { ...base, type: 'mismatch' };
   const nameCols = textCells.filter((a) => ['tenant', 'suite', 'bumps', 'notes', 'type', 'status'].includes(a.col.kind));
   if (!nameCols.length || nameCols.length !== textCells.length) return { ...base, type: 'mismatch' };
-  if (HEADING_WORDS.test(txt)) return { ...base, type: 'heading', txt };
+  if (HEADING_WORDS.test(txt) || UNIT_COUNT.test(txt)) return { ...base, type: 'heading', txt };
   return { ...base, type: 'text', txt, upper: upperish(txt) && txt.length <= 30 && !by.suite };
 }
 
@@ -421,7 +429,7 @@ function rawRow(x, page) {
     } else raw[k] = v;
   }
   const first = x.L.cells[0];
-  return { raw, cells, page, line: x.L.i + 1, y: x.L.y, h: x.L.h, ownTenant: !!(x.by.tenant && !BLANK_RE.test(x.by.tenant.text.trim())), parts: { before: [], after: [] }, lineText: x.L.text.trim(), ocr: x.L.ocr, conf: x.L.conf,
+  return { raw, cells, page, line: x.L.i + 1, y: x.L.y, h: x.L.h, unitLabel: !!x.unitLabel, ownTenant: !!(x.by.tenant && !BLANK_RE.test(x.by.tenant.text.trim())), parts: { before: [], after: [] }, lineText: x.L.text.trim(), ocr: x.L.ocr, conf: x.L.conf,
     firstText: first && !/^\$?\d/.test(first.text) && /[a-z]/i.test(first.text) ? first.text : null };
 }
 
@@ -448,6 +456,39 @@ function carryOn(P, pi, t) {
   return null;
 }
 
+const SPLIT_YEAR = /^(?:19|20)\d\d$/;
+const SPLIT_HEAD = /[/-]$|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*(?:\d{1,2},?)?$/i;
+
+/**
+ * A lease-to year printed alone on the line under its row ("12/31/" above, "2030" below). Looks only upward, never
+ * toward the row below, and only for a lone cell inside the end column's own bounds (not the nearest column: a year
+ * is also a plausible Past Due or Deposit figure). Returns null when this isn't that, 'join' with the row's end set,
+ * or 'refuse' when the pieces can't be trusted (the row gets a failed check and the year is not used).
+ */
+function splitYear(L, lines, j, seg, t) {
+  const endCol = t.cols.find((c) => c.kind === 'end');
+  if (!endCol || L.cells.length !== 1 || !SPLIT_YEAR.test(L.cells[0].text.trim()) || gapOf(L.cells[0], endCol) !== 0) return null;
+  const prev = seg.items[seg.items.length - 1];
+  if (!prev || prev.type !== 'anchor' || !prev.row) return null;
+  const r = prev.row;
+  const head = r.raw.endText;
+  if (r.raw.end || !head || !SPLIT_HEAD.test(head.trim())) return null;
+  const near = r.y !== null && L.y !== null ? Math.abs(r.y - L.y) <= 1.6 * Math.max(r.h || 8, L.h || 8) : L.i === r.line;
+  if (!near) return null;
+  // the next line also carries the start of a date in its end cell: the year could belong to either
+  const nx = lines[j + 1];
+  const nxEnd = nx && nx.cells.find((c) => gapOf(c, endCol) === 0 && SPLIT_HEAD.test(c.text.trim()) && !readDate(c.text));
+  const joined = readDate(`${head.trim()}${/[/-]$/.test(head.trim()) ? '' : ' '}${L.cells[0].text.trim()}`);
+  if (nxEnd || !joined || !joined.date || (r.raw.start && joined.date <= r.raw.start)) {
+    r.splitFail = `the lease-to date is split across lines (“${head.trim()}” and “${L.cells[0].text.trim()}”) and can't be put together safely: check the page`;
+    return 'refuse';
+  }
+  r.raw.end = joined.date; r.raw.mtm = false; r.raw.endText = `${head.trim()}${/[/-]$/.test(head.trim()) ? '' : ' '}${L.cells[0].text.trim()}`;
+  r.cells.end = { ...(r.cells.end || {}), text: r.raw.endText, joinedLine: L.i + 1 };
+  r.splitJoin = true;
+  return 'join';
+}
+
 /** Read a table's body from (pi, li) to where it stops on that page. */
 function readBody(P, at, t) {
   const lines = P[at.pi];
@@ -471,6 +512,7 @@ function readBody(P, at, t) {
       if (sameHeader(h.cols, t.cols) && !afterTotal) { seg.repeated = (seg.repeated || 0) + 1; j += h.n - 1; continue; }
       seg.reason = afterTotal ? 'total' : 'header'; seg.endLi = j; break;
     }
+    if (splitYear(L, lines, j, seg, t)) continue;
     const x = classify(L, t);
     if (afterTotal && x.type !== 'total') { seg.reason = 'total'; seg.endLi = j; break; }
     if (x.type === 'mismatch') {
@@ -501,6 +543,7 @@ function subtotalLabel(label) {
   const l = String(label).trim();
   return /sub-?total/i.test(l) || /^(?:total\s+)?(?:occupied|vacant|available|leased)\b/i.test(l)
     || /\b(?:occupied|vacant|available|leased)\s+(?:sf|total|subtotal)\b/i.test(l) || /^(?:averages?|avg\.?|weighted average)\b/i.test(l)
+    || UNIT_COUNT.test(l)
     || (/^[a-z][\w&/ -]*?\s+totals?\b/i.test(l) && !/^(?:grand|property|building|center|project|portfolio|overall|rent roll)\s+totals?\b/i.test(l));
 }
 
@@ -614,6 +657,32 @@ function readings(t) {
   return out;
 }
 
+/**
+ * Two rent columns that give the same reading ("Rent" and "Monthly Rent", both monthly) and disagree on a row:
+ * the reader can't tell which is the rent, so it asks (a fail holds the roll). Equal on every row is the same
+ * figure printed twice, and only noted. The column read first is the one used.
+ * @returns {{ used: any, other: any, differs: boolean }[]}
+ */
+function competing(t) {
+  const by = new Map();
+  for (const c of t.cols) {
+    const u = t.units[c.kind];
+    if (!RENT_KINDS.includes(c.kind) || !u || u.basis === 'empty') continue;
+    if (!by.has(u.reading)) by.set(u.reading, []);
+    by.get(u.reading).push(c);
+  }
+  const out = [];
+  for (const cols of by.values()) {
+    if (cols.length < 2) continue;
+    const [used, ...others] = cols.sort((x, y) => RENT_KINDS.indexOf(x.kind) - RENT_KINDS.indexOf(y.kind));
+    for (const o of others) {
+      const k = t.rows.findIndex((r) => Number.isFinite(r.raw[used.kind]) && Number.isFinite(r.raw[o.kind]) && Math.abs(r.raw[used.kind] - r.raw[o.kind]) > Math.max(1, Math.abs(r.raw[o.kind]) * 0.002));
+      out.push({ used, other: o, differs: k >= 0 });
+    }
+  }
+  return out;
+}
+
 const READING_WORD = { annual: 'annual rent', monthly: 'monthly rent', psf: 'rent per SF a year', mpsf: 'rent per SF a month' };
 
 
@@ -715,6 +784,7 @@ function finishRow(r, t, U, issues, rowNo) {
     const u = U[k];
     const reading = u ? u.reading : k;
     if (by[reading] === null) by[reading] = raw[k];
+    else if (by[reading] !== raw[k]) { score -= 0.2; why.push(`the “${u ? u.label : k}” column gave a different ${READING_WORD[reading]}: the first column read was used`); }
     if (u && u.basis !== 'stated' && u.basis !== 'convention') {
       score -= u.basis === 'guessed' ? 0.35 : 0.15;
       why.push(u.basis === 'guessed' ? `the “${u.label}” column doesn't say whether it is monthly or annual: read as ${READING_WORD[reading]}` : `the “${u.label}” column was read as ${READING_WORD[reading]} from its figures`);
@@ -755,6 +825,16 @@ function finishRow(r, t, U, issues, rowNo) {
   }
   if (vacant && !row.sf) issues.push({ kind: 'nosf', level: 'warn', row: rowNo, page: r.page, line: r.line, col: null, cell: null, lineText: r.lineText, text: `Row ${rowNo}${row.suite ? ` (suite ${row.suite})` : ''} is vacant with no SF printed, so occupancy can't count it.`, amount: 0 });
   if (r.carried) { score -= 0.15; why.push(`page ${r.page} carries on with no header: its cells line up with the header's columns`); }
+  if (r.splitJoin) { score -= 0.1; why.push('its lease-to date was printed across two lines, and the lines were joined'); }
+  if (r.splitFail) {
+    score -= 0.3; why.push(r.splitFail);
+    issues.push({ kind: 'split', level: 'fail', row: rowNo, page: r.page, line: r.line, col: r.cells.end ? r.cells.end.col : null, cell: r.cells.end || null, lineText: r.lineText, text: `Row ${rowNo}: ${r.splitFail}.`, amount: 0 });
+  }
+  if (r.unitLabel) {
+    score -= 0.2; why.push('its label reads like a unit count, but its figures don\'t add up to the rows above');
+    issues.push({ kind: 'unitlabel', level: 'warn', row: rowNo, page: r.page, line: r.line, col: null, cell: null, lineText: r.lineText,
+      text: `Row ${rowNo}: a row labelled “${r.lineText.match(/\d{1,4}\s+units?/i)?.[0] || 'a unit count'}” was read as a tenant; its figures don't add up to the rows above it.`, amount: 0 });
+  }
   if (t.unknownCols) { score -= 0.1; why.push(`the table has a column the reader doesn't know (${t.unknownCols})`); }
   if (r.ocr) { score = Math.min(score, 0.3); why.push('read by OCR from a scanned page'); }
   row.src = { page: r.page, line: r.line, cells };
@@ -777,6 +857,11 @@ function checkTotals(t, rows, issues) {
     /** @type {[string, string, (r: any) => number, ((r: any) => number) | null][]} */
     const fields = [['sf', 'SF', (r) => r.sf || 0, (r) => (r.vacant ? 0 : r.sf || 0)], ['annual', 'annual rent', (r) => (r.vacant ? 0 : r.annual || 0), null], ['monthly', 'monthly rent', (r) => (r.vacant ? 0 : r.monthly || 0), null]];
     const totalField = (k) => (k === 'annual' ? T.annual ?? (U_of(t, 'rent') === 'annual' ? T.rent : undefined) : k === 'monthly' ? T.monthly ?? (U_of(t, 'rent') === 'monthly' ? T.rent : undefined) : T[k]);
+    const said = /^(?:total\s*:?\s*)?(\d{1,4})\s+units?/i.exec(String(T.label).trim());
+    if (said && Number(said[1]) !== cover.length) {
+      issues.push({ kind: 'total', level: 'fail', field: 'units', total: T, page: T.page, line: T.line, col: null, cell: null, lineText: T.lineText,
+        text: `The “${T.label}” row (page ${T.page}) says ${said[1]} unit${said[1] === '1' ? '' : 's'}; the ${cover.length} row${cover.length === 1 ? '' : 's'} above it read are not that many. A row may be missing or misread.`, amount: Math.abs(Number(said[1]) - cover.length) });
+    }
     for (const [k, word, all, occ] of fields) {
       const v = totalField(k);
       if (!Number.isFinite(v)) continue;
@@ -852,6 +937,7 @@ export function rentRoll(pages, { layouts = null } = {}) {
     const doubt = rentScaleDoubt(t);
     applyScales(t);
     t.units = readings(t);
+    t.competing = competing(t);
     t.unknownCols = t.cols.filter((c) => c.kind === 'other' && !/^(?:#|no\.?)$/i.test(c.label.trim())).map((c) => `“${c.label}”`).join(', ');
     const base = rows.length;
     const mine = [];
@@ -884,6 +970,13 @@ export function rentRoll(pages, { layouts = null } = {}) {
     totals.push(...tt.totals);
     for (const seg of t.segments) {
       if (seg.items.some((x) => x.type === 'anchor')) segments.push({ page: seg.page, how: seg.how, rows: seg.items.filter((x) => x.type === 'anchor').length, repeated: seg.repeated || 0 });
+    }
+    for (const cp of t.competing) {
+      const mk = (c) => ({ page: t.page, line: t.line, col: c.idx, text: c.label });
+      issues.push({ kind: 'compete', level: cp.differs ? 'fail' : 'info', col: cp.other.idx, cols: [cp.used.idx, cp.other.idx], page: t.page, line: t.line, row: null, cell: mk(cp.other), lineText: cp.other.label,
+        text: cp.differs
+          ? `The “${cp.used.label}” and “${cp.other.label}” columns on page ${t.page} both read as ${READING_WORD[t.units[cp.used.kind].reading]}, and their figures differ. The “${cp.used.label}” column was used; check the page before accepting.`
+          : `The “${cp.used.label}” and “${cp.other.label}” columns on page ${t.page} print the same figures; the “${cp.used.label}” column was used.`, amount: 0 });
     }
     for (const [k, u] of Object.entries(t.units)) {
       if (u.basis === 'inferred' || u.basis === 'guessed') {

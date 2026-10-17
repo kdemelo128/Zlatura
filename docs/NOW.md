@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.23 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.24 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -40,16 +40,22 @@ section with grep, never in full.
     cross-check only; Building SF and Units offered as a "Use" tap (Occupancy
     not offered: the deal already shows the roll's, labelled); a two-line
     header is read.
-- **In progress (two PRs open):**
-  - `impact-flow` axe flake (#44, 4.7.22): flow-only fix, app untouched;
-  - the rent roll PDF upload (4.7.23, PR opening): *Import from PDF…* with
-    preview, Data QC, layout guard, Undo; source kind `pdf` and file name per
-    lease (schema 4, silent migration step `rr-pdf-source`).
+  - `impact-flow` axe flake (#44, 4.7.22): flow-only fix;
+  - the rent roll PDF upload (#45, 4.7.23): *Import from PDF…* with preview,
+    Data QC, layout guard, Undo; source kind `pdf` and file name per lease
+    (schema 4, silent migration step `rr-pdf-source`).
+- **In progress (one PR open):** the property-manager profile (4.7.24, PR
+  opening): "Monthly Charges"/fees are a recovery column, never rent; two
+  rent columns that disagree are one failed check; Past Due/Balance noted,
+  not failed; a "4 Units" subtotal; a lease-to year split onto the next line.
+  Reader-only, no data-format change, golden identical.
   - **Owes the owner:** whether an accepted failed check on a PDF import is
     kept as a record (a new stored field; today it is in the history label only).
-  - Next: the property-manager profile, then the roll comparison. **Waiting for
-    the owner's OM** (the attachment did not reach the container): put it in
-    `private/om/`, run `node tests/tools/rr-local.mjs` on it, report counts only.
+  - **Known flake:** `rename-flow` "Settings says the data moved and the old
+    copy is kept" failed once in `check:full` and passed on re-run alone.
+  - Next: the roll comparison. **Waiting for the owner's OM** (the attachment
+    did not reach the container): put it in `private/om/`, run
+    `node tests/tools/rr-local.mjs` on it, report counts only.
 - **Standing rules (owner, 2026-10-17):**
   1. After opening a PR go straight to the next queue item on a fresh branch
      from the latest main (or the previous branch if it depends on it); at most
@@ -69,8 +75,8 @@ section with grep, never in full.
      projections flow works on real deals; don't start them unless asked.
 - **Queue (in order):** (a) the `check:quick` gate fix [merged, #42]; (b) 1b + 1c
   [PR #43]; (c) `impact-flow`, the intermittent axe contrast failure, so
-  `check:full` is reliable [PR open: the flow waited for no animation]; (d) the rent roll PDF upload; (e) the
-  property-manager profile; (f) the roll comparison; (g) the underwriting
+  `check:full` is reliable [PR open: the flow waited for no animation]; (d) the rent roll PDF upload [merged, #45]; (e) the
+  property-manager profile [PR opening]; (f) the roll comparison; (g) the underwriting
   proposal from the support code; (h) after the Oct 21 usage reset: T-12
   multi-format import, OM red flags, pro forma vs T-12 bridge. Then F6/F7, F10,
   F3, F4, F8, F9 and the rest in `docs/PLAN_STATUS.md`, "Now".
