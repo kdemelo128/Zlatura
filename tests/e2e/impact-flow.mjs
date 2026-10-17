@@ -195,7 +195,10 @@ check(`trying a rent on 500 leases, projection included, takes ${Math.round(tryM
 
 // axe on the sheet, desktop then phone
 await page.addScriptTag({ path: createRequire(import.meta.url).resolve('axe-core/axe.min.js') });
-const axe = () => page.evaluate(async () => (await window.axe.run(document.querySelector('#sheet'), { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }, resultTypes: ['violations'] })).violations.map((v) => `${v.id}: ${v.nodes.length}`));
+// the sheet slides and fades in: axe reads the colours it has at that instant (the eyebrow measured 4.42:1 mid-fade, 4.5 is the floor),
+// so wait for every animation to finish and the page to settle, as the other flows' axe helpers do
+const finishAnimations = () => page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect && a.effect.getTiming().iterations !== Infinity).map((a) => a.finished.catch(() => {}))));
+const axe = async () => { await finishAnimations(); await page.waitForTimeout(600); return page.evaluate(async () => (await window.axe.run(document.querySelector('#sheet'), { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }, resultTypes: ['violations'] })).violations.map((v) => `${v.id}: ${v.nodes.length} ${v.nodes.map((n) => n.target.join(' ') + ' ' + ((n.any[0] && n.any[0].data && n.any[0].data.contrastRatio) || '')).slice(0, 3).join(' | ')}`)); };
 const a1 = await axe();
 check('axe: the sheet has no violations (desktop)', a1.length === 0, a1.join('; '));
 await close();

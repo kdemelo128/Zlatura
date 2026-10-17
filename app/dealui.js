@@ -24,7 +24,7 @@ import { undoState, inverseOf, mediaRefs, withBytes, applyChanges, placeOf, snap
 import { renderDealBrief, dealSummaryText, placeLine } from './brief.js';
 import { project, rentRollSummary } from './lease.js';
 import { projectionNow, projectionLater, projectionSync, projectionError } from './projector.js';
-import { legacyRows, omRollRecord, applyHeldRows, addOcrRows, ocrReading } from './rentroll.js';
+import { legacyRows, omRollRecord, applyHeldRows, addOcrRows, ocrReading, rollOffers, withoutRollFigures, ROLL_TOOL } from './rentroll.js';
 import { qcPanel } from './dataqcui.js';
 import { omReadRecord, applyOmFix, heldFields, basisText } from './omstatement.js';
 import { resolveCheck, blockingChecks, qcCounts } from './dataqc.js';
@@ -466,6 +466,15 @@ async function readOmFile(file) {
   const stHeld = stmt.omRead ? heldFields(stmt.omRead).length : 0;
   toast(`Read ${om.pages} page${om.pages === 1 ? '' : 's'}: ${n} figure${n === 1 ? '' : 's'} found${om.rentRoll ? ` and a rent roll of ${om.rentRoll.rows.length}` : ''}.${stHeld ? ' The operating statement doesn’t add up, so NOI, EGI and expenses are held back: see Data QC.' : ''}${held ? ' A rent roll check failed, so the rent roll is held back: see Data QC.' : ''}${om.scanned.length ? ` ${om.scanned.length} page${om.scanned.length === 1 ? ' has' : 's have'} no text.` : ''} Tap a page tag to see where each came from.`, null, 7000);
   idle(() => getXlsx().catch(() => {}));
+}
+
+/** The broker took a figure the rent roll offered: it becomes the deal's, marked as taken from the rent roll, and History records it. */
+function useFromRoll(key, value, label) {
+  if (!deal) return;
+  deal.figures[key] = value;
+  deal.sources[key] = { hand: true, tool: ROLL_TOOL };
+  touch(deal, { kind: 'tool', label: `${label} from the rent roll` });
+  render();
 }
 
 function progress() {
@@ -1121,6 +1130,7 @@ function sourceTag(key) {
     b.addEventListener('click', () => showSource(key));
     return b;
   }
+  if (s.tool === ROLL_TOOL) { const t = el('span', 'src hand', 'rent roll'); t.title = 'Taken from the rent roll by the broker'; return t; }
   if (s.hand && !s.page) return el('span', 'src hand', 'typed');
   if (!s.page && !s.hand) {
     const t = el('span', 'src low', 'guess');
@@ -1626,10 +1636,30 @@ function renderRentRoll(m) {
     const soon = sum.expirations.filter((e) => typeof e.year === 'number' && e.year <= new Date().getFullYear() + 1).reduce((x, e) => x + (e.rentPct || 0), 0);
     add('Expiring by next year-end', pct(soon, 0), 'of rent', soon >= 25 ? 'warn' : '');
     box.appendChild(t);
+    // figures still empty that the rent roll can offer: shown, and filled only when the broker taps Use
+    const offers = rollOffers(deal.figures, sum);
+    if (offers.length) {
+      const ob = el('div', 'rr-offers');
+      ob.id = 'deal-rr-offers';
+      ob.style.padding = '0 16px 10px';
+      ob.appendChild(el('p', 'hint-sm', 'These figures are empty on the deal. The rent roll can supply them; nothing is filled until you tap Use.'));
+      for (const o of offers) {
+        const row = el('div', 'rr-offer');
+        row.dataset.offer = o.key;
+        row.style.cssText = 'display:flex;gap:10px;align-items:center;justify-content:space-between;padding:6px 0';
+        row.appendChild(el('span', 'hint-sm', `${o.label}: ${o.text}`));
+        const b = button('btn-sm', 'Use', () => useFromRoll(o.key, o.value, o.label));
+        b.setAttribute('aria-label', `Use the rent roll’s figure for ${o.label}`);
+        row.appendChild(b);
+        ob.appendChild(row);
+      }
+      box.appendChild(ob);
+    }
     // the rent roll against the OM's own figures (reconcile.js: arithmetic, no AI)
     // the Data QC panel already compares the building SF and occupancy with the rent roll as read
     const covered = deal.rrQc && deal.rrQc.applied && !deal.rrQc.legacy ? ['occ', 'sf'] : [];
-    const issues = crossChecks(deal.figures, sum).filter((i) => !covered.includes(i.id));
+    // a figure taken from the rent roll is not checked against the rent roll it came from
+    const issues = withoutRollFigures(crossChecks(deal.figures, sum), deal.sources).filter((i) => !covered.includes(i.id));
     if (issues.length) {
       const ul = el('ul', 'rr-checks');
       ul.id = 'deal-rr-checks';
