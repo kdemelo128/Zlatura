@@ -105,6 +105,6 @@ section with grep, never in full.
   anything is visible;
   the branch rules in `docs/working-rules.md` ("Branches and PRs").
 - **Roll comparison (4.7.25, PR opening):** the PDF preview lists how the PDF differs from the current rent roll before Replace/Add (`compareRolls`, `app/reconcile.js`). The property-manager profile (#46) is merged.
-- **Underwriting proposal (4.7.26, PR opening):** `docs/proposals/underwriting.md`, waiting for the owner's approval and its 10 decisions before any build. Roll comparison (#47) and the property-manager profile (#46) are merged.
+- **Underwriting (#48, 4.7.26): all 10 decisions approved by the owner 2026-10-17** (`docs/proposals/underwriting.md` section 7). **U8 is deferred, not built until asked.** Spike thresholds and the rent per SF band are settings and warnings only (never block, never change a number). Normalised NOI always sits next to the reported figure and never replaces it. The strict review setting is off by default. **Order:** T-12 PRs 1 and 3 first (new gap definition and N in PR 3), then U1-U7; **U1 not until both T-12 PRs are merged; nothing starts before the Oct 21 reset.**
 - **State note** (write here before any long task, so a fresh session can
   resume): none.
