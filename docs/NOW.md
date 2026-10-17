@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.16 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.17 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -27,18 +27,19 @@ section with grep, never in full.
   - F2, old CSVs (#33, 4.7.15): one reader for every text file
     (`app/textfile.js`): a byte-order mark decides, valid UTF-8 as before,
     else Windows-1252 with a note; ambiguous files show both readings.
-- **In progress:** this docs PR (4.7.16): routing, check rule, usage rules.
+  - the docs PR (#34, 4.7.16): routing, check rule, usage rules.
+- **In progress:** F5 (4.7.17, PR open): CI `npm audit` for both lock files,
+  actions pinned to commit SHAs, Dependabot for actions; the owner turns on
+  GitHub security alerts (Settings, Code security).
 - **Next (one PR at a time; the full order is in `docs/PLAN_STATUS.md`, "Now"):**
-  1. F5 (scope: the F5 row of `docs/proposals/production-readiness.md`; the
-     owner turns on GitHub security alerts themselves);
-  2. F6/F7, F10, one PR each;
-  3. T-12 multi-format import (`.xls` only with an Apache-2.0 or MIT SheetJS
+  1. F6/F7, F10, one PR each;
+  2. T-12 multi-format import (`.xls` only with an Apache-2.0 or MIT SheetJS
      that can be fetched; otherwise skip it and tell the owner);
-  4. F3, F4, F8 (30 days), F9 (optional password, lost-password warning);
-  5. OM red-flag check and the T-12 bridge; then "Export everything";
-  6. UI revamp in phases (first-run path in Home; Guided Mode after the
+  3. F3, F4, F8 (30 days), F9 (optional password, lost-password warning);
+  4. OM red-flag check and the T-12 bridge; then "Export everything";
+  5. UI revamp in phases (first-run path in Home; Guided Mode after the
      clean-ups; F11 inside it);
-  7. the rest of Phase 2 with the approved reorder, then Phases 3 to 8 (F12
+  6. the rest of Phase 2 with the approved reorder, then Phases 3 to 8 (F12
      before any AI server deployment; Phase 7 prerequisites recorded).
 - **Approved decisions (owner):**
   - no new libraries for now (any library is an approval gate);

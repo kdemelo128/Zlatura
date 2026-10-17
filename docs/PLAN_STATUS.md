@@ -21,11 +21,11 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.16; working rules updated (model routing, check rule, usage rules); docs only (2026-10-16).
+Last updated: 4.7.17; F5 (CI audit, pinned actions; PR open) (2026-10-16).
 
 ## Now
 
-- **Current step:** docs PR 4.7.16 (working rules; PR open), then F5. F2 (4.7.15, merged #33): every file read as text goes
+- **Current step:** F5 (4.7.17, PR open: CI audit, pinned actions), then F6/F7. F2 (4.7.15, merged #33): every file read as text goes
   through `app/textfile.js`, so a Windows-1252 CSV keeps its accents and
   curly quotes and the app says how it read the file. F1 (4.7.14, one
   rounding rule) is merged (#32), and so are changelog fragments (4.7.13,
@@ -222,7 +222,7 @@ in the order of the build order above:
   PR open)
 - [ ] F3 the phone's Back button returns to the last screen
 - [ ] F4 a strict Content-Security-Policy, with `script-src`
-- [ ] F5 dependency audit in CI, and actions pinned to commit SHAs
+- [x] F5 dependency audit in CI, and actions pinned to commit SHAs (4.7.17, PR open; the owner turns on GitHub security alerts)
 - [ ] F6 hostile-text pack (apostrophes, emoji, right-to-left, formulas);
   F7 tests run in other timezones
 - [ ] F8 "Recently deleted" for 30 days (approved)
