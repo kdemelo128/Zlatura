@@ -228,6 +228,18 @@ export const storedRow = (r) => ({
 });
 
 /**
+ * The OM's stated in-place rent, for the rent roll's cross-check only. The deal has no box for it, so it is not
+ * a figure and is never stored: it is added to the figures and sources handed to `rentRollQc` and no further.
+ * Left out when a statement table read it and that table's check failed, or when the caller passed one.
+ * @returns {{ figures: Record<string, any>, sources: Record<string, any> }}
+ */
+export function withStatedRent(om, figures = {}, sources = {}) {
+  const r = om && om.fields && om.fields.rent_inplace;
+  if (!r || !pos(r.value) || r.check === 'fail' || ok(figures.rent_inplace)) return { figures, sources };
+  return { figures: { ...figures, rent_inplace: r.value }, sources: { ...sources, rent_inplace: { page: r.page, line: r.line, confidence: r.confidence } } };
+}
+
+/**
  * What a deal keeps of an OM's rent roll as read (om.js readOm): the rows to
  * use now, and the Data QC record (`deal.rrQc`): pages, columns, totals, the
  * checks (reconcile.js rentRollQc) and, while a check fails, the rows held
@@ -236,17 +248,50 @@ export const storedRow = (r) => ({
 export function omRollRecord(om, { figures = {}, sources = {}, asOf = null, file = '' } = {}) {
   const roll = om && om.rentRoll;
   const scanned = (om && om.scanned) || [];
+  const stated = withStatedRent(om, figures, sources);
   if (!roll && !scanned.length) return { qc: null, rows: [] };
   const rows = roll ? roll.rows.map(storedRow) : [];
   const qc = {
     v: 1, at: Date.now(), file, pages: roll ? roll.pages : [], page: roll ? roll.page : null, scanned, confidence: roll ? roll.confidence : null,
     columns: roll ? roll.columns : [], totals: roll ? roll.totals.map(({ cells, ...T }) => ({ ...T, cells })) : [], segments: roll ? roll.segments : [],
-    checks: rentRollQc(figures, roll, { sources, scanned, asOf }), held: null, applied: false, ocr: [],
+    checks: rentRollQc(stated.figures, roll, { sources: stated.sources, scanned, asOf }), held: null, applied: false, ocr: [],
   };
   const hold = rows.length > 0 && blockingChecks(qc).length > 0;
   if (hold) qc.held = rows;
   qc.applied = rows.length > 0 && !hold;
   return { qc, rows: hold ? [] : rows };
+}
+
+/* ------------------------------------------- figures the rent roll can offer */
+
+/** Marks a figure the broker took from the rent roll (the way applyFromTools marks one taken from a tool). */
+export const ROLL_TOOL = 'the rent roll';
+const n0 = (x) => Math.round(x).toLocaleString('en-US');
+
+/**
+ * What the rent roll can offer for a deal figure that is still empty: Building SF, Units and Occupancy, each with
+ * the words that say where it comes from. Offered, never filled: the broker taps "Use". A figure that already has a
+ * value (read from the OM or typed) is never offered over. `sum` is a rentRollSummary.
+ * @returns {{ key: 'bsf'|'units'|'occ', label: string, value: number, text: string }[]}
+ */
+export function rollOffers(figures, sum) {
+  const f = figures || {};
+  /** @type {{ key: 'bsf'|'units'|'occ', label: string, value: number, text: string }[]} */
+  const out = [];
+  if (!sum || !sum.units) return out;
+  if (!ok(f.bsf) && pos(sum.totalSf)) out.push({ key: 'bsf', label: 'Building SF', value: sum.totalSf, text: `The rent roll’s ${sum.units} units add up to ${n0(sum.totalSf)} SF, as listed. A building’s gross area can be larger.` });
+  if (!ok(f.units)) out.push({ key: 'units', label: 'Units', value: sum.units, text: `The rent roll lists ${sum.units} unit${sum.units === 1 ? '' : 's'}.` });
+  const basis = ok(f.bsf) && f.bsf > 0 ? f.bsf : sum.totalSf;
+  if (!ok(f.occ) && pos(basis) && ok(sum.leasedSf)) {
+    const occ = (sum.leasedSf / basis) * 100;
+    out.push({ key: 'occ', label: 'Occupancy', value: occ, text: `The rent roll’s leased units fill ${occ.toFixed(1)}% (${n0(sum.leasedSf)} of ${n0(basis)} SF${ok(f.bsf) && f.bsf > 0 ? ', on the building SF above' : ''}).` });
+  }
+  return out;
+}
+
+/** Cross-check issues left out when every figure they name was taken from the rent roll (it would be checked against itself). */
+export function withoutRollFigures(issues, sources) {
+  return issues.filter((i) => !(i.keys && i.keys.length && i.keys.every((k) => sources && sources[k] && sources[k].tool === ROLL_TOOL)));
 }
 
 /** A rent roll of leases from OM rows, set up as a new deal's is (migrate.js, step "rent-roll"). */
