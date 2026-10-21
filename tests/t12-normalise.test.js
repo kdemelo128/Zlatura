@@ -485,6 +485,11 @@ test('as reported with marks: normalised NOI is noiWithout().noi, which now read
   assert.equal(row(r, t, 'Building repairs').oneoff, 48000);
   assert.equal(c(r.reported.noi) + r.steps.reduce((s, x) => s + c(x.noi), 0), c(r.normalised.noi));
   assert.deepEqual(r.steps.map((s) => s.kind), ['oneoff']);
+  // noiWithout is the marks alone: methods set on the lines do not move it
+  methods(t, { 'Base Rent': 'exclude', Repairs: 'runRate' });
+  assert.equal(noiWithout(t).noi, 190699.99);
+  assert.notEqual(normalise(t).normalised.noi, 190699.99);
+  methods(t, { 'Base Rent': 'reported', Repairs: 'reported' });
   // a stale mark (the amount changed since it was answered) is ignored
   const bld = line(t, 'Building repairs');
   bld.months[4] = 47999.99;
