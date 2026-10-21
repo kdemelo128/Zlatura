@@ -1,0 +1,259 @@
+{
+ "format": "zlatura-backup",
+ "version": 2,
+ "app": "4.7.27",
+ "createdAt": "2026-10-21T15:46:36.186Z",
+ "counts": {
+  "deals": 1,
+  "templates": 0,
+  "tasks": 0,
+  "contacts": 0
+ },
+ "deals": [
+  {
+   "id": "d4727plaza",
+   "name": "Invented Plaza (fictional)",
+   "createdAt": 1792203277340,
+   "updatedAt": 1792203290000,
+   "source": null,
+   "readAt": null,
+   "pages": 0,
+   "figures": {
+    "address": "1 Invented Plaza (fictional)",
+    "gross": 135000,
+    "opex": 42400,
+    "taxes": 36000,
+    "noi": 92600
+   },
+   "sources": {},
+   "rentRoll": [],
+   "unpriced": false,
+   "loan": {
+    "ltv": 65,
+    "rate": 6.75,
+    "amort": 30,
+    "io": false,
+    "closing": 2,
+    "minDscr": 1.25,
+    "minDy": 8
+   },
+   "qDone": {},
+   "myQuestions": [],
+   "live": {},
+   "scenarios": [],
+   "targets": {
+    "cap": null,
+    "irr": 15,
+    "value": null
+   },
+   "visit": {
+    "at": null,
+    "items": {},
+    "notes": "",
+    "photos": [],
+    "audio": []
+   },
+   "moneyVersion": 1,
+   "schema": 4,
+   "t12": {
+    "file": "invented-plaza.csv",
+    "sheet": "CSV",
+    "importedAt": 1792203278924,
+    "months": [
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05",
+     "2026-06"
+    ],
+    "lines": [
+     {
+      "id": "L4",
+      "r": 4,
+      "account": "",
+      "label": "Base Rent",
+      "key": "base rent",
+      "section": "income",
+      "months": [
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000
+      ],
+      "total": 60000,
+      "fileTotal": 60000,
+      "category": "rent",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "rent"
+      ]
+     },
+     {
+      "id": "L5",
+      "r": 5,
+      "account": "",
+      "label": "CAM Reimbursements",
+      "key": "cam reimbursements",
+      "section": "income",
+      "months": [
+       1500,
+       1500,
+       0,
+       1500,
+       1500,
+       1500
+      ],
+      "total": 7500,
+      "fileTotal": 7500,
+      "category": "recoveries",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "recoveries"
+      ]
+     },
+     {
+      "id": "L7",
+      "r": 7,
+      "account": "",
+      "label": "Real Estate Taxes",
+      "key": "real estate taxes",
+      "section": "expense",
+      "months": [
+       3000,
+       3000,
+       3000,
+       3000,
+       3000,
+       3000
+      ],
+      "total": 18000,
+      "fileTotal": 18000,
+      "category": "taxes",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "taxes"
+      ]
+     },
+     {
+      "id": "L8",
+      "r": 8,
+      "account": "",
+      "label": "Pylon Sign Lease",
+      "key": "pylon sign lease",
+      "section": "expense",
+      "months": [
+       200,
+       200,
+       200,
+       200,
+       200,
+       200
+      ],
+      "total": 1200,
+      "fileTotal": 1200,
+      "category": "otherOpex",
+      "how": "you",
+      "why": "your choice",
+      "candidates": [
+       "otherOpex"
+      ]
+     },
+     {
+      "id": "L9",
+      "r": 9,
+      "account": "",
+      "label": "Repairs",
+      "key": "repairs",
+      "section": "expense",
+      "months": [
+       400,
+       400,
+       400,
+       0,
+       400,
+       400
+      ],
+      "total": 2000,
+      "fileTotal": 2000,
+      "category": "repairs",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "repairs"
+      ]
+     }
+    ],
+    "stated": {},
+    "subtotals": [],
+    "signs": {
+     "expensesNegative": false,
+     "reductionsPositive": false
+    },
+    "headRow": 2,
+    "seen": {
+     "months": true
+    },
+    "applied": {
+     "at": 1792203290000,
+     "before": {
+      "noi": null,
+      "gross": null,
+      "opex": null,
+      "taxes": null
+     },
+     "rrOpex": false,
+     "annualized": 6
+    }
+   },
+   "rr": {
+    "settings": {
+     "asOf": "2026-10-17",
+     "years": 10,
+     "marketRent": null,
+     "marketUnit": "psf_year",
+     "marketGrowth": 3,
+     "opex": null,
+     "expenseGrowth": 3,
+     "recoverable": null,
+     "generalVacancy": 0,
+     "reservesPsf": 0,
+     "otherIncome": [],
+     "leaseUpMonths": 6,
+     "buildingSf": null,
+     "renewal": {
+      "assume": true,
+      "probability": 65,
+      "termMonths": 60,
+      "downtime": 6,
+      "renewFree": 0,
+      "newFree": 3,
+      "renewTi": 0,
+      "newTi": 0,
+      "renewLc": 0,
+      "newLc": 0,
+      "escalation": 3
+     }
+    },
+    "leases": []
+   }
+  }
+ ],
+ "kv": {
+  "t12.labels": {
+   "entries": {
+    "pylon sign lease": {
+     "category": "otherOpex",
+     "at": 1792203285000
+    }
+   }
+  }
+ },
+ "session": null,
+ "local": {}
+}

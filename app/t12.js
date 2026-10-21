@@ -93,8 +93,12 @@ export function matchLabel(label, { section = null, corrections = {} } = {}) {
 
 /* -------------------------------------------------------------- numbers */
 
-/** An amount as a statement writes it: "$1,250", "(1,250)", "1,250-", "–" (zero). NaN when the text isn't an amount. */
-export function amountOf(v) {
+/**
+ * An amount as a statement writes it: "$1,250", "(1,250)", "1,250-", "–" (zero). NaN when the text isn't an amount.
+ * `fmt` says how the file writes numbers: 'us' (1,234.56, the default and what the OM reader uses), 'eu' (1.234,56),
+ * 'ch' (1'234.56) or 'space' (1 234,56). It changes text only; a number cell is a number whatever the format.
+ */
+export function amountOf(v, fmt = 'us') {
   if (typeof v === 'number') return Number.isFinite(v) ? v : NaN;
   if (v === null || v === undefined) return NaN;
   let s = String(v).trim();
@@ -103,11 +107,19 @@ export function amountOf(v) {
   let neg = false;
   if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
   if (/-$/.test(s)) { neg = true; s = s.slice(0, -1); }
-  s = s.replace(/[$,\s]/g, '');
+  s = fmt === 'us' ? s.replace(/[$,\s]/g, '') : stripFormat(s, fmt);
   if (/^-/.test(s)) { neg = !neg; s = s.slice(1); }
   if (!/^\d*\.?\d+$/.test(s)) return NaN;
   const n = Number(s);
   return neg ? -n : n;
+}
+/** Text with its thousands marks removed and its decimal mark made a point, for a file that doesn't write numbers the US way. */
+function stripFormat(s, fmt) {
+  s = s.replace(/\$/g, '');
+  if (fmt === 'eu') return s.replace(/[.\s]/g, '').replace(',', '.');
+  if (fmt === 'ch') return s.replace(/['’,\s]/g, '');
+  if (fmt === 'space') return s.replace(/\s/g, '').replace(',', '.');
+  return s.replace(/[,\s]/g, '');
 }
 // money to whole cents with the engine's one rule (half away from zero, exact for decimal input: 1.005 → 1.01)
 const cents = toCents;
@@ -159,11 +171,11 @@ const HEADING = [
 ];
 
 /**
- * Read a statement from a sheet's rows ([{ r, cells }], as sheetread.js gives
- * them). Returns { months, monthCols, totalCol, labelCol, lines, stated,
- * subtotals, sections } or throws with what was missing.
+ * Where a statement's parts are in a sheet's rows: { head (the heading row and
+ * its months), monthCols ([{ c, iso | index }]), totalCol, labelCol,
+ * accountCol }, or throws with what was missing.
  */
-export function readStatement(rows, { corrections = {}, sheet = '' } = {}) {
+export function layoutOf(rows, { sheet = '' } = {}) {
   // 1. the heading row: the first, in the top 40, with three or more months
   let head = null;
   for (const row of rows.slice(0, 40)) {
@@ -180,8 +192,6 @@ export function readStatement(rows, { corrections = {}, sheet = '' } = {}) {
   if (!head) throw new Error(`No months or total column were found${sheet ? ` on “${sheet}”` : ''}: a T-12 needs a row of month headings (Jan 2025, 01/2025 …) or a Total column.`);
   const monthCols = [];
   head.ms.forEach((m, c) => { if (m) monthCols.push({ c, ...m }); });
-  // dated months in order; "Month 1…12" by their number
-  const months = monthCols.map((m) => m.iso || `M${pad(m.index)}`);
   let totalCol = head.row.cells.findIndex((c, i) => i > (monthCols.length ? monthCols[monthCols.length - 1].c : -1) && typeof c === 'string' && TOTAL_HEAD.test(c.trim()));
   if (totalCol < 0) totalCol = head.row.cells.findIndex((c) => typeof c === 'string' && TOTAL_HEAD.test(c.trim()));
   if (totalCol < 0) totalCol = null;
@@ -202,6 +212,98 @@ export function readStatement(rows, { corrections = {}, sheet = '' } = {}) {
     if (codes > body.length / 3) accountCol = c;
   }
   if (accountCol === labelCol) accountCol = null;
+  return { head, monthCols, totalCol, labelCol, accountCol };
+}
+
+/* ------------------------------------------------------- number formats */
+
+const FOREIGN = /[€£¥₹]|\b(?:CHF|EUR|GBP|JPY|CAD|AUD)\b/i;
+
+/**
+ * How one amount written as text is written: 'us' (1,234.56), 'eu' (1.234,56),
+ * 'ch' (1'234.56) or 'space' (1 234,56) where the text can only be that;
+ * 'dot3' or 'comma3' where one separator is followed by exactly three digits
+ * (1.234, 12,500) and it could be either; null where both readings agree
+ * (1234, 1 234) or it isn't an amount.
+ */
+export function tokenFormat(v) {
+  let s = String(v).trim().replace(/\$/g, '').replace(/^\((.*)\)$/, '$1').replace(/^\s*-\s*|\s*-\s*$/g, '').trim();
+  if (/^\d{1,3}(['’]\d{3})+(\.\d+)?$/.test(s)) return 'ch';
+  if (/^\d{1,3}([   ]\d{3})+,\d+$/.test(s)) return 'space';
+  if (/^\d+(,\d+)+\.\d+$/.test(s)) return /^\d{1,3}(,\d{3})+\.\d+$/.test(s) ? 'us' : null;
+  if (/^\d+(\.\d+)+,\d+$/.test(s)) return /^\d{1,3}(\.\d{3})+,\d+$/.test(s) ? 'eu' : null;
+  if (/^\d+(,\d+)+$/.test(s)) {
+    const g = s.split(',');
+    if (g.length > 2) return /^\d{1,3}(,\d{3})+$/.test(s) ? 'us' : null;
+    return g[1].length === 3 ? 'comma3' : 'eu';
+  }
+  if (/^\d*(\.\d+)+$/.test(s)) {
+    const g = s.split('.');
+    if (g.length > 2) return /^\d{1,3}(\.\d{3})+$/.test(s) ? 'eu' : null;
+    return g[1].length === 3 && g[0] !== '' ? 'dot3' : 'us';
+  }
+  return null;
+}
+
+/**
+ * How a statement writes its numbers, from the text cells in its month and
+ * total columns (a number cell is never affected). { format, ask, samples,
+ * foreign }: `format` is 'us', 'eu', 'ch' or 'space' when the cells settle it,
+ * else null with `ask` saying why the broker must ('mixed': both ways in one
+ * file; 'ambiguous': only 1.234 or 12,500 style figures, which read two ways)
+ * and `samples` ([{ text, us, eu }], at most three) to show. A comma-delimited
+ * file whose only doubtful figures are 12,500 style reads as US with no
+ * question; a semicolon file asks (semicolons are what decimal-comma
+ * countries use). `foreign` is a currency sign other than $, or null.
+ * @param {any[]} rows
+ * @param {{ head: any, monthCols: any[], totalCol: number|null }} layout
+ * @param {{ delimiter?: string }} [opts]
+ */
+export function numberFormatOf(rows, layout, { delimiter = ',' } = {}) {
+  const cols = [...layout.monthCols.map((m) => m.c), ...(layout.totalCol !== null ? [layout.totalCol] : [])];
+  const count = { us: 0, eu: 0, ch: 0, space: 0, dot3: 0, comma3: 0 };
+  const doubtful = []; const clear = []; let foreign = null;
+  for (const x of rows) {
+    if (x.r <= layout.head.row.r) continue;
+    for (const c of cols) {
+      const v = x.cells[c];
+      if (typeof v !== 'string' || !/\d/.test(v)) continue;
+      const sign = FOREIGN.exec(v);
+      if (sign && !foreign) foreign = sign[0];
+      const k = tokenFormat(v);
+      if (!k) continue;
+      count[k]++;
+      const arr = k === 'dot3' || k === 'comma3' ? doubtful : clear;
+      if (!arr.some((t) => t.text === v.trim())) arr.push({ text: v.trim(), us: amountOf(v, 'us'), eu: amountOf(v, 'eu') });
+    }
+  }
+  const usEv = count.us + count.ch; const euEv = count.eu + count.space;
+  let format = null; let ask = null;
+  if (usEv && euEv) ask = 'mixed';
+  else if (usEv) format = count.ch ? 'ch' : 'us';
+  else if (euEv) format = count.eu ? 'eu' : 'space';
+  else if (count.dot3 || (count.comma3 && delimiter === ';')) ask = 'ambiguous';
+  else format = 'us';
+  return { format, ask, samples: [...doubtful, ...clear].slice(0, 3), foreign };
+}
+
+/** Why a statement in another currency is not read, or null for dollars. */
+export const currencyRefusal = (sign) => (sign ? `Amounts in ${sign} can’t be read as dollars. Zlatura reads dollar statements only; this file was not imported.` : null);
+
+/**
+ * Read a statement from a sheet's rows ([{ r, cells }], as sheetread.js gives
+ * them). Returns { months, monthCols, totalCol, labelCol, lines, stated,
+ * subtotals, sections, period } or throws with what was missing. `numberFormat`
+ * is how the file writes its numbers (amountOf); `paste` marks text pasted in.
+ * Each line records where it was read (`src`), how sure (`conf`), and which
+ * month cells were blank (`blank`: counted as 0, never silently) or text that
+ * isn't an amount (`unread`, also 0).
+ */
+export function readStatement(rows, { corrections = {}, sheet = '', numberFormat = 'us', paste = false } = {}) {
+  const { head, monthCols, totalCol, labelCol, accountCol } = layoutOf(rows, { sheet });
+  // dated months in order; "Month 1…12" by their number
+  const months = monthCols.map((m) => m.iso || `M${pad(m.index)}`);
+  const body = rows.filter((x) => x.r > head.row.r);
 
   // 3. lines, headings and subtotals, top to bottom
   const lines = []; const subtotals = []; const stated = {}; const sections = [];
@@ -211,8 +313,8 @@ export function readStatement(rows, { corrections = {}, sheet = '' } = {}) {
     const raw = x.cells[labelCol];
     const label = raw === null || raw === undefined ? '' : String(raw).trim();
     const account = accountCol !== null && x.cells[accountCol] !== null && x.cells[accountCol] !== undefined ? String(x.cells[accountCol]).trim() : '';
-    const vals = monthCols.map((m) => amountOf(x.cells[m.c]));
-    const tot = totalCol !== null ? amountOf(x.cells[totalCol]) : NaN;
+    const vals = monthCols.map((m) => amountOf(x.cells[m.c], numberFormat));
+    const tot = totalCol !== null ? amountOf(x.cells[totalCol], numberFormat) : NaN;
     const hasNum = vals.some(Number.isFinite) || Number.isFinite(tot);
     const key = normalizeLabel(label);
     if (!label && !hasNum) continue;
@@ -244,13 +346,69 @@ export function readStatement(rows, { corrections = {}, sheet = '' } = {}) {
       total: cents(total),
       fileTotal: Number.isFinite(tot) && monthCols.length ? cents(tot) : null,
     };
+    // a blank month cell and a cell of words add 0, as before, but are kept on the line
+    const blank = []; const unread = [];
+    monthCols.forEach((mc, i) => {
+      if (Number.isFinite(vals[i])) return;
+      const v = x.cells[mc.c];
+      if (v === null || v === undefined || (typeof v === 'string' && !v.trim())) blank.push(i);
+      else unread.push({ i, text: cellText(v) });
+    });
+    Object.assign(line, { src: { type: paste ? 'pasteLine' : 'cell', sheet, row: x.r, col: labelCol }, conf: { read: paste || unread.length ? 'medium' : 'high' } });
+    if (blank.length) line.blank = blank;
+    if (unread.length) line.unread = unread;
     const m = matchLabel(label, { section: line.section, corrections });
     Object.assign(line, { category: m.category, how: m.how, why: m.why, candidates: m.candidates });
     lines.push(line);
     sinceMark.push(line);
   }
   if (!lines.length) throw new Error('No statement lines were found under the month headings.');
-  return { sheet, months, labelCol, accountCol, totalCol, monthCols: monthCols.map((m) => m.c), lines, stated, subtotals, sections, headRow: head.row.r };
+  const period = periodOf({ head, monthCols, totalCol }, months, rows, lines);
+  return { sheet, months, labelCol, accountCol, totalCol, monthCols: monthCols.map((m) => m.c), lines, stated, subtotals, sections, headRow: head.row.r, period };
+}
+
+/** A cell that isn't an amount, as short text (an Excel error such as #REF! included). */
+const cellText = (v) => String(v && typeof v === 'object' ? (v.error ?? v.text ?? '?') : v).trim().slice(0, 40);
+
+/**
+ * What period the statement says it covers: { basis, dated, count, columns, gaps, duplicates, emptyCols, printed }.
+ * It records and never scales: 12 dated, consecutive, distinct months are 'T-12'; fewer in a row 'T-n';
+ * a Total headed YTD 'YTD'; a Total and no months 'annual'; "Month 1…12" 'T-12' with dated false (no year is
+ * invented); anything else 'other'. `gaps` are dated months missing between the first and last, `duplicates` a
+ * month heading two columns, `emptyCols` month columns blank on every line, `printed` the first line above the
+ * headings that names a period (as text; no date is parsed from it).
+ */
+function periodOf({ head, monthCols, totalCol }, months, rows, lines) {
+  const n = monthCols.length;
+  const dated = n > 0 && monthCols.every((m) => m.iso);
+  const key = (iso) => +iso.slice(0, 4) * 12 + +iso.slice(5) - 1;
+  const have = new Set(); const duplicates = [];
+  for (const m of monthCols) if (m.iso) { if (have.has(m.iso) && !duplicates.includes(m.iso)) duplicates.push(m.iso); have.add(m.iso); }
+  const gaps = [];
+  if (dated) {
+    const ks = [...have].map(key);
+    for (let k = Math.min(...ks); k <= Math.max(...ks); k++) {
+      const iso = `${Math.floor(k / 12)}-${pad((k % 12) + 1)}`;
+      if (!have.has(iso)) gaps.push(iso);
+    }
+  }
+  const totalHead = totalCol !== null ? String(head.row.cells[totalCol]) : '';
+  const inARow = dated && !gaps.length && !duplicates.length;
+  const indexes = monthCols.map((m) => m.index);
+  let basis = 'other';
+  if (inARow && n === 12) basis = 'T-12';
+  else if (inARow && n > 0 && n < 12) basis = `T-${n}`;
+  else if (/ytd/i.test(totalHead)) basis = 'YTD';
+  else if (n === 0 && totalCol !== null) basis = 'annual';
+  else if (n === 12 && indexes.every((v, i) => v === i + 1)) basis = 'T-12';
+  const emptyCols = lines.length ? monthCols.map((_, i) => i).filter((i) => lines.every((l) => l.blank && l.blank.includes(i))).map((i) => months[i]) : [];
+  const above = rows.find((x) => x.r < head.row.r && /period|months ended|year ended|ytd|as of/i.test(x.cells.filter((v) => typeof v === 'string').join(' ')));
+  return {
+    basis, dated, count: n,
+    columns: [...monthCols.map((m) => ({ c: m.c, kind: m.iso ? 'month' : 'index', head: String(head.row.cells[m.c]).slice(0, 40) })), ...(totalCol !== null ? [{ c: totalCol, kind: 'total', head: totalHead.slice(0, 40) }] : [])],
+    gaps, duplicates, emptyCols,
+    printed: above ? above.cells.filter((v) => v !== null && v !== undefined && String(v).trim()).join(' ').slice(0, 120) : null,
+  };
 }
 
 /**
@@ -349,29 +507,76 @@ export function statementChecks(t, { tol = () => 1 } = {}) {
     const sum = cents(ls.reduce((a, l) => a + l.total, 0));
     if (Math.abs(Math.abs(sum) - Math.abs(s.value)) > tol(s.value, ls.length)) out.push({ id: `sub.${s.r}`, kind: 'stated', text: `“${s.label}” (row ${s.r}) is ${money(s.value)}; the ${ls.length} line${ls.length === 1 ? '' : 's'} above it add up to ${money(sum)}.`, amount: Math.abs(Math.abs(sum) - Math.abs(s.value)) });
   }
+  // month cells that were blank in the file: counted as $0, said so (a statement read before 4.7.28 has no `blank`)
+  const blanks = t.lines.filter((l) => Array.isArray(l.blank) && l.blank.length);
+  if (blanks.length) {
+    const cells = blanks.reduce((s, l) => s + l.blank.length, 0);
+    const where = blanks.slice(0, 3).map((l) => `${l.label}: ${l.blank.slice(0, 3).map((i) => monthName(t.months[i])).join(', ')}${l.blank.length > 3 ? ', …' : ''}`).join('; ');
+    out.push({ id: 'blanks', kind: 'blank', text: `${cells} month cell${cells === 1 ? ' is' : 's are'} blank (${where}${blanks.length > 3 ? '; …' : ''}). They count as $0 in the totals; check the source.`, amount: 0 });
+  }
   return out;
 }
+/** "Mar 2026" for "2026-03", "Month 3" for "M03". */
+const monthName = (m) => (/^M\d+$/.test(m || '') ? `Month ${+m.slice(1)}` : monthLabel(m));
 
 /**
  * The whole import: rows → the statement as the deal keeps it.
- * { file, sheet, importedAt, months, lines, stated, subtotals, signs, seen: {} }.
+ * { v: 2, file, sheet, source, period, importedAt, months, lines, stated, subtotals, signs, seen: {} }.
+ * `source` says where it came from ({ type: 'xlsx'|'xlsm'|'csv'|'tsv'|'paste', size, sheets,
+ * delimiter, numberAsked, encoding, macros }, as the screen knows them; this adds file, sheet and
+ * numberFormat); `period` is what the statement says it covers (periodOf). A statement read before
+ * 4.7.28 has neither, and `file` and `sheet` are still written for it. Nothing here is migrated.
+ * @param {any[]} rows
+ * @param {{ file?: string, sheet?: string, corrections?: Record<string, string>, now?: number, numberFormat?: string, source?: Record<string, any> }} [opts]
  */
-export function importStatement(rows, { file = '', sheet = '', corrections = {}, now = Date.now() } = {}) {
-  const st = normalizeSigns(readStatement(rows, { corrections, sheet }));
-  return { file, sheet, importedAt: now, months: st.months, lines: st.lines, stated: st.stated, subtotals: st.subtotals, signs: st.signs, headRow: st.headRow, seen: {} };
+export function importStatement(rows, { file = '', sheet = '', corrections = {}, now = Date.now(), numberFormat = 'us', source = {} } = {}) {
+  const st = normalizeSigns(readStatement(rows, { corrections, sheet, numberFormat, paste: source.type === 'paste' }));
+  const from = { type: source.type, file, size: source.size, sheet, sheets: source.sheets, delimiter: source.delimiter, numberFormat, numberAsked: source.numberAsked, encoding: source.encoding, macros: source.macros };
+  return {
+    v: 2, file, sheet, source: Object.fromEntries(Object.entries(from).filter(([, x]) => x !== undefined)), period: st.period,
+    importedAt: now, months: st.months, lines: st.lines, stated: st.stated, subtotals: st.subtotals, signs: st.signs, headRow: st.headRow, seen: {},
+  };
 }
 
-/** Of several sheets, the one that reads as a statement with the most lines: { sheet, statement } or throws the first sheet's reason. */
-export function bestSheet(grids, opts = {}) {
-  let best = null; let firstErr = null;
-  for (const g of grids) {
+const PROJECTION = /\b(budget|forecast|pro ?forma|projected|projection)\b/i;
+
+/**
+ * Every sheet of a file tried as a statement: [{ sheet, i (its place in the file), hidden, projection, lines,
+ * period, error }]. `projection` is a sheet whose name, or first five rows, say budget, forecast, pro forma
+ * or projection. A sheet that doesn't read as a statement has `error` (its reason) and no lines. Nothing is
+ * chosen here, and nothing is ordered by how many lines a sheet has: an actual statement is never decided
+ * by size.
+ * @param {{ sheet: string, hidden?: boolean, rows: any[] }[]} grids
+ * @param {{ file?: string, corrections?: Record<string, string> }} [opts]
+ */
+export function sheetChoices(grids, opts = {}) {
+  return grids.map((g, i) => {
+    const projection = PROJECTION.test(g.sheet) || PROJECTION.test(g.rows.slice(0, 5).map((r) => r.cells.filter((v) => typeof v === 'string').join(' ')).join(' '));
+    const base = { sheet: g.sheet, i, hidden: !!g.hidden, projection };
     try {
-      const s = importStatement(g.rows, { ...opts, sheet: g.sheet });
-      if (!best || s.lines.length > best.lines.length) best = s;
-    } catch (e) { if (!firstErr) firstErr = e; }
+      const layout = layoutOf(g.rows, { sheet: g.sheet });
+      const st = importStatement(g.rows, { ...opts, sheet: g.sheet, numberFormat: numberFormatOf(g.rows, layout).format || 'us' });
+      return { ...base, lines: st.lines.length, period: st.period, error: null };
+    } catch (e) { return { ...base, lines: 0, period: null, error: e instanceof Error ? e.message : String(e) }; }
+  });
+}
+
+/**
+ * What to do with `sheetChoices`: { choice } when exactly one readable, actual
+ * (not budget or projection) sheet is not hidden, and it is the only one; { ask: [choices] } when
+ * there are two or more, or the only one is hidden (the broker chooses; projections are listed, to be
+ * shown disabled); { refuse } when no actual statement is there, naming the projections or giving
+ * the first sheet's reason.
+ */
+export function pickSheet(choices) {
+  const readable = choices.filter((c) => !c.error);
+  const actual = readable.filter((c) => !c.projection);
+  if (!actual.length) {
+    if (readable.length) return { refuse: `The only statements in this file look like projections, not actuals (${readable.map((c) => `“${c.sheet}”`).join(', ')}). Import a sheet of actual results.` };
+    return { refuse: (choices[0] && choices[0].error) || 'No statement was found in that file.' };
   }
-  if (!best) throw firstErr || new Error('No statement was found in that file.');
-  return best;
+  if (actual.length === 1 && !actual[0].hidden) return { choice: actual[0] };
+  return { ask: readable };
 }
 
 /** Re-apply the rules and the broker's corrections to the lines not yet decided by hand (after a correction is remembered). */
@@ -413,4 +618,41 @@ export function periodText(t) {
   const n = t.months.length;
   if (!n) return 'annual total only';
   return `${monthLabel(t.months[0])} to ${monthLabel(t.months[n - 1])} (${n} month${n === 1 ? '' : 's'})`;
+}
+
+const NUMBERS = { eu: '1.234,56', space: '1 234,56', ch: '1\'234.56' };
+/** Where a statement came from, in words: the file, how it was read and the sheet. A statement read before 4.7.28 has only its file and sheet. */
+export function sourceText(t) {
+  const s = t.source;
+  if (!s || !s.type) return `${t.file || 'Statement'}${t.sheet && t.sheet !== 'CSV' ? ` · ${t.sheet}` : ''}`;
+  const parts = [t.file || 'Statement'];
+  if (s.type === 'paste') parts.push('pasted');
+  else if (s.type === 'csv') parts.push(s.delimiter === ';' ? 'CSV (semicolons)' : 'CSV');
+  else if (s.type === 'tsv') parts.push('tab-separated text');
+  else if (s.type === 'xlsm') parts.push('Excel with macros (not run)');
+  if (NUMBERS[s.numberFormat]) parts.push(`numbers read as ${NUMBERS[s.numberFormat]}`);
+  if (s.sheets && s.sheets.length > 1) {
+    const at = s.sheets.findIndex((x) => x.name === t.sheet);
+    parts.push(`sheet “${t.sheet}”${at >= 0 ? ` (${at + 1} of ${s.sheets.length})` : ''}`);
+  } else if (t.sheet && !['csv', 'tsv', 'paste'].includes(s.type)) parts.push(t.sheet);
+  return parts.join(' · ');
+}
+
+/** A period in a few words for the sheet chooser: "T-6 · Jan 2026 to Jun 2026", "annual total only". */
+export function periodShort(p) {
+  if (!p) return '';
+  const cols = p.columns.filter((c) => c.kind !== 'total');
+  if (!cols.length) return p.basis === 'annual' ? 'annual total only' : p.basis;
+  return `${p.basis} · ${cols[0].head} to ${cols[cols.length - 1].head}`;
+}
+
+/** What to say beside a line about how it was read: blank months (counted as $0), cells of words, pasted, medium confidence. */
+export function lineNotes(t, l) {
+  const out = [];
+  const name = (i) => (/^M\d+$/.test(t.months[i] || '') ? `month ${+t.months[i].slice(1)}` : monthLabel(t.months[i]).slice(0, 3));
+  if (l.blank && l.blank.length) out.push(`${l.blank.length} month${l.blank.length === 1 ? '' : 's'} blank (${l.blank.map(name).join(', ')}), counted as $0`);
+  if (l.unread && l.unread.length) out.push(`${l.unread.length} cell${l.unread.length === 1 ? '' : 's'} unread (${l.unread.map((u) => `${u.text} in ${name(u.i)}`).join(', ')}), counted as $0`);
+  if (l.src && l.src.type === 'pasteLine') out.push('pasted');
+  else if (l.conf && l.conf.read === 'medium') out.push('medium confidence');
+  return out;
 }

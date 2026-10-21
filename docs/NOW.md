@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.28 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.29 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -107,6 +107,6 @@ section with grep, never in full.
 - **Roll comparison (4.7.25, PR opening):** the PDF preview lists how the PDF differs from the current rent roll before Replace/Add (`compareRolls`, `app/reconcile.js`). The property-manager profile (#46) is merged.
 - **Standing rule added (4.7.27, PR opening):** the owner's support code is checked on every rent roll, T-12, NOI, WALT, Review Queue and Data QC PR (`docs/working-rules.md`).
 - **Underwriting (#48, 4.7.26, merged): all 10 decisions approved by the owner 2026-10-17** (`docs/proposals/underwriting.md` section 7). **U8 is deferred, not built until asked.** Spike thresholds and the rent per SF band are settings and warnings only (never block, never change a number). Normalised NOI always sits next to the reported figure and never replaces it. The strict review setting is off by default. **Order:** T-12 PRs 1 and 3 first (new gap definition and N in PR 3), then U1-U7; **U1 not until both T-12 PRs are merged; nothing starts before the Oct 21 reset.**
-- **Dev-tools evaluation (#50, merged; all of section 9 approved by the owner 2026-10-21, see its section 10):** `docs/proposals/dev-tools-and-reuse.md`; nothing installed. Order: T-12 PR 1 (building), settings + security checklist (4.7.28, PR opening), F1-F4 fix PR (F1 medium: a crafted backup can redirect the AI server URL), git guardrail hook, A3 text items, then tests T1 (ponytail text), T2 (context-mode, isolated), T3. Sandbox not enabled: bwrap/socat missing here. Owner to run `/usage`, `/doctor prompt-audit`, `/config` idle compaction.
+- **Dev-tools evaluation (#50, merged; all of section 9 approved by the owner 2026-10-21, see its section 10):** `docs/proposals/dev-tools-and-reuse.md`; nothing installed. Order: T-12 PR 1 (4.7.29, PR opening: reading foundation and the sheet chooser; the paste box, `t12read-flow` and typing/axe for the new inputs are PR 1b; a draft of both is on branch `claude/t12-pr1-paste-draft`), settings + security checklist (4.7.28, #51 merged), F1-F4 fix PR (F1 medium: a crafted backup can redirect the AI server URL), git guardrail hook, A3 text items, then tests T1 (ponytail text), T2 (context-mode, isolated), T3. Sandbox not enabled: bwrap/socat missing here. Owner to run `/usage`, `/doctor prompt-audit`, `/config` idle compaction.
 - **State note** (write here before any long task, so a fresh session can
   resume): none.

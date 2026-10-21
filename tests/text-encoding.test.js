@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { readGrids } from '../app/sheetread.js';
 import { decodeText } from '../app/textfile.js';
-import { bestSheet } from '../app/t12.js';
+import { statementOf } from './t12-formats.js';
 
 const FIX = new URL('./fixtures/encoding/', import.meta.url);
 const bytes = (name) => new Uint8Array(fs.readFileSync(new URL(name, FIX)));
@@ -46,7 +46,7 @@ test('“CSV UTF-8” from Excel (with a byte-order mark) reads as UTF-8, the ma
 });
 
 test('a T-12 saved as Windows-1252 keeps its line labels', async () => {
-  const t = bestSheet(await readGrids(csv(bytes('t12-windows-1252.csv'), 'invented-t12.csv'), noXlsx), { file: 'invented-t12.csv' });
+  const t = statementOf(await readGrids(csv(bytes('t12-windows-1252.csv'), 'invented-t12.csv'), noXlsx), { file: 'invented-t12.csv' });
   const labels = t.lines.map((l) => l.label);
   for (const l of ['Base Rent – Café Lumière', 'CAM Recoveries – O’Brien’s Deli', 'Repairs & Maintenance – Peña Services']) assert.ok(labels.includes(l), `${l} in ${labels.join(' | ')}`);
   assert.equal(t.lines.find((l) => l.label.startsWith('Base Rent')).total, 240000);
