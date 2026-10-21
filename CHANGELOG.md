@@ -11,6 +11,14 @@ Fixes for three findings of the security review (`docs/proposals/dev-tools-and-r
 - **Not done (I5, recorded as a gap):** `key in KIND` in the AI review code (`app/dealui.js`) should be `Object.hasOwn`; no test can reach it without widening this PR, so it rides the next AI-review change.
 - **Tested:** 7 new backup tests and 1 new server test, each failing on the previous code; 13 mutation checks, all caught; the backup browser flow updated and passing. Not tested: Safari; a real Anthropic call.
 
+## 4.7.30: Paste a statement into the T-12 import (on the development branch; not merged or deployed)
+
+Second of the T-12 reading PRs (1b). Reader and import screen only; saved deal results do not change.
+
+- **Paste a statement:** a new button beside Import. Rows copied from Excel (tabs) or a PDF (runs of two or more spaces) are read like any other statement, marked as pasted with medium confidence, and kept only when the broker taps Read it. A paste with no row of month headings says what to copy.
+- **Same questions as a file:** a number style that could read two ways is asked about; a non-$ currency sign is refused.
+- **Tested:** new browser flow `t12read-flow` (iPhone size: semicolon file with decimal commas, the number question, a pasted statement, the sheet chooser with a Budget and a hidden sheet, a blank month, a PDF named .xlsx); the paste box is typed character by character in `typing-flow`. Golden outputs unchanged.
+
 ## 4.7.29: The T-12 import reads more files, says what it could not read, and asks before it guesses a number (on the development branch; not merged or deployed)
 
 A T-12 import could only read .xlsx and comma CSV files, took the file name's word for what a file was, and read a blank month as $0 without saying so. A decimal-comma figure such as 1.234,56 read as $1.23. **Saved deal results do not change.** This is the first of the T-12 reading PRs (proposal: `docs/proposals/t12-formats.md`); it lays the foundation, and the next ones add the paste box flow tests, the period handling and the Review changes.

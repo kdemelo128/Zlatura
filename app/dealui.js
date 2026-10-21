@@ -791,6 +791,7 @@ function drawT12() {
     // the deal's own figures changed (Use the T-12's figures, the T-12 removed): the whole screen, so their tags follow
     rerender: () => { if (deal === d) { render(); document.dispatchEvent(new CustomEvent('reviewchange')); } },
     sheetOpen: api.sheetOpen,
+    sheetClose: api.sheetClose,
     openReview: () => api.showView('review'),
     rrNoi1: () => {
       if (!hasRentRoll(d)) return null;
