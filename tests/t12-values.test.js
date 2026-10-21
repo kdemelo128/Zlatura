@@ -5,7 +5,7 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { quarterEndRows, valueRows, t6Rows, yoyRows, yoyNoiRows, yoy15Rows, quarterHeadRows, statement, heads } from './fixtures/t12-values-fixtures.js';
+import { quarterEndRows, valueRows, t6Rows, yoyRows, yoyNoiRows, yoy15Rows, yoyMixedRows, quarterHeadRows, statement, heads } from './fixtures/t12-values-fixtures.js';
 import { partialRows } from './fixtures/t12-period-fixtures.js';
 import { readBackup, planRestore } from '../app/backup.js';
 import { affects } from '../app/impact.js';
@@ -14,7 +14,7 @@ import { analysisInput } from '../app/impact.js';
 import { reviewItems } from '../app/review.js';
 import { CONVENTIONS, NOI_GAP, conv, setConventions, conventionValues } from '../app/engine/conventions.js';
 import {
-  importStatement, statementTotals, annualized, periodChecks, windowOf, t12OpenChecks, useHeldBy, heldBy, applyT12Fix, valueChecks, t12Qc,
+  importStatement, chooseMonths, statementTotals, annualized, periodChecks, windowOf, t12OpenChecks, useHeldBy, heldBy, applyT12Fix, valueChecks, t12Qc,
   noiWithout, runRate, openLines, setWindow, t12ForAnalysis, statementChecks,
 } from '../app/t12.js';
 
@@ -176,6 +176,12 @@ test('settings move the checks: 2.5 x flags Landscaping; floor 0 and 0% of incom
   setConventions({ 't12.spike.times': 3, 't12.spike.floor': 0, 't12.spike.egiPct': 0 });
   assert.ok(ids(t).includes(pest), '900 > 3 x 100 and over no floor');
   // the share of income: 0.5% of 240,000; 5% (limit 12,000) leaves out Repairs' 3,000
+  // the floor alone: with no share of income, $1,000 still keeps out Pest control (900); at $800 it is in
+  setConventions({ 't12.spike.floor': 1000, 't12.spike.egiPct': 0 });
+  assert.equal(ids(t).includes(pest), false, '900 is under the $1,000 floor');
+  assert.ok(ids(t).includes(`spike.${lineId(t, 'Landscaping')}.2026-06`) === false, 'and 1,500 is only 3 x 500');
+  setConventions({ 't12.spike.floor': 800 });
+  assert.ok(ids(t).includes(pest));
   setConventions({ 't12.spike.floor': 1000, 't12.spike.egiPct': 5 });
   assert.equal(ids(t).some((x) => x.includes(`spike.${lineId(t, 'Repairs')}`)), false);
   assert.ok(ids(t).includes(`spike.${lineId(t, 'Building repairs')}.2026-05`));
@@ -276,6 +282,17 @@ test('year over year with a short prior period: only the months both years have,
   // at the default there is nothing to say
   setConventions(DEFAULTS);
   assert.deepEqual(ids(t), []);
+});
+
+test('year over year leaves out a prior month with no like month in the T-12', () => {
+  const t = imp(yoyMixedRows());
+  assert.equal(chooseMonths(t, '2024-03'), true);
+  assert.deepEqual([...t.period.prior.months].sort(), ['2024-01', '2024-02', '2025-03']);
+  setConventions({ 't12.yoy.line': 10 });
+  const l = find(t, 'yoy.lines');
+  assert.match(l.text, /\(Jan 2025 to Feb 2025 against Jan 2024 to Feb 2024\)/);
+  assert.match(l.text, /Base Rent \+11\.1% \(\$18,000 to \$20,000\)/, 'not the whole prior period, 28,000');
+  assert.equal(l.amount, 2000);
 });
 
 /* Q: quarters */

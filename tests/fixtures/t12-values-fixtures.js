@@ -67,5 +67,10 @@ export const yoyNoiRows = () => statement(heads(2025, 1, 24), [['Base Rent', ...
  *     Dec 2024; like months are Oct to Dec: 27,000 then 30,000 (+11.1%). */
 export const yoy15Rows = () => statement(heads(2024, 10, 15), [['Base Rent', ...fill(3, 9000), ...fill(12, 10000)]], [['Repairs', ...fill(15, 500)]]);
 
+/* C4: 15 months Jan 2024 to Mar 2025, Rent 9,000 in 2024 and 10,000 in 2025; the T-12 chosen as Mar 2024 to Feb 2025, so the prior
+ *     period is Jan, Feb 2024 and Mar 2025. Mar 2025 has no like month in the T-12 (Mar 2026 is not there): like months are
+ *     Jan and Feb: 18,000 then 20,000 (+11.1%); summing the whole prior period (28,000) would say -28.6%. */
+export const yoyMixedRows = () => statement(heads(2024, 1, 15), [['Base Rent', ...fill(12, 9000), ...fill(3, 10000)]], [['Repairs', ...fill(15, 500)]]);
+
 /* Q: four columns headed Q1 2025 to Q4 2025 and a Total: no month, so only the Total is read (as one period). */
 export const quarterHeadRows = () => grid([['Account', 'Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025', 'Total'], ['Income'], ['Base Rent', 90000, 90000, 90000, 90000, 360000], ['Expenses'], ['Repairs', 3000, 3000, 3000, 3000, 12000]]);
