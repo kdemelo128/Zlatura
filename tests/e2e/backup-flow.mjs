@@ -34,7 +34,7 @@ await dl.saveAs(file);
 const text = fs.readFileSync(file, 'utf8');
 const j = JSON.parse(text);
 check('the backup holds the deal, its photo, the task', j.format === 'zlatura-backup' && j.deals.length === 1 && j.deals[0].visit.photos[0].blob.$blob.length > 1000 && j.kv['crm.tasks'].length === 1, JSON.stringify(j.counts));
-check('the AI settings are not in the backup (no token, no server address)', !text.includes('DEVICE-SECRET-TOKEN') && !text.includes('https://ai.example') && !('ai.settings' in j.kv));
+check('the AI settings are not in the backup (no token, no server address)', !/DEVICE-SECRET-TOKEN/.test(text) && !/ai\.example/.test(text) && !('ai.settings' in j.kv));
 await page.waitForTimeout(300);
 await page.waitForFunction(() => /Last backup:/.test(document.querySelector('#settings-data').textContent));
 await go('home');
