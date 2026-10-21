@@ -21,7 +21,7 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.29; T-12 PR 1, the reading foundation (PR opening; paste box is 1b); security checklist and tools decisions (#51, merged); support-code rule (PR opening); underwriting proposal (#48), roll comparison (#47), property-manager profile (#46), rent roll PDF upload (#45), `impact-flow` fix (#44) merged (2026-10-17).
+Last updated: 4.7.30; T-12 PR 1, the reading foundation (#53 open), and 1b, the paste box (PR opening); security checklist and tools decisions (#51, merged); support-code rule (PR opening); underwriting proposal (#48), roll comparison (#47), property-manager profile (#46), rent roll PDF upload (#45), `impact-flow` fix (#44) merged (2026-10-17).
 
 ## Now
 
