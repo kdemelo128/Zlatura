@@ -1162,10 +1162,10 @@ export function windowOf(t) {
   const a = activity(t);
   const seen = t.seen || {};
   // any open check that holds Annualise: the months with no activity (answered by the window), the columns that may be quarters (answered by Seen)
-  const ask = periodChecks(t).some((c) => c.holds === 'annualise' && !seen[c.id]);
+  const asks = periodChecks(t).filter((c) => c.holds === 'annualise' && !seen[c.id]).map((c) => c.id);
   const w = t.window;
   const active = !!(w && w.how === 'active' && w.n === a.n && a.n !== a.columns);
-  return { n: active ? a.n : a.columns, columns: a.columns, active: a.n, ask };
+  return { n: active ? a.n : a.columns, columns: a.columns, active: a.n, ask: asks.length > 0, asks };
 }
 
 /* ------------------------------------------------ value checks (T-12 PR 3b)
