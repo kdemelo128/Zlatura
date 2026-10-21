@@ -9,6 +9,7 @@ import ExcelJS from 'exceljs';
 import * as fflate from 'fflate';
 import { LAYOUTS, layoutFile } from './t12-layouts.js';
 import { text, grid, statementRows, SIX, EU_SEMICOLON, MON6 } from './t12-formats.js';
+import { amountOf, layoutOf, numberFormatOf, tokenFormat, currencyRefusal } from '../app/t12.js';
 import { readGrids, detectDelimiter, csvRows, pastedRows, gridsOf } from '../app/sheetread.js';
 
 const getFflate = async () => fflate;
@@ -110,4 +111,94 @@ test('[old] pasted text without tabs: columns split on runs of two or more space
   assert.deepEqual(pastedRows('Real Estate Taxes   100').map((r) => r.cells), [['Real Estate Taxes', '100']], 'a single space stays inside a label');
 });
 
-void grid; void statementRows; void SIX;
+/* ------------------------------------------------------------- 4. number formats */
+
+/** What numberFormatOf says of a statement whose lines are given as rows of text. */
+function formatOf(lines, delimiter = ',', months = MON6) {
+  const rows = grid(statementRows({ months, lines }));
+  return numberFormatOf(rows, layoutOf(rows), { delimiter });
+}
+const six = (v) => Array(6).fill(v);
+const pick = (r) => [r.format, r.ask];
+
+test('[old] 1.234,56 reads 1234.56 in a decimal-comma file (it was 1.23456)', () => {
+  assert.equal(amountOf('1.234,56', 'eu'), 1234.56);
+  assert.equal(amountOf('(1.234,56)', 'eu'), -1234.56);
+  assert.equal(amountOf('1.234.567', 'eu'), 1234567);
+  assert.equal(amountOf('12,5', 'eu'), 12.5);
+  assert.equal(amountOf('1.234,56-', 'eu'), -1234.56);
+  assert.equal(amountOf('$ 1.234,56', 'eu'), 1234.56);
+});
+
+test('[old] 1 234,56 and 1\'234.56 read', () => {
+  assert.equal(amountOf('1 234,56', 'space'), 1234.56);
+  assert.equal(amountOf('1 234,56', 'space'), 1234.56);
+  assert.equal(amountOf('1\'234.56', 'ch'), 1234.56);
+  assert.equal(amountOf('1’234.56', 'ch'), 1234.56);
+  assert.equal(amountOf('1\'234\'567', 'ch'), 1234567);
+});
+
+test('the US reading is exactly what it was, and numbers are never touched by the format', () => {
+  for (const [t, n] of [['$1,250.50', 1250.5], ['(1,250.00)', -1250], ['1,250-', -1250], ['-', 0], ['1.234', 1.234], ['12,500', 12500]]) assert.equal(amountOf(t), n, t);
+  assert.equal(amountOf('1.234,56'), 1.23456, 'unchanged: this is why the format is asked about');
+  for (const f of ['us', 'eu', 'ch', 'space']) assert.equal(amountOf(1234.5, f), 1234.5);
+  assert.ok(Number.isNaN(amountOf('Rent', 'eu')));
+});
+
+test('tokens: which way each figure is written, and which could be either', () => {
+  const k = {
+    '1,234.56': 'us', '1,234,567': 'us', '12.5': 'us', '1234.56': 'us', '0.1234': 'us', '$(1,234.56)': 'us', '1\'234.56': 'ch', '1.234,56': 'eu', '1.234.567': 'eu', '12,5': 'eu', '1234,56': 'eu', '1 234,56': 'space',
+    '1.234': 'dot3', '12,500': 'comma3', '1234': null, '1 234': null, '-': null, 'n/a': null, '': null, '1,2.3': null,
+  };
+  for (const [t, want] of Object.entries(k)) assert.equal(tokenFormat(t), want, t || '(blank)');
+});
+
+test('[old] a file of 1.234,56 figures is decimal-comma, with no question', () => {
+  const r = formatOf([['Base Rent', ...six('1.234,56'), '7.407,36'], ['Taxes', ...six('500'), '3.000']], ';');
+  assert.deepEqual(pick(r), ['eu', null]);
+  assert.equal(formatOf([['Rent', ...six('1 234,56'), '7 407,36']], ';').format, 'space');
+  assert.equal(formatOf([['Rent', ...six('1\'234.56'), '7\'407.36']]).format, 'ch');
+  assert.equal(formatOf([['Rent', ...six('1,234.56'), '7,407.36']]).format, 'us');
+});
+
+test('[old] 1.234 alone asks, with no guess, and shows both readings', () => {
+  const r = formatOf([['Taxes', ...six('1.234'), '7.404']]);
+  assert.deepEqual(pick(r), [null, 'ambiguous']);
+  assert.deepEqual(r.samples, [{ text: '1.234', us: 1.234, eu: 1234 }, { text: '7.404', us: 7.404, eu: 7404 }]);
+});
+
+test('[old] a file that writes numbers two ways asks', () => {
+  const r = formatOf([['Rent', ...six('1,234.56'), '7,407.36'], ['Taxes', ...six('2.500,10'), '15.000,60']]);
+  assert.deepEqual(pick(r), [null, 'mixed']);
+  assert.ok(r.samples.length >= 1);
+});
+
+test('[old] a semicolon file with 12,500 asks; a comma file with 12,500 reads US with no question', () => {
+  const lines = [['Rent', ...six('12,500'), '75,000'], ['Taxes', ...six('500'), '3,000']];
+  assert.deepEqual(pick(formatOf(lines, ';')), [null, 'ambiguous']);
+  assert.deepEqual(pick(formatOf(lines, ',')), ['us', null]);
+  assert.deepEqual(pick(formatOf(lines, '\t')), ['us', null]);
+});
+
+test('1.234 with clear US figures beside it reads US; 12,500 beside a decimal comma reads EU', () => {
+  assert.deepEqual(pick(formatOf([['Rent', ...six('1,500.50'), '9,003.00'], ['Taxes', ...six('1.234'), '7.404']])), ['us', null]);
+  assert.deepEqual(pick(formatOf([['Rent', ...six('1.500,50'), '9.003,00'], ['Taxes', ...six('12,500'), '75,000']], ';')), ['eu', null]);
+});
+
+test('both dot-3 and comma-3 figures with nothing clear asks, even in a comma file', () => {
+  assert.equal(formatOf([['Rent', ...six('1.234'), '7.404'], ['Taxes', ...six('12,500'), '75,000']]).ask, 'ambiguous');
+});
+
+test('Excel number cells are never read through the format', () => {
+  const r = formatOf([['Rent', ...six(1234.5), 7407], ['Taxes', ...six(500), 3000]], ';');
+  assert.deepEqual(pick(r), ['us', null]);
+});
+
+test('[old] a currency sign other than $ is found, and the import refusal says so', () => {
+  assert.equal(formatOf([['Rent', ...six('€1.234,56'), '€7.407,36']], ';').foreign, '€');
+  assert.equal(formatOf([['Rent', ...six('£1,234.56'), '£7,407.36']]).foreign, '£');
+  assert.equal(formatOf([['Rent', ...six('CHF 1’234.56'), '7’407.36']]).foreign, 'CHF');
+  assert.equal(formatOf([['Rent', ...six('$1,234.56'), '$7,407.36']]).foreign, null);
+  assert.equal(currencyRefusal('€'), 'Amounts in € can’t be read as dollars. Zlatura reads dollar statements only; this file was not imported.');
+  assert.equal(currencyRefusal(null), null);
+});

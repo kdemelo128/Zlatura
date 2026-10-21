@@ -93,8 +93,12 @@ export function matchLabel(label, { section = null, corrections = {} } = {}) {
 
 /* -------------------------------------------------------------- numbers */
 
-/** An amount as a statement writes it: "$1,250", "(1,250)", "1,250-", "–" (zero). NaN when the text isn't an amount. */
-export function amountOf(v) {
+/**
+ * An amount as a statement writes it: "$1,250", "(1,250)", "1,250-", "–" (zero). NaN when the text isn't an amount.
+ * `fmt` says how the file writes numbers: 'us' (1,234.56, the default and what the OM reader uses), 'eu' (1.234,56),
+ * 'ch' (1'234.56) or 'space' (1 234,56). It changes text only; a number cell is a number whatever the format.
+ */
+export function amountOf(v, fmt = 'us') {
   if (typeof v === 'number') return Number.isFinite(v) ? v : NaN;
   if (v === null || v === undefined) return NaN;
   let s = String(v).trim();
@@ -103,11 +107,19 @@ export function amountOf(v) {
   let neg = false;
   if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
   if (/-$/.test(s)) { neg = true; s = s.slice(0, -1); }
-  s = s.replace(/[$,\s]/g, '');
+  s = fmt === 'us' ? s.replace(/[$,\s]/g, '') : stripFormat(s, fmt);
   if (/^-/.test(s)) { neg = !neg; s = s.slice(1); }
   if (!/^\d*\.?\d+$/.test(s)) return NaN;
   const n = Number(s);
   return neg ? -n : n;
+}
+/** Text with its thousands marks removed and its decimal mark made a point, for a file that doesn't write numbers the US way. */
+function stripFormat(s, fmt) {
+  s = s.replace(/\$/g, '');
+  if (fmt === 'eu') return s.replace(/[.\s]/g, '').replace(',', '.');
+  if (fmt === 'ch') return s.replace(/['’,\s]/g, '');
+  if (fmt === 'space') return s.replace(/\s/g, '').replace(',', '.');
+  return s.replace(/[,\s]/g, '');
 }
 // money to whole cents with the engine's one rule (half away from zero, exact for decimal input: 1.005 → 1.01)
 const cents = toCents;
@@ -159,11 +171,11 @@ const HEADING = [
 ];
 
 /**
- * Read a statement from a sheet's rows ([{ r, cells }], as sheetread.js gives
- * them). Returns { months, monthCols, totalCol, labelCol, lines, stated,
- * subtotals, sections } or throws with what was missing.
+ * Where a statement's parts are in a sheet's rows: { head (the heading row and
+ * its months), monthCols ([{ c, iso | index }]), totalCol, labelCol,
+ * accountCol }, or throws with what was missing.
  */
-export function readStatement(rows, { corrections = {}, sheet = '' } = {}) {
+export function layoutOf(rows, { sheet = '' } = {}) {
   // 1. the heading row: the first, in the top 40, with three or more months
   let head = null;
   for (const row of rows.slice(0, 40)) {
@@ -180,8 +192,6 @@ export function readStatement(rows, { corrections = {}, sheet = '' } = {}) {
   if (!head) throw new Error(`No months or total column were found${sheet ? ` on “${sheet}”` : ''}: a T-12 needs a row of month headings (Jan 2025, 01/2025 …) or a Total column.`);
   const monthCols = [];
   head.ms.forEach((m, c) => { if (m) monthCols.push({ c, ...m }); });
-  // dated months in order; "Month 1…12" by their number
-  const months = monthCols.map((m) => m.iso || `M${pad(m.index)}`);
   let totalCol = head.row.cells.findIndex((c, i) => i > (monthCols.length ? monthCols[monthCols.length - 1].c : -1) && typeof c === 'string' && TOTAL_HEAD.test(c.trim()));
   if (totalCol < 0) totalCol = head.row.cells.findIndex((c) => typeof c === 'string' && TOTAL_HEAD.test(c.trim()));
   if (totalCol < 0) totalCol = null;
@@ -202,6 +212,94 @@ export function readStatement(rows, { corrections = {}, sheet = '' } = {}) {
     if (codes > body.length / 3) accountCol = c;
   }
   if (accountCol === labelCol) accountCol = null;
+  return { head, monthCols, totalCol, labelCol, accountCol };
+}
+
+/* ------------------------------------------------------- number formats */
+
+const FOREIGN = /[€£¥₹]|\b(?:CHF|EUR|GBP|JPY|CAD|AUD)\b/i;
+
+/**
+ * How one amount written as text is written: 'us' (1,234.56), 'eu' (1.234,56),
+ * 'ch' (1'234.56) or 'space' (1 234,56) where the text can only be that;
+ * 'dot3' or 'comma3' where one separator is followed by exactly three digits
+ * (1.234, 12,500) and it could be either; null where both readings agree
+ * (1234, 1 234) or it isn't an amount.
+ */
+export function tokenFormat(v) {
+  let s = String(v).trim().replace(/\$/g, '').replace(/^\((.*)\)$/, '$1').replace(/^\s*-\s*|\s*-\s*$/g, '').trim();
+  if (/^\d{1,3}(['’]\d{3})+(\.\d+)?$/.test(s)) return 'ch';
+  if (/^\d{1,3}([   ]\d{3})+,\d+$/.test(s)) return 'space';
+  if (/^\d+(,\d+)+\.\d+$/.test(s)) return /^\d{1,3}(,\d{3})+\.\d+$/.test(s) ? 'us' : null;
+  if (/^\d+(\.\d+)+,\d+$/.test(s)) return /^\d{1,3}(\.\d{3})+,\d+$/.test(s) ? 'eu' : null;
+  if (/^\d+(,\d+)+$/.test(s)) {
+    const g = s.split(',');
+    if (g.length > 2) return /^\d{1,3}(,\d{3})+$/.test(s) ? 'us' : null;
+    return g[1].length === 3 ? 'comma3' : 'eu';
+  }
+  if (/^\d*(\.\d+)+$/.test(s)) {
+    const g = s.split('.');
+    if (g.length > 2) return /^\d{1,3}(\.\d{3})+$/.test(s) ? 'eu' : null;
+    return g[1].length === 3 && g[0] !== '' ? 'dot3' : 'us';
+  }
+  return null;
+}
+
+/**
+ * How a statement writes its numbers, from the text cells in its month and
+ * total columns (a number cell is never affected). { format, ask, samples,
+ * foreign }: `format` is 'us', 'eu', 'ch' or 'space' when the cells settle it,
+ * else null with `ask` saying why the broker must ('mixed': both ways in one
+ * file; 'ambiguous': only 1.234 or 12,500 style figures, which read two ways)
+ * and `samples` ([{ text, us, eu }], at most three) to show. A comma-delimited
+ * file whose only doubtful figures are 12,500 style reads as US with no
+ * question; a semicolon file asks (semicolons are what decimal-comma
+ * countries use). `foreign` is a currency sign other than $, or null.
+ * @param {any[]} rows
+ * @param {{ head: any, monthCols: any[], totalCol: number|null }} layout
+ * @param {{ delimiter?: string }} [opts]
+ */
+export function numberFormatOf(rows, layout, { delimiter = ',' } = {}) {
+  const cols = [...layout.monthCols.map((m) => m.c), ...(layout.totalCol !== null ? [layout.totalCol] : [])];
+  const count = { us: 0, eu: 0, ch: 0, space: 0, dot3: 0, comma3: 0 };
+  const doubtful = []; const clear = []; let foreign = null;
+  for (const x of rows) {
+    if (x.r <= layout.head.row.r) continue;
+    for (const c of cols) {
+      const v = x.cells[c];
+      if (typeof v !== 'string' || !/\d/.test(v)) continue;
+      const sign = FOREIGN.exec(v);
+      if (sign && !foreign) foreign = sign[0];
+      const k = tokenFormat(v);
+      if (!k) continue;
+      count[k]++;
+      const arr = k === 'dot3' || k === 'comma3' ? doubtful : clear;
+      if (!arr.some((t) => t.text === v.trim())) arr.push({ text: v.trim(), us: amountOf(v, 'us'), eu: amountOf(v, 'eu') });
+    }
+  }
+  const usEv = count.us + count.ch; const euEv = count.eu + count.space;
+  let format = null; let ask = null;
+  if (usEv && euEv) ask = 'mixed';
+  else if (usEv) format = count.ch ? 'ch' : 'us';
+  else if (euEv) format = count.eu ? 'eu' : 'space';
+  else if (count.dot3 || (count.comma3 && delimiter === ';')) ask = 'ambiguous';
+  else format = 'us';
+  return { format, ask, samples: [...doubtful, ...clear].slice(0, 3), foreign };
+}
+
+/** Why a statement in another currency is not read, or null for dollars. */
+export const currencyRefusal = (sign) => (sign ? `Amounts in ${sign} can’t be read as dollars. Zlatura reads dollar statements only; this file was not imported.` : null);
+
+/**
+ * Read a statement from a sheet's rows ([{ r, cells }], as sheetread.js gives
+ * them). Returns { months, monthCols, totalCol, labelCol, lines, stated,
+ * subtotals, sections } or throws with what was missing.
+ */
+export function readStatement(rows, { corrections = {}, sheet = '' } = {}) {
+  const { head, monthCols, totalCol, labelCol, accountCol } = layoutOf(rows, { sheet });
+  // dated months in order; "Month 1…12" by their number
+  const months = monthCols.map((m) => m.iso || `M${pad(m.index)}`);
+  const body = rows.filter((x) => x.r > head.row.r);
 
   // 3. lines, headings and subtotals, top to bottom
   const lines = []; const subtotals = []; const stated = {}; const sections = [];

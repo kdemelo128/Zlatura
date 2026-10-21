@@ -15,12 +15,12 @@ export const text = (rows, delim = ',', eol = '\n') => rows.map((r) => r.map((v)
 /** Rows as the reader takes them: [{ r, cells }], row numbers from 1, empty rows left out. */
 export const grid = (rows) => rows.map((cells, i) => ({ r: i + 1, cells })).filter((x) => x.cells.some((v) => v !== null && v !== undefined && String(v).trim() !== ''));
 
-/** A small statement: heading row, income, expenses, NOI. `cell(label, i)` is what the line shows for month i. */
+/** A small statement: a heading row (Account, the months, Total), then `lines` as given: [label, ...a value for each month, total]. `head` rows go above it. */
 export function statementRows({ months = MON6, lines, total = true, head = null } = {}) {
   const rows = [];
   if (head) rows.push(...head);
   rows.push(['Account', ...months, ...(total ? ['Total'] : [])]);
-  for (const [label, vals, tot] of lines) rows.push([label, ...vals, ...(total ? [tot === undefined ? null : tot] : [])]);
+  rows.push(...lines);
   return rows;
 }
 
