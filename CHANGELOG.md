@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.7.36: T-12 flags: spikes, credits, one-offs and year over year; editable thresholds; a run rate on request; and a wrong annualised NOI fixed (on the development branch; not merged or deployed)
+
+Fifth of the T-12 reading PRs (3b of the approved plan, `docs/proposals/t12-multiformat.md` section 5). The owner approved the design note's decisions on 2026-10-21 and 2026-10-22, including the new stored field below. Saved deals' results and golden outputs do not change.
+
+- **Wrong number fixed (found while designing this PR).** A T-12 whose columns are headed by quarter-end dates (3/31, 6/30, 9/30, 12/31) was read as four single months, so "Annualize it, then use" tripled a full year (an invented NOI of 114,000 became 342,000). It now raises a warning, and Annualize and the run rate wait until you answer "They are single months". Headings like "Q1 2025" get a Note that the quarter columns were skipped.
+- **New checks (warnings; none can hold your totals or "Use"):** a month more than 3 times the line's usual month (and above the larger of $1,000 and 0.5% of EGI); an expense line that totals below zero; a single expense month of -$500 or less; one month that is half or more of a line that is at least 1% of its side (large one-off); and year over year against the prior period, comparing the same calendar months only (a line or category up or down more than 25%, NOI more than 50%).
+- **Recurring or one-off?** For a flagged one-off you answer Yes / No / Not sure. Only you set it. "No" adds back that one month, not the whole line. NOI stays as stated, and "NOI without the one-offs you marked" is shown beside it, never instead of it. "Not sure" changes nothing.
+- **Editable thresholds:** ten numbers in Settings → Calculation conventions, including the NOI 2% and 5% (defaults unchanged, ranges checked; a bad number is refused, not used). Impact now shows that Settings can move the NOI comparisons.
+- **Run rate, on request only:** for a T-3, T-6 or YTD statement, "Show a run rate" shows N months × 12 ÷ N, labelled "not a T-12", names any lump payment (for example taxes paid in one month), may be set against the OM's NOI as a Note only, and never reaches the deal's figures.
+- **Data (additive, no migration):** `line.oneoff = { iso, amount, recurring }` per marked month (it reopens if that month's amount changes); statements saved by earlier versions get the new value checks and nothing else changes (fixture `backup-4.7.35-before-t12-values.json`).
+- **Support-code check:** only the check kinds of the support code's spike and negative-month rows (K38, K39 in `docs/proposals/underwriting.md`) are adopted; their thresholds are not. Every threshold here is from the T-12 proposal. Nothing from the support code is quoted.
+- **Not done / gaps:** a true quarterly reading (quarters as periods) is still later; the quarter-end check only holds Annualize and the run rate. After that hold is answered the card still says "A partial year: 4 months".
+- **Tested:** 22 new tests (all fail on the previous code), 20 mutation checks all caught (two survivors got new tests), browser flow `t12values-flow` (93 checks at phone and desktop size, axe in light and dark, an edit on a 300-line statement in 39 ms against the 150 ms budget), 10 number boxes typed character by character. `check:full` passed. Golden: 0 changed in both checks.
+
 ## 4.7.35: T-12 periods: duplicate months, more than 12 months and cumulative columns are caught before they reach your figures (on the development branch; not merged or deployed)
 
 Fourth of the T-12 reading PRs (3a of the approved plan, `docs/proposals/t12-multiformat.md` section 5; the owner approved decisions D1 to D8 of its design note, including that older saved T-12s gain these checks). Saved deals' results and golden outputs do not change; fields are additive; no migration.
