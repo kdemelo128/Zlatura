@@ -18,7 +18,8 @@ import zipfile
 with zipfile.ZipFile('files/uw-model.xlsx') as z, zipfile.ZipFile('files/uw-model.xlsm', 'w', zipfile.ZIP_DEFLATED) as o:
     for i in z.infolist(): o.writestr(i, z.read(i.filename))
     o.writestr('xl/vbaProject.bin', bytes(range(64)))
-open('files/legacy.xls', 'wb').write(b'\xd0\xcf\x11\xe0legacy')
+# an old Excel container as far as a file sniffer can tell: the 8-byte OLE signature and a "Workbook" stream name
+open('files/legacy.xls', 'wb').write(b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1' + bytes(504) + 'Workbook'.encode('utf-16-le') + bytes(64))
 PY
 if command -v ffmpeg >/dev/null; then ffmpeg -loglevel error -y -f lavfi -i "sine=frequency=440:duration=3" -c:a libvorbis files/memo.ogg; fi
 : > files/empty.m4a
