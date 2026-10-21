@@ -1,0 +1,658 @@
+{
+ "format": "zlatura-backup",
+ "version": 2,
+ "app": "4.7.34",
+ "createdAt": "2026-10-21T20:07:30.637Z",
+ "counts": {
+  "deals": 3,
+  "templates": 0,
+  "tasks": 0,
+  "contacts": 0
+ },
+ "deals": [
+  {
+   "id": "d4734plain",
+   "name": "Invented Plain (fictional)",
+   "createdAt": 1792203277340,
+   "updatedAt": 1792203290000,
+   "source": null,
+   "readAt": null,
+   "pages": 0,
+   "figures": {
+    "address": "Invented Plain (fictional)",
+    "gross": 6000,
+    "opex": 1200,
+    "taxes": 1200,
+    "noi": 4800
+   },
+   "sources": {},
+   "rentRoll": [],
+   "unpriced": false,
+   "loan": {
+    "ltv": 65,
+    "rate": 6.75,
+    "amort": 30,
+    "io": false,
+    "closing": 2,
+    "minDscr": 1.25,
+    "minDy": 8
+   },
+   "qDone": {},
+   "myQuestions": [],
+   "live": {},
+   "scenarios": [],
+   "targets": {
+    "cap": null,
+    "irr": 15,
+    "value": null
+   },
+   "visit": {
+    "at": null,
+    "items": {},
+    "notes": "",
+    "photos": [],
+    "audio": []
+   },
+   "moneyVersion": 1,
+   "schema": 4,
+   "t12": {
+    "file": "invented-plain.csv",
+    "sheet": "CSV",
+    "importedAt": 1792203278924,
+    "months": [
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05",
+     "2026-06"
+    ],
+    "lines": [
+     {
+      "id": "L3",
+      "r": 3,
+      "account": "",
+      "label": "Base Rent",
+      "key": "base rent",
+      "section": "income",
+      "months": [
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000
+      ],
+      "total": 6000,
+      "fileTotal": 6000,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 3,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "rent",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "rent"
+      ]
+     },
+     {
+      "id": "L5",
+      "r": 5,
+      "account": "",
+      "label": "Real Estate Taxes",
+      "key": "real estate taxes",
+      "section": "expense",
+      "months": [
+       200,
+       200,
+       200,
+       200,
+       200,
+       200
+      ],
+      "total": 1200,
+      "fileTotal": 1200,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 5,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "taxes",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "taxes"
+      ]
+     }
+    ],
+    "stated": {},
+    "subtotals": [],
+    "signs": {
+     "expensesNegative": false,
+     "reductionsPositive": false
+    },
+    "headRow": 1,
+    "seen": {
+     "months": true
+    }
+   }
+  },
+  {
+   "id": "d4734dup",
+   "name": "Invented Dup (fictional)",
+   "createdAt": 1792203277340,
+   "updatedAt": 1792203290000,
+   "source": null,
+   "readAt": null,
+   "pages": 0,
+   "figures": {
+    "address": "Invented Dup (fictional)",
+    "gross": 130000,
+    "opex": 6650,
+    "taxes": 0,
+    "noi": 123350
+   },
+   "sources": {},
+   "rentRoll": [],
+   "unpriced": false,
+   "loan": {
+    "ltv": 65,
+    "rate": 6.75,
+    "amort": 30,
+    "io": false,
+    "closing": 2,
+    "minDscr": 1.25,
+    "minDy": 8
+   },
+   "qDone": {},
+   "myQuestions": [],
+   "live": {},
+   "scenarios": [],
+   "targets": {
+    "cap": null,
+    "irr": 15,
+    "value": null
+   },
+   "visit": {
+    "at": null,
+    "items": {},
+    "notes": "",
+    "photos": [],
+    "audio": []
+   },
+   "moneyVersion": 1,
+   "schema": 4,
+   "t12": {
+    "v": 2,
+    "file": "invented-dup.csv",
+    "sheet": "CSV",
+    "source": {
+     "file": "invented-dup.csv",
+     "sheet": "CSV",
+     "numberFormat": "us"
+    },
+    "period": {
+     "basis": "other",
+     "dated": true,
+     "count": 13,
+     "columns": [
+      {
+       "c": 1,
+       "kind": "month",
+       "head": "Jan 2025"
+      },
+      {
+       "c": 2,
+       "kind": "month",
+       "head": "Feb 2025"
+      },
+      {
+       "c": 3,
+       "kind": "month",
+       "head": "Mar 2025"
+      },
+      {
+       "c": 4,
+       "kind": "month",
+       "head": "Apr 2025"
+      },
+      {
+       "c": 5,
+       "kind": "month",
+       "head": "May 2025"
+      },
+      {
+       "c": 6,
+       "kind": "month",
+       "head": "Jun 2025"
+      },
+      {
+       "c": 7,
+       "kind": "month",
+       "head": "Jul 2025"
+      },
+      {
+       "c": 8,
+       "kind": "month",
+       "head": "Aug 2025"
+      },
+      {
+       "c": 9,
+       "kind": "month",
+       "head": "Sep 2025"
+      },
+      {
+       "c": 10,
+       "kind": "month",
+       "head": "Oct 2025"
+      },
+      {
+       "c": 11,
+       "kind": "month",
+       "head": "Nov 2025"
+      },
+      {
+       "c": 12,
+       "kind": "month",
+       "head": "Dec 2025"
+      },
+      {
+       "c": 13,
+       "kind": "month",
+       "head": "Dec 2025"
+      },
+      {
+       "c": 14,
+       "kind": "total",
+       "head": "Total"
+      }
+     ],
+     "gaps": [],
+     "duplicates": [
+      "2025-12"
+     ],
+     "emptyCols": [],
+     "printed": null
+    },
+    "importedAt": 1792203278924,
+    "months": [
+     "2025-01",
+     "2025-02",
+     "2025-03",
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12",
+     "2025-12"
+    ],
+    "lines": [
+     {
+      "id": "L3",
+      "r": 3,
+      "account": "",
+      "label": "Base Rent",
+      "key": "base rent",
+      "section": "income",
+      "months": [
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000
+      ],
+      "total": 130000,
+      "fileTotal": 130000,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 3,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "rent",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "rent"
+      ]
+     },
+     {
+      "id": "L5",
+      "r": 5,
+      "account": "",
+      "label": "Repairs and Maintenance",
+      "key": "repairs and maintenance",
+      "section": "expense",
+      "months": [
+       500,
+       500,
+       500,
+       500,
+       500,
+       500,
+       500,
+       500,
+       500,
+       500,
+       500,
+       500,
+       650
+      ],
+      "total": 6650,
+      "fileTotal": 6650,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 5,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "repairs",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "repairs"
+      ]
+     }
+    ],
+    "stated": {},
+    "subtotals": [],
+    "signs": {
+     "expensesNegative": false,
+     "reductionsPositive": false
+    },
+    "headRow": 1,
+    "seen": {}
+   }
+  },
+  {
+   "id": "d4734long",
+   "name": "Invented Fifteen (fictional)",
+   "createdAt": 1792203277340,
+   "updatedAt": 1792203290000,
+   "source": null,
+   "readAt": null,
+   "pages": 0,
+   "figures": {
+    "address": "Invented Fifteen (fictional)",
+    "gross": 147000,
+    "opex": 15000,
+    "taxes": 15000,
+    "noi": 132000
+   },
+   "sources": {},
+   "rentRoll": [],
+   "unpriced": false,
+   "loan": {
+    "ltv": 65,
+    "rate": 6.75,
+    "amort": 30,
+    "io": false,
+    "closing": 2,
+    "minDscr": 1.25,
+    "minDy": 8
+   },
+   "qDone": {},
+   "myQuestions": [],
+   "live": {},
+   "scenarios": [],
+   "targets": {
+    "cap": null,
+    "irr": 15,
+    "value": null
+   },
+   "visit": {
+    "at": null,
+    "items": {},
+    "notes": "",
+    "photos": [],
+    "audio": []
+   },
+   "moneyVersion": 1,
+   "schema": 4,
+   "t12": {
+    "v": 2,
+    "file": "invented-fifteen.csv",
+    "sheet": "CSV",
+    "source": {
+     "file": "invented-fifteen.csv",
+     "sheet": "CSV",
+     "numberFormat": "us"
+    },
+    "period": {
+     "basis": "other",
+     "dated": true,
+     "count": 15,
+     "columns": [
+      {
+       "c": 1,
+       "kind": "month",
+       "head": "Oct 2024"
+      },
+      {
+       "c": 2,
+       "kind": "month",
+       "head": "Nov 2024"
+      },
+      {
+       "c": 3,
+       "kind": "month",
+       "head": "Dec 2024"
+      },
+      {
+       "c": 4,
+       "kind": "month",
+       "head": "Jan 2025"
+      },
+      {
+       "c": 5,
+       "kind": "month",
+       "head": "Feb 2025"
+      },
+      {
+       "c": 6,
+       "kind": "month",
+       "head": "Mar 2025"
+      },
+      {
+       "c": 7,
+       "kind": "month",
+       "head": "Apr 2025"
+      },
+      {
+       "c": 8,
+       "kind": "month",
+       "head": "May 2025"
+      },
+      {
+       "c": 9,
+       "kind": "month",
+       "head": "Jun 2025"
+      },
+      {
+       "c": 10,
+       "kind": "month",
+       "head": "Jul 2025"
+      },
+      {
+       "c": 11,
+       "kind": "month",
+       "head": "Aug 2025"
+      },
+      {
+       "c": 12,
+       "kind": "month",
+       "head": "Sep 2025"
+      },
+      {
+       "c": 13,
+       "kind": "month",
+       "head": "Oct 2025"
+      },
+      {
+       "c": 14,
+       "kind": "month",
+       "head": "Nov 2025"
+      },
+      {
+       "c": 15,
+       "kind": "month",
+       "head": "Dec 2025"
+      },
+      {
+       "c": 16,
+       "kind": "total",
+       "head": "Total"
+      }
+     ],
+     "gaps": [],
+     "duplicates": [],
+     "emptyCols": [],
+     "printed": null
+    },
+    "importedAt": 1792203278924,
+    "months": [
+     "2024-10",
+     "2024-11",
+     "2024-12",
+     "2025-01",
+     "2025-02",
+     "2025-03",
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12"
+    ],
+    "lines": [
+     {
+      "id": "L3",
+      "r": 3,
+      "account": "",
+      "label": "Base Rent",
+      "key": "base rent",
+      "section": "income",
+      "months": [
+       9000,
+       9000,
+       9000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000
+      ],
+      "total": 147000,
+      "fileTotal": 147000,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 3,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "rent",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "rent"
+      ]
+     },
+     {
+      "id": "L5",
+      "r": 5,
+      "account": "",
+      "label": "Real Estate Taxes",
+      "key": "real estate taxes",
+      "section": "expense",
+      "months": [
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000
+      ],
+      "total": 15000,
+      "fileTotal": 15000,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 5,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "taxes",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "taxes"
+      ]
+     }
+    ],
+    "stated": {},
+    "subtotals": [],
+    "signs": {
+     "expensesNegative": false,
+     "reductionsPositive": false
+    },
+    "headRow": 1,
+    "seen": {}
+   }
+  }
+ ],
+ "kv": {},
+ "session": null,
+ "local": {}
+}

@@ -8,9 +8,12 @@ import { el, toast, actionSheet, money0, money2, niceDate, getXlsx, getFflate } 
 import { readGrids, pastedRows } from './sheetread.js';
 import { checkUpload } from './filekind.js';
 import {
-  CATEGORIES, CATEGORY, SIDES, statementTotals, annualized, openLines, openChecks, fileLine, periodText, rematch, sourceText, periodShort, lineNotes,
+  CATEGORIES, CATEGORY, SIDES, statementTotals, annualized, openLines, fileLine, periodText, rematch, sourceText, periodShort, lineNotes,
   statementNotes, markSeen, suggestionText, sheetChoices, pickSheet, layoutOf, numberFormatOf, importStatement, currencyRefusal,
+  t12Qc, t12OpenChecks, heldBy, useHeldBy, applyT12Fix, windowOf, monthLabel,
 } from './t12.js';
+import { qcPanel } from './dataqcui.js';
+import { qcCounts } from './dataqc.js';
 import { remembered, rememberLabel } from './t12labels.js';
 import { NOI_GAP } from './engine/conventions.js';
 
@@ -36,7 +39,8 @@ export function renderT12Card(box, h) {
   }
   const T = statementTotals(t);
   const lines = openLines(t);
-  const checks = openChecks(t);
+  const checks = t12OpenChecks(t);
+  const held = heldBy(t);
   box.appendChild(el('p', 'sub', `${sourceText(t)} · ${periodText(t)} · imported ${niceDate(t.importedAt)}`));
   const n = t.months.length;
   if (n && n < 12) {
@@ -59,6 +63,19 @@ export function renderT12Card(box, h) {
     go.type = 'button';
     go.id = 't12-review';
     go.addEventListener('click', () => h.openReview());
+    p.appendChild(go);
+    box.appendChild(p);
+  }
+
+  // a month in two columns, more than 12 months, or running totals: the figures are held until the broker chooses
+  if (held.length) {
+    const p = el('p', 'warn-text t12-held', `Held back: ${held.map((c) => c.short).join('; ')}. The T-12’s figures aren’t shown or used until ${held.length === 1 ? 'it is' : 'each is'} settled in the Data QC below or in Review. `);
+    p.id = 't12-held';
+    p.setAttribute('role', 'status');
+    const go = el('button', 'btn btn-sm btn-gray t12-act', 'Show the checks');
+    go.type = 'button';
+    go.id = 't12-held-show';
+    go.addEventListener('click', () => showQc());
     p.appendChild(go);
     box.appendChild(p);
   }
@@ -87,23 +104,32 @@ export function renderT12Card(box, h) {
   tbl.appendChild(cap);
   const tb = el('tbody');
   const row = (label, v, cls = '') => { const tr = el('tr', cls); tr.append(el('th', null, label), el('td', 'num', usd(v))); tr.firstChild.setAttribute('scope', 'row'); tb.appendChild(tr); };
-  for (const side of ['income', 'expense']) {
-    for (const c of CATEGORIES.filter((x) => x.side === side)) if (T.by[c.id]) row(c.label, T.by[c.id]);
-    row(side === 'income' ? 'Effective gross income' : 'Operating expenses', side === 'income' ? T.egi : T.opex, 'total');
+  if (held.length) {
+    // never the figure that would count a month twice, or read a file of more than 12 months as a year: said in words
+    const why = `held: ${held.map((c) => c.short).join('; ')}`;
+    for (const [label, cls] of [['Effective gross income', 'total'], ['Operating expenses', 'total'], ['NOI', 'total grand']]) {
+      const tr = el('tr', cls); tr.append(el('th', null, label), el('td', 'num t12-held-cell', why)); tr.firstChild.setAttribute('scope', 'row'); tb.appendChild(tr);
+    }
+  } else {
+    for (const side of ['income', 'expense']) {
+      for (const c of CATEGORIES.filter((x) => x.side === side)) if (T.by[c.id]) row(c.label, T.by[c.id]);
+      row(side === 'income' ? 'Effective gross income' : 'Operating expenses', side === 'income' ? T.egi : T.opex, 'total');
+    }
+    const noiLabel = n && n < 12 ? `NOI, ${n} month${n === 1 ? '' : 's'}` : 'NOI';
+    row(lines.length ? `${noiLabel} (lines still to file are left out)` : noiLabel, T.noi, 'total grand');
+    const below = CATEGORIES.filter((c) => c.side === 'below' && T.by[c.id]);
+    if (below.length) {
+      const tr = el('tr', 'sep'); const th = el('th', null, SIDES.below); th.colSpan = 2; tr.appendChild(th); tb.appendChild(tr);
+      for (const c of below) row(c.label, T.by[c.id], 'muted');
+    }
+    if (lines.length) row('Not yet filed', T.unassigned, 'warn-text');
   }
-  const noiLabel = n && n < 12 ? `NOI, ${n} month${n === 1 ? '' : 's'}` : 'NOI';
-  row(lines.length ? `${noiLabel} (lines still to file are left out)` : noiLabel, T.noi, 'total grand');
-  const below = CATEGORIES.filter((c) => c.side === 'below' && T.by[c.id]);
-  if (below.length) {
-    const tr = el('tr', 'sep'); const th = el('th', null, SIDES.below); th.colSpan = 2; tr.appendChild(th); tb.appendChild(tr);
-    for (const c of below) row(c.label, T.by[c.id], 'muted');
-  }
-  if (lines.length) row('Not yet filed', T.unassigned, 'warn-text');
   tbl.appendChild(tb);
   const wrap = el('div', 'scroll');
   wrap.appendChild(tbl);
   box.appendChild(wrap);
 
+  box.appendChild(qcSection(h));
   box.appendChild(noiThreeWays(d, T, h));
 
   const acts = el('div', 'row-actions');
@@ -130,6 +156,86 @@ export function renderT12Card(box, h) {
   box.appendChild(acts);
 }
 
+/* ------------------------------------------------- the T-12 Data QC panel */
+
+/** What an action sheet asks, for the fixes of a check of each kind. */
+const FIX_TITLE = { duplicate: 'Which column counts?', long: 'Which 12 months are the T-12?', chosen: 'Which 12 months are the T-12?', cumulative: 'How are the columns read?', active: 'Annualise over which months?' };
+
+/** The history entry for a fix: "T-12: Use column N for Dec 2025". */
+export function fixLabel(c, f) {
+  if (f.id === 'seen') return c.id.startsWith('stated.') ? `T-12: ${f.label}` : 'T-12: a check marked seen';
+  if (c.kind === 'duplicate') return `T-12: ${f.label} for ${monthLabel(c.id.slice('period.dup.'.length))}`;
+  return `T-12: ${f.label}`;
+}
+
+/**
+ * The buttons a T-12 check offers (44 pt high): each of its fixes, and one "Change…" (an action sheet) for the
+ * fixes flagged `more`. Shared by the Data QC panel and the Review Queue. `run(fix)` applies one.
+ * @param {any} c  a check from t12.js t12Qc, or a Review item carrying `fixes`, `kind` and `level`
+ * @param {(fix: any) => any} run
+ */
+export function fixButtons(c, run) {
+  const out = [];
+  const fixes = c.fixes || [];
+  fixes.filter((f) => !f.more).forEach((f, i) => {
+    const b = el('button', `btn btn-sm t12-act t12-fix ${i === 0 && c.level === 'fail' ? 'btn-primary' : 'btn-gray'}`, f.label);
+    b.type = 'button';
+    b.dataset.fix = f.id;
+    b.addEventListener('click', () => run(f));
+    out.push(b);
+  });
+  const more = fixes.filter((f) => f.more);
+  if (more.length) {
+    const b = el('button', 'btn btn-sm btn-gray t12-act t12-fix', 'Change…');
+    b.type = 'button';
+    b.dataset.fix = 'change';
+    b.addEventListener('click', async () => {
+      const v = await actionSheet(FIX_TITLE[c.checkKind || c.kind] || 'Change', more.map((f) => ({ label: f.label, value: f.id })));
+      const f = more.find((x) => x.id === v);
+      if (f) run(f);
+    });
+    out.push(b);
+  }
+  return out;
+}
+
+/** A fix applied on the deal screen: one history entry (Undo takes it back), then the card is drawn again. */
+function runFix(h, c, f) {
+  const d = h.deal;
+  if (!d.t12 || !applyT12Fix(d.t12, c.id, f.id)) return;
+  h.touch({ kind: 'edit', label: fixLabel(c, f) });
+  h.redraw();
+}
+
+/** The panel, folded to one line when nothing is waiting (as the OM's is). */
+function qcSection(h) {
+  const t = h.deal.t12;
+  const qc = t12Qc(t);
+  const n = qcCounts(qc);
+  const panel = qcPanel({
+    id: 'deal-t12qc', title: 'Data QC: T-12', qc,
+    intro: `${qc.intro ? `${qc.intro} ` : ''}Each check the statement’s own columns and totals were put through; a Fail or a held reading waits for your choice here or in Review.`,
+    extra: (c) => (c.resolved ? [] : fixButtons(c, (f) => runFix(h, c, f))),
+  });
+  if (n.open) return panel;
+  const det = el('details', 'qc-fold');
+  det.id = 'deal-t12qc-fold';
+  det.appendChild(el('summary', null, `Data QC: T-12 · ${[n.pass && `${n.pass} pass`, n.info && `${n.info} note${n.info === 1 ? '' : 's'}`, n.fail + n.warn && `${n.fail + n.warn} resolved`].filter(Boolean).join(' · ')}`));
+  det.appendChild(panel);
+  return det;
+}
+
+/** Scroll to the panel (opening its fold) and put focus on it. */
+function showQc() {
+  const fold = document.getElementById('deal-t12qc-fold');
+  if (fold) fold.open = true;
+  const box = document.getElementById('deal-t12qc');
+  if (!box) return;
+  box.tabIndex = -1;
+  box.scrollIntoView({ block: 'center' });
+  box.focus({ preventScroll: true });
+}
+
 /** The NOI three ways: the OM's, the T-12's and the rent roll's forward-looking year 1, with the gaps. */
 function noiThreeWays(d, T, h) {
   const sec = el('div', 't12-noi');
@@ -137,9 +243,10 @@ function noiThreeWays(d, T, h) {
   const om = d.t12.applied ? d.t12.applied.before.noi : d.figures.noi;
   const rr = h.rrNoi1();
   const partial = d.t12.months.length && d.t12.months.length < 12;
+  const held = heldBy(d.t12).length > 0;
   const rows = [
     ['OM', 'as read or typed', om],
-    ['T-12', partial ? `${periodText(d.t12)}: not a full year, so not compared` : periodText(d.t12), T.unassigned || openLines(d.t12).length ? null : T.noi],
+    ['T-12', held ? 'not compared: a T-12 check is open' : partial ? `${periodText(d.t12)}: not a full year, so not compared` : periodText(d.t12), held || T.unassigned || openLines(d.t12).length ? null : T.noi],
     ['Rent roll, forward-looking year 1', 'a projection, not an actual', rr],
   ];
   const tbl = el('table', 'mini t12-noi-table');
@@ -157,7 +264,7 @@ function noiThreeWays(d, T, h) {
     const val = el('td', 'num', v === undefined ? 'working out…' : usd(v));
     let g = '';
     let cls = '';
-    if (who !== 'T-12' && ok(v) && ok(T.noi) && !T.unassigned && !openLines(d.t12).length && !partial) {
+    if (who !== 'T-12' && ok(v) && ok(T.noi) && !T.unassigned && !openLines(d.t12).length && !partial && !held) {
       const base = Math.max(Math.abs(v), Math.abs(T.noi));
       const pc = base ? (Math.abs(v - T.noi) / base) * 100 : 0;
       g = `${v >= T.noi ? '+' : '−'}${money0(Math.abs(v - T.noi))} (${pc.toFixed(1)}%)`;
@@ -432,36 +539,48 @@ async function useFigures(h) {
   const T = statementTotals(t);
   // by the count of lines, not their amount: lines worth $0, or that cancel out, are still not filed
   if (T.unassigned || openLines(t).length) { toast(`File the ${openLines(t).length} line${openLines(t).length === 1 ? '' : 's'} still waiting in Review first: the totals aren’t complete.`, { label: 'Review', run: () => h.openReview() }, 7000); return; }
+  // a period problem (a month counted twice, more than 12 months, running totals) or a stated figure that disagrees with its lines
+  const hold = useHeldBy(t);
+  if (hold.length) {
+    toast(`Held: ${hold.map((c) => c.short || c.text).join('; ')}. Settle ${hold.length === 1 ? 'that check' : `those ${hold.length} checks`} first; the T-12’s figures aren’t used until then.`, { label: 'Show', run: () => showQc() }, 9000);
+    return;
+  }
   const n = t.months.length;
-  const A = annualized(T);
+  const W = windowOf(t);
+  const A = annualized(T, W.n);
   /** @type {{ egi: number, opex: number, taxes: number, noi: number }} */
   let vals = T;
-  if (A) {
-    const pick = await actionSheet(`This T-12 is ${n} month${n === 1 ? '' : 's'}, not a full year`, [
+  if (A || (W.ask && n < 12)) {
+    // months with no activity on any line, not yet answered (Data QC): annualising waits for the answer, which is the broker's
+    const asks = W.ask;
+    const pick = await actionSheet(`This T-12 is ${n} month${n === 1 ? '' : 's'}${W.n !== n ? `, ${W.n} with activity` : ''}, not a full year`, [
       { label: 'Keep it as a partial year', sub: `Nothing on the deal changes. The T-12’s ${n}-month NOI (${usd(T.noi)}) stays on this card as a partial year, not compared with a year’s figures.`, value: 'keep', primary: true },
-      { label: 'Annualize it, then use the figures…', sub: `Scales each total by 12 ÷ ${n}. You see the annual figures and confirm before anything changes.`, value: 'annualize' },
+      asks
+        ? { label: 'Annualize it, then use the figures…', sub: `Not yet: ${W.columns - W.active} of its ${W.columns} months ${W.columns - W.active === 1 ? 'has' : 'have'} no activity on any line. Say whether to annualize over the ${W.active} months with activity or all ${W.columns} columns in “Data QC: T-12” first.`, value: 'ask', disabled: true }
+        : { label: 'Annualize it, then use the figures…', sub: `Scales each total by 12 ÷ ${W.n}. You see the annual figures and confirm before anything changes.`, value: 'annualize' },
     ]);
     if (pick !== 'annualize') { if (pick === 'keep') toast(`Nothing changed: the T-12 stays a ${n}-month partial year.`); return; }
     vals = A;
   }
+  const an = A ? W.n : 0;
   const sets = [['gross', 'Gross income (EGI)', vals.egi], ['opex', 'Operating expenses', vals.opex], ['taxes', 'Real estate taxes', vals.taxes], ['noi', A ? 'NOI, annualized' : 'NOI, in place', vals.noi]];
   const what = sets.map(([k, label, v]) => `${label}: ${usd(d.figures[k])} → ${usd(v)}`).join(' · ');
-  const caveat = A ? ` From ${n} months × 12 ÷ ${n}: seasonal income and costs, one-time items and lease-up are scaled with everything else.` : '';
+  const caveat = A ? ` From ${an} months × 12 ÷ ${an}: seasonal income and costs, one-time items and lease-up are scaled with everything else.` : '';
   /** @type {any[]} */
   const opts = [{ label: A ? 'Annualize and use them' : 'Use them', sub: `${what}.${caveat}`, value: 'deal', primary: true }];
   if (d.rr && d.rr.leases && d.rr.leases.length) opts.push({ label: A ? 'Annualize and use them, and the rent roll’s operating expenses too' : 'Use them, and the rent roll’s operating expenses too', sub: `The rent roll’s operating expenses: ${usd(d.rr.settings.opex)} → ${usd(vals.opex)}.`, value: 'both' });
-  const v = await actionSheet(A ? `Annualize ${n} months to a year and use them?` : 'Use the T-12’s figures?', opts);
+  const v = await actionSheet(A ? `Annualize ${an} months to a year and use them?` : 'Use the T-12’s figures?', opts);
   if (!v) return;
   const snap = h.snapshot('Before using the T-12’s figures');
   const before = t.applied ? t.applied.before : { noi: d.figures.noi ?? null, gross: d.figures.gross ?? null, opex: d.figures.opex ?? null, taxes: d.figures.taxes ?? null };
-  t.applied = { at: Date.now(), before, rrOpex: v === 'both', ...(A ? { annualized: n } : {}) };
+  t.applied = { at: Date.now(), before, rrOpex: v === 'both', ...(A ? { annualized: an } : {}) };
   const months = periodText(t);
   for (const [k, , val] of sets) {
     d.figures[k] = val;
-    d.sources[k] = { t12: true, hand: false, file: t.file, line: `T-12, ${months}${A ? `, annualized × 12 ÷ ${n}` : ''}`, orig: val, ...(A ? { annualized: n } : {}) };
+    d.sources[k] = { t12: true, hand: false, file: t.file, line: `T-12, ${months}${A ? `, annualized × 12 ÷ ${an}` : ''}`, orig: val, ...(A ? { annualized: an } : {}) };
   }
   if (v === 'both') d.rr.settings.opex = vals.opex;
-  h.touch({ kind: 'import', label: `Used the T-12’s figures${A ? `, annualized from ${n} months` : ''} (EGI, expenses, taxes, NOI${v === 'both' ? ', and the rent roll’s expenses' : ''})`, snapshot: snap });
+  h.touch({ kind: 'import', label: `Used the T-12’s figures${A ? `, annualized from ${an} months` : ''} (EGI, expenses, taxes, NOI${v === 'both' ? ', and the rent roll’s expenses' : ''})`, snapshot: snap });
   h.rerender();
-  toast(A ? `The T-12’s ${n} months, annualized, are in the deal. Undo puts the earlier figures back.` : 'The T-12’s figures are in the deal. Undo puts the earlier ones back.');
+  toast(A ? `The T-12’s ${an} months, annualized, are in the deal. Undo puts the earlier figures back.` : 'The T-12’s figures are in the deal. Undo puts the earlier ones back.');
 }

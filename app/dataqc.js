@@ -42,6 +42,7 @@ export const resolveLabel = (c) => (c.level === 'fail' ? 'Accept as read' : c.ki
 
 /** Where a check points, in words: "page 5, line 9, row 3, column SF (“1,800”)". */
 export function whereText(c) {
+  if (typeof c.where === 'string' && c.where) return c.where; // a T-12 check says where in words (t12.js)
   const bits = [];
   if (c.page) bits.push(`page ${c.page}`);
   if (c.line) bits.push(`line ${c.line}`);

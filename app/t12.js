@@ -502,10 +502,11 @@ export function statementTotals(t) {
  * cents (convention t12.months): EGI, operating expenses and taxes each
  * scaled, NOI their difference so it still adds up. Only on the broker's
  * explicit confirmation ("Use the T-12's figures"). `T` is statementTotals'
- * result; a full year, or no months, gives null: nothing to scale.
+ * result; a full year, or no months, gives null: nothing to scale. `n` is what
+ * it is scaled over: its month columns (the default), or its months with
+ * activity when the broker said so (`activity`, T-12 PR 3a): the one function.
  */
-export function annualized(T) {
-  const n = T.months;
+export function annualized(T, n = T.months) {
   if (!(n > 0 && n < 12)) return null;
   const up = (v) => cents((v * 12) / n);
   const egi = up(T.egi); const opex = up(T.opex);
@@ -576,10 +577,13 @@ const monthName = (m) => (/^M\d+$/.test(m || '') ? `Month ${+m.slice(1)}` : mont
 export function importStatement(rows, { file = '', sheet = '', corrections = {}, history = {}, suggest = true, now = Date.now(), numberFormat = 'us', source = {} } = {}) {
   const st = normalizeSigns(readStatement(rows, { corrections, history, suggest, sheet, numberFormat, paste: source.type === 'paste' }));
   const from = { type: source.type, file, size: source.size, sheet, sheets: source.sheets, delimiter: source.delimiter, numberFormat, numberAsked: source.numberAsked, encoding: source.encoding, macros: source.macros };
-  return {
+  const t = {
     v: 2, file, sheet, source: Object.fromEntries(Object.entries(from).filter(([, x]) => x !== undefined)), period: st.period,
     importedAt: now, months: st.months, lines: st.lines, stated: st.stated, subtotals: st.subtotals, signs: st.signs, headRow: st.headRow, seen: {},
   };
+  // more than 12 dated months: the latest 12 calendar months are the T-12, the rest are kept as the prior period (PR 3a)
+  if (new Set(t.months.filter(isIso)).size > 12) chooseMonths(t, latestFrom(t));
+  return t;
 }
 
 const PROJECTION = /\b(budget|forecast|pro ?forma|projected|projection)\b/i;
@@ -642,11 +646,11 @@ export const openLines = (t) => (t && t.lines ? t.lines.filter((l) => !l.categor
 /** The statement's checks not yet marked seen. */
 export const openChecks = (t) => (t ? statementChecks(t).filter((c) => !(t.seen && t.seen[c.id])) : []);
 
-/** What the analysis reads of a deal's T-12 (impact.js analysisInput): its totals, and how many months they cover. */
+/** What the analysis reads of a deal's T-12 (impact.js analysisInput): its totals, how many months they cover, and `held`: how many period checks hold the totals back (a month counted twice, a file of more than 12 months, running totals). */
 export function t12ForAnalysis(t) {
   if (!t || !Array.isArray(t.lines)) return null;
   const T = statementTotals(t);
-  return { noi: T.noi, egi: T.egi, opex: T.opex, taxes: T.taxes, months: T.months, from: t.months[0] || null, to: t.months[t.months.length - 1] || null, unassigned: T.unassigned, open: openLines(t).length };
+  return { noi: T.noi, egi: T.egi, opex: T.opex, taxes: T.taxes, months: T.months, from: t.months[0] || null, to: t.months[t.months.length - 1] || null, unassigned: T.unassigned, open: openLines(t).length, held: heldCount(t) };
 }
 
 /**
@@ -738,4 +742,449 @@ export function lineNotes(t, l) {
   if (l.src && l.src.type === 'pasteLine') out.push('pasted');
   else if (l.conf && l.conf.read === 'medium') out.push('medium confidence');
   return out;
+}
+
+/* ------------------------------------------------ period structure (T-12 PR 3a)
+ *
+ * Which months and columns are counted. A statement keeps what the file had,
+ * and the broker's choices rewrite `months`, each line's `months` and `total`
+ * (everything downstream reads those unchanged):
+ *   period.chosen { from, to, by }   the T-12's 12 calendar months, when the file has more than 12
+ *   period.prior { months }, line.prior { months, total, blank? }   the months outside them
+ *   period.dropped [{ iso, c, head, n }], line.dropped [numbers]    a month's columns not used
+ *   period.cols [{ c, head, n }]     the columns now in `months`, in order (`n`: which of a month's columns)
+ *   period.columnsAre 'monthly'|'cumulative', line.cumulative [numbers]   the printed running totals
+ *   window { n, how: 'active'|'columns' }   what Annualise divides by (docs/proposals/underwriting.md §3.7)
+ * Nothing is rewritten on load: a statement saved before has none of these, and the checks below read what
+ * it has. Nothing is picked for the broker: a month in two columns, a file of more than 12 months and
+ * columns that look like running totals hold the totals back until they choose (Part 21.2: counted twice,
+ * monthly against annual). Design: docs/proposals/t12-multiformat.md §3, §5. */
+
+const isIso = (s) => /^\d{4}-\d{2}$/.test(s || '');
+const mkey = (iso) => +iso.slice(0, 4) * 12 + +iso.slice(5) - 1;
+const isoOfKey = (k) => `${Math.floor(k / 12)}-${pad((k % 12) + 1)}`;
+/** "A" for column 0, "M" for 12, "AA" for 26. */
+const colLetter = (c) => { let out = ''; for (let n = c + 1; n > 0; n = Math.floor((n - 1) / 26)) out = String.fromCharCode(65 + ((n - 1) % 26)) + out; return out; };
+const usd0 = (x) => `${x < 0 ? '−' : ''}$${Math.round(Math.abs(x)).toLocaleString('en-US')}`;
+const list = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+/** "Oct 2024 to Dec 2024" per run of consecutive calendar months ("Oct 2024" for a single month), joined with "and". */
+function rangesText(isos) {
+  const ks = [...new Set(isos.filter(isIso).map(mkey))].sort((a, b) => a - b);
+  const runs = [];
+  for (const k of ks) { const r = runs[runs.length - 1]; if (r && k === r[1] + 1) r[1] = k; else runs.push([k, k]); }
+  return list(runs.map(([a, b]) => (a === b ? monthLabel(isoOfKey(a)) : `${monthLabel(isoOfKey(a))} to ${monthLabel(isoOfKey(b))}`)));
+}
+
+/** The columns now in `months`, aligned to it: { c?, head?, n } (`n`: which of the columns headed by that month it was, from 0). */
+function inCols(t) {
+  const p = t.period || {};
+  const file = (p.columns || []).filter((c) => c.kind !== 'total');
+  const have = p.cols && p.cols.length === t.months.length ? p.cols : file.length === t.months.length ? file : [];
+  return t.months.map((iso, i) => {
+    const x = have[i] || {};
+    return { ...(x.c !== undefined ? { c: x.c } : {}), ...(x.head !== undefined ? { head: x.head } : {}), n: x.n !== undefined ? x.n : t.months.slice(0, i).filter((m) => m === iso).length };
+  });
+}
+
+/**
+ * Every column the file had, with where it is now: 'in' (counted), 'prior' (outside the 12 months) or
+ * 'dropped' (one of several columns for a month, not used). `vals`, `blank` and `unread` have one entry per line.
+ */
+function poolOf(t) {
+  const L = t.lines; const p = t.period || {};
+  const cols = [];
+  const info = inCols(t);
+  t.months.forEach((iso, i) => cols.push({
+    iso, role: 'in', ...info[i],
+    vals: L.map((l) => l.months[i]),
+    blank: L.map((l) => !!(l.blank && l.blank.includes(i))),
+    unread: L.map((l) => (l.unread || []).find((u) => u.i === i) || null),
+  }));
+  const prior = (p.prior && p.prior.months) || [];
+  prior.forEach((iso, j) => cols.push({
+    iso, role: 'prior', n: prior.slice(0, j).filter((m) => m === iso).length,
+    vals: L.map((l) => (l.prior && l.prior.months[j]) || 0),
+    blank: L.map((l) => !!(l.prior && l.prior.blank && l.prior.blank.includes(j))),
+    unread: L.map(() => null),
+  }));
+  (p.dropped || []).forEach((d, k) => cols.push({
+    iso: d.iso, role: 'dropped', ...(d.c !== undefined ? { c: d.c } : {}), ...(d.head !== undefined ? { head: d.head } : {}), n: d.n !== undefined ? d.n : 1,
+    vals: L.map((l) => (l.dropped && l.dropped[k]) || 0),
+    blank: L.map(() => false), unread: L.map(() => null),
+  }));
+  return cols;
+}
+
+/** Write a pool back (in place): months, each line's months, total, blank, unread, prior and dropped, all consistent. */
+function commit(t, cols) {
+  const inn = cols.filter((x) => x.role === 'in');
+  if (inn.every((x) => isIso(x.iso))) inn.sort((a, b) => mkey(a.iso) - mkey(b.iso) || a.n - b.n);
+  const pri = cols.filter((x) => x.role === 'prior');
+  const drp = cols.filter((x) => x.role === 'dropped');
+  const sum = (xs) => cents(xs.reduce((s, v) => s + v, 0));
+  t.months = inn.map((x) => x.iso);
+  t.lines.forEach((l, li) => {
+    l.months = inn.map((x) => x.vals[li]);
+    l.total = sum(l.months);
+    const blank = []; const unread = [];
+    inn.forEach((x, i) => { if (x.blank[li]) blank.push(i); if (x.unread[li]) unread.push({ i, text: x.unread[li].text }); });
+    if (blank.length) l.blank = blank; else delete l.blank;
+    if (unread.length) l.unread = unread; else delete l.unread;
+    if (pri.length) {
+      const pb = []; pri.forEach((x, j) => { if (x.blank[li]) pb.push(j); });
+      l.prior = { months: pri.map((x) => x.vals[li]), total: sum(pri.map((x) => x.vals[li])), ...(pb.length ? { blank: pb } : {}) };
+    } else delete l.prior;
+    if (drp.length) l.dropped = drp.map((x) => x.vals[li]); else delete l.dropped;
+  });
+  const p = t.period || (t.period = /** @type {any} */ ({}));
+  const meta = (x) => ({ ...(x.c !== undefined ? { c: x.c } : {}), ...(x.head !== undefined ? { head: x.head } : {}), n: x.n });
+  p.cols = inn.map(meta);
+  if (pri.length) p.prior = { months: pri.map((x) => x.iso) }; else delete p.prior;
+  if (drp.length) p.dropped = drp.map((x) => ({ iso: x.iso, ...meta(x) })); else delete p.dropped;
+  // the basis of what is counted now, when it is dated months in a row
+  const ks = inn.map((x) => (isIso(x.iso) ? mkey(x.iso) : NaN));
+  if (inn.length && ks.every((k, i) => Number.isFinite(k) && (i === 0 || k === ks[i - 1] + 1))) p.basis = inn.length === 12 ? 'T-12' : inn.length < 12 ? `T-${inn.length}` : p.basis;
+}
+
+/** Running totals turned back into the months as printed (in place); a no-op for a statement read as monthly. */
+function undoRunning(t) { for (const l of t.lines) if (l.cumulative) { l.months = l.cumulative; delete l.cumulative; l.total = cents(l.months.reduce((s, v) => s + v, 0)); } }
+/** Each month as the difference from the month before; the printed running totals are kept on the line (in place). */
+function doRunning(t) {
+  for (const l of t.lines) {
+    l.cumulative = l.months.slice();
+    l.months = l.cumulative.map((v, i) => (i ? cents(v - l.cumulative[i - 1]) : v));
+    l.total = cents(l.months.reduce((s, v) => s + v, 0));
+  }
+}
+
+/** Change the pool (a choice of months or of a column) with the columns read as monthly, then read as running totals again if they were. `fn` returns false to change nothing. */
+function reshape(t, fn) {
+  const running = !!(t.period && t.period.columnsAre === 'cumulative');
+  if (running) undoRunning(t);
+  const cols = poolOf(t);
+  const done = fn(cols) !== false;
+  if (done) commit(t, cols);
+  if (running) doRunning(t);
+  return done;
+}
+
+/** The months of the file that could be a T-12's first: the latest 12's start first, then every earlier month present. */
+function windowStarts(t) {
+  const isos = poolOf(t).filter((x) => x.role !== 'dropped' && isIso(x.iso)).map((x) => mkey(x.iso));
+  if (!isos.length) return [];
+  const latest = Math.max(...isos) - 11;
+  return [...new Set([latest, ...isos.filter((k) => k < latest)])].sort((a, b) => b - a).map(isoOfKey);
+}
+/** The first month of the latest 12 calendar months the statement has. */
+function latestFrom(t) {
+  const ks = poolOf(t).filter((x) => x.role !== 'dropped' && isIso(x.iso)).map((x) => mkey(x.iso));
+  return isoOfKey(Math.max(...ks) - 11);
+}
+
+/**
+ * The 12 calendar months from `from` are the T-12; every other dated month is kept as the prior period (in
+ * place). Returns false (nothing changed) when no column falls in them. `by` is 'latest' when `from` starts the
+ * latest 12 months the file has, else 'you'.
+ */
+export function chooseMonths(t, from) {
+  if (!isIso(from)) return false;
+  const k0 = mkey(from);
+  const inside = (x) => isIso(x.iso) && mkey(x.iso) >= k0 && mkey(x.iso) <= k0 + 11;
+  const ok2 = reshape(t, (cols) => {
+    if (!cols.some((x) => x.role !== 'dropped' && inside(x))) return false;
+    for (const x of cols) if (x.role !== 'dropped' && isIso(x.iso)) x.role = inside(x) ? 'in' : 'prior';
+    return true;
+  });
+  if (!ok2) return false;
+  const p = t.period;
+  if (p.prior) p.chosen = { from, to: isoOfKey(k0 + 11), by: from === latestFrom(t) ? 'latest' : 'you' };
+  else delete p.chosen;
+  return true;
+}
+
+/** The columns a month heads, in file order: [{ k, role, c?, head?, sum }] (`sum`: what its lines add up to, ignoring signs). */
+export function columnsOfMonth(t, iso) {
+  return poolOf(t).filter((x) => x.iso === iso && x.role !== 'prior').sort((a, b) => a.n - b.n)
+    .map((x, k) => ({ k, role: x.role, ...(x.c !== undefined ? { c: x.c } : {}), ...(x.head !== undefined ? { head: x.head } : {}), sum: cents(x.vals.reduce((s, v) => s + Math.abs(v), 0)) }));
+}
+
+/** Count only the `k`th of the columns a month heads (in file order); the others are kept apart, so the choice can change (in place). */
+export function chooseColumn(t, iso, k) {
+  return reshape(t, (cols) => {
+    const opts = cols.filter((x) => x.iso === iso && x.role !== 'prior').sort((a, b) => a.n - b.n);
+    if (!opts[k]) return false;
+    opts.forEach((x, i) => { x.role = i === k ? 'in' : 'dropped'; });
+    return true;
+  });
+}
+
+/** Read the columns as 'monthly' figures (as printed) or 'cumulative' (running totals: each month is the difference from the one before), in place. */
+export function readColumnsAs(t, how) {
+  const p = t.period || (t.period = /** @type {any} */ ({}));
+  if (how === 'cumulative' && p.columnsAre !== 'cumulative') doRunning(t);
+  else if (how === 'monthly' && p.columnsAre === 'cumulative') undoRunning(t);
+  p.columnsAre = how;
+  return t;
+}
+
+/** The months with activity, as the broker's answer to "annualise over which?" (in place): N, or all the columns. */
+export function setWindow(t, how) {
+  const a = activity(t);
+  t.window = { n: how === 'active' ? a.n : a.columns, how };
+  return t;
+}
+
+/* ------------------------------------------------------------ activity */
+
+/**
+ * Which months had activity: { columns, active, gaps, before, after, n }. A month has activity when any line
+ * (either side, filed or not) has a non-zero value in it (a blank counts as 0, but a month blank on one line and
+ * non-zero on another is active). `gaps` are inactive months between the first and last active; `before` and
+ * `after` the inactive ones outside them (not gaps). `n` is the number of months with activity; `columns` how
+ * many month columns there are. Dated months are in calendar order.
+ */
+export function activity(t) {
+  const L = t.lines;
+  const seen = new Map();
+  t.months.forEach((iso, i) => seen.set(iso, (seen.get(iso) || false) || L.some((l) => l.months[i] !== 0)));
+  let months = [...seen.keys()];
+  if (months.every(isIso)) months.sort((a, b) => mkey(a) - mkey(b));
+  const first = months.findIndex((m) => seen.get(m));
+  const last = months.length - 1 - [...months].reverse().findIndex((m) => seen.get(m));
+  const active = months.filter((m) => seen.get(m));
+  if (!active.length) return { columns: t.months.length, active, gaps: [], before: [], after: [], n: 0 };
+  return {
+    columns: t.months.length, active, n: active.length,
+    before: months.slice(0, first), gaps: months.slice(first, last + 1).filter((m) => !seen.get(m)), after: months.slice(last + 1),
+  };
+}
+
+/* -------------------------------------------------------------- checks */
+
+/** Do most lines rise every month and end at the file's Total, as running (year-to-date) totals do? Needs a Total column. */
+function runningTotals(t) {
+  if (t.months.length < 2) return null;
+  const cand = t.lines.filter((l) => l.fileTotal !== null && l.fileTotal !== undefined && l.months.filter((v) => v !== 0).length >= 2);
+  if (cand.length < 2) return null;
+  const good = cand.filter((l) => l.months.every((v, i) => i === 0 || Math.abs(v) >= Math.abs(l.months[i - 1])) && Math.abs(cents(l.months[l.months.length - 1] - l.fileTotal)) <= 1);
+  return good.length > cand.length / 2 ? { good: good.length, of: cand.length } : null;
+}
+const hasTotalColumn = (t) => t.lines.some((l) => l.fileTotal !== null && l.fileTotal !== undefined);
+
+/** The period problems that hold the totals back, cheaply: how many are open (a month in two columns, more than 12 months, running totals not answered). */
+export function heldCount(t) {
+  if (!t || !Array.isArray(t.months) || !Array.isArray(t.lines)) return 0;
+  const by = new Map();
+  for (const m of t.months) if (isIso(m)) by.set(m, (by.get(m) || 0) + 1);
+  let n = [...by.values()].filter((c) => c > 1).length;
+  if (by.size > 12) n += 1;
+  if (!(t.period && t.period.columnsAre) && runningTotals(t)) n += 1;
+  return n;
+}
+
+/**
+ * The statement's period checks, in dataqc.js's shape: [{ id, kind, level, text, amount, where, holds?, short?, fixes? }].
+ * `holds` says what an open one holds back: 'totals' (the card shows no figures, Use and the comparison wait),
+ * 'annualise'. A choice that settled one is kept as a 'pass' line, and the split of a long file as an 'info'
+ * note, each with `fixes` flagged `more` that change the choice. `fixes` are { id, label, more? }, applied by
+ * applyT12Fix.
+ * @param {any} t
+ * @returns {any[]}
+ */
+export function periodChecks(t) {
+  /** @type {any[]} */
+  const out = [];
+  if (!t || !Array.isArray(t.months) || !Array.isArray(t.lines)) return out;
+  const p = t.period || {};
+  const T0 = statementTotals(t);
+  const by = new Map();
+  for (const m of t.months) if (isIso(m)) by.set(m, (by.get(m) || 0) + 1);
+  const dated = [...by.keys()].sort();
+
+  // a month in two or more columns
+  const dups = [...by].filter(([, c]) => c > 1).map(([iso]) => iso);
+  for (const iso of dups) {
+    const opts = columnsOfMonth(t, iso);
+    const letters = opts.map((o) => (o.c !== undefined ? colLetter(o.c) : null));
+    const named = letters.every((x) => x);
+    const n = opts.length;
+    const label = monthLabel(iso);
+    out.push({
+      id: `period.dup.${iso}`, kind: 'duplicate', level: 'fail', holds: 'totals', short: `${label} is in ${n === 2 ? 'two' : n} columns`,
+      text: `${label} heads ${n === 2 ? 'two' : n} columns${named ? ` (${list(letters)})` : ''}. Counting ${n === 2 ? 'both' : 'all'} counts ${label} ${n === 2 ? 'twice' : `${n} times`}, so the totals are held. Choose the column to use. ${named ? `Across all lines, ${list(opts.map((o, i) => `${letters[i]} adds up to ${usd0(o.sum)}`))}.` : `Across all lines they add up to ${list(opts.map((o) => usd0(o.sum)))}.`}`,
+      amount: Math.max(...opts.map((o) => o.sum)),
+      where: named ? `columns ${list(letters)}, heading ${label}` : `the ${n} columns headed ${label}`,
+      fixes: opts.map((o, k) => ({ id: `col:${iso}:${k}`, label: named ? `Use column ${letters[k]}` : `Use column ${k + 1} of ${n}` })),
+    });
+  }
+  // a month that had several columns and now has one: the choice, kept so it can change
+  const droppedIsos = [...new Set((p.dropped || []).map((d) => d.iso))].filter((iso) => !dups.includes(iso));
+  for (const iso of droppedIsos) {
+    const opts = columnsOfMonth(t, iso);
+    const cur = opts.findIndex((o) => o.role === 'in');
+    const nm = (o, k) => (o.c !== undefined ? `column ${colLetter(o.c)}` : `column ${k + 1}`);
+    out.push({
+      id: `period.dup.${iso}`, kind: 'duplicate', level: 'pass',
+      text: `${monthLabel(iso)} headed ${opts.length} columns: ${nm(opts[cur], cur)} is counted, ${list(opts.filter((o, k) => k !== cur).map((o) => nm(o, opts.indexOf(o))))} ${opts.length === 2 ? 'is' : 'are'} not (your choice).`,
+      amount: 0,
+      fixes: opts.map((o, k) => ({ id: `col:${iso}:${k}`, label: `Use ${nm(o, k)} instead`, more: true })).filter((f, k) => k !== cur),
+    });
+  }
+
+  // more than 12 months, none chosen
+  if (dated.length > 12) {
+    const label = (from) => `${monthLabel(from)} to ${monthLabel(isoOfKey(mkey(from) + 11))}`;
+    const latest = latestFrom(t);
+    const keep = structuredClone(t);
+    chooseMonths(keep, latest);
+    out.push({
+      id: 'period.long', kind: 'long', level: 'fail', holds: 'totals', short: `${dated.length} months, not 12`,
+      text: `This statement has ${dated.length} months (${monthLabel(dated[0])} to ${monthLabel(dated[dated.length - 1])}), more than a T-12’s 12. Read as a year, the totals would add up ${dated.length} months, so they are held. Choose the 12 months to use; the latest 12 (${label(latest)}) come first.`,
+      amount: cents(Math.abs(T0.noi - statementTotals(keep).noi)),
+      where: `${monthLabel(dated[0])} to ${monthLabel(dated[dated.length - 1])}`,
+      fixes: windowStarts(t).map((from, i) => ({ id: `months:${from}`, label: i === 0 ? `Use the latest 12 (${label(from)})` : `Use ${label(from)}`, ...(i ? { more: true } : {}) })),
+    });
+  }
+  // the split, done: said, and changeable
+  if (p.chosen && p.prior && p.prior.months.length) {
+    const total = t.months.length + p.prior.months.length;
+    out.push({
+      id: 'period.chosen', kind: 'chosen', level: 'info', amount: 0,
+      text: `${total} months: the ${p.chosen.by === 'latest' ? 'latest 12' : '12 months you chose'} (${monthLabel(p.chosen.from)} to ${monthLabel(p.chosen.to)}) are the T-12; ${rangesText(p.prior.months)} ${p.prior.months.length === 1 ? 'is' : 'are'} kept as the prior period. Change…`,
+      fixes: windowStarts(t).filter((f) => f !== p.chosen.from).map((from) => ({ id: `months:${from}`, label: `Use ${monthLabel(from)} to ${monthLabel(isoOfKey(mkey(from) + 11))}`, more: true })),
+    });
+  }
+
+  // running totals
+  if (p.columnsAre) {
+    const cum = p.columnsAre === 'cumulative';
+    out.push({
+      id: 'period.cumulative', kind: 'cumulative', level: 'pass', amount: 0,
+      text: cum ? 'The columns are read as running totals: each month is the difference from the month before (your choice).' : 'The columns are read as monthly figures, as printed (your choice).',
+      fixes: [{ id: cum ? 'cols:monthly' : 'cols:cumulative', label: cum ? 'Read them as monthly' : 'Read them as running totals', more: true }],
+    });
+  } else {
+    const r = runningTotals(t);
+    if (r) {
+      const other = structuredClone(t);
+      readColumnsAs(other, 'cumulative');
+      const noiM = T0.noi; const noiC = statementTotals(other).noi;
+      out.push({
+        id: 'period.cumulative', kind: 'cumulative', level: 'warn', holds: 'totals', short: 'the columns may be running totals',
+        text: `Most lines rise every month and end at the Total, as running (year-to-date) totals do (${r.good} of ${r.of} lines). Are the columns monthly or cumulative? Read as monthly, NOI is ${usd0(noiM)}; read as running totals, ${usd0(noiC)}.`,
+        amount: cents(Math.abs(noiM - noiC)), where: `${r.good} of ${r.of} lines`,
+        fixes: [{ id: 'cols:monthly', label: `Monthly columns (NOI ${usd0(noiM)})` }, { id: 'cols:cumulative', label: `Running totals (NOI ${usd0(noiC)})` }],
+      });
+    }
+  }
+
+  // dated months skipped between the first and last
+  if (dated.length >= 2) {
+    const missing = [];
+    for (let k = mkey(dated[0]); k <= mkey(dated[dated.length - 1]); k++) if (!by.has(isoOfKey(k))) missing.push(isoOfKey(k));
+    if (missing.length) out.push({
+      id: 'period.gaps', kind: 'gaps', level: 'warn', amount: 0, where: rangesText(missing),
+      text: `${missing.length} month${missing.length === 1 ? '' : 's'} between ${monthLabel(dated[0])} and ${monthLabel(dated[dated.length - 1])} ${missing.length === 1 ? 'is' : 'are'} not in the file (${rangesText(missing)}). The totals are the months that are there, not scaled up.`,
+      fixes: [{ id: 'seen', label: 'Seen' }],
+    });
+  }
+
+  // months with no activity: N, what Annualise divides by (asked only when nothing above is open)
+  if (!out.some((c) => c.holds === 'totals')) {
+    const a = activity(t);
+    if (a.n > 0 && a.n !== a.columns) {
+      const w = t.window;
+      const good = w && ((w.how === 'active' && w.n === a.n) || (w.how === 'columns' && w.n === a.columns));
+      const quiet = [...a.before, ...a.gaps, ...a.after];
+      if (good) {
+        out.push({
+          id: 'period.active', kind: 'active', level: 'pass', amount: 0,
+          text: w.how === 'active' ? `N = ${a.n}, ${rangesText(quiet)} had no activity (your choice).` : `N = ${a.columns}, all the columns, though ${rangesText(quiet)} had no activity (your choice).`,
+          fixes: [{ id: w.how === 'active' ? 'win:columns' : 'win:active', label: w.how === 'active' ? `Use all ${a.columns} columns` : `Use ${a.n} months with activity`, more: true }],
+        });
+      } else {
+        const T1 = statementTotals(t);
+        const A1 = annualized(T1, a.columns); const A2 = annualized(T1, a.n);
+        const parts = [];
+        if (a.gaps.length) parts.push(`${rangesText(a.gaps)} ${a.gaps.length === 1 ? 'has' : 'have'} no activity on any line (every line $0 or blank)`);
+        if (a.before.length) parts.push(`activity starts in ${monthName(a.active[0])}; ${rangesText(a.before)} ${a.before.length === 1 ? 'has' : 'have'} none`);
+        if (a.after.length) parts.push(`activity ends in ${monthName(a.active[a.active.length - 1])}; ${rangesText(a.after)} ${a.after.length === 1 ? 'has' : 'have'} none`);
+        const first = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+        out.push({
+          id: 'period.active', kind: 'active', level: 'warn', holds: 'annualise', short: 'months with no activity',
+          text: `${[first, ...parts.slice(1)].join('; ')}: ${a.n} month${a.n === 1 ? '' : 's'} with activity of ${a.columns} columns. Annualise over ${a.n} month${a.n === 1 ? '' : 's'} with activity, or all ${a.columns} columns?`,
+          amount: A1 && A2 ? cents(Math.abs(A1.noi - A2.noi)) : 0, where: rangesText(quiet),
+          fixes: [{ id: 'win:active', label: `Over ${a.n} months with activity` }, { id: 'win:columns', label: `Over all ${a.columns} columns` }],
+        });
+      }
+    }
+  }
+
+  // every month there is a distinct, dated column: said
+  if (dated.length && dated.length === t.months.length && !out.some((c) => c.kind === 'duplicate' || c.kind === 'long' || c.kind === 'chosen')) {
+    out.push({ id: 'period.ok', kind: 'months', level: 'pass', amount: 0, text: `${t.months.length} distinct month column${t.months.length === 1 ? '' : 's'}, none repeated.` });
+  }
+  return out;
+}
+
+/** The checks that hold the totals back while open: [{ id, short, text, … }]. */
+export const heldBy = (t) => periodChecks(t).filter((c) => c.holds === 'totals');
+
+/** What Annualise divides by, and whether it is still to be asked: { n, ask } (`n`: the months with activity once answered so, else the columns). */
+export function windowOf(t) {
+  const a = activity(t);
+  const q = periodChecks(t).find((c) => c.id === 'period.active');
+  const w = t.window;
+  const active = !!(w && w.how === 'active' && w.n === a.n && a.n !== a.columns);
+  return { n: active ? a.n : a.columns, columns: a.columns, active: a.n, ask: !!(q && q.holds === 'annualise') };
+}
+
+/**
+ * The statement's checks as the T-12 Data QC panel and Review show them (dataqc.js's shape), worked out from the
+ * statement each time: nothing is stored, so nothing can be stale. `statementChecks` (unchanged: the OM
+ * statement reader uses it too) with levels (a stated figure that disagrees with its lines is a Fail that
+ * holds "Use the T-12's figures"; the rest are Checks) and the period checks above. `resolved` comes from `seen`.
+ * Returns { checks, intro }.
+ * @param {any} t
+ */
+export function t12Qc(t) {
+  const seen = (t && t.seen) || {};
+  const T = statementTotals(t);
+  /** @type {any[]} */
+  const checks = [...periodChecks(t)];
+  // the file's Total column is the T-12 or, once 12 of its months were chosen, the T-12 plus the prior period
+  const adj = t.period && t.period.chosen
+    ? { ...t, lines: t.lines.map((l) => (l.prior && l.fileTotal !== null && l.fileTotal !== undefined && Math.abs(l.fileTotal - l.total) > 1 && Math.abs(l.fileTotal - cents(l.total + l.prior.total)) <= 1 ? { ...l, fileTotal: null } : l)) }
+    : t;
+  for (const c of statementChecks(adj)) {
+    const stated = c.id.startsWith('stated.');
+    const q = { ...c, level: stated ? 'fail' : 'warn', ...(stated ? { holds: 'use', short: `the file’s ${{ egi: 'effective gross income', opex: 'operating expenses', noi: 'NOI' }[c.id.slice(7)]} doesn’t match its lines` } : {}), fixes: [{ id: 'seen', label: stated ? `Use the lines’ sum (${usd0(T[c.id.slice(7)])})` : 'Seen' }] };
+    checks.push(q);
+  }
+  for (const c of checks) {
+    if (!seen[c.id] || !c.fixes || !c.fixes.some((f) => f.id === 'seen')) continue;
+    c.resolved = c.id.startsWith('stated.') ? { how: 'fixed', at: 0, note: 'using the lines’ sum' } : { how: 'accepted', at: 0 };
+  }
+  return { checks, intro: t.months.length >= 2 && !hasTotalColumn(t) ? 'There is no Total column, so running totals can’t be recognised: the columns are read as monthly.' : '' };
+}
+
+/** The checks waiting for the broker: fails and checks not yet resolved (Review and the card count these). */
+export const t12OpenChecks = (t) => (t ? t12Qc(t).checks.filter((c) => (c.level === 'fail' || c.level === 'warn') && !c.resolved) : []);
+
+/** What holds "Use the T-12's figures": the period problems and any stated figure that disagrees with its lines, until resolved. */
+export const useHeldBy = (t) => t12OpenChecks(t).filter((c) => c.holds === 'totals' || c.holds === 'use');
+
+/**
+ * Apply one of a check's fixes (in place): 'seen', `col:<iso>:<k>`, `months:<iso>`, `cols:monthly|cumulative`,
+ * `win:active|columns`. Returns true when something changed.
+ * @param {any} t
+ */
+export function applyT12Fix(t, checkId, fixId) {
+  const [kind, a, b] = String(fixId).split(':');
+  if (fixId === 'seen') { markSeen(t, checkId); return true; }
+  if (kind === 'col') return chooseColumn(t, a, Number(b));
+  if (kind === 'months') return chooseMonths(t, a);
+  if (kind === 'cols' && (a === 'monthly' || a === 'cumulative')) { readColumnsAs(t, a); return true; }
+  if (kind === 'win' && (a === 'active' || a === 'columns')) { setWindow(t, a); return true; }
+  return false;
 }
