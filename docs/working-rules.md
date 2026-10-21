@@ -183,3 +183,13 @@ What it is not: a sandbox. It reads the command text with a small parser (quotes
 built another way (a script that runs git, `eval`, another tool) is not seen. It guards against a slip, not an attack.
 Own-written (about 100 lines, no dependencies), so nothing in `THIRD_PARTY.md`; `tests/guardrail.test.js` holds the lists
 of refused and allowed commands. Add a case there whenever a rule changes.
+
+## Keeping CLAUDE.md short (owner, 2026-10-21)
+
+Run this checklist when `CLAUDE.md` grows past about 150 lines or a session wastes time on it:
+- Each rule is one line a session can act on; the long wording lives in this file.
+- A rule that a check enforces (a test, a hook, CI) is named, not re-explained.
+- Domain words live in `docs/glossary.md`, not in `CLAUDE.md`.
+- No rule appears twice; where two disagree, fix both in the same PR.
+- A rule about one folder or one kind of work goes in a skill or a path-scoped rule, not at the top.
+- Changes to `CLAUDE.md` are the owner's to approve.
