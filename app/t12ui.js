@@ -5,7 +5,7 @@
  * hands this module what it needs (`h`). */
 
 import { el, toast, actionSheet, money0, money2, niceDate, getXlsx, getFflate } from './kit.js';
-import { readGrids } from './sheetread.js';
+import { readGrids, pastedRows } from './sheetread.js';
 import { checkUpload } from './filekind.js';
 import {
   CATEGORIES, CATEGORY, SIDES, statementTotals, annualized, openLines, openChecks, fileLine, periodText, rematch, sourceText, periodShort, lineNotes,
@@ -19,7 +19,7 @@ const usd = (x) => (ok(x) ? (x < 0 ? `−${money0(-x)}` : money0(x)) : '—');
 
 /**
  * Draw the card into `box`. h: { deal, touch(meta), snapshot(reason), redraw(), rerender() (the whole deal screen),
- * sheetOpen, openReview(), rrNoi1() → number | null | undefined (undefined: still being worked out) }.
+ * sheetOpen, sheetClose(), openReview(), rrNoi1() → number | null | undefined (undefined: still being worked out) }.
  */
 export function renderT12Card(box, h) {
   const d = h.deal;
@@ -31,6 +31,7 @@ export function renderT12Card(box, h) {
   if (!t) {
     box.appendChild(el('p', 'hint', 'Import a trailing-12 operating statement (.xlsx or .csv). Each line goes in a standard category; lines it can’t place go to Review; its NOI is set beside the OM’s and the rent roll’s.'));
     box.appendChild(importButton(h, 'Import a T-12…', 'btn btn-primary'));
+    box.appendChild(pasteButton(h, 'btn btn-gray', 'Paste a statement…'));
     return;
   }
   const T = statementTotals(t);
@@ -101,7 +102,7 @@ export function renderT12Card(box, h) {
     h.touch({ kind: 'edit', label: 'T-12 removed', snapshot: snap });
     h.redraw();
   });
-  acts.append(all, use, importButton(h, 'Replace…', 'btn btn-sm btn-gray'), remove);
+  acts.append(all, use, importButton(h, 'Replace…', 'btn btn-sm btn-gray'), pasteButton(h, 'btn btn-sm btn-gray', 'Paste…'), remove);
   box.appendChild(acts);
 }
 
@@ -148,6 +149,48 @@ function noiThreeWays(d, T, h) {
   sec.appendChild(wrap);
   sec.appendChild(el('p', 'hint', `Within ${NOI_GAP.agree}% they agree; ${NOI_GAP.agree}% to ${NOI_GAP.warn}% is noted; above ${NOI_GAP.warn}% is a warning in “What doesn’t add up”.`));
   return sec;
+}
+
+function pasteButton(h, cls, label) {
+  const b = el('button', cls, label);
+  b.type = 'button';
+  b.id = h.deal.t12 ? 't12-paste-open-replace' : 't12-paste-open';
+  b.addEventListener('click', () => pasteStatement(h));
+  return b;
+}
+
+/**
+ * "Paste a statement": rows copied from Excel (tabs) or a PDF (runs of two or more spaces) are read like any
+ * other statement, marked as pasted and medium confidence. Nothing is kept until the broker taps Read it.
+ */
+export function pasteStatement(h) {
+  const d = h.deal;
+  const body = h.sheetOpen({ eyebrow: 'T-12', title: 'Paste a statement', sub: 'Copy the rows from Excel (or a PDF), including the row of month headings, and paste them here.' });
+  const ta = el('textarea', 'input t12-paste');
+  ta.id = 't12-paste';
+  ta.rows = 10;
+  ta.spellcheck = false;
+  ta.setAttribute('aria-label', 'The statement, pasted');
+  const go = el('button', 'btn btn-primary', 'Read it');
+  go.type = 'button';
+  go.id = 't12-paste-go';
+  go.addEventListener('click', async () => {
+    const rows = pastedRows(ta.value);
+    if (!rows.length) { toast('Paste the statement’s rows first.'); return; }
+    go.disabled = true;
+    try {
+      const cor = await corrections();
+      const t = await statementFrom({ sheet: 'Pasted', rows }, 'Pasted statement', cor, { type: 'paste', size: ta.value.length });
+      if (!t) return; // the number question was cancelled
+      h.sheetClose();
+      keepStatement(h, d, t, null);
+    } catch (e) {
+      toast(/months or total column/i.test(e.message || '') ? 'No row of month headings was found. Copy the cells from Excel, or line the columns up with two or more spaces, and include the heading row.' : (e.message || String(e)), null, 9000);
+    } finally { go.disabled = false; }
+  });
+  const acts = el('div', 'row-actions');
+  acts.appendChild(go);
+  body.append(ta, acts);
 }
 
 function importButton(h, label, cls) {

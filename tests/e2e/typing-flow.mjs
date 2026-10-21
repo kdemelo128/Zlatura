@@ -315,6 +315,17 @@ if (await page.locator('#sheet-body table.rows-edit').count()) {
 
 });
 
+await step('T-12 paste box', async () => {
+  await page.goto(BASE + '?t12paste#deal', { waitUntil: 'load' });
+  await page.evaluate(async () => { const m = await import('./app/dealui.js'); m.startDealByHand(); });
+  await page.waitForSelector('#t12-paste-open');
+  await page.click('#t12-paste-open');
+  await page.waitForSelector('#t12-paste');
+  // a line of a statement, typed key by key: spaces, tabs-as-spaces, brackets and a minus must all stay as typed
+  const bad = await typeChars('#t12-paste', 'Base Rent   (1,234.50)  1,234-', {});
+  check('T-12 paste box: every keystroke kept as typed', !bad.length, note(bad));
+});
+
 // ------------------------------------------------------------- phone
 {
   const w = await page.evaluate(() => [document.documentElement.scrollWidth, innerWidth]);
