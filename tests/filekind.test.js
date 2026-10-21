@@ -146,6 +146,7 @@ test('checkUpload: a PDF over 50 MB and a photo over 20 MB say they are too big'
   assert.match((await checkUpload(fake(enc('%PDF-1.7'), LIMITS.pdf + 1, 'a.pdf'), { getFflate })).refuse, /up to 50 MB/);
   assert.match((await checkUpload(fake([0xff, 0xd8, 0xff], LIMITS.image + 1, 'a.jpg'), { getFflate })).refuse, /up to 20 MB/);
   assert.match((await checkUpload(fake(enc('%PDF-1.7'), LIMITS.pdf, 'a.pdf'), { getFflate })).refuse, /^A PDF arrives/);
+  assert.match((await checkUpload(fake([0xff, 0xd8, 0xff], LIMITS.image, 'a.jpg'), { getFflate })).refuse, /^Reading photos arrives/);
 });
 
 test('checkUpload: a zip bomb is refused (ratio, and total declared size) and never unpacked', async () => {
