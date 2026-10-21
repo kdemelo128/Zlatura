@@ -181,13 +181,14 @@ function normCard(d, t, h, held) {
   const sec = el('div', 't12-norm');
   sec.id = 't12-norm';
   sec.appendChild(el('h3', 'sec-label', 'Normalised NOI'));
+  const res = normalise(t);
   if (held.length) {
-    const p = el('p', 'hint t12-norm-held', `Not worked out: ${heldWords(t, normalise(t))}.`);
+    const p = el('p', 'hint t12-norm-held', `Not worked out: ${heldWords(t, res)}.`);
     p.id = 't12-norm-held';
     sec.appendChild(p);
+    useNormButton(sec, h, t, res);
     return sec;
   }
-  const res = normalise(t);
   sec.appendChild(el('p', 'hint', 'A year’s NOI if each line counted the way you choose. The NOI as reported above stays as it is, and nothing changes on the deal until you use these figures.'));
   const ol = el('ol', 't12-bridge');
   ol.id = 't12-bridge';
@@ -237,9 +238,14 @@ function normCard(d, t, h, held) {
   }
   sec.appendChild(det);
 
-  // Use normalised figures: the existing "Use the T-12's figures" flow, with its own confirmation
+  useNormButton(sec, h, t, res);
+  return sec;
+}
+
+/** "Use normalised figures": the existing "Use the T-12's figures" flow with its own confirmation; disabled, with the reason beside it, while it is refused. */
+function useNormButton(sec, h, t, res) {
   const why = normRefusal(t, res);
-  const use = el('button', 'btn btn-sm', 'Use normalised figures');
+  const use = el('button', 'btn btn-sm t12-act', 'Use normalised figures');
   use.type = 'button';
   use.id = 't12-norm-use';
   use.disabled = !!why;
@@ -248,7 +254,6 @@ function normCard(d, t, h, held) {
   acts.appendChild(use);
   sec.appendChild(acts);
   if (why) { const p = el('p', 'hint t12-norm-why', why); p.id = 't12-norm-why'; use.setAttribute('aria-describedby', 't12-norm-why'); sec.appendChild(p); }
-  return sec;
 }
 
 /** "Counts: …" tapped: the four methods, each with the annual amount it would give; one history step per choice. */
