@@ -7,7 +7,7 @@
  * where it lives, so it travels in backups and, on a deal, can be undone.
  * Pure: reviewui.js draws it. Design: docs/proposals/t12-review-queue.md. */
 
-import { openLines, openChecks, statementNotes } from './t12.js';
+import { openLines, t12OpenChecks, statementNotes } from './t12.js';
 import { toCents } from './engine/money.js';
 import { DEAL_FIELDS } from './dealfields.js';
 import { openChecks as openQc, whereText } from './dataqc.js';
@@ -20,6 +20,7 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.abs(v) : 
  * Every item, grouped: [{ group: 'deal'|'template', id, name, items: [...] }],
  * each group's items with the most money at stake first, groups by the same.
  * Items: { kind: 't12line'|'t12check'|'t12note'|'ai'|'rrcheck'|'omcheck'|'tpl', id, amount, ... }.
+ * A 't12check' is a T-12 check (t12.js t12Qc) with its level, where it points and its fixes.
  * An 'rrcheck' is a Data QC check on an OM's rent roll (dataqc.js) that
  * failed or found the OM disagreeing with itself: with its page, row and cell.
  * An 'omcheck' is the same for an OM's operating statement (omstatement.js),
@@ -41,7 +42,8 @@ export function reviewItems({ deals = [], templates = [] } = {}) {
       items.push(...byKey.values());
       // a statement filed by an earlier version: one Note, kept apart from the checks (their ids never change)
       for (const n of statementNotes(d.t12)) items.push({ kind: 't12note', id: `t12note:${n.id}`, noteId: n.id, text: n.text, amount: 0 });
-      for (const c of openChecks(d.t12)) items.push({ kind: 't12check', id: `t12check:${c.id}`, checkId: c.id, text: c.text, amount: num(c.amount) });
+      // each with its level, where it points and the fixes it offers (applyT12Fix); a Fail holds the totals or Use
+      for (const c of t12OpenChecks(d.t12)) items.push({ kind: 't12check', id: `t12check:${c.id}`, checkId: c.id, level: c.level, text: c.text, where: c.where || '', fixes: (c.fixes || []).map((f) => ({ id: f.id, label: f.label, ...(f.more ? { more: true } : {}) })), amount: num(c.amount) });
     }
     for (const c of openQc(d.rrQc)) {
       items.push({ kind: 'rrcheck', id: `rrcheck:${c.id}`, checkId: c.id, level: c.level, checkKind: c.kind, text: c.text, where: whereText(c), page: c.page || null, row: c.row || null, col: c.colLabel || null, cell: c.cell ? c.cell.text : null, lineText: c.lineText || '',

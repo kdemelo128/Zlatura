@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import {
   dupRows, fifteenRows, cumulativeRows, cumulative12Rows, gapRows, leadingRows, partialRows, plainRows, flatRows, heads,
 } from './fixtures/t12-period-fixtures.js';
-import { arcadeRows } from './t12-suggest-fixtures.js';
+import { arcadeRows, labelMemory } from './t12-suggest-fixtures.js';
 import { readBackup, planRestore } from '../app/backup.js';
 import { analyze } from '../app/deal.js';
 import { analysisInput } from '../app/impact.js';
@@ -21,6 +21,7 @@ import {
   activity, periodChecks, heldBy, useHeldBy, chooseColumn, chooseMonths, readColumnsAs, setWindow, t12Qc, t12OpenChecks, applyT12Fix, markSeen,
 } from '../app/t12.js';
 
+const mem = labelMemory();
 const imp = (rows, opts = {}) => importStatement(rows, { file: 'invented.csv', sheet: 'CSV', ...opts });
 /** A statement as 4.7.34 kept it: every column counted, no split. */
 const asOld = (rows) => ({ v: 2, file: 'invented.csv', sheet: 'CSV', importedAt: 1, seen: {}, ...normalizeSigns(readStatement(rows, { sheet: 'CSV' })) });
@@ -311,7 +312,7 @@ test('a stored answer counts only while it still matches the columns: a later co
   const d = imp(dupRows());
   d.lines.forEach((l) => { l.months[3] = 0; });
   d.window = { n: 13, how: 'columns' };
-  assert.equal(check(d, 'period.active').level, 'pass');
+  assert.equal(check(d, 'period.active'), undefined, 'not asked while the month in two columns is open');
   chooseColumn(d, '2025-12', 0);
   assert.equal(d.window.n, 13);
   assert.equal(check(d, 'period.active').level, 'warn', '13 no longer matches the 12 columns');
@@ -319,7 +320,7 @@ test('a stored answer counts only while it still matches the columns: a later co
 
 /* 5. levels, and the old ids */
 test('old checks get levels: stated figures Fail and hold Use (never the totals); the rest are Checks; ids and text unchanged', () => {
-  const t = imp(arcadeRows(), { suggest: false });
+  const t = imp(arcadeRows(), { ...mem, suggest: false });
   assert.deepEqual(ids(statementChecks(t)), ['stated.noi']);
   assert.deepEqual(ids(openChecks(t)), ['stated.noi']);
   const q = t12Qc(t).checks.find((c) => c.id === 'stated.noi');
@@ -340,7 +341,7 @@ test('old checks get levels: stated figures Fail and hold Use (never the totals)
   assert.deepEqual(ids(t12OpenChecks(p)), ['months']);
   assert.equal(t12OpenChecks(p)[0].level, 'warn');
   assert.deepEqual(ids(t12OpenChecks(p)), ids(openChecks(p)), 'a statement with no period problem has the same open ids as before');
-  assert.deepEqual(ids(t12OpenChecks(imp(arcadeRows(), { suggest: false }))), ids(openChecks(imp(arcadeRows(), { suggest: false }))));
+  assert.deepEqual(ids(t12OpenChecks(imp(arcadeRows(), { ...mem, suggest: false }))), ids(openChecks(imp(arcadeRows(), { ...mem, suggest: false }))));
   const blank = plainRows(); blank[2].cells[2] = '';
   const bq = t12OpenChecks(imp(blank)).find((c) => c.id === 'blanks');
   assert.equal(bq.level, 'warn');
@@ -371,7 +372,7 @@ test('NOI three ways says "not compared" while a T-12 check holds the totals, an
   const c12 = imp(cumulative12Rows());
   assert.equal(c12.months.length, 12);
   assert.equal(heldBy(c12).length, 1);
-  const rr = (x) => texts(x, { rr: { leases: [{ id: 'l1' }], settings: {} } }).filter((s) => /rent roll/.test(s));
+  const rr = (x) => texts(x, { rr: { leases: [{ id: 'l1' }], settings: {} } }).filter((s) => /^The T-12’s NOI.*rent roll/.test(s));
   assert.deepEqual(rr(c12), []);
   readColumnsAs(c12, 'monthly');
   assert.ok(rr(c12).length >= 1, 'answered: compared');

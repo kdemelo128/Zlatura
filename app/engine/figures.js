@@ -316,7 +316,8 @@ const MON3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oc
 const period = (t) => (/^\d{4}-\d{2}$/.test(t.from || '') && /^\d{4}-\d{2}$/.test(t.to || '') ? `, ${MON3[+t.from.slice(5) - 1]} ${t.from.slice(0, 4)} to ${MON3[+t.to.slice(5) - 1]} ${t.to.slice(0, 4)}` : '');
 const gap = (a, b) => { const base = Math.max(Math.abs(a), Math.abs(b)); return base ? (Math.abs(a - b) / base) * 100 : 0; };
 // gated by the count of open lines too: a $0 line, or lines that cancel out, would otherwise pass as "complete"
-const t12Ready = (t) => !!t && t.months === 12 && !t.unassigned && !t.open && ok(t.noi);
+// and by the period checks that hold the totals (a month counted twice, running totals): `held`
+const t12Ready = (t) => !!t && t.months === 12 && !t.unassigned && !t.open && !t.held && ok(t.noi);
 /** One pair compared: nothing within 2%, a note to 5%, a warning above. */
 function noiPair(C, a, b, say, why) {
   if (!ok(a.v) || !ok(b.v)) return;
@@ -330,6 +331,7 @@ rule('noiOmT12', 'OM NOI against the T-12’s', ['d.t12', 'd.t12Om'], (m, { d },
   const t = d.t12;
   if (!t) return;
   if (t.months && t.months < 12) { C.push({ level: 'info', text: `The T-12 has only ${t.months} month${t.months === 1 ? '' : 's'}, so its NOI isn’t compared with the OM’s or the rent roll’s.` }); return; }
+  if (t.held) { C.push({ level: 'info', text: 'A T-12 check is open, so its NOI isn’t compared yet.' }); return; }
   if (t.unassigned || t.open) { C.push({ level: 'info', text: 'Some T-12 lines are still to review (Review), so its NOI isn’t compared yet.' }); return; }
   const om = d.t12Om;
   if (!t12Ready(t) || !om) return;

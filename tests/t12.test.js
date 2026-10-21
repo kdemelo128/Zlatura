@@ -160,7 +160,7 @@ test('a file that isn’t a statement says what was missing', () => {
 test('what the analysis reads of a T-12', async () => {
   const t = await read(LAYOUTS[0]);
   const a = t12ForAnalysis(t);
-  assert.deepEqual(Object.keys(a), ['noi', 'egi', 'opex', 'taxes', 'months', 'from', 'to', 'unassigned', 'open']);
+  assert.deepEqual(Object.keys(a), ['noi', 'egi', 'opex', 'taxes', 'months', 'from', 'to', 'unassigned', 'open', 'held']);
   assert.equal(a.from, '2025-01');
   assert.equal(a.to, '2025-12');
   assert.equal(a.taxes, 36000);
