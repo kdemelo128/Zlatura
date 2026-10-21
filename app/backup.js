@@ -81,9 +81,8 @@ export function decodeValue(v) {
   if (typeof v.$u8 === 'string') return unb64(v.$u8);
   if (typeof v.$ab === 'string') return unb64(v.$ab).buffer;
   if ('$date' in v && Object.keys(v).length === 1) return v.$date ? new Date(v.$date) : new Date(NaN);
-  const out = {};
-  for (const [k, x] of Object.entries(v)) if (k !== '__proto__') out[k] = decodeValue(x);
-  return out;
+  // built with fromEntries, which defines each key as data: a "__proto__" or "constructor" key can't change the object's prototype
+  return Object.fromEntries(Object.entries(v).filter(([k]) => k !== '__proto__').map(([k, x]) => [k, decodeValue(x)]));
 }
 
 /**
@@ -195,20 +194,26 @@ export function planRestore(backup, current, mode = 'merge') {
   if (kv['crm.activity']) kv['crm.activity'].sort((a, b) => a.at - b.at);
   if (backup.kv['tools.scenarios']) {
     const here = current.kv['tools.scenarios'] || {};
-    const out = { ...here };
+    const out = new Map(Object.entries(here));
     let n = 0;
     for (const [tool, list] of Object.entries(backup.kv['tools.scenarios'])) {
-      if (tool === '__proto__') continue; const m = mergeById(here[tool] || [], list, { stamp: false }); out[tool] = m.list; n += m.added; }
-    if (n) { kv['tools.scenarios'] = out; summary.push(`Saved Tools scenarios: ${n} added.`); }
+      if (tool === '__proto__' || !Array.isArray(list)) continue;
+      const m = mergeById(Object.hasOwn(here, tool) ? here[tool] : [], list, { stamp: false });
+      out.set(tool, m.list); n += m.added;
+    }
+    if (n) { kv['tools.scenarios'] = Object.fromEntries(out); summary.push(`Saved Tools scenarios: ${n} added.`); }
   }
   // the T-12 labels the broker has filed: combined label by label, the newer choice winning
   if (backup.kv['t12.labels'] && backup.kv['t12.labels'].entries) {
     const here = (current.kv['t12.labels'] && current.kv['t12.labels'].entries) || {};
     const there = backup.kv['t12.labels'].entries;
-    const entries = { ...here };
+    const entries = new Map(Object.entries(here));
     let n = 0;
-    for (const [key, e] of Object.entries(there)) if (key !== '__proto__' && e && (!here[key] || (e.at || 0) > (here[key].at || 0))) { if (!here[key] || here[key].category !== e.category) n += 1; entries[key] = e; }
-    if (n) { kv['t12.labels'] = { entries }; summary.push(`T-12 labels you filed: ${n} added or updated.`); }
+    for (const [key, e] of Object.entries(there)) {
+      const mine = Object.hasOwn(here, key) ? here[key] : null;
+      if (key !== '__proto__' && e && (!mine || (e.at || 0) > (mine.at || 0))) { if (!mine || mine.category !== e.category) n += 1; entries.set(key, e); }
+    }
+    if (n) { kv['t12.labels'] = { entries: Object.fromEntries(entries) }; summary.push(`T-12 labels you filed: ${n} added or updated.`); }
   }
   // anything else (settings, layouts) only where the device has none
   for (const [k, v] of Object.entries(backup.kv)) {

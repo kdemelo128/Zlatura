@@ -201,3 +201,15 @@ test('I6: a __proto__ key in a backup stays an ordinary, inert key', () => {
   const lab = planRestore({ deals: [], kv: { 't12.labels': { entries: JSON.parse('{"__proto__":{"category":"rent","at":9}}') } }, session: null, local: {} }, { deals: [], kv: {}, session: null, local: {} }, 'merge');
   assert.ok(!lab.kv['t12.labels'] || Object.getPrototypeOf(lab.kv['t12.labels'].entries) === Object.prototype);
 });
+
+test('I6: keys named like Object members are plain keys, not the object’s own members', () => {
+  const scen = JSON.parse('{"constructor":[{"id":"a"}],"dcf":[{"id":"b"}]}');
+  const here = { deals: [], kv: {}, session: null, local: {} };
+  const p = planRestore({ deals: [], kv: { 'tools.scenarios': scen }, session: null, local: {} }, here, 'merge');
+  assert.deepEqual(Object.keys(p.kv['tools.scenarios']).sort(), ['constructor', 'dcf']);
+  assert.equal(Object.getPrototypeOf(p.kv['tools.scenarios']), Object.prototype);
+  // a device holding no "constructor" entry must not read Object's own constructor as one
+  assert.doesNotThrow(() => planRestore({ deals: [], kv: { 'tools.scenarios': { constructor: [{ id: 'z' }] } }, session: null, local: {} }, { ...here, kv: { 'tools.scenarios': {} } }, 'merge'));
+  const lab = planRestore({ deals: [], kv: { 't12.labels': { entries: { constructor: { category: 'rent', at: 5 } } } }, session: null, local: {} }, { ...here, kv: { 't12.labels': { entries: {} } } }, 'merge');
+  assert.equal(lab.kv['t12.labels'].entries.constructor.category, 'rent');
+});
