@@ -65,6 +65,7 @@ const ASSETS = [
   'app/migrate.js',
   'app/shortcuts.js',
   'app/sheetread.js',
+  'app/filekind.js',
   'app/textfile.js',
   'app/t12.js',
   'app/t12ui.js',
