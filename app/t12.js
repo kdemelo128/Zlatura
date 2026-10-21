@@ -69,15 +69,41 @@ export function normalizeLabel(s) {
 
 /**
  * Which category a label goes to. `corrections` holds the broker's own
- * choices ({ normalised label: category id }); `section` is the side the
- * line sits under in the file, when the file says. Returns
- * { category, how: 'yours'|'rule'|'review', why, candidates }.
+ * choices ({ normalised label: category id }) and `history` how each was made
+ * (kv t12.labels entries, with the deals it was filed in); `section` is the
+ * side the line sits under in the file, when the file says. A remembered label
+ * is a suggestion, never a filing (T-12 PR 2): { category: null, how:
+ * 'suggested', suggested }. So is a line whose wording says it is below the
+ * line but sits under Expenses or under no heading ({ how: 'needs' }). With
+ * `suggest: false` (the OM statement path, which files by position) the
+ * remembered choice files as before ('yours') and no line needs classifying.
+ * Returns { category, how: 'yours'|'rule'|'review'|'suggested'|'needs', why, candidates, suggested?, needs? }.
  */
-export function matchLabel(label, { section = null, corrections = {} } = {}) {
+export function matchLabel(label, { section = null, corrections = {}, history = {}, suggest = true } = {}) {
   const key = normalizeLabel(label);
   if (corrections && Object.prototype.hasOwnProperty.call(corrections, key) && CATEGORY[corrections[key]]) {
-    return { category: corrections[key], how: 'yours', why: 'your choice for this label', candidates: [corrections[key]] };
+    const rc = corrections[key];
+    if (!suggest) return { category: rc, how: 'yours', why: 'your choice for this label', candidates: [rc] };
+    const r = ruleMatch(key, section, true);
+    // its wording says the same as you did: it files by its wording, as before
+    if (r.how === 'rule' && r.category === rc) return r;
+    const h = history && Object.prototype.hasOwnProperty.call(history, key) ? history[key] : null;
+    return { category: null, how: 'suggested', why: 'a label you filed before', candidates: [rc, ...r.candidates.filter((c) => c !== rc)], suggested: { category: rc, from: 'label', ...tally(h, rc) } };
   }
+  return ruleMatch(key, section, suggest);
+}
+
+/** How the deals a label was filed in split: { n (under `rc`), m (deals), others: [{ category, n }] }, or {} where none are kept. */
+function tally(h, rc) {
+  const deals = h && Array.isArray(h.deals) ? h.deals.filter((x) => x && CATEGORY[x.category]) : [];
+  if (!deals.length) return {};
+  const other = new Map();
+  for (const x of deals) if (x.category !== rc) other.set(x.category, (other.get(x.category) || 0) + 1);
+  return { n: deals.length - [...other.values()].reduce((s, v) => s + v, 0), m: deals.length, others: [...other].map(([category, n]) => ({ category, n })).sort((p, q) => q.n - p.n) };
+}
+
+/** The built-in wording rules for a normalised label (the part of matchLabel that doesn't read your choices). */
+function ruleMatch(key, section, needsAsk) {
   if (BARE_MANAGEMENT.test(key)) return { category: null, how: 'review', why: 'a management fee: the property manager’s (operating) or the owner’s (below the line)?', candidates: ['management', 'owner'] };
   let hits = CATEGORIES.filter((c) => c.rules.some((re) => re.test(key)) && !(c.unless && c.unless.test(key)));
   // a specific category wins over a catch-all, and base rent over "other income"
@@ -85,10 +111,27 @@ export function matchLabel(label, { section = null, corrections = {} } = {}) {
   hits = hits.filter((c) => (c.generic || 0) === level);
   // where the file says which part of the statement a line is in, a category on the other side doesn't fit
   const fits = section ? hits.filter((c) => c.side === section || (section === 'expense' && c.side === 'below')) : hits;
-  if (fits.length === 1) return { category: fits[0].id, how: 'rule', why: section && hits.length > 1 ? `the only fit under ${SIDES[section].toLowerCase()}` : 'its wording', candidates: [fits[0].id] };
+  if (fits.length === 1) {
+    // below the line by its wording, yet under Expenses or under no heading: that moves NOI, so it is asked, not decided
+    if (needsAsk && fits[0].side === 'below' && section !== 'below') return { category: null, how: 'needs', needs: 'classification', why: `its wording says ${fits[0].label.toLowerCase()} (below the line), but it sits ${section ? 'under operating expenses' : 'under no heading'}`, candidates: [fits[0].id], suggested: { category: fits[0].id, from: 'wording' } };
+    return { category: fits[0].id, how: 'rule', why: section && hits.length > 1 ? `the only fit under ${SIDES[section].toLowerCase()}` : 'its wording', candidates: [fits[0].id] };
+  }
   if (!hits.length) return { category: null, how: 'review', why: 'no category fits its wording', candidates: [] };
   if (!fits.length) return { category: null, how: 'review', why: `its wording fits ${hits.map((c) => c.label.toLowerCase()).join(' or ')}, but it sits under ${SIDES[section].toLowerCase()}`, candidates: hits.map((c) => c.id) };
   return { category: null, how: 'review', why: `its wording fits ${fits.map((c) => c.label.toLowerCase()).join(' and ')}`, candidates: fits.map((c) => c.id) };
+}
+
+const TIMES = (n) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`);
+/** Why a category is suggested, in words: "mapped this way in 6 of your last 7 deals (once to Contract services)". */
+export function suggestionText(s) {
+  if (!s) return '';
+  if (s.from === 'wording') return 'its wording says below the line';
+  if (!(s.m > 0)) return 'mapped this way before';
+  const others = (s.others || []).filter((o) => CATEGORY[o.category]);
+  const tail = others.length ? ` (${others.map((o) => `${TIMES(o.n)} to ${CATEGORY[o.category].label}`).join(', ')})` : '';
+  if (s.m === 1) return 'mapped this way in your last deal';
+  if (s.n === s.m) return `mapped this way ${TIMES(s.n)}`;
+  return `mapped this way in ${s.n} of your last ${s.m} deals${tail}`;
 }
 
 /* -------------------------------------------------------------- numbers */
@@ -299,7 +342,7 @@ export const currencyRefusal = (sign) => (sign ? `Amounts in ${sign} can’t be 
  * month cells were blank (`blank`: counted as 0, never silently) or text that
  * isn't an amount (`unread`, also 0).
  */
-export function readStatement(rows, { corrections = {}, sheet = '', numberFormat = 'us', paste = false } = {}) {
+export function readStatement(rows, { corrections = {}, history = {}, suggest = true, sheet = '', numberFormat = 'us', paste = false } = {}) {
   const { head, monthCols, totalCol, labelCol, accountCol } = layoutOf(rows, { sheet });
   // dated months in order; "Month 1…12" by their number
   const months = monthCols.map((m) => m.iso || `M${pad(m.index)}`);
@@ -357,8 +400,7 @@ export function readStatement(rows, { corrections = {}, sheet = '', numberFormat
     Object.assign(line, { src: { type: paste ? 'pasteLine' : 'cell', sheet, row: x.r, col: labelCol }, conf: { read: paste || unread.length ? 'medium' : 'high' } });
     if (blank.length) line.blank = blank;
     if (unread.length) line.unread = unread;
-    const m = matchLabel(label, { section: line.section, corrections });
-    Object.assign(line, { category: m.category, how: m.how, why: m.why, candidates: m.candidates });
+    Object.assign(line, pick({}, matchLabel(label, { section: line.section, corrections, history, suggest })));
     lines.push(line);
     sinceMark.push(line);
   }
@@ -418,10 +460,12 @@ function periodOf({ head, monthCols, totalCol }, months, rows, lines) {
  * negative, the file writes expenses negative, and so on. Returns a copy.
  */
 export function normalizeSigns(st) {
-  const side = (l) => (l.category ? CATEGORY[l.category].side : l.section);
+  // a line waiting on your confirmation is signed as the suggestion would file it, so Confirm needs no second look at the sign
+  const cat = (l) => l.category || (l.suggested && l.suggested.category) || null;
+  const side = (l) => (cat(l) ? CATEGORY[cat(l)].side : l.section);
   const majorityNegative = (ls) => { const xs = ls.filter((l) => l.total !== 0); return xs.length > 0 && xs.filter((l) => l.total < 0).length > xs.length / 2; };
   const expenseLike = st.lines.filter((l) => side(l) === 'expense' || side(l) === 'below');
-  const reductions = st.lines.filter((l) => l.category && CATEGORY[l.category].reduces);
+  const reductions = st.lines.filter((l) => cat(l) && CATEGORY[cat(l)].reduces);
   const flipExpenses = majorityNegative(expenseLike);
   // reductions written as positive amounts under income ("Less: vacancy  12,000") are made negative
   const flipReductions = reductions.length > 0 && !majorityNegative(reductions);
@@ -430,7 +474,7 @@ export function normalizeSigns(st) {
     const s = side(l);
     let f = 1;
     if ((s === 'expense' || s === 'below') && flipExpenses) f = -1;
-    if (l.category && CATEGORY[l.category].reduces && flipReductions) f = -1;
+    if (cat(l) && CATEGORY[cat(l)].reduces && flipReductions) f = -1;
     return f === 1 ? l : { ...l, months: l.months.map((v) => cents(-v) || 0), total: cents(-l.total) || 0, fileTotal: l.fileTotal === null ? null : cents(-l.fileTotal) || 0, signFlipped: true };
   });
   // what the file states is compared the same way
@@ -527,10 +571,10 @@ const monthName = (m) => (/^M\d+$/.test(m || '') ? `Month ${+m.slice(1)}` : mont
  * numberFormat); `period` is what the statement says it covers (periodOf). A statement read before
  * 4.7.28 has neither, and `file` and `sheet` are still written for it. Nothing here is migrated.
  * @param {any[]} rows
- * @param {{ file?: string, sheet?: string, corrections?: Record<string, string>, now?: number, numberFormat?: string, source?: Record<string, any> }} [opts]
+ * @param {{ file?: string, sheet?: string, corrections?: Record<string, string>, history?: Record<string, any>, suggest?: boolean, now?: number, numberFormat?: string, source?: Record<string, any> }} [opts]
  */
-export function importStatement(rows, { file = '', sheet = '', corrections = {}, now = Date.now(), numberFormat = 'us', source = {} } = {}) {
-  const st = normalizeSigns(readStatement(rows, { corrections, sheet, numberFormat, paste: source.type === 'paste' }));
+export function importStatement(rows, { file = '', sheet = '', corrections = {}, history = {}, suggest = true, now = Date.now(), numberFormat = 'us', source = {} } = {}) {
+  const st = normalizeSigns(readStatement(rows, { corrections, history, suggest, sheet, numberFormat, paste: source.type === 'paste' }));
   const from = { type: source.type, file, size: source.size, sheet, sheets: source.sheets, delimiter: source.delimiter, numberFormat, numberAsked: source.numberAsked, encoding: source.encoding, macros: source.macros };
   return {
     v: 2, file, sheet, source: Object.fromEntries(Object.entries(from).filter(([, x]) => x !== undefined)), period: st.period,
@@ -579,11 +623,19 @@ export function pickSheet(choices) {
   return { ask: readable };
 }
 
-/** Re-apply the rules and the broker's corrections to the lines not yet decided by hand (after a correction is remembered). */
-export function rematch(t, corrections) {
-  return { ...t, lines: t.lines.map((l) => (l.how === 'you' ? l : { ...l, ...pick(matchLabel(l.label, { section: l.section, corrections })) })) };
+/**
+ * Re-apply the rules and the broker's remembered labels to the lines still
+ * without a category (after a label is remembered). A line already filed is
+ * never touched: a filing made before suggestions (`yours`, `rule`) keeps its meaning.
+ */
+export function rematch(t, corrections, history = {}) {
+  return { ...t, lines: t.lines.map((l) => (l.category ? l : pick(l, matchLabel(l.label, { section: l.section, corrections, history })))) };
 }
-const pick = (m) => ({ category: m.category, how: m.how, why: m.why, candidates: m.candidates });
+/** A line with a match applied: its category, how, why and candidates, and the `suggested` / `needs` the match carries (a stale one is dropped). */
+function pick(l, m) {
+  const { suggested, needs, ...rest } = l;
+  return { ...rest, category: m.category, how: m.how, why: m.why, candidates: m.candidates, ...(m.suggested ? { suggested: m.suggested } : {}), ...(m.needs ? { needs: m.needs } : {}) };
+}
 
 /** The lines still waiting for a category. */
 export const openLines = (t) => (t && t.lines ? t.lines.filter((l) => !l.category) : []);
@@ -594,7 +646,7 @@ export const openChecks = (t) => (t ? statementChecks(t).filter((c) => !(t.seen 
 export function t12ForAnalysis(t) {
   if (!t || !Array.isArray(t.lines)) return null;
   const T = statementTotals(t);
-  return { noi: T.noi, egi: T.egi, opex: T.opex, taxes: T.taxes, months: T.months, from: t.months[0] || null, to: t.months[t.months.length - 1] || null, unassigned: T.unassigned };
+  return { noi: T.noi, egi: T.egi, opex: T.opex, taxes: T.taxes, months: T.months, from: t.months[0] || null, to: t.months[t.months.length - 1] || null, unassigned: T.unassigned, open: openLines(t).length };
 }
 
 /**
@@ -606,8 +658,39 @@ export function fileLine(t, lineId, category, { sameLabel = true } = {}) {
   const line = t.lines.find((l) => l.id === lineId);
   if (!line || !CATEGORY[category]) return [];
   const changed = t.lines.filter((l) => l === line || (sameLabel && l.key === line.key && l.how !== 'you'));
-  for (const l of changed) Object.assign(l, { category, how: 'you', why: 'your choice', candidates: [category] });
+  for (const l of changed) { delete l.suggested; delete l.needs; Object.assign(l, { category, how: 'you', why: 'your choice', candidates: [category] }); }
   return changed;
+}
+
+/**
+ * File every line that has a suggestion from a remembered label (in place), as the broker confirmed them
+ * all. Lines that need classification are left alone: they move NOI between sides. Returns the labels
+ * filed, one per label: [{ key, label, category, lineIds }].
+ */
+export function confirmSuggested(t) {
+  const out = [];
+  for (const l of t.lines) {
+    if (l.category || l.needs || !l.suggested || !CATEGORY[l.suggested.category]) continue;
+    const category = l.suggested.category;
+    const changed = fileLine(t, l.id, category);
+    out.push({ key: l.key, label: l.label, category, lineIds: changed.map((x) => x.id) });
+  }
+  return out;
+}
+
+/** The lines filed before suggestions existed: a remembered label that filed itself (`yours`), or a capex-type line under Expenses filed out of NOI by its wording. */
+export const earlierFilings = (t) => (t && t.lines ? t.lines.filter((l) => l.how === 'yours' || (l.how === 'rule' && l.category && CATEGORY[l.category] && CATEGORY[l.category].side === 'below' && l.section !== 'below')) : []);
+
+/**
+ * Notes on the statement, not checks: [{ id, kind: 'note', text, lineIds }], unless marked seen. One, for a
+ * statement filed by an earlier version: its filings are kept as they were, and said so.
+ */
+export function statementNotes(t) {
+  if (!t || (t.seen && t.seen['note.earlier'])) return [];
+  const ls = earlierFilings(t);
+  if (!ls.length) return [];
+  const names = [...new Set(ls.map((l) => l.label))];
+  return [{ id: 'note.earlier', kind: 'note', lineIds: ls.map((l) => l.id), text: `${ls.length} line${ls.length === 1 ? ' was' : 's were'} filed by an earlier version of Zlatura from a label you filed before or by its wording, without asking: ${names.slice(0, 4).join(', ')}${names.length > 4 ? ', …' : ''}. They are kept as they were. Zlatura now asks first; change any of them in Every line.` }];
 }
 /** A check marked seen (in place): it stays in the statement, and leaves the Review Queue. */
 export function markSeen(t, checkId) {

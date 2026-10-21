@@ -1,0 +1,384 @@
+{
+ "format": "zlatura-backup",
+ "version": 2,
+ "app": "4.7.33",
+ "createdAt": "2026-10-21T18:25:20.702Z",
+ "counts": {
+  "deals": 1,
+  "templates": 0,
+  "tasks": 0,
+  "contacts": 0
+ },
+ "deals": [
+  {
+   "id": "d4733arcade",
+   "name": "Invented Arcade (fictional)",
+   "createdAt": 1792203277340,
+   "updatedAt": 1792203290000,
+   "source": null,
+   "readAt": null,
+   "pages": 0,
+   "figures": {
+    "address": "1 Invented Arcade (fictional)",
+    "gross": 120600,
+    "opex": 12000,
+    "taxes": 12000,
+    "noi": 108600
+   },
+   "sources": {},
+   "rentRoll": [],
+   "unpriced": false,
+   "loan": {
+    "ltv": 65,
+    "rate": 6.75,
+    "amort": 30,
+    "io": false,
+    "closing": 2,
+    "minDscr": 1.25,
+    "minDy": 8
+   },
+   "qDone": {},
+   "myQuestions": [],
+   "live": {},
+   "scenarios": [],
+   "targets": {
+    "cap": null,
+    "irr": 15,
+    "value": null
+   },
+   "visit": {
+    "at": null,
+    "items": {},
+    "notes": "",
+    "photos": [],
+    "audio": []
+   },
+   "moneyVersion": 1,
+   "schema": 4,
+   "t12": {
+    "v": 2,
+    "file": "invented-arcade.csv",
+    "sheet": "CSV",
+    "source": {
+     "file": "invented-arcade.csv",
+     "sheet": "CSV",
+     "numberFormat": "us"
+    },
+    "period": {
+     "basis": "T-12",
+     "dated": true,
+     "count": 12,
+     "columns": [
+      {
+       "c": 1,
+       "kind": "month",
+       "head": "Jan 2026"
+      },
+      {
+       "c": 2,
+       "kind": "month",
+       "head": "Feb 2026"
+      },
+      {
+       "c": 3,
+       "kind": "month",
+       "head": "Mar 2026"
+      },
+      {
+       "c": 4,
+       "kind": "month",
+       "head": "Apr 2026"
+      },
+      {
+       "c": 5,
+       "kind": "month",
+       "head": "May 2026"
+      },
+      {
+       "c": 6,
+       "kind": "month",
+       "head": "Jun 2026"
+      },
+      {
+       "c": 7,
+       "kind": "month",
+       "head": "Jul 2026"
+      },
+      {
+       "c": 8,
+       "kind": "month",
+       "head": "Aug 2026"
+      },
+      {
+       "c": 9,
+       "kind": "month",
+       "head": "Sep 2026"
+      },
+      {
+       "c": 10,
+       "kind": "month",
+       "head": "Oct 2026"
+      },
+      {
+       "c": 11,
+       "kind": "month",
+       "head": "Nov 2026"
+      },
+      {
+       "c": 12,
+       "kind": "month",
+       "head": "Dec 2026"
+      },
+      {
+       "c": 13,
+       "kind": "total",
+       "head": "Total"
+      }
+     ],
+     "gaps": [],
+     "duplicates": [],
+     "emptyCols": [],
+     "printed": null
+    },
+    "importedAt": 1792203278924,
+    "months": [
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05",
+     "2026-06",
+     "2026-07",
+     "2026-08",
+     "2026-09",
+     "2026-10",
+     "2026-11",
+     "2026-12"
+    ],
+    "lines": [
+     {
+      "id": "L4",
+      "r": 4,
+      "account": "",
+      "label": "Base Rent",
+      "key": "base rent",
+      "section": "income",
+      "months": [
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000,
+       10000
+      ],
+      "total": 120000,
+      "fileTotal": 120000,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 4,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "rent",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "rent"
+      ]
+     },
+     {
+      "id": "L5",
+      "r": 5,
+      "account": "",
+      "label": "Pylon Sign Lease",
+      "key": "pylon sign lease",
+      "section": "income",
+      "months": [
+       50,
+       50,
+       50,
+       50,
+       50,
+       50,
+       50,
+       50,
+       50,
+       50,
+       50,
+       50
+      ],
+      "total": 600,
+      "fileTotal": 600,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 5,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "otherIncome",
+      "how": "yours",
+      "why": "your choice for this label",
+      "candidates": [
+       "otherIncome"
+      ]
+     },
+     {
+      "id": "L7",
+      "r": 7,
+      "account": "",
+      "label": "Real Estate Taxes",
+      "key": "real estate taxes",
+      "section": "expense",
+      "months": [
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000
+      ],
+      "total": 12000,
+      "fileTotal": 12000,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 7,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "taxes",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "taxes"
+      ]
+     },
+     {
+      "id": "L8",
+      "r": 8,
+      "account": "",
+      "label": "Roof Replacement Capital",
+      "key": "roof replacement capital",
+      "section": "expense",
+      "months": [
+       0,
+       0,
+       2500,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "total": 2500,
+      "fileTotal": 2500,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 8,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "capex",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "capex"
+      ]
+     },
+     {
+      "id": "L10",
+      "r": 10,
+      "account": "",
+      "label": "Mortgage Interest",
+      "key": "mortgage interest",
+      "section": "below",
+      "months": [
+       3000,
+       3000,
+       3000,
+       3000,
+       3000,
+       3000,
+       3000,
+       3000,
+       3000,
+       3000,
+       3000,
+       3000
+      ],
+      "total": 36000,
+      "fileTotal": 36000,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 10,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "debt",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "debt"
+      ]
+     }
+    ],
+    "stated": {
+     "noi": {
+      "r": 9,
+      "label": "NET OPERATING INCOME",
+      "value": 106100
+     }
+    },
+    "subtotals": [],
+    "signs": {
+     "expensesNegative": false,
+     "reductionsPositive": false
+    },
+    "headRow": 2,
+    "seen": {}
+   }
+  }
+ ],
+ "kv": {
+  "t12.labels": {
+   "entries": {
+    "pylon sign lease": {
+     "category": "otherIncome",
+     "at": 1792203285000
+    }
+   }
+  }
+ },
+ "session": null,
+ "local": {}
+}
