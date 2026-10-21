@@ -136,7 +136,11 @@ test('a suggested line worth $0 still holds the NOI comparison back (open 1, una
   assert.equal(t12ForAnalysis(t).open, 1);
   const texts = analyze(analysisInput({ figures: { noi: 100000 }, loan: {}, t12: t })).checks.filter((c) => /NOI|T-12/.test(c.text)).map((c) => c.text);
   assert.deepEqual(texts, ['Some T-12 lines are still to review (Review), so its NOI isn’t compared yet.']);
+  // nor is it compared with the rent roll's forward-looking year 1 (a different rule, the same gate)
+  const rr = (x) => analyze(analysisInput({ figures: { noi: 100000 }, loan: {}, t12: x, rr: { leases: [{ id: 'l1' }], settings: {} } }, { project: () => ({ annual: [{ noi: 900000 }] }) })).checks.filter((c) => /^The T-12’s NOI.*rent roll/.test(c.text));
+  assert.deepEqual(rr(t), []);
   fileLine(t, line(t, 'Pylon Sign Lease').id, 'otherIncome');
+  assert.ok(rr(t).length >= 1, 'filed: compared with the rent roll');
   const after = analyze(analysisInput({ figures: { noi: 100000 }, loan: {}, t12: t })).checks.filter((c) => /NOI|T-12/.test(c.text));
   assert.ok(after.length && !/still to review/.test(after[0].text), 'filed: compared');
 });
