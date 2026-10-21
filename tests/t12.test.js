@@ -57,7 +57,8 @@ test('matching: rules, the section a line sits in, and your corrections first', 
   assert.equal(matchLabel('Payroll Taxes').category, 'payroll');
   assert.equal(matchLabel('Tax Recoveries').category, 'recoveries');
   assert.equal(matchLabel('Parking Income').category, 'parking', 'a specific category wins over “income”');
-  assert.equal(matchLabel('Asset Management Fee').category, 'owner', 'asset management is an owner cost, below the line');
+  assert.equal(matchLabel('Asset Management Fee', { section: 'below' }).category, 'owner', 'asset management is an owner cost, below the line');
+  assert.deepEqual([matchLabel('Asset Management Fee').category, matchLabel('Asset Management Fee').how, matchLabel('Asset Management Fee').suggested], [null, 'needs', { category: 'owner', from: 'wording' }], 'with no heading it moves NOI: asked, not filed');
   assert.equal(matchLabel('Property Management Fees').category, 'management');
   // a bare management fee is never guessed (approved 2026-10-10)
   for (const l of ['Management Fees', 'Management fee', 'MANAGEMENT', 'Mgmt Fee']) {
@@ -73,8 +74,11 @@ test('matching: rules, the section a line sits in, and your corrections first', 
   assert.equal(matchLabel('Pylon Sign Lease').how, 'review', 'no rule: waits for you');
   // your correction wins, by normalised label
   const corrections = { 'management fees': 'management', 'pylon sign lease': 'otherOpex' };
-  assert.deepEqual([matchLabel('6400 · Management Fees', { corrections }).category, matchLabel('6400 · Management Fees', { corrections }).how], ['management', 'yours']);
-  assert.equal(matchLabel('Pylon Sign Lease', { corrections }).category, 'otherOpex');
+  // (on the path that files without asking: the OM statement; the app asks first, tests/t12-suggest.test.js)
+  assert.deepEqual([matchLabel('6400 · Management Fees', { corrections, suggest: false }).category, matchLabel('6400 · Management Fees', { corrections, suggest: false }).how], ['management', 'yours']);
+  assert.equal(matchLabel('Pylon Sign Lease', { corrections, suggest: false }).category, 'otherOpex');
+  // in the app a remembered label is a suggestion: nothing is filed until you confirm
+  assert.deepEqual([matchLabel('6400 · Management Fees', { corrections }).category, matchLabel('6400 · Management Fees', { corrections }).how], [null, 'suggested']);
   // a correction naming a category that no longer exists is ignored
   assert.equal(matchLabel('Pylon Sign Lease', { corrections: { 'pylon sign lease': 'gone' } }).how, 'review');
 });
@@ -135,12 +139,15 @@ test('your choice for a label, remembered, decides it on the next file', async (
   const t = await read(L);
   assert.deepEqual(openLines(t).map((l) => l.label), ['Management Fees']);
   const again = await read(L, { corrections: { 'management fees': 'management' } });
-  assert.deepEqual(openLines(again), []);
-  assert.equal(statementTotals(again).by.management, 12 * 3300);
+  assert.deepEqual(openLines(again).map((l) => [l.label, l.how, l.suggested.category]), [['Management Fees', 'suggested', 'management']], 'remembered: suggested, still to confirm');
+  const filed = await read(L, { corrections: { 'management fees': 'management' }, suggest: false });
+  assert.deepEqual(openLines(filed), [], 'the path that files without asking (OM statements)');
+  assert.equal(statementTotals(filed).by.management, 12 * 3300);
   // and a statement already read is matched again when a correction is saved
   const re = rematch(t, { 'management fees': 'owner' });
-  assert.equal(statementTotals(re).by.owner, 12 * 3300);
-  assert.equal(re.lines.find((l) => l.label === 'Management Fees').how, 'yours');
+  assert.equal(statementTotals(re).by.owner, 0, 'a remembered label is only suggested: nothing is filed until you confirm');
+  assert.equal(re.lines.find((l) => l.label === 'Management Fees').how, 'suggested');
+  assert.equal(re.lines.find((l) => l.label === 'Management Fees').suggested.category, 'owner');
   // a line you decided by hand is not overruled
   const hand = { ...t, lines: t.lines.map((l) => (l.label === 'Management Fees' ? { ...l, category: 'management', how: 'you' } : l)) };
   assert.equal(rematch(hand, { 'management fees': 'owner' }).lines.find((l) => l.label === 'Management Fees').category, 'management');
@@ -153,7 +160,7 @@ test('a file that isn’t a statement says what was missing', () => {
 test('what the analysis reads of a T-12', async () => {
   const t = await read(LAYOUTS[0]);
   const a = t12ForAnalysis(t);
-  assert.deepEqual(Object.keys(a), ['noi', 'egi', 'opex', 'taxes', 'months', 'from', 'to', 'unassigned']);
+  assert.deepEqual(Object.keys(a), ['noi', 'egi', 'opex', 'taxes', 'months', 'from', 'to', 'unassigned', 'open']);
   assert.equal(a.from, '2025-01');
   assert.equal(a.to, '2025-12');
   assert.equal(a.taxes, 36000);

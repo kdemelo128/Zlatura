@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.7.34: T-12 lines you filed before are suggested, not filed for you; capital items are never moved by their wording (on the development branch; not merged or deployed)
+
+Third of the T-12 reading PRs (PR 2 of the approved plan, `docs/proposals/t12-multiformat.md` section 9 item 2, decisions 2 to 5). Saved deals and golden outputs do not change; additive data only.
+
+- **Remembered labels become suggestions.** A line whose label you filed before no longer files itself. It shows "Suggested: Repairs and maintenance, mapped this way in 6 of your last 7 deals (once to Contract services)" with **Confirm** and **Choose another**. Until you choose, it counts in no category, "Use the T-12's figures" waits, and the card shows it under "Not yet filed". The built-in wording rules still file lines, as before.
+- **Capital wording is never moved for you.** A line under Expenses worded like capex, roof, reserves, TI, leasing commissions, debt, depreciation or owner or asset-management costs used to be filed below the line by its wording, which silently moved NOI. It is now "needs classification" with a suggestion, and three choices: **Below the line**, **Keep in operating** (with a category) or **Leave unclassified**. A line the file prints after its own NOI, or under a Capital or Below-the-line heading, still goes below the line as before.
+- **Confirm all N suggestions** lists them all first, then files them in one step (one Undo). Lines that need classification are left out of it, because they move money in or out of NOI.
+- **Use is gated by the number of open lines, not their amount,** so a $0 suggestion, or lines that cancel out, cannot let the figures through unreviewed. A suggested reduction (vacancy, concessions) keeps its sign when confirmed.
+- **Data (additive, no migration):** labels you filed now remember the last 50 deals they were filed in (no amounts or names); lines may carry `suggested` and `needs`. A statement saved by an earlier version keeps every filing and gets one Note listing the lines a remembered label or capital wording had filed. Backups join the deal lists from both sides, newest 50.
+- **Not changed, and recorded as a gap:** OM operating statements keep the old filing of capital wording (their lines are filed by position; changing that would move OM NOI and the golden figures).
+- **Tested:** 17 new tests (14 fail on the previous code, 3 are guards that must not change), 17 mutation checks all caught, browser flow `t12sug-flow` (43 checks, iPhone size), axe and typing flows pass. `check:full` passed. Golden: 0 changed in both checks.
+
 ## 4.7.33: Review, bug diagnosis, prior art and retro skills; a glossary of units (on the development branch; not merged or deployed)
 
 Process and docs only (the A3 items of the approved tools evaluation, `docs/proposals/dev-tools-and-reuse.md` section 10). No app code; saved deals and golden outputs untouched. Written in our own words: nothing is copied from the outside skill repository and nothing is installed (its text could not be read here).

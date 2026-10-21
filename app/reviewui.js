@@ -4,12 +4,13 @@
  * Each action records itself where the item lives: a deal's change goes in
  * its history (and can be undone); a template's in the template. */
 
-import { el, toast, money0, localDate } from './kit.js';
+import { el, toast, money0, localDate, actionSheet } from './kit.js';
 import { reviewItems, reviewCount } from './review.js';
 import { listAllDeals, updateDeal, showDeal, openTemplates } from './dealui.js';
 import { listTemplates, putTemplate } from './library.js';
-import { CATEGORY, markSeen } from './t12.js';
-import { categorySelect, fileT12Line } from './t12ui.js';
+import { CATEGORY, markSeen, confirmSuggested, suggestionText } from './t12.js';
+import { categorySelect, fileT12Line, lineChoices, suggestedText } from './t12ui.js';
+import { rememberLabels } from './t12labels.js';
 import { resolveCheck, resolveLabel } from './dataqc.js';
 import { lineWithCell } from './dataqcui.js';
 import { applyOmFix } from './omstatement.js';
@@ -68,10 +69,44 @@ function groupCard(g) {
   open.addEventListener('click', () => (g.group === 'deal' ? showDeal(g.id) : openTemplates()));
   h.appendChild(open);
   c.appendChild(h);
+  // two or more remembered labels waiting on one deal can be confirmed together, after seeing them listed
+  const sugs = g.group === 'deal' ? g.items.filter((it) => it.kind === 't12line' && it.how === 'suggested' && !it.needs && it.suggested) : [];
+  if (sugs.length >= 2) {
+    const bulk = el('div', 'review-bulk');
+    const b = el('button', 'btn btn-sm btn-gray t12-act', `Confirm all ${sugs.length} suggestions…`);
+    b.type = 'button';
+    b.dataset.act = 'confirm-all';
+    b.addEventListener('click', () => confirmAll(g, sugs));
+    bulk.appendChild(b);
+    c.appendChild(bulk);
+  }
   const ul = el('ul', 'review-list');
   for (const it of g.items) ul.appendChild(itemRow(g, it));
   c.appendChild(ul);
   return c;
+}
+
+/**
+ * "Confirm all N suggestions": the labels listed first, then one step on the deal (one history entry, so one
+ * Undo) and one write of the remembered labels. Lines that need classification are not in it: they move NOI
+ * from one side to the other, so each is asked about.
+ */
+async function confirmAll(g, sugs) {
+  const n = sugs.length;
+  const v = await actionSheet(`Confirm all ${n} suggestions?`, [
+    { label: `Confirm all ${n}`, sub: 'Each label is filed as suggested and remembered. One step on the deal: Undo takes it all back.', value: 'all', primary: true },
+    '-',
+    ...sugs.map((it) => ({ info: it.label, sub: `${usd(it.total)}${it.count > 1 ? ` · ${it.count} lines` : ''} → ${CATEGORY[it.suggested.category].label} · ${suggestionText(it.suggested)}` })),
+  ]);
+  if (v !== 'all') return;
+  let filed = [];
+  await updateDeal(g.id, (d) => {
+    if (!d.t12) return false;
+    filed = confirmSuggested(d.t12);
+    return filed.length > 0;
+  }, { kind: 'edit', label: `T-12: ${n} suggestion${n === 1 ? '' : 's'} confirmed` });
+  if (filed.length) await rememberLabels(filed.map((x) => ({ key: x.key, category: x.category })), g.id);
+  changed(`${filed.length} label${filed.length === 1 ? '' : 's'} filed as suggested. Undo on the deal takes it back.`);
 }
 
 function itemRow(g, it) {
@@ -80,7 +115,21 @@ function itemRow(g, it) {
   const text = el('div', 'review-text');
   const acts = el('div', 'review-acts');
   const btn = (label, cls, fn) => { const b = el('button', `btn btn-sm ${cls}`, label); b.type = 'button'; b.addEventListener('click', fn); acts.appendChild(b); return b; };
-  if (it.kind === 't12line') {
+  if (it.kind === 't12line' && (it.needs || it.how === 'suggested') && it.suggested) {
+    text.append(el('b', null, `T-12 line: ${it.label}`), el('span', 'sub', ` ${usd(it.total)}${it.count > 1 ? ` · ${it.count} lines with this label` : ''} · ${it.needs ? 'needs classification' : 'to confirm'} · ${suggestedText(it)}`));
+    const rem = el('label', 'check');
+    const cb = el('input'); cb.type = 'checkbox'; cb.checked = true;
+    rem.append(cb, ' Remember this label');
+    const file = async (cat, verb) => {
+      await updateDeal(g.id, async (d) => {
+        if (!d.t12) return false;
+        await fileT12Line(d, it.lineId, cat, { sameLabel: true, remember: cb.checked });
+        return true;
+      }, { kind: 'edit', label: `T-12: “${it.label}” ${verb} ${CATEGORY[cat].label.toLowerCase()}${it.count > 1 ? ` (${it.count} lines)` : ''}` });
+      changed(`“${it.label}” filed under ${CATEGORY[cat].label.toLowerCase()}.`);
+    };
+    acts.append(lineChoices(it, { file, leave: () => toast(`“${it.label}” left unclassified. It stays here, and counts in no total until you file it.`) }), rem);
+  } else if (it.kind === 't12line') {
     text.append(el('b', null, `T-12 line: ${it.label}`), el('span', 'sub', ` ${usd(it.total)}${it.count > 1 ? ` · ${it.count} lines with this label` : ''} · ${it.why}`));
     const sel = categorySelect({ category: null, candidates: it.candidates });
     sel.setAttribute('aria-label', `Category for ${it.label}`);
@@ -100,6 +149,12 @@ function itemRow(g, it) {
     file.disabled = false;
     acts.prepend(sel);
     acts.appendChild(rem);
+  } else if (it.kind === 't12note') {
+    text.append(el('b', null, 'T-12: '), el('span', null, it.text));
+    btn('Seen', 'btn-gray t12-act', async () => {
+      await updateDeal(g.id, (d) => { if (!d.t12) return false; markSeen(d.t12, it.noteId); return true; }, { kind: 'edit', label: 'T-12: a note marked seen' });
+      changed('Marked seen. The lines stay as they were.');
+    }).dataset.act = 'note-seen';
   } else if (it.kind === 't12check') {
     text.append(el('b', null, 'T-12: '), el('span', null, it.text));
     btn('Seen', 'btn-gray', async () => {

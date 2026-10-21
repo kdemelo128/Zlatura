@@ -326,7 +326,7 @@ export function rowSections(t) {
   for (const r of t.rows) rows.push({ r: r.line + 2, cells: [r.label, r.heading ? null : '–'] });
   const out = new Map();
   let st;
-  try { st = readStatement(rows); } catch { return out; }
+  try { st = readStatement(rows, { suggest: false }); } catch { return out; }
   for (const l of st.lines) if (l.label !== PLACEHOLDER) out.set(l.r - 2, l.section);
   if (st.stated.egi) out.set(st.stated.egi.r - 2, 'income');
   if (st.stated.opex) out.set(st.stated.opex.r - 2, 'expense');
@@ -350,7 +350,7 @@ function columnStatement(t, k, scale, roles) {
   const rows = [{ r: 0, cells: ['', 'Total'] }];
   // the side the first row is on starts the statement: income, unless it opens with an expense
   const first = t.rows.find((r) => !r.heading && r.cells[k]);
-  const m0 = first && !roles.subtotal.has(first.line) ? matchLabel(first.label) : null;
+  const m0 = first && !roles.subtotal.has(first.line) ? matchLabel(first.label, { suggest: false }) : null;
   const startSide = (first && roles.opex.has(first.line)) || (m0 && m0.category && CATEGORY[m0.category].side === 'expense') ? 'Expenses' : 'Income';
   rows.push({ r: 1, cells: [startSide, null] });
   // readStatement wants a line; a statement of subtotals only has none, so a placeholder adds nothing
@@ -366,7 +366,7 @@ function columnStatement(t, k, scale, roles) {
     rows.push({ r: r.line + 2, cells: [r.label, c.dash ? '–' : toc(c.value * scale)] });
   }
   let st;
-  try { st = readStatement(rows); } catch { return null; }
+  try { st = readStatement(rows, { suggest: false }); } catch { return null; }
   st.lines = st.lines.filter((l) => l.label !== PLACEHOLDER);
   for (const l of st.lines) {
     if (!l.category) Object.assign(l, { category: l.section === 'expense' ? 'otherOpex' : l.section === 'below' ? 'reserves' : 'otherIncome', how: 'position' });

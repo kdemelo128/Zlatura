@@ -203,15 +203,24 @@ export function planRestore(backup, current, mode = 'merge') {
     }
     if (n) { kv['tools.scenarios'] = Object.fromEntries(out); summary.push(`Saved Tools scenarios: ${n} added.`); }
   }
-  // the T-12 labels the broker has filed: combined label by label, the newer choice winning
+  // the T-12 labels the broker has filed: combined label by label, the newer choice winning; the deals a
+  // label was filed in are always joined (one item per deal, the later `at` winning, the newest 50), even
+  // from an older entry, so a suggestion's counts survive a restore from either side
   if (backup.kv['t12.labels'] && backup.kv['t12.labels'].entries) {
     const here = (current.kv['t12.labels'] && current.kv['t12.labels'].entries) || {};
     const there = backup.kv['t12.labels'].entries;
     const entries = new Map(Object.entries(here));
     let n = 0;
     for (const [key, e] of Object.entries(there)) {
-      const mine = Object.hasOwn(here, key) ? here[key] : null;
-      if (key !== '__proto__' && e && (!mine || (e.at || 0) > (mine.at || 0))) { if (!mine || mine.category !== e.category) n += 1; entries.set(key, e); }
+      if (key === '__proto__' || !e || typeof e !== 'object') continue;
+      const mine = Object.hasOwn(here, key) && here[key] && typeof here[key] === 'object' ? here[key] : null;
+      const newer = !mine || (e.at || 0) > (mine.at || 0);
+      const deals = joinDeals(mine && mine.deals, e.deals);
+      const grew = JSON.stringify(deals) !== JSON.stringify(joinDeals(mine && mine.deals));
+      if (!newer && !grew) continue;
+      const { deals: _own, ...base } = newer ? e : mine;
+      if (!mine || (newer && mine.category !== e.category) || grew) n += 1;
+      entries.set(key, deals.length ? { ...base, deals } : base);
     }
     if (n) { kv['t12.labels'] = { entries: Object.fromEntries(entries) }; summary.push(`T-12 labels you filed: ${n} added or updated.`); }
   }
@@ -229,6 +238,23 @@ export function planRestore(backup, current, mode = 'merge') {
   const up = upgradeLine(put);
   if (up) summary.push(up);
   return { deals: { put, added: d.added, updated: d.updated, kept: current.deals.length - d.updated }, removeDeals: [], kv, removeKv: [], session, local, summary, history: hs.history, snapshots: hs.snapshots };
+}
+
+/**
+ * The deals a remembered T-12 label was filed in, from several lists joined: one item per deal id (the larger
+ * `at` wins), each copied field by field, anything else ignored, oldest first, the newest 50.
+ */
+function joinDeals(...lists) {
+  const byDeal = new Map();
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const x of list) {
+      if (!x || typeof x !== 'object' || typeof x.deal !== 'string' || typeof x.category !== 'string' || !Number.isFinite(x.at)) continue;
+      const have = byDeal.get(x.deal);
+      if (!have || x.at > have.at) byDeal.set(x.deal, { deal: String(x.deal), category: String(x.category), at: Number(x.at) });
+    }
+  }
+  return [...byDeal.values()].sort((a, b) => a.at - b.at).slice(-50);
 }
 
 /**

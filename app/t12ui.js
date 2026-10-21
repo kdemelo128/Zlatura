@@ -9,9 +9,9 @@ import { readGrids, pastedRows } from './sheetread.js';
 import { checkUpload } from './filekind.js';
 import {
   CATEGORIES, CATEGORY, SIDES, statementTotals, annualized, openLines, openChecks, fileLine, periodText, rematch, sourceText, periodShort, lineNotes,
-  sheetChoices, pickSheet, layoutOf, numberFormatOf, importStatement, currencyRefusal,
+  statementNotes, markSeen, suggestionText, sheetChoices, pickSheet, layoutOf, numberFormatOf, importStatement, currencyRefusal,
 } from './t12.js';
-import { corrections, rememberLabel } from './t12labels.js';
+import { remembered, rememberLabel } from './t12labels.js';
 import { NOI_GAP } from './engine/conventions.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
@@ -47,12 +47,36 @@ export function renderT12Card(box, h) {
   }
   if (lines.length || checks.length) {
     const p = el('p', 'warn-text t12-open');
-    p.append(`${[lines.length ? `${lines.length} line${lines.length === 1 ? '' : 's'} to file` : '', checks.length ? `${checks.length} thing${checks.length === 1 ? '' : 's'} to check` : ''].filter(Boolean).join(' and ')}. `);
+    // a remembered label is a suggestion to confirm; a capital-type line under Expenses is one to classify; the rest are to file
+    // (counted by label, as Review counts them: one choice files every line with that label)
+    const labelsOf = (ls) => new Set(ls.map((l) => l.key)).size;
+    const sug = labelsOf(lines.filter((l) => l.how === 'suggested' && !l.needs));
+    const need = labelsOf(lines.filter((l) => l.needs));
+    const rest = lines.filter((l) => l.how !== 'suggested' && !l.needs).length;
+    const parts = [sug ? `${sug} suggestion${sug === 1 ? '' : 's'} to confirm` : '', need ? `${need} to classify` : '', rest ? `${rest} line${rest === 1 ? '' : 's'} to file` : '', checks.length ? `${checks.length} thing${checks.length === 1 ? '' : 's'} to check` : ''].filter(Boolean);
+    p.append(`${parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0]}. `);
     const go = el('button', 'btn btn-sm btn-gray', 'Open Review');
     go.type = 'button';
     go.id = 't12-review';
     go.addEventListener('click', () => h.openReview());
     p.appendChild(go);
+    box.appendChild(p);
+  }
+
+  // a statement filed by an earlier version: its filings are kept as they were, and this says so once
+  for (const n of statementNotes(t)) {
+    const p = el('p', 'hint t12-note');
+    p.id = 't12-note';
+    p.append(n.text, ' ');
+    const seen = el('button', 'btn btn-sm btn-gray t12-act', 'Seen');
+    seen.type = 'button';
+    seen.id = 't12-note-seen';
+    seen.addEventListener('click', () => {
+      markSeen(d.t12, n.id);
+      h.touch({ kind: 'edit', label: 'T-12: a note marked seen' });
+      h.redraw();
+    });
+    p.appendChild(seen);
     box.appendChild(p);
   }
 
@@ -68,13 +92,13 @@ export function renderT12Card(box, h) {
     row(side === 'income' ? 'Effective gross income' : 'Operating expenses', side === 'income' ? T.egi : T.opex, 'total');
   }
   const noiLabel = n && n < 12 ? `NOI, ${n} month${n === 1 ? '' : 's'}` : 'NOI';
-  row(T.unassigned ? `${noiLabel} (lines still to file are left out)` : noiLabel, T.noi, 'total grand');
+  row(lines.length ? `${noiLabel} (lines still to file are left out)` : noiLabel, T.noi, 'total grand');
   const below = CATEGORIES.filter((c) => c.side === 'below' && T.by[c.id]);
   if (below.length) {
     const tr = el('tr', 'sep'); const th = el('th', null, SIDES.below); th.colSpan = 2; tr.appendChild(th); tb.appendChild(tr);
     for (const c of below) row(c.label, T.by[c.id], 'muted');
   }
-  if (T.unassigned) row('Not yet filed', T.unassigned, 'warn-text');
+  if (lines.length) row('Not yet filed', T.unassigned, 'warn-text');
   tbl.appendChild(tb);
   const wrap = el('div', 'scroll');
   wrap.appendChild(tbl);
@@ -115,7 +139,7 @@ function noiThreeWays(d, T, h) {
   const partial = d.t12.months.length && d.t12.months.length < 12;
   const rows = [
     ['OM', 'as read or typed', om],
-    ['T-12', partial ? `${periodText(d.t12)}: not a full year, so not compared` : periodText(d.t12), T.unassigned ? null : T.noi],
+    ['T-12', partial ? `${periodText(d.t12)}: not a full year, so not compared` : periodText(d.t12), T.unassigned || openLines(d.t12).length ? null : T.noi],
     ['Rent roll, forward-looking year 1', 'a projection, not an actual', rr],
   ];
   const tbl = el('table', 'mini t12-noi-table');
@@ -133,7 +157,7 @@ function noiThreeWays(d, T, h) {
     const val = el('td', 'num', v === undefined ? 'working out…' : usd(v));
     let g = '';
     let cls = '';
-    if (who !== 'T-12' && ok(v) && ok(T.noi) && !T.unassigned && !partial) {
+    if (who !== 'T-12' && ok(v) && ok(T.noi) && !T.unassigned && !openLines(d.t12).length && !partial) {
       const base = Math.max(Math.abs(v), Math.abs(T.noi));
       const pc = base ? (Math.abs(v - T.noi) / base) * 100 : 0;
       g = `${v >= T.noi ? '+' : '−'}${money0(Math.abs(v - T.noi))} (${pc.toFixed(1)}%)`;
@@ -179,8 +203,8 @@ export function pasteStatement(h) {
     if (!rows.length) { toast('Paste the statement’s rows first.'); return; }
     go.disabled = true;
     try {
-      const cor = await corrections();
-      const t = await statementFrom({ sheet: 'Pasted', rows }, 'Pasted statement', cor, { type: 'paste', size: ta.value.length });
+      const mem = await remembered();
+      const t = await statementFrom({ sheet: 'Pasted', rows }, 'Pasted statement', mem, { type: 'paste', size: ta.value.length });
       if (!t) return; // the number question was cancelled
       h.sheetClose();
       keepStatement(h, d, t, null);
@@ -221,15 +245,15 @@ export async function importFile(h, file) {
     if (up.refuse) { toast(up.refuse, null, 9000); return; }
     const grids = await readGrids(file, getXlsx, { maxRows: 1500, includeHidden: true, upload: up, getFflate });
     note = grids[0] && grids[0].note;
-    const cor = await corrections();
-    const choices = sheetChoices(grids, { file: file.name, corrections: cor });
+    const mem = await remembered();
+    const choices = sheetChoices(grids, { file: file.name, corrections: mem.corrections, history: mem.history });
     const p = pickSheet(choices);
     if (p.refuse) throw new Error(p.refuse);
     const pick = p.choice || await chooseSheet(file.name, p.ask);
     if (!pick) return; // cancelled: nothing is imported
     const g = grids[pick.i];
     const type = up.kind === 'text' ? (g.delimiter === '\t' ? 'tsv' : 'csv') : up.macros ? 'xlsm' : 'xlsx';
-    t = await statementFrom(g, file.name, cor, {
+    t = await statementFrom(g, file.name, mem, {
       type, size: file.size, sheets: choices.map((c) => ({ name: c.sheet, hidden: c.hidden, projection: c.projection, lines: c.lines })),
       ...(g.delimiter ? { delimiter: g.delimiter } : {}), ...(g.encoding ? { encoding: g.encoding } : {}), ...(up.macros ? { macros: true } : {}),
     });
@@ -253,7 +277,7 @@ async function chooseSheet(file, list) {
  * refused), its number format settled (asked when the cells can't say), then read. null when the
  * question is cancelled; throws with a reason when it can't be read.
  */
-async function statementFrom(grid, file, cor, source) {
+async function statementFrom(grid, file, mem, source) {
   const layout = layoutOf(grid.rows, { sheet: grid.sheet });
   const nf = numberFormatOf(grid.rows, layout, { delimiter: source.delimiter });
   if (nf.foreign) throw new Error(currencyRefusal(nf.foreign));
@@ -262,7 +286,7 @@ async function statementFrom(grid, file, cor, source) {
     format = await askFormat(file, nf);
     if (!format) return null;
   }
-  return importStatement(grid.rows, { file, sheet: grid.sheet, corrections: cor, numberFormat: format, source: { ...source, ...(nf.ask ? { numberAsked: true } : {}) } });
+  return importStatement(grid.rows, { file, sheet: grid.sheet, corrections: mem.corrections, history: mem.history, numberFormat: format, source: { ...source, ...(nf.ask ? { numberAsked: true } : {}) } });
 }
 
 /** "How are numbers written in <file>?": the doubtful figures read both ways, one tap each; null when cancelled. */
@@ -293,11 +317,58 @@ export async function fileT12Line(d, lineId, category, { sameLabel = true, remem
   const line = d.t12.lines.find((l) => l.id === lineId);
   const changed = fileLine(d.t12, lineId, category, { sameLabel });
   if (remember && line) {
-    await rememberLabel(line.key, category);
-    // other lines of this statement still waiting take the remembered choice too
-    d.t12 = rematch(d.t12, await corrections());
+    await rememberLabel(line.key, category, d.id);
+    // other lines of this statement still waiting are offered the remembered choice too (never filed by it)
+    const mem = await remembered();
+    d.t12 = rematch(d.t12, mem.corrections, mem.history);
   }
   return { line, changed };
+}
+
+/** "Suggested: Other income, mapped this way in 6 of your last 7 deals" / "Suggested: below the line, Capital expenditures". */
+export function suggestedText(l) {
+  if (!l.suggested) return '';
+  const c = CATEGORY[l.suggested.category];
+  return l.suggested.from === 'wording' ? `Suggested: below the line, ${c.label}` : `Suggested: ${c.label}, ${suggestionText(l.suggested)}`;
+}
+
+/**
+ * The choices for a line waiting on the broker, as buttons (44 pt high), shared by the lines sheet and the
+ * Review Queue. A suggestion from a remembered label: Confirm, or Choose another (a picker). A capital-type
+ * line under Expenses or no heading: Below the line (as suggested), Keep in operating… (a picker of operating
+ * categories only), or Leave unclassified (records nothing; the line stays out of every total). Any other line:
+ * the picker. `file(category, verb)` files it; `leave()` is Leave unclassified.
+ * @param {any} l
+ * @param {{ file: (category: string, verb: string) => any, leave: () => any }} act
+ */
+export function lineChoices(l, { file, leave }) {
+  const box = el('div', 't12-line-acts');
+  const btn = (text, act, cls, fn) => {
+    const b = el('button', `btn btn-sm t12-act ${cls}`, text);
+    b.type = 'button';
+    b.dataset.act = act;
+    b.setAttribute('aria-label', `${text}: ${l.label}`);
+    b.addEventListener('click', fn);
+    box.appendChild(b);
+  };
+  const picker = (sel, verb) => {
+    sel.classList.add('t12-act');
+    sel.setAttribute('aria-label', `Category for ${l.label}`);
+    sel.addEventListener('change', () => { if (sel.value) file(sel.value, verb); });
+    return sel;
+  };
+  const swap = (sel) => { box.textContent = ''; box.appendChild(sel); sel.focus(); };
+  if (l.needs && l.suggested) {
+    btn('Below the line', 'below', 'btn-primary', () => file(l.suggested.category, 'filed below the line as'));
+    btn('Keep in operating…', 'keep', 'btn-gray', () => swap(picker(categorySelect({ category: null, candidates: [] }, { sides: ['expense'], none: 'Choose an operating category…' }), 'kept in operating as')));
+    btn('Leave unclassified', 'leave', 'btn-gray', leave);
+  } else if (l.how === 'suggested' && l.suggested) {
+    btn('Confirm', 'confirm', 'btn-primary', () => file(l.suggested.category, 'confirmed as'));
+    btn('Choose another', 'other', 'btn-gray', () => swap(picker(categorySelect({ category: null, candidates: (l.candidates || []).filter((c) => c !== l.suggested.category) }), 'filed under')));
+  } else {
+    box.appendChild(picker(categorySelect(l), 'filed under'));
+  }
+  return box;
 }
 
 /** Every line, with its category: a choice per line. */
@@ -308,36 +379,40 @@ function openLinesSheet(h) {
   for (const l of d.t12.lines) {
     const r = el('div', `t12-line${l.category ? '' : ' open'}`);
     const lab = el('div', 't12-line-label');
-    lab.append(el('b', null, l.label), el('span', 'sub', ` ${usd(l.total)}${l.account ? ` · ${l.account}` : ''} · ${l.how === 'yours' ? 'your earlier choice' : l.how === 'you' ? 'chosen here' : l.how === 'rule' ? 'by its wording' : `to file: ${l.why}`}${lineNotes(d.t12, l).map((x) => ` · ${x}`).join('')}`));
-    const sel = categorySelect(l);
-    sel.setAttribute('aria-label', `Category for ${l.label}`);
-    sel.addEventListener('change', async () => {
-      if (!sel.value) return;
-      const { changed } = await fileT12Line(d, l.id, sel.value, { sameLabel: true, remember: true });
-      h.touch({ kind: 'edit', label: `T-12: “${l.label}” filed under ${CATEGORY[sel.value].label.toLowerCase()}${changed.length > 1 ? ` (and ${changed.length - 1} more with that label)` : ''}` });
+    const how = l.how === 'yours' ? 'your earlier choice' : l.how === 'you' ? 'chosen here' : l.how === 'rule' ? 'by its wording' : l.how === 'suggested' ? `to confirm · ${suggestedText(l)}` : l.how === 'needs' ? `needs classification · ${suggestedText(l)}` : `to file: ${l.why}`;
+    lab.append(el('b', null, l.label), el('span', 'sub', ` ${usd(l.total)}${l.account ? ` · ${l.account}` : ''} · ${how}${lineNotes(d.t12, l).map((x) => ` · ${x}`).join('')}`));
+    const file = async (category, verb) => {
+      const was = l.category; // fileLine changes the line itself
+      const { changed } = await fileT12Line(d, l.id, category, { sameLabel: true, remember: true });
+      h.touch({ kind: 'edit', label: `T-12: “${l.label}” ${was ? 'filed under' : verb} ${CATEGORY[category].label.toLowerCase()}${changed.length > 1 ? ` (and ${changed.length - 1} more with that label)` : ''}` });
       h.redraw();
       openLinesSheet(h);
-    });
-    r.append(lab, sel);
+    };
+    r.append(lab, l.category ? lineChoices(l, { file, leave: () => {} }) : lineChoices(l, { file, leave: () => { h.sheetClose(); toast(`“${l.label}” left unclassified. It counts in no total until you file it.`); } }));
     list.appendChild(r);
   }
   body.appendChild(list);
 }
 
-/** A category picker, its likely categories first. */
-export function categorySelect(l) {
+/**
+ * A category picker, its likely categories first. `sides` limits it to those sides of the statement
+ * (operating expenses only, for a line kept in operating); `none` words the empty choice.
+ * @param {any} l
+ * @param {{ sides?: string[], none?: string }} [opts]
+ */
+export function categorySelect(l, { sides = ['income', 'expense', 'below'], none: noneText = 'Choose a category…' } = {}) {
   const sel = el('select', 'select');
-  const none = el('option', null, l.category ? '' : 'Choose a category…');
+  const none = el('option', null, l.category ? '' : noneText);
   none.value = '';
   if (!l.category) sel.appendChild(none);
-  const first = (l.candidates || []).filter((c) => CATEGORY[c] && c !== l.category);
+  const first = (l.candidates || []).filter((c) => CATEGORY[c] && c !== l.category && sides.includes(CATEGORY[c].side));
   const add = (parent, c) => { const o = el('option', null, c.label); o.value = c.id; if (c.id === l.category) o.selected = true; parent.appendChild(o); };
   if (first.length && !l.category) {
     const g = el('optgroup'); g.label = 'Likely';
     for (const id of first) add(g, CATEGORY[id]);
     sel.appendChild(g);
   }
-  for (const side of ['income', 'expense', 'below']) {
+  for (const side of sides) {
     const g = el('optgroup'); g.label = SIDES[side];
     for (const c of CATEGORIES.filter((x) => x.side === side)) add(g, c);
     sel.appendChild(g);
@@ -355,7 +430,8 @@ async function useFigures(h) {
   const d = h.deal;
   const t = d.t12;
   const T = statementTotals(t);
-  if (T.unassigned) { toast(`File the ${openLines(t).length} line${openLines(t).length === 1 ? '' : 's'} still waiting in Review first: the totals aren’t complete.`, { label: 'Review', run: () => h.openReview() }, 7000); return; }
+  // by the count of lines, not their amount: lines worth $0, or that cancel out, are still not filed
+  if (T.unassigned || openLines(t).length) { toast(`File the ${openLines(t).length} line${openLines(t).length === 1 ? '' : 's'} still waiting in Review first: the totals aren’t complete.`, { label: 'Review', run: () => h.openReview() }, 7000); return; }
   const n = t.months.length;
   const A = annualized(T);
   /** @type {{ egi: number, opex: number, taxes: number, noi: number }} */

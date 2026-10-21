@@ -129,6 +129,8 @@ export function actionSheet(title, items) {
     const list = el('div', 'action-list');
     for (const it of items) {
       if (it === '-') { list.appendChild(el('hr')); continue; }
+      // a line of text in the list, not a choice (the lines "Confirm all" is about to file)
+      if (it.info) { const row = el('div', 'action-info'); row.appendChild(el('span', 'action-label', it.info)); if (it.sub) row.appendChild(el('span', 'action-sub', it.sub)); list.appendChild(row); continue; }
       const b = el('button', `action-item${it.danger ? ' danger' : ''}${it.primary ? ' primary' : ''}`);
       b.type = 'button';
       if (it.icon) b.insertAdjacentHTML('beforeend', svg(it.icon, 20));

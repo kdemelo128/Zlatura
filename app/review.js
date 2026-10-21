@@ -7,7 +7,8 @@
  * where it lives, so it travels in backups and, on a deal, can be undone.
  * Pure: reviewui.js draws it. Design: docs/proposals/t12-review-queue.md. */
 
-import { openLines, openChecks } from './t12.js';
+import { openLines, openChecks, statementNotes } from './t12.js';
+import { toCents } from './engine/money.js';
 import { DEAL_FIELDS } from './dealfields.js';
 import { openChecks as openQc, whereText } from './dataqc.js';
 
@@ -18,7 +19,7 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.abs(v) : 
 /**
  * Every item, grouped: [{ group: 'deal'|'template', id, name, items: [...] }],
  * each group's items with the most money at stake first, groups by the same.
- * Items: { kind: 't12line'|'t12check'|'ai'|'rrcheck'|'omcheck'|'tpl', id, amount, ... }.
+ * Items: { kind: 't12line'|'t12check'|'t12note'|'ai'|'rrcheck'|'omcheck'|'tpl', id, amount, ... }.
  * An 'rrcheck' is a Data QC check on an OM's rent roll (dataqc.js) that
  * failed or found the OM disagreeing with itself: with its page, row and cell.
  * An 'omcheck' is the same for an OM's operating statement (omstatement.js),
@@ -35,9 +36,11 @@ export function reviewItems({ deals = [], templates = [] } = {}) {
       const byKey = new Map();
       for (const l of openLines(d.t12)) {
         const it = byKey.get(l.key);
-        if (it) { it.count += 1; it.amount += num(l.total); it.lineIds.push(l.id); } else byKey.set(l.key, { kind: 't12line', id: `t12line:${l.id}`, lineId: l.id, lineIds: [l.id], label: l.label, why: l.why, candidates: l.candidates || [], section: l.section, total: l.total, amount: num(l.total), count: 1 });
+        if (it) { it.count += 1; it.amount += num(l.total); it.total = toCents(it.total + l.total); it.lineIds.push(l.id); } else byKey.set(l.key, { kind: 't12line', id: `t12line:${l.id}`, lineId: l.id, lineIds: [l.id], label: l.label, why: l.why, candidates: l.candidates || [], section: l.section, total: l.total, amount: num(l.total), count: 1, how: l.how, suggested: l.suggested || null, needs: l.needs || null });
       }
       items.push(...byKey.values());
+      // a statement filed by an earlier version: one Note, kept apart from the checks (their ids never change)
+      for (const n of statementNotes(d.t12)) items.push({ kind: 't12note', id: `t12note:${n.id}`, noteId: n.id, text: n.text, amount: 0 });
       for (const c of openChecks(d.t12)) items.push({ kind: 't12check', id: `t12check:${c.id}`, checkId: c.id, text: c.text, amount: num(c.amount) });
     }
     for (const c of openQc(d.rrQc)) {
