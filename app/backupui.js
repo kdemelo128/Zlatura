@@ -80,7 +80,7 @@ export async function renderDataCard(box, api) {
   const opt = el('label', 'chk data-hint');
   opt.append(withH, document.createTextNode(' Include each deal’s history and snapshots (leave out for a smaller file)'));
   box.appendChild(opt);
-  box.appendChild(el('p', 'hint-sm data-hint', 'The backup is one file with every deal (photos and recordings included), the comp set, templates, tasks, contacts and settings. It holds confidential deal information: keep it somewhere safe. Your AI access token is not included.'));
+  box.appendChild(el('p', 'hint-sm data-hint', 'The backup is one file with every deal (photos and recordings included), the comp set, templates, tasks, contacts and settings. It holds confidential deal information: keep it somewhere safe. Your AI settings (server address and access token) are not included: enter them again after restoring on another device.'));
 }
 
 /** The rounding log, every value with where it is, its old and its new value. */

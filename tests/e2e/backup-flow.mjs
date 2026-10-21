@@ -34,7 +34,7 @@ await dl.saveAs(file);
 const text = fs.readFileSync(file, 'utf8');
 const j = JSON.parse(text);
 check('the backup holds the deal, its photo, the task', j.format === 'zlatura-backup' && j.deals.length === 1 && j.deals[0].visit.photos[0].blob.$blob.length > 1000 && j.kv['crm.tasks'].length === 1, JSON.stringify(j.counts));
-check('the AI token is not in the backup', !text.includes('DEVICE-SECRET-TOKEN') && j.kv['ai.settings'].url === 'https://ai.example');
+check('the AI settings are not in the backup (no token, no server address)', !text.includes('DEVICE-SECRET-TOKEN') && !text.includes('https://ai.example') && !('ai.settings' in j.kv));
 await page.waitForTimeout(300);
 await page.waitForFunction(() => /Last backup:/.test(document.querySelector('#settings-data').textContent));
 await go('home');
@@ -50,13 +50,14 @@ check('after the wipe, nothing is left', /0 deals/.test(await page.textContent('
 await page.setInputFiles('#backup-file', file);
 await page.waitForSelector('dialog.action-sheet');
 check('the restore offers merge, with what it will do', /Deals: 1 added/.test(await page.textContent('dialog.action-sheet')));
+check('and says the AI settings are never restored', /AI settings are never restored from a backup/.test(await page.textContent('dialog.action-sheet')));
 await Promise.all([page.waitForEvent('load', { timeout: 30000 }), page.locator('dialog.action-sheet .action-item', { hasText: 'Merge into this device' }).click()]);
 await go('home');
 await page.waitForSelector('#home-pipeline .pipe');
 const after = await dealCount();
 check('the deal is back, in its stage, with its photo byte for byte', JSON.stringify(after) === JSON.stringify(before), `${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
 check('the task is back', /Order the appraisal/.test(await page.textContent('#home-tasks')));
-check('the AI token was not restored (it was never in the file)', (await kvGet('ai.settings')).token === undefined);
+check('the AI settings were not restored (they are never in the file)', (await kvGet('ai.settings')) === null || (await kvGet('ai.settings')) === undefined);
 await go('deal');
 await page.waitForSelector('#deal-root');
 const opened = await page.locator('#deal-root .list .li').count();
@@ -98,7 +99,7 @@ await Promise.all([page.waitForEvent('load', { timeout: 30000 }), page.locator('
 await page.waitForTimeout(800);
 const rep = await dealCount();
 check('after replace: only the backup’s deal, in the backup’s stage', rep.length === 1 && rep[0].stage === 'offer', JSON.stringify(rep));
-check('the token on this device survived the replace', (await kvGet('ai.settings')).token === 'NEW-DEVICE-TOKEN');
+{ const ai = await kvGet('ai.settings'); check('the AI settings on this device survived the replace, address and token', !!ai && ai.token === 'NEW-DEVICE-TOKEN' && ai.url === 'https://ai.example'); }
 for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
 finish(R, 'errors', errors);
 await browser.close();

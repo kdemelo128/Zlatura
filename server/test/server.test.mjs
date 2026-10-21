@@ -5,6 +5,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import net from 'node:net';
 import Anthropic from '@anthropic-ai/sdk';
 import { handler, config, transcribe, limiter } from '../index.mjs';
 
@@ -182,4 +183,26 @@ test('rate limit: a client over its minute is told when to come back', async () 
   assert.equal(r.status, 429);
   assert.ok(Number(r.headers.get('retry-after')) > 0);
   tight.close();
+});
+
+test('F3: a malformed request address is answered 400 and the server stays up', async () => {
+  // the handler on its own: the request line "//[" made new URL() throw outside the try, and the server exit
+  const cfg = config({ APP_TOKEN: 'test-token-0123456789', ALLOWED_ORIGINS: 'https://app.example' });
+  const out = {};
+  const res = { writeHead(status) { out.status = status; }, end(b) { out.body = b; } };
+  const req = { method: 'GET', url: '//[', headers: { authorization: 'Bearer test-token-0123456789' }, socket: {} };
+  await assert.doesNotReject(Promise.resolve(handler(cfg, null)(req, res)));
+  assert.equal(out.status, 400);
+  assert.match(String(out.body), /bad_request/);
+  // and over a real socket, where the same line used to end the process
+  const first = await new Promise((resolve, reject) => {
+    const s = net.connect(app.address().port, '127.0.0.1', () => s.write('GET //[ HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-0123456789\r\nConnection: close\r\n\r\n'));
+    let buf = '';
+    s.on('data', (d) => { buf += d; });
+    s.on('end', () => resolve(buf.split('\r\n')[0]));
+    s.on('error', reject);
+  });
+  assert.match(first, / 400 /);
+  const h = await fetch(`${appUrl}/api/health`, { headers: { authorization: 'Bearer test-token-0123456789' } });
+  assert.equal(h.status, 200);
 });

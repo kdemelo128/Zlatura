@@ -99,7 +99,8 @@ export function handler(cfg, client, deps = {}) {
     if (req.method === 'OPTIONS') { res.writeHead(204, cors); res.end(); return; }
     const auth = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     if (!tokenOk(auth, cfg.token)) { send(res, 401, { error: 'unauthorized', message: 'The access token is missing or wrong.' }, cors); return; }
-    const path = new URL(req.url, 'http://x').pathname;
+    let path;
+    try { path = new URL(req.url, 'http://x').pathname; } catch { send(res, 400, { error: 'bad_request', message: 'The request address is not valid.' }, cors); return; }
     try {
       if (req.method === 'GET' && path === '/api/health') {
         send(res, 200, { ok: true, ai: cfg.aiConfigured, transcription: !!cfg.stt, model: cfg.aiConfigured ? MODEL : null }, cors);
@@ -134,6 +135,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const cfg = config();
   if (!cfg.token || cfg.token.length < 16) { console.error('Set APP_TOKEN to a long random string (16+ characters).'); process.exit(1); }
   if (!cfg.origins.length) console.warn('ALLOWED_ORIGINS is empty: browsers on any other site will be refused.');
+  // a rejected promise nobody caught logs its name only (never its message) and the server keeps running
+  process.on('unhandledRejection', (e) => console.error(`[${new Date().toISOString()}] unhandled: ${e?.name || 'Error'}`));
   let client = null;
   if (cfg.aiConfigured) { const { default: Anthropic } = await import('@anthropic-ai/sdk'); client = new Anthropic(); }
   http.createServer(handler(cfg, client)).listen(cfg.port, () => {

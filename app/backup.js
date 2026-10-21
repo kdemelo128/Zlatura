@@ -4,8 +4,12 @@
  * layouts and settings. Restoring merges it in: whatever is newer wins, and
  * nothing on the device is lost unless the broker chooses to replace it all.
  *
- * The AI access token is left out: a backup is a file that gets copied and
- * sent, and the token is a credential.
+ * The AI settings (server address, access token, on/off) are never in a
+ * backup, going in or coming out: a backup is a file that gets copied and
+ * sent, the token is a credential, and a server address read from a file
+ * would be one the broker then types the token next to. Reading a backup
+ * also keeps only the settings keys this app writes (KV_KEYS) and only the
+ * known local keys (LOCAL_KEYS), so a hand-made file can't set anything else.
  *
  * Backups made before the rename (format `comp-loader-backup`, local keys
  * `comp-loader.*`) are read the same as new ones, for good.
@@ -25,7 +29,35 @@ export const BACKUP_FORMAT = FORMATS.backup.write;
 export const BACKUP_VERSION = 2;
 /** localStorage keys worth keeping (the rest are recovery mirrors, rebuilt on their own). */
 export const LOCAL_KEYS = ['zlatura.tools.v1', 'zlatura.subject.v1', 'zlatura.loan.v1'];
-const SECRET = { 'ai.settings': ['token'] };
+/** The longest value restored for a local key, in characters. */
+const LOCAL_MAX = 262144;
+/** The settings key that never travels in a backup. */
+const NEVER = 'ai.settings';
+/** The kv keys the app writes and a backup may carry (tests/backup.test.js checks this list against every kvSet in app/). */
+export const KV_KEYS = ['tpl.library', 'crm.tasks', 'crm.contacts', 'crm.activity', 'crm.stages', 'tools.scenarios', 't12.labels', 'rr.layouts', 'conventions', 'template', 'output', 'backup.last'];
+const KV_SET = new Set(KV_KEYS);
+
+/**
+ * A backup's kv with only the keys this app writes: { kv, droppedAi, droppedOther }. The AI settings are
+ * always dropped; any other key not in KV_KEYS is dropped and counted, so the restore sheet can say so.
+ */
+export function cleanKv(kv) {
+  const out = {}; let droppedAi = false; let droppedOther = 0;
+  for (const k of Object.keys(kv || {})) {
+    if (k === NEVER) droppedAi = true;
+    else if (KV_SET.has(k)) out[k] = kv[k];
+    else droppedOther += 1;
+  }
+  return { kv: out, droppedAi, droppedOther };
+}
+/** A backup's local keys with only the known ones, as text, and not absurdly long. */
+export function cleanLocal(local) {
+  const out = {};
+  for (const k of LOCAL_KEYS) {
+    if (Object.hasOwn(local || {}, k) && typeof local[k] === 'string' && local[k].length <= LOCAL_MAX) out[k] = local[k];
+  }
+  return out;
+}
 
 const b64 = (bytes) => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s); };
 const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
@@ -50,7 +82,7 @@ export function decodeValue(v) {
   if (typeof v.$ab === 'string') return unb64(v.$ab).buffer;
   if ('$date' in v && Object.keys(v).length === 1) return v.$date ? new Date(v.$date) : new Date(NaN);
   const out = {};
-  for (const [k, x] of Object.entries(v)) out[k] = decodeValue(x);
+  for (const [k, x] of Object.entries(v)) if (k !== '__proto__') out[k] = decodeValue(x);
   return out;
 }
 
@@ -60,9 +92,7 @@ export function decodeValue(v) {
  */
 export async function buildBackup({ deals = [], kv = {}, session = null, local = {}, appVersion = '', history = null, snapshots = null }) {
   const keptKv = {};
-  for (const [k, v] of Object.entries(kv)) {
-    if (SECRET[k] && v && typeof v === 'object') { const c = { ...v }; for (const f of SECRET[k]) delete c[f]; keptKv[k] = c; } else keptKv[k] = v;
-  }
+  for (const [k, v] of Object.entries(kv)) if (k !== NEVER) keptKv[k] = v;
   return {
     format: BACKUP_FORMAT, version: BACKUP_VERSION, app: appVersion, createdAt: new Date().toISOString(),
     counts: {
@@ -86,8 +116,9 @@ export function readBackup(text) {
   if (ahead.length) throw new Error(`This backup holds ${ahead.length === 1 ? 'a deal' : `${ahead.length} deals`} saved by a newer version of ${PRODUCT} (${ahead.slice(0, 3).map((d) => `“${d.name || (d.figures && d.figures.address) || 'Untitled deal'}”`).join(', ')}): update the app first. Nothing was restored.`);
   // settings saved under the old name come back under the new one
   const local = Object.fromEntries(Object.entries(o.local || {}).map(([k, v]) => [renameKey(k), v]));
+  const cleaned = cleanKv(decodeValue(o.kv || {}));
   return {
-    ...o, deals: decodeValue(o.deals || []), kv: decodeValue(o.kv || {}), session: decodeValue(o.session ?? null), local,
+    ...o, deals: decodeValue(o.deals || []), kv: cleaned.kv, dropped: { ai: cleaned.droppedAi, other: cleaned.droppedOther }, session: decodeValue(o.session ?? null), local,
     history: o.history ? decodeValue(o.history) : null, snapshots: o.snapshots ? decodeValue(o.snapshots) : null,
   };
 }
@@ -126,10 +157,19 @@ export const changedSteps = (steps) => steps.filter((x) => x.id !== 'money' || x
  */
 export function planRestore(backup, current, mode = 'merge') {
   const summary = [];
+  // a plan built from a raw object is cleaned too (readBackup has already done it for a file)
+  const cleaned = cleanKv(backup.kv);
+  backup = { ...backup, kv: cleaned.kv, local: cleanLocal(backup.local) };
+  const droppedAi = cleaned.droppedAi || !!(backup.dropped && backup.dropped.ai);
+  const droppedOther = cleaned.droppedOther + ((backup.dropped && backup.dropped.other) || 0);
+  const here = current.kv[NEVER];
+  summary.push(here && here.url
+    ? 'This device’s AI settings are kept as they are (they are never restored from a backup).'
+    : 'AI settings are never restored from a backup: enter the server address and access token again under AI settings.');
+  if (droppedOther) summary.push(`${droppedOther} setting${droppedOther === 1 ? '' : 's'} in the backup that this version does not use ${droppedOther === 1 ? 'was' : 'were'} left out.`);
   if (mode === 'replace') {
+    // the AI settings on this device stay exactly as they are: the backup carries none and removeKv never lists them
     const kv = { ...backup.kv };
-    // the access token on this device is kept: the backup never carries one
-    if (current.kv['ai.settings'] && current.kv['ai.settings'].token) kv['ai.settings'] = { ...(kv['ai.settings'] || {}), token: current.kv['ai.settings'].token };
     const keepIds = new Set(backup.deals.map((d) => d.id));
     const removeDeals = current.deals.filter((d) => !keepIds.has(d.id)).map((d) => d.id);
     summary.push(`${backup.deals.length} deal${backup.deals.length === 1 ? '' : 's'} restored; ${removeDeals.length} deal${removeDeals.length === 1 ? '' : 's'} on this device not in the backup will be deleted.`);
@@ -137,7 +177,7 @@ export function planRestore(backup, current, mode = 'merge') {
     if (hs.line) summary.push(hs.line);
     const up = upgradeLine(backup.deals);
     if (up) summary.push(up);
-    return { deals: { put: backup.deals, added: backup.deals.length, updated: 0, kept: 0 }, removeDeals, kv, removeKv: Object.keys(current.kv).filter((k) => !(k in kv)), session: backup.session, local: backup.local, summary, history: hs.history, snapshots: hs.snapshots };
+    return { deals: { put: backup.deals, added: backup.deals.length, updated: 0, kept: 0 }, removeDeals, kv, removeKv: Object.keys(current.kv).filter((k) => !(k in kv) && k !== NEVER), session: backup.session, local: backup.local, summary, history: hs.history, snapshots: hs.snapshots };
   }
   const d = mergeById(current.deals, backup.deals);
   const put = backup.deals.filter((x) => { const h = current.deals.find((c) => c.id === x.id); return !h || newer(x, h); });
@@ -157,7 +197,8 @@ export function planRestore(backup, current, mode = 'merge') {
     const here = current.kv['tools.scenarios'] || {};
     const out = { ...here };
     let n = 0;
-    for (const [tool, list] of Object.entries(backup.kv['tools.scenarios'])) { const m = mergeById(here[tool] || [], list, { stamp: false }); out[tool] = m.list; n += m.added; }
+    for (const [tool, list] of Object.entries(backup.kv['tools.scenarios'])) {
+      if (tool === '__proto__') continue; const m = mergeById(here[tool] || [], list, { stamp: false }); out[tool] = m.list; n += m.added; }
     if (n) { kv['tools.scenarios'] = out; summary.push(`Saved Tools scenarios: ${n} added.`); }
   }
   // the T-12 labels the broker has filed: combined label by label, the newer choice winning
@@ -166,7 +207,7 @@ export function planRestore(backup, current, mode = 'merge') {
     const there = backup.kv['t12.labels'].entries;
     const entries = { ...here };
     let n = 0;
-    for (const [key, e] of Object.entries(there)) if (e && (!here[key] || (e.at || 0) > (here[key].at || 0))) { if (!here[key] || here[key].category !== e.category) n += 1; entries[key] = e; }
+    for (const [key, e] of Object.entries(there)) if (key !== '__proto__' && e && (!here[key] || (e.at || 0) > (here[key].at || 0))) { if (!here[key] || here[key].category !== e.category) n += 1; entries[key] = e; }
     if (n) { kv['t12.labels'] = { entries }; summary.push(`T-12 labels you filed: ${n} added or updated.`); }
   }
   // anything else (settings, layouts) only where the device has none
@@ -177,7 +218,7 @@ export function planRestore(backup, current, mode = 'merge') {
   const session = current.session ? null : backup.session;
   if (backup.session && !current.session) summary.push('The comp set from the backup is restored (this device had none).');
   else if (backup.session) summary.push('The comp set on this device is kept (the backup’s is not loaded over it).');
-  const local = Object.fromEntries(Object.entries(backup.local || {}).filter(([k]) => LOCAL_KEYS.includes(k) && !(current.local || {})[k]));
+  const local = Object.fromEntries(Object.entries(backup.local).filter(([k]) => !(current.local || {})[k]));
   const hs = historyPlan(backup, new Set([...current.deals.map((x) => x.id), ...backup.deals.map((x) => x.id)]));
   if (hs.line) summary.push(hs.line);
   const up = upgradeLine(put);
