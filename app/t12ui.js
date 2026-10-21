@@ -11,7 +11,7 @@ import {
   CATEGORIES, CATEGORY, SIDES, statementTotals, annualized, openLines, fileLine, periodText, rematch, sourceText, periodShort, lineNotes,
   statementNotes, markSeen, suggestionText, sheetChoices, pickSheet, layoutOf, numberFormatOf, importStatement, currencyRefusal,
   t12Qc, t12OpenChecks, heldBy, useHeldBy, applyT12Fix, windowOf, monthLabel, noiWithout, runRate,
-  normalise, setMethod, METHOD_WORDS, METHOD_CHOICES, chipText, methodPreview, heldWords, bridgeRows, residueWords, NOTE_WORDS, normSource, normRefusal,
+  normalise, setMethod, METHOD_WORDS, METHOD_CHOICES, chipText, methodPreview, heldWords, bridgeRows, residueWords, NOTE_WORDS, normSource, normRefusal, partialAsReported,
 } from './t12.js';
 import { qcPanel } from './dataqcui.js';
 import { qcCounts } from './dataqc.js';
@@ -212,7 +212,7 @@ function normCard(d, t, h, held) {
   }
   const resid = residueWords(res);
   if (resid) { const p = el('p', 'hint t12-norm-note', resid); p.id = 't12-norm-note'; sec.appendChild(p); }
-  const mixed = res.ok && t.months.length < 12 ? res.lines.filter((x) => x.method === 'reported' && x.side && x.reported).length : 0;
+  const mixed = partialAsReported(t, res).length;
   if (mixed) sec.appendChild(el('p', 'hint t12-norm-mixed', `${mixed} line${mixed === 1 ? ' is' : 's are'} still as reported over ${t.months.length} month${t.months.length === 1 ? '' : 's'}, not a year’s, so the normalised NOI mixes the two.`));
 
   // a chip on each line that is in NOI

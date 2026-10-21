@@ -1439,6 +1439,17 @@ const KIND_WORDS = { oneoff: 'Not recurring, taken out of', annualise: 'Annualis
 const SIDE_WORDS = { income: 'income', expense: 'expense' };
 
 /**
+ * The NOI lines still counted as reported on a statement of fewer than 12 months: their figures are those months, not
+ * a year's (underwriting.md 3.2: "never presented as a year"), so the normalised NOI then mixes the two. [] for 12 months.
+ * @param {any} t
+ * @param {any} res  normalise(t)
+ */
+export function partialAsReported(t, res) {
+  if (!res || !res.ok || !t || !Array.isArray(t.months) || t.months.length >= 12) return [];
+  return res.lines.filter((x) => x.method === 'reported' && (x.side === 'income' || x.side === 'expense') && x.reported);
+}
+
+/**
  * The bridge as a list, in order: NOI as reported (N months), one row per step of `normalise().steps` (as they come),
  * then the normalised NOI (a year). [{ key, label, sub, amount }]; amount is dollars (a step's is signed), or null for
  * the rows a hold takes away (never a number then). Null when there is no statement to bridge.
@@ -1456,7 +1467,8 @@ export function bridgeRows(t, res) {
       sub: s.lines.map((id) => name.get(id) || id).join(', '), amount: s.noi,
     });
   }
-  rows.push({ key: 'normalised', label: 'Normalised NOI (a year)', sub: '', amount: res.normalised ? res.normalised.noi : null });
+  const mixed = partialAsReported(t, res).length;
+  rows.push({ key: 'normalised', label: mixed ? `Normalised NOI (not a year: ${mixed} line${mixed === 1 ? '' : 's'} still ${n} month${n === 1 ? '' : 's'} as reported)` : 'Normalised NOI (a year)', sub: '', amount: res.normalised ? res.normalised.noi : null });
   return rows;
 }
 
@@ -1498,6 +1510,9 @@ export function normRefusal(t, res) {
   const hold = useHeldBy(t);
   if (hold.length) return `Held: ${hold.map((c) => c.short || c.text).join('; ')}. Settle ${hold.length === 1 ? 'that check' : `those ${hold.length} checks`} first.`;
   if (!res.steps.length) return 'Every line counts as reported, so there is nothing normalised yet. Choose how a line counts first.';
+  // a partial statement's as-reported lines are those months, not a year's: they never reach the deal's annual figures
+  const mixed = partialAsReported(t, res);
+  if (mixed.length) return `${mixed.length} line${mixed.length === 1 ? ' is' : 's are'} still as reported over ${t.months.length} month${t.months.length === 1 ? '' : 's'}, not a year’s (${mixed.slice(0, 3).map((x) => x.label || x.id).join(', ')}${mixed.length > 3 ? ', …' : ''}). Choose Annualise, Typical month × 12 or Exclude for ${mixed.length === 1 ? 'it' : 'each'} before using the normalised figures as the deal’s.`;
   return '';
 }
 

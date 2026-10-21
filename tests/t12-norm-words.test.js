@@ -8,7 +8,7 @@ import { dupRows } from './fixtures/t12-period-fixtures.js';
 import { quarterHeadRows } from './fixtures/t12-values-fixtures.js';
 import {
   importStatement, applyT12Fix, normalise, setMethod, setWindow, METHOD_WORDS, METHOD_CHOICES, chipText, methodPreview, heldWords, bridgeRows,
-  residueWords, normSource, normRefusal,
+  residueWords, normSource, normRefusal, partialAsReported,
 } from '../app/t12.js';
 
 const imp = (rows) => importStatement(rows, { file: 'invented.csv', sheet: 'CSV' });
@@ -126,4 +126,25 @@ test('the rounding Note names the cent', () => {
   const t = bridgeU();
   assert.match(residueWords(normalise(t)), /income −\$0\.01/);
   assert.equal(residueWords(normalise(U())), '');
+});
+
+test('a partial statement: a line still as reported is its months, not a year, so Use is refused and the total is not called a year', () => {
+  // Jan-Jun 2026 (6 months, all active). Rent 10,000 a month, 60,000; taxes 1,000 a month, 6,000.
+  const rows = [['Description', 'Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026', 'Jun 2026'], ['INCOME'], ['Base Rent', 10000, 10000, 10000, 10000, 10000, 10000], ['EXPENSES'], ['Real Estate Taxes', 1000, 1000, 1000, 1000, 1000, 1000]].map((cells, i) => ({ r: i + 1, cells }));
+  const t = imp(rows);
+  setMethod(t, line(t, 'Base Rent').id, 'annualise');
+  const r = normalise(t);
+  // rent annualised: 60,000 x 12 / 6 = 120,000; taxes still 6 months as reported: 6,000. The 114,000 mixes a year and half a year.
+  assert.equal(r.normalised.noi, 114000);
+  assert.deepEqual(partialAsReported(t, r).map((x) => x.id), [line(t, 'Real Estate Taxes').id]);
+  assert.match(normRefusal(t, r), /^1 line is still as reported over 6 months, not a year’s \(Real Estate Taxes\)\. Choose Annualise, Typical month × 12 or Exclude for it before using the normalised figures as the deal’s\.$/);
+  assert.equal(bridgeRows(t, r).at(-1).label, 'Normalised NOI (not a year: 1 line still 6 months as reported)');
+  // once every NOI line has an annual method, Use is allowed and the total is a year: 120,000 - 12,000 = 108,000
+  setMethod(t, line(t, 'Real Estate Taxes').id, 'annualise');
+  const y = normalise(t);
+  assert.equal(y.normalised.noi, 108000);
+  assert.equal(normRefusal(t, y), '');
+  assert.equal(bridgeRows(t, y).at(-1).label, 'Normalised NOI (a year)');
+  // a full 12-month statement's as-reported lines are a year already
+  assert.deepEqual(partialAsReported(U(), normalise(U())), []);
 });
