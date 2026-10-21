@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.7.28: Process: a security checklist run each phase, and the owner's decisions on the tools evaluation (on the development branch; not merged or deployed)
+
+Docs only; no app code changed.
+
+- **`docs/security-checklist.md`:** 34 checks in our own words (uploaded files, backup restore, the AI server, the service worker, CI, privacy), with the rule that a second reviewer must reproduce a finding before it is rated and that defence-in-depth gaps are not vulnerabilities. It is run at the end of each phase and before accounts or hosting.
+- **Owner decisions recorded** in `docs/proposals/dev-tools-and-reuse.md` (section 10), with the first measured results: `CLAUDE.md` is already under the 200-line target (137 lines), and a sandbox can't run in the cloud container (bubblewrap and socat are missing), so it is not enabled.
+
 ## 4.7.27: Process: the owner's support code is checked on every rent roll, T-12 and underwriting PR (on the development branch; not merged or deployed)
 
 A rule change only (`CLAUDE.md`, `docs/working-rules.md`); no app code changed.
