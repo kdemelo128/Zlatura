@@ -1,0 +1,918 @@
+{
+ "format": "zlatura-backup",
+ "version": 2,
+ "app": "4.7.35",
+ "createdAt": "2026-10-21T21:06:21.895Z",
+ "counts": {
+  "deals": 3,
+  "templates": 0,
+  "tasks": 0,
+  "contacts": 0
+ },
+ "deals": [
+  {
+   "id": "d4735values",
+   "name": "Invented Values (fictional)",
+   "createdAt": 1792203277340,
+   "updatedAt": 1792203290000,
+   "source": null,
+   "readAt": null,
+   "pages": 0,
+   "figures": {
+    "address": "Invented Values (fictional)",
+    "gross": 240000,
+    "opex": 97300.01,
+    "taxes": 0,
+    "noi": 142699.99
+   },
+   "sources": {},
+   "rentRoll": [],
+   "unpriced": false,
+   "loan": {
+    "ltv": 65,
+    "rate": 6.75,
+    "amort": 30,
+    "io": false,
+    "closing": 2,
+    "minDscr": 1.25,
+    "minDy": 8
+   },
+   "qDone": {},
+   "myQuestions": [],
+   "live": {},
+   "scenarios": [],
+   "targets": {
+    "cap": null,
+    "irr": 15,
+    "value": null
+   },
+   "visit": {
+    "at": null,
+    "items": {},
+    "notes": "",
+    "photos": [],
+    "audio": []
+   },
+   "moneyVersion": 1,
+   "schema": 4,
+   "t12": {
+    "v": 2,
+    "file": "invented-values.csv",
+    "sheet": "CSV",
+    "source": {
+     "file": "invented-values.csv",
+     "sheet": "CSV",
+     "numberFormat": "us"
+    },
+    "period": {
+     "basis": "T-12",
+     "dated": true,
+     "count": 12,
+     "columns": [
+      {
+       "c": 1,
+       "kind": "month",
+       "head": "Jan 2026"
+      },
+      {
+       "c": 2,
+       "kind": "month",
+       "head": "Feb 2026"
+      },
+      {
+       "c": 3,
+       "kind": "month",
+       "head": "Mar 2026"
+      },
+      {
+       "c": 4,
+       "kind": "month",
+       "head": "Apr 2026"
+      },
+      {
+       "c": 5,
+       "kind": "month",
+       "head": "May 2026"
+      },
+      {
+       "c": 6,
+       "kind": "month",
+       "head": "Jun 2026"
+      },
+      {
+       "c": 7,
+       "kind": "month",
+       "head": "Jul 2026"
+      },
+      {
+       "c": 8,
+       "kind": "month",
+       "head": "Aug 2026"
+      },
+      {
+       "c": 9,
+       "kind": "month",
+       "head": "Sep 2026"
+      },
+      {
+       "c": 10,
+       "kind": "month",
+       "head": "Oct 2026"
+      },
+      {
+       "c": 11,
+       "kind": "month",
+       "head": "Nov 2026"
+      },
+      {
+       "c": 12,
+       "kind": "month",
+       "head": "Dec 2026"
+      },
+      {
+       "c": 13,
+       "kind": "total",
+       "head": "Total"
+      }
+     ],
+     "gaps": [],
+     "duplicates": [],
+     "emptyCols": [],
+     "printed": null
+    },
+    "importedAt": 1792203278924,
+    "months": [
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05",
+     "2026-06",
+     "2026-07",
+     "2026-08",
+     "2026-09",
+     "2026-10",
+     "2026-11",
+     "2026-12"
+    ],
+    "lines": [
+     {
+      "id": "L3",
+      "r": 3,
+      "account": "",
+      "label": "Base Rent",
+      "key": "base rent",
+      "section": "income",
+      "months": [
+       20000,
+       20000,
+       20000,
+       20000,
+       20000,
+       20000,
+       20000,
+       20000,
+       20000,
+       20000,
+       20000,
+       20000
+      ],
+      "total": 240000,
+      "fileTotal": 240000,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 3,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "rent",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "rent"
+      ]
+     },
+     {
+      "id": "L5",
+      "r": 5,
+      "account": "",
+      "label": "Repairs",
+      "key": "repairs",
+      "section": "expense",
+      "months": [
+       400,
+       400,
+       400,
+       400,
+       400,
+       400,
+       400,
+       400,
+       3000,
+       400,
+       400,
+       400
+      ],
+      "total": 7400,
+      "fileTotal": 7400,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 5,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "repairs",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "repairs"
+      ]
+     },
+     {
+      "id": "L6",
+      "r": 6,
+      "account": "",
+      "label": "Landscaping",
+      "key": "landscaping",
+      "section": "expense",
+      "months": [
+       500,
+       500,
+       500,
+       500,
+       500,
+       1500,
+       500,
+       500,
+       500,
+       500,
+       500,
+       500
+      ],
+      "total": 7000,
+      "fileTotal": 7000,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 6,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "contract",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "contract"
+      ]
+     },
+     {
+      "id": "L7",
+      "r": 7,
+      "account": "",
+      "label": "Pest control",
+      "key": "pest control",
+      "section": "expense",
+      "months": [
+       100,
+       100,
+       900,
+       100,
+       100,
+       100,
+       100,
+       100,
+       100,
+       100,
+       100,
+       100
+      ],
+      "total": 2000,
+      "fileTotal": 2000,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 7,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "repairs",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "repairs"
+      ]
+     },
+     {
+      "id": "L8",
+      "r": 8,
+      "account": "",
+      "label": "Utilities",
+      "key": "utilities",
+      "section": "expense",
+      "months": [
+       2000,
+       2000,
+       2000,
+       2000,
+       2000,
+       2000,
+       -600,
+       2000,
+       2000,
+       2000,
+       2000,
+       2000
+      ],
+      "total": 21400,
+      "fileTotal": 21400,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 8,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "utilities",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "utilities"
+      ]
+     },
+     {
+      "id": "L9",
+      "r": 9,
+      "account": "",
+      "label": "Cleaning",
+      "key": "cleaning",
+      "section": "expense",
+      "months": [
+       300,
+       -500,
+       300,
+       300,
+       300,
+       300,
+       300,
+       300,
+       300,
+       300,
+       300,
+       300
+      ],
+      "total": 2800,
+      "fileTotal": 2800,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 9,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "contract",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "contract"
+      ]
+     },
+     {
+      "id": "L10",
+      "r": 10,
+      "account": "",
+      "label": "Security",
+      "key": "security",
+      "section": "expense",
+      "months": [
+       300,
+       300,
+       300,
+       -499.99,
+       300,
+       300,
+       300,
+       300,
+       300,
+       300,
+       300,
+       300
+      ],
+      "total": 2800.01,
+      "fileTotal": 2800.01,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 10,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "contract",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "contract"
+      ]
+     },
+     {
+      "id": "L11",
+      "r": 11,
+      "account": "",
+      "label": "Insurance refund",
+      "key": "insurance refund",
+      "section": "expense",
+      "months": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       -2500,
+       0
+      ],
+      "total": -2500,
+      "fileTotal": -2500,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 11,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "insurance",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "insurance"
+      ]
+     },
+     {
+      "id": "L12",
+      "r": 12,
+      "account": "",
+      "label": "Building repairs",
+      "key": "building repairs",
+      "section": "expense",
+      "months": [
+       500,
+       500,
+       500,
+       500,
+       48000,
+       500,
+       500,
+       500,
+       500,
+       500,
+       500,
+       500
+      ],
+      "total": 53500,
+      "fileTotal": 53500,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 12,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "repairs",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "repairs"
+      ]
+     },
+     {
+      "id": "L13",
+      "r": 13,
+      "account": "",
+      "label": "Sign repairs",
+      "key": "sign repairs",
+      "section": "expense",
+      "months": [
+       0,
+       0,
+       1000,
+       0,
+       0,
+       0,
+       0,
+       1000,
+       0,
+       0,
+       0,
+       0
+      ],
+      "total": 2000,
+      "fileTotal": 2000,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 13,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "repairs",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "repairs"
+      ]
+     },
+     {
+      "id": "L14",
+      "r": 14,
+      "account": "",
+      "label": "Permits",
+      "key": "permits",
+      "section": "expense",
+      "months": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       900,
+       0,
+       0
+      ],
+      "total": 900,
+      "fileTotal": 900,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 14,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "admin",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "admin"
+      ]
+     }
+    ],
+    "stated": {},
+    "subtotals": [],
+    "signs": {
+     "expensesNegative": false,
+     "reductionsPositive": false
+    },
+    "headRow": 1,
+    "seen": {}
+   }
+  },
+  {
+   "id": "d4735qends",
+   "name": "Invented Quarter Ends (fictional)",
+   "createdAt": 1792203277340,
+   "updatedAt": 1792203290000,
+   "source": null,
+   "readAt": null,
+   "pages": 0,
+   "figures": {
+    "address": "Invented Quarter Ends (fictional)",
+    "gross": 120000,
+    "opex": 6000,
+    "taxes": 0,
+    "noi": 114000
+   },
+   "sources": {},
+   "rentRoll": [],
+   "unpriced": false,
+   "loan": {
+    "ltv": 65,
+    "rate": 6.75,
+    "amort": 30,
+    "io": false,
+    "closing": 2,
+    "minDscr": 1.25,
+    "minDy": 8
+   },
+   "qDone": {},
+   "myQuestions": [],
+   "live": {},
+   "scenarios": [],
+   "targets": {
+    "cap": null,
+    "irr": 15,
+    "value": null
+   },
+   "visit": {
+    "at": null,
+    "items": {},
+    "notes": "",
+    "photos": [],
+    "audio": []
+   },
+   "moneyVersion": 1,
+   "schema": 4,
+   "t12": {
+    "v": 2,
+    "file": "invented-quarter-ends.csv",
+    "sheet": "CSV",
+    "source": {
+     "file": "invented-quarter-ends.csv",
+     "sheet": "CSV",
+     "numberFormat": "us"
+    },
+    "period": {
+     "basis": "other",
+     "dated": true,
+     "count": 4,
+     "columns": [
+      {
+       "c": 1,
+       "kind": "month",
+       "head": "3/31/2025"
+      },
+      {
+       "c": 2,
+       "kind": "month",
+       "head": "6/30/2025"
+      },
+      {
+       "c": 3,
+       "kind": "month",
+       "head": "9/30/2025"
+      },
+      {
+       "c": 4,
+       "kind": "month",
+       "head": "12/31/2025"
+      },
+      {
+       "c": 5,
+       "kind": "total",
+       "head": "Total"
+      }
+     ],
+     "gaps": [
+      "2025-04",
+      "2025-05",
+      "2025-07",
+      "2025-08",
+      "2025-10",
+      "2025-11"
+     ],
+     "duplicates": [],
+     "emptyCols": [],
+     "printed": null
+    },
+    "importedAt": 1792203278924,
+    "months": [
+     "2025-03",
+     "2025-06",
+     "2025-09",
+     "2025-12"
+    ],
+    "lines": [
+     {
+      "id": "L3",
+      "r": 3,
+      "account": "",
+      "label": "Base Rent",
+      "key": "base rent",
+      "section": "income",
+      "months": [
+       30000,
+       30000,
+       30000,
+       30000
+      ],
+      "total": 120000,
+      "fileTotal": 120000,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 3,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "rent",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "rent"
+      ]
+     },
+     {
+      "id": "L5",
+      "r": 5,
+      "account": "",
+      "label": "Repairs and Maintenance",
+      "key": "repairs and maintenance",
+      "section": "expense",
+      "months": [
+       1500,
+       1500,
+       1500,
+       1500
+      ],
+      "total": 6000,
+      "fileTotal": 6000,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 5,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "repairs",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "repairs"
+      ]
+     }
+    ],
+    "stated": {},
+    "subtotals": [],
+    "signs": {
+     "expensesNegative": false,
+     "reductionsPositive": false
+    },
+    "headRow": 1,
+    "seen": {}
+   }
+  },
+  {
+   "id": "d4735plain",
+   "name": "Invented Plain (fictional)",
+   "createdAt": 1792203277340,
+   "updatedAt": 1792203290000,
+   "source": null,
+   "readAt": null,
+   "pages": 0,
+   "figures": {
+    "address": "Invented Plain (fictional)",
+    "gross": 6000,
+    "opex": 1200,
+    "taxes": 1200,
+    "noi": 4800
+   },
+   "sources": {},
+   "rentRoll": [],
+   "unpriced": false,
+   "loan": {
+    "ltv": 65,
+    "rate": 6.75,
+    "amort": 30,
+    "io": false,
+    "closing": 2,
+    "minDscr": 1.25,
+    "minDy": 8
+   },
+   "qDone": {},
+   "myQuestions": [],
+   "live": {},
+   "scenarios": [],
+   "targets": {
+    "cap": null,
+    "irr": 15,
+    "value": null
+   },
+   "visit": {
+    "at": null,
+    "items": {},
+    "notes": "",
+    "photos": [],
+    "audio": []
+   },
+   "moneyVersion": 1,
+   "schema": 4,
+   "t12": {
+    "file": "invented-plain.csv",
+    "sheet": "CSV",
+    "importedAt": 1792203278924,
+    "months": [
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05",
+     "2026-06"
+    ],
+    "lines": [
+     {
+      "id": "L3",
+      "r": 3,
+      "account": "",
+      "label": "Base Rent",
+      "key": "base rent",
+      "section": "income",
+      "months": [
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000
+      ],
+      "total": 6000,
+      "fileTotal": 6000,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 3,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "rent",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "rent"
+      ]
+     },
+     {
+      "id": "L5",
+      "r": 5,
+      "account": "",
+      "label": "Real Estate Taxes",
+      "key": "real estate taxes",
+      "section": "expense",
+      "months": [
+       200,
+       200,
+       200,
+       200,
+       200,
+       200
+      ],
+      "total": 1200,
+      "fileTotal": 1200,
+      "src": {
+       "type": "cell",
+       "sheet": "CSV",
+       "row": 5,
+       "col": 0
+      },
+      "conf": {
+       "read": "high"
+      },
+      "category": "taxes",
+      "how": "rule",
+      "why": "its wording",
+      "candidates": [
+       "taxes"
+      ]
+     }
+    ],
+    "stated": {},
+    "subtotals": [],
+    "signs": {
+     "expensesNegative": false,
+     "reductionsPositive": false
+    },
+    "headRow": 1,
+    "seen": {
+     "months": true
+    }
+   }
+  }
+ ],
+ "kv": {},
+ "session": null,
+ "local": {}
+}
