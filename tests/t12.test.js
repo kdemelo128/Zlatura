@@ -6,18 +6,19 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
 import { LAYOUTS, layoutFile } from './t12-layouts.js';
+import { statementOf } from './t12-formats.js';
 import { gridsOf, csvRows } from '../app/sheetread.js';
 import {
-  CATEGORIES, CATEGORY, normalizeLabel, matchLabel, amountOf, monthOf, bestSheet, statementTotals, statementChecks,
+  CATEGORIES, CATEGORY, normalizeLabel, matchLabel, amountOf, monthOf, statementTotals, statementChecks,
   openLines, rematch, t12ForAnalysis,
 } from '../app/t12.js';
 
 async function read(L, opts = {}) {
   const f = await layoutFile(L, ExcelJS);
-  if (L.kind === 'csv') return bestSheet([{ sheet: 'CSV', rows: csvRows(f).map((cells, i) => ({ r: i + 1, cells })).filter((x) => x.cells.some((v) => String(v).trim())) }], { file: L.file, ...opts });
+  if (L.kind === 'csv') return statementOf([{ sheet: 'CSV', rows: csvRows(f).map((cells, i) => ({ r: i + 1, cells })).filter((x) => x.cells.some((v) => String(v).trim())) }], { file: L.file, ...opts });
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(f);
-  return bestSheet(gridsOf(wb), { file: L.file, ...opts });
+  return statementOf(gridsOf(wb), { file: L.file, ...opts });
 }
 
 test('amounts as statements write them', () => {
@@ -146,7 +147,7 @@ test('your choice for a label, remembered, decides it on the next file', async (
 });
 
 test('a file that isn’t a statement says what was missing', () => {
-  assert.throws(() => bestSheet([{ sheet: 'Sheet1', rows: [{ r: 1, cells: ['Name', 'Phone'] }, { r: 2, cells: ['A', '555'] }] }]), /No months or total column were found on “Sheet1”/);
+  assert.throws(() => statementOf([{ sheet: 'Sheet1', rows: [{ r: 1, cells: ['Name', 'Phone'] }, { r: 2, cells: ['A', '555'] }] }]), /No months or total column were found on “Sheet1”/);
 });
 
 test('what the analysis reads of a T-12', async () => {

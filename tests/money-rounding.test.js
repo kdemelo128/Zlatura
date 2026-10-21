@@ -12,11 +12,12 @@ import ExcelJS from 'exceljs';
 import * as fflate from 'fflate';
 import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
 import { toCents } from '../app/engine/money.js';
-import { importStatement, statementTotals, statementChecks, annualized, bestSheet } from '../app/t12.js';
+import { importStatement, statementTotals, statementChecks, annualized } from '../app/t12.js';
 import { readOm } from '../app/om.js';
 import { inspectTemplate, fillTemplate } from '../app/template.js';
 import { gridsOf, csvRows } from '../app/sheetread.js';
 import { LAYOUTS, layoutFile } from './t12-layouts.js';
+import { statementOf } from './t12-formats.js';
 import { CASES } from './om-statement-fixtures.js';
 
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -89,8 +90,8 @@ test('every money value a T-12 or an OM statement keeps is already whole cents',
   for (const L of LAYOUTS) {
     const f = await layoutFile(L, ExcelJS);
     let t;
-    if (L.kind === 'csv') t = bestSheet([{ sheet: 'CSV', rows: csvRows(f).map((cells, i) => ({ r: i + 1, cells })).filter((x) => x.cells.some((v) => String(v).trim())) }], { file: L.file });
-    else { const wb = new ExcelJS.Workbook(); await wb.xlsx.load(f); t = bestSheet(gridsOf(wb), { file: L.file }); }
+    if (L.kind === 'csv') t = statementOf([{ sheet: 'CSV', rows: csvRows(f).map((cells, i) => ({ r: i + 1, cells })).filter((x) => x.cells.some((v) => String(v).trim())) }], { file: L.file });
+    else { const wb = new ExcelJS.Workbook(); await wb.xlsx.load(f); t = statementOf(gridsOf(wb), { file: L.file }); }
     sweep(t, L.name);
   }
   // and a statement written to fractions of a cent, positive and negative

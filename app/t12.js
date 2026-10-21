@@ -538,17 +538,45 @@ export function importStatement(rows, { file = '', sheet = '', corrections = {},
   };
 }
 
-/** Of several sheets, the one that reads as a statement with the most lines: { sheet, statement } or throws the first sheet's reason. */
-export function bestSheet(grids, opts = {}) {
-  let best = null; let firstErr = null;
-  for (const g of grids) {
+const PROJECTION = /\b(budget|forecast|pro ?forma|projected|projection)\b/i;
+
+/**
+ * Every sheet of a file tried as a statement: [{ sheet, i (its place in the file), hidden, projection, lines,
+ * period, error }]. `projection` is a sheet whose name, or first five rows, say budget, forecast, pro forma
+ * or projection. A sheet that doesn't read as a statement has `error` (its reason) and no lines. Nothing is
+ * chosen here, and nothing is ordered by how many lines a sheet has: an actual statement is never decided
+ * by size.
+ * @param {{ sheet: string, hidden?: boolean, rows: any[] }[]} grids
+ * @param {{ file?: string, corrections?: Record<string, string> }} [opts]
+ */
+export function sheetChoices(grids, opts = {}) {
+  return grids.map((g, i) => {
+    const projection = PROJECTION.test(g.sheet) || PROJECTION.test(g.rows.slice(0, 5).map((r) => r.cells.filter((v) => typeof v === 'string').join(' ')).join(' '));
+    const base = { sheet: g.sheet, i, hidden: !!g.hidden, projection };
     try {
-      const s = importStatement(g.rows, { ...opts, sheet: g.sheet });
-      if (!best || s.lines.length > best.lines.length) best = s;
-    } catch (e) { if (!firstErr) firstErr = e; }
+      const layout = layoutOf(g.rows, { sheet: g.sheet });
+      const st = importStatement(g.rows, { ...opts, sheet: g.sheet, numberFormat: numberFormatOf(g.rows, layout).format || 'us' });
+      return { ...base, lines: st.lines.length, period: st.period, error: null };
+    } catch (e) { return { ...base, lines: 0, period: null, error: e instanceof Error ? e.message : String(e) }; }
+  });
+}
+
+/**
+ * What to do with `sheetChoices`: { choice } when exactly one readable, actual
+ * (not budget or projection) sheet is not hidden, and it is the only one; { ask: [choices] } when
+ * there are two or more, or the only one is hidden (the broker chooses; projections are listed, to be
+ * shown disabled); { refuse } when no actual statement is there, naming the projections or giving
+ * the first sheet's reason.
+ */
+export function pickSheet(choices) {
+  const readable = choices.filter((c) => !c.error);
+  const actual = readable.filter((c) => !c.projection);
+  if (!actual.length) {
+    if (readable.length) return { refuse: `The only statements in this file look like projections, not actuals (${readable.map((c) => `“${c.sheet}”`).join(', ')}). Import a sheet of actual results.` };
+    return { refuse: (choices[0] && choices[0].error) || 'No statement was found in that file.' };
   }
-  if (!best) throw firstErr || new Error('No statement was found in that file.');
-  return best;
+  if (actual.length === 1 && !actual[0].hidden) return { choice: actual[0] };
+  return { ask: readable };
 }
 
 /** Re-apply the rules and the broker's corrections to the lines not yet decided by hand (after a correction is remembered). */
@@ -590,4 +618,41 @@ export function periodText(t) {
   const n = t.months.length;
   if (!n) return 'annual total only';
   return `${monthLabel(t.months[0])} to ${monthLabel(t.months[n - 1])} (${n} month${n === 1 ? '' : 's'})`;
+}
+
+const NUMBERS = { eu: '1.234,56', space: '1 234,56', ch: '1\'234.56' };
+/** Where a statement came from, in words: the file, how it was read and the sheet. A statement read before 4.7.28 has only its file and sheet. */
+export function sourceText(t) {
+  const s = t.source;
+  if (!s || !s.type) return `${t.file || 'Statement'}${t.sheet && t.sheet !== 'CSV' ? ` · ${t.sheet}` : ''}`;
+  const parts = [t.file || 'Statement'];
+  if (s.type === 'paste') parts.push('pasted');
+  else if (s.type === 'csv') parts.push(s.delimiter === ';' ? 'CSV (semicolons)' : 'CSV');
+  else if (s.type === 'tsv') parts.push('tab-separated text');
+  else if (s.type === 'xlsm') parts.push('Excel with macros (not run)');
+  if (NUMBERS[s.numberFormat]) parts.push(`numbers read as ${NUMBERS[s.numberFormat]}`);
+  if (s.sheets && s.sheets.length > 1) {
+    const at = s.sheets.findIndex((x) => x.name === t.sheet);
+    parts.push(`sheet “${t.sheet}”${at >= 0 ? ` (${at + 1} of ${s.sheets.length})` : ''}`);
+  } else if (t.sheet && !['csv', 'tsv', 'paste'].includes(s.type)) parts.push(t.sheet);
+  return parts.join(' · ');
+}
+
+/** A period in a few words for the sheet chooser: "T-6 · Jan 2026 to Jun 2026", "annual total only". */
+export function periodShort(p) {
+  if (!p) return '';
+  const cols = p.columns.filter((c) => c.kind !== 'total');
+  if (!cols.length) return p.basis === 'annual' ? 'annual total only' : p.basis;
+  return `${p.basis} · ${cols[0].head} to ${cols[cols.length - 1].head}`;
+}
+
+/** What to say beside a line about how it was read: blank months (counted as $0), cells of words, pasted, medium confidence. */
+export function lineNotes(t, l) {
+  const out = [];
+  const name = (i) => (/^M\d+$/.test(t.months[i] || '') ? `month ${+t.months[i].slice(1)}` : monthLabel(t.months[i]).slice(0, 3));
+  if (l.blank && l.blank.length) out.push(`${l.blank.length} month${l.blank.length === 1 ? '' : 's'} blank (${l.blank.map(name).join(', ')}), counted as $0`);
+  if (l.unread && l.unread.length) out.push(`${l.unread.length} cell${l.unread.length === 1 ? '' : 's'} unread (${l.unread.map((u) => `${u.text} in ${name(u.i)}`).join(', ')}), counted as $0`);
+  if (l.src && l.src.type === 'pasteLine') out.push('pasted');
+  else if (l.conf && l.conf.read === 'medium') out.push('medium confidence');
+  return out;
 }

@@ -4,10 +4,12 @@
  * out in t12.js; dealui.js keeps the deal, its history and its saves, and
  * hands this module what it needs (`h`). */
 
-import { el, toast, actionSheet, money0, niceDate, getXlsx } from './kit.js';
-import { readGrids, unreadable } from './sheetread.js';
+import { el, toast, actionSheet, money0, money2, niceDate, getXlsx, getFflate } from './kit.js';
+import { readGrids } from './sheetread.js';
+import { checkUpload } from './filekind.js';
 import {
-  CATEGORIES, CATEGORY, SIDES, bestSheet, statementTotals, annualized, openLines, openChecks, fileLine, periodText, rematch,
+  CATEGORIES, CATEGORY, SIDES, statementTotals, annualized, openLines, openChecks, fileLine, periodText, rematch, sourceText, periodShort, lineNotes,
+  sheetChoices, pickSheet, layoutOf, numberFormatOf, importStatement, currencyRefusal,
 } from './t12.js';
 import { corrections, rememberLabel } from './t12labels.js';
 import { NOI_GAP } from './engine/conventions.js';
@@ -34,7 +36,7 @@ export function renderT12Card(box, h) {
   const T = statementTotals(t);
   const lines = openLines(t);
   const checks = openChecks(t);
-  box.appendChild(el('p', 'sub', `${t.file || 'Statement'}${t.sheet && t.sheet !== 'CSV' ? ` · ${t.sheet}` : ''} · ${periodText(t)} · imported ${niceDate(t.importedAt)}`));
+  box.appendChild(el('p', 'sub', `${sourceText(t)} · ${periodText(t)} · imported ${niceDate(t.importedAt)}`));
   const n = t.months.length;
   if (n && n < 12) {
     const ann = t.applied && t.applied.annualized;
@@ -155,7 +157,7 @@ function importButton(h, label, cls) {
   b.addEventListener('click', () => {
     const inp = el('input');
     inp.type = 'file';
-    inp.accept = '.xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    inp.accept = '.xlsx,.xlsm,.csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12';
     inp.id = 't12-file';
     inp.hidden = true;
     inp.addEventListener('change', () => { const f = inp.files[0]; inp.remove(); if (f) importFile(h, f); });
@@ -168,15 +170,70 @@ function importButton(h, label, cls) {
 /** Read a file as a T-12 and keep it on the deal: one history entry, a snapshot first when one is replaced. */
 export async function importFile(h, file) {
   const d = h.deal;
-  const no = unreadable(file, 'T-12');
-  if (no) { toast(no, null, 8000); return; }
   let t;
   let note = null;
   try {
-    const grids = await readGrids(file, getXlsx, { maxRows: 1500 });
+    // what the file is comes from its bytes and size, never its name; nothing is read whole before this passes
+    const up = await checkUpload(file, { getFflate });
+    if (up.refuse) { toast(up.refuse, null, 9000); return; }
+    const grids = await readGrids(file, getXlsx, { maxRows: 1500, includeHidden: true, upload: up, getFflate });
     note = grids[0] && grids[0].note;
-    t = bestSheet(grids, { file: file.name, corrections: await corrections() });
+    const cor = await corrections();
+    const choices = sheetChoices(grids, { file: file.name, corrections: cor });
+    const p = pickSheet(choices);
+    if (p.refuse) throw new Error(p.refuse);
+    const pick = p.choice || await chooseSheet(file.name, p.ask);
+    if (!pick) return; // cancelled: nothing is imported
+    const g = grids[pick.i];
+    const type = up.kind === 'text' ? (g.delimiter === '\t' ? 'tsv' : 'csv') : up.macros ? 'xlsm' : 'xlsx';
+    t = await statementFrom(g, file.name, cor, {
+      type, size: file.size, sheets: choices.map((c) => ({ name: c.sheet, hidden: c.hidden, projection: c.projection, lines: c.lines })),
+      ...(g.delimiter ? { delimiter: g.delimiter } : {}), ...(g.encoding ? { encoding: g.encoding } : {}), ...(up.macros ? { macros: true } : {}),
+    });
+    if (!t) return; // the number question was cancelled
   } catch (e) { toast(e.message || String(e), null, 9000); return; }
+  keepStatement(h, d, t, note);
+}
+
+/** Which sheet of a workbook with several statements; null when cancelled. Projections are listed, not choosable. */
+async function chooseSheet(file, list) {
+  const v = await actionSheet(`Which sheet of ${file} is the T-12?`, list.map((c) => ({
+    label: c.sheet,
+    sub: c.projection ? 'projection, not actuals' : `${periodShort(c.period)} · ${c.lines} line${c.lines === 1 ? '' : 's'}${c.hidden ? ' · hidden sheet' : ''}`,
+    value: c.i, disabled: c.projection,
+  })));
+  return v === null ? null : list.find((c) => c.i === v) || null;
+}
+
+/**
+ * A grid of cells read into the statement the deal keeps: its currency checked (a sign other than $ is
+ * refused), its number format settled (asked when the cells can't say), then read. null when the
+ * question is cancelled; throws with a reason when it can't be read.
+ */
+async function statementFrom(grid, file, cor, source) {
+  const layout = layoutOf(grid.rows, { sheet: grid.sheet });
+  const nf = numberFormatOf(grid.rows, layout, { delimiter: source.delimiter });
+  if (nf.foreign) throw new Error(currencyRefusal(nf.foreign));
+  let format = nf.format;
+  if (nf.ask) {
+    format = await askFormat(file, nf);
+    if (!format) return null;
+  }
+  return importStatement(grid.rows, { file, sheet: grid.sheet, corrections: cor, numberFormat: format, source: { ...source, ...(nf.ask ? { numberAsked: true } : {}) } });
+}
+
+/** "How are numbers written in <file>?": the doubtful figures read both ways, one tap each; null when cancelled. */
+function askFormat(file, nf) {
+  const show = (n) => (Number.isFinite(n) ? money2(n) : 'not a number');
+  const sub = (which) => nf.samples.map((s) => `${s.text} → ${show(s[which])}`).join(' · ');
+  return actionSheet(`How are numbers written in ${file}?${nf.ask === 'mixed' ? ' It writes them two ways, so some figures will not read.' : ''}`, [
+    { label: 'Comma for thousands, point for cents', sub: sub('us'), value: 'us' },
+    { label: 'Point for thousands, comma for cents', sub: sub('eu'), value: 'eu' },
+  ]);
+}
+
+/** Put a read statement on the deal: one history entry, a snapshot first when one is replaced; then the toast. */
+function keepStatement(h, d, t, note) {
   if (h.deal !== d) return; // another deal was opened meanwhile
   const snap = d.t12 ? h.snapshot('Before replacing the T-12') : null;
   d.t12 = t;
@@ -208,7 +265,7 @@ function openLinesSheet(h) {
   for (const l of d.t12.lines) {
     const r = el('div', `t12-line${l.category ? '' : ' open'}`);
     const lab = el('div', 't12-line-label');
-    lab.append(el('b', null, l.label), el('span', 'sub', ` ${usd(l.total)}${l.account ? ` · ${l.account}` : ''} · ${l.how === 'yours' ? 'your earlier choice' : l.how === 'you' ? 'chosen here' : l.how === 'rule' ? 'by its wording' : `to file: ${l.why}`}`));
+    lab.append(el('b', null, l.label), el('span', 'sub', ` ${usd(l.total)}${l.account ? ` · ${l.account}` : ''} · ${l.how === 'yours' ? 'your earlier choice' : l.how === 'you' ? 'chosen here' : l.how === 'rule' ? 'by its wording' : `to file: ${l.why}`}${lineNotes(d.t12, l).map((x) => ` · ${x}`).join('')}`));
     const sel = categorySelect(l);
     sel.setAttribute('aria-label', `Category for ${l.label}`);
     sel.addEventListener('change', async () => {

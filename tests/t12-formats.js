@@ -3,6 +3,8 @@
  * blank and unreadable cells, projections, pasted text). Every property, line
  * and figure is made up. */
 
+import { sheetChoices, pickSheet, importStatement, layoutOf, numberFormatOf } from '../app/t12.js';
+
 export const MON6 = ['Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026', 'Jun 2026'];
 export const MON12 = ['Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026', 'Jun 2026', 'Jul 2026', 'Aug 2026', 'Sep 2026', 'Oct 2026', 'Nov 2026', 'Dec 2026'];
 
@@ -39,3 +41,18 @@ export const EU_SEMICOLON = text([
   ['Base Rent', '1.234,56', '1.234,56', '1.234,56', '1.234,56', '1.234,56', '1.234,56', '7.407,36'],
   ['Taxes', 500, 500, 500, 500, 500, 500, '3.000'],
 ], ';');
+
+/**
+ * The statement a file's grids give, for tests that don't care which sheet: the one sheet that reads,
+ * or (where several do) the one with the most lines. The app never chooses by size; it asks
+ * (sheetChoices and pickSheet in t12.js), so this stands in for the broker's choice.
+ */
+export function statementOf(grids, opts = {}) {
+  const choices = sheetChoices(grids, opts);
+  const p = pickSheet(choices);
+  if (p.refuse) throw new Error(p.refuse);
+  const c = p.choice || p.ask.reduce((a, b) => (b.lines > a.lines ? b : a));
+  const g = grids[c.i];
+  const layout = layoutOf(g.rows, { sheet: g.sheet });
+  return importStatement(g.rows, { ...opts, sheet: g.sheet, numberFormat: numberFormatOf(g.rows, layout).format || 'us' });
+}

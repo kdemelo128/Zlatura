@@ -12,7 +12,8 @@ import path from 'node:path';
 import ExcelJS from 'exceljs';
 import { gridsOf, csvRows } from '../../app/sheetread.js';
 import { decodeText } from '../../app/textfile.js';
-import { bestSheet, openLines, statementChecks, CATEGORY } from '../../app/t12.js';
+import { statementOf } from '../t12-formats.js';
+import { openLines, statementChecks, CATEGORY } from '../../app/t12.js';
 
 const ROOT = new URL('../../', import.meta.url).pathname;
 const dir = path.join(ROOT, 'private');
@@ -27,7 +28,7 @@ for (const f of files) {
     let grids;
     if (/\.csv$/i.test(f)) grids = [{ sheet: 'CSV', rows: csvRows(decodeText(fs.readFileSync(f)).text).map((cells, i) => ({ r: i + 1, cells })).filter((x) => x.cells.some((v) => String(v).trim())) }];
     else { const wb = new ExcelJS.Workbook(); await wb.xlsx.load(fs.readFileSync(f)); grids = gridsOf(wb, { maxRows: 1500 }); }
-    const t = bestSheet(grids, {});
+    const t = statementOf(grids, {});
     const by = (how) => t.lines.filter((l) => l.how === how).length;
     const sides = {};
     for (const l of t.lines) if (l.category) { const s = CATEGORY[l.category].side; sides[s] = (sides[s] || 0) + 1; }

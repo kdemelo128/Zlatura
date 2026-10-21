@@ -9,7 +9,7 @@ import ExcelJS from 'exceljs';
 import * as fflate from 'fflate';
 import { LAYOUTS, layoutFile } from './t12-layouts.js';
 import { text, grid, statementRows, SIX, EU_SEMICOLON, MON6, MON12 } from './t12-formats.js';
-import { amountOf, layoutOf, numberFormatOf, tokenFormat, currencyRefusal, importStatement, statementChecks, openChecks, markSeen } from '../app/t12.js';
+import { amountOf, layoutOf, numberFormatOf, tokenFormat, currencyRefusal, importStatement, statementChecks, openChecks, markSeen, sheetChoices, pickSheet, sourceText, periodShort, lineNotes } from '../app/t12.js';
 import { readGrids, detectDelimiter, csvRows, pastedRows, gridsOf } from '../app/sheetread.js';
 
 const getFflate = async () => fflate;
@@ -351,4 +351,73 @@ test('[old] period: Jan–Dec with Sep–Dec empty is T-12 with four empty colum
   assert.deepEqual([st.period.basis, st.period.emptyCols], ['T-12', ['2026-09', '2026-10', '2026-11', '2026-12']]);
   assert.ok(statementChecks(st).some((x) => x.id === 'blanks'));
   assert.equal(st.months.length, 12, 'nothing is dropped: that is PR 3');
+});
+
+/* ------------------------------------------------------------------- 7. which sheet */
+
+const sheetOf = (name, lineCount, { hidden = false, head = [] } = {}) => ({
+  sheet: name, hidden,
+  rows: grid(statementRows({ head, lines: Array.from({ length: lineCount }, (_, i) => [`Base Rent ${i + 1}`, ...Array(6).fill(100), 600]) })),
+});
+
+test('[old] a Budget sheet with more lines is never chosen; the actual sheet is taken without a question', () => {
+  const choices = sheetChoices([sheetOf('Budget 2026', 9), sheetOf('T12 Actual', 3)]);
+  assert.deepEqual(choices.map((c) => [c.sheet, c.i, c.projection, c.lines, c.hidden]), [['Budget 2026', 0, true, 9, false], ['T12 Actual', 1, false, 3, false]]);
+  assert.equal(pickSheet(choices).choice.sheet, 'T12 Actual');
+});
+
+test('[old] the projection words are found in the sheet name or in its first five rows, not by size', () => {
+  for (const name of ['Forecast', 'Pro Forma', 'proforma', 'Projected NOI', '2026 Projection', 'Budget']) assert.equal(sheetChoices([sheetOf(name, 2)])[0].projection, true, name);
+  assert.equal(sheetChoices([sheetOf('Sheet2', 2, { head: [['Invented Plaza'], ['Forecast for 2027']] })])[0].projection, true);
+  for (const name of ['T12 Actual', 'Budgetary', 'Operating Statement']) assert.equal(sheetChoices([sheetOf(name, 2)])[0].projection, false, name);
+});
+
+test('[old] two actual sheets always ask, whatever their sizes, with the projection listed too', () => {
+  const choices = sheetChoices([sheetOf('Jan-Jun', 2), sheetOf('Budget', 8), sheetOf('Jul-Dec', 7)]);
+  const p = pickSheet(choices);
+  assert.equal(p.choice, undefined);
+  assert.deepEqual(p.ask.map((c) => [c.sheet, c.projection]), [['Jan-Jun', false], ['Budget', true], ['Jul-Dec', false]]);
+});
+
+test('[old] a hidden sheet is listed as hidden and is asked about, never taken on its own', () => {
+  const both = pickSheet(sheetChoices([sheetOf('Visible', 3), sheetOf('Old copy', 3, { hidden: true })]));
+  assert.deepEqual(both.ask.map((c) => [c.sheet, c.hidden]), [['Visible', false], ['Old copy', true]]);
+  const only = pickSheet(sheetChoices([sheetOf('Old copy', 3, { hidden: true })]));
+  assert.ok(only.ask && !only.choice, 'the only statement is hidden: asked, not silently read');
+});
+
+test('[old] only projections: refused, naming them; nothing readable: the first sheet’s reason', () => {
+  const p = pickSheet(sheetChoices([sheetOf('Budget', 4), sheetOf('Forecast', 4)]));
+  assert.equal(p.refuse, 'The only statements in this file look like projections, not actuals (“Budget”, “Forecast”). Import a sheet of actual results.');
+  const none = pickSheet(sheetChoices([{ sheet: 'Notes', rows: grid([['Name', 'Phone'], ['A', '555']]) }]));
+  assert.match(none.refuse, /No months or total column were found on “Notes”/);
+});
+
+test('a sheet’s choice carries its period, so the chooser can show it', () => {
+  const c = sheetChoices([sheetOf('Jan-Jun', 2)])[0];
+  assert.deepEqual([c.period.basis, c.period.count, c.error], ['T-6', 6, null]);
+  assert.equal(periodShort(c.period), 'T-6 · Jan 2026 to Jun 2026');
+  assert.equal(periodShort(read([['Account', 'Total'], ['Base Rent', 5]]).period), 'annual total only');
+});
+
+/* --------------------------------------------- 8. what the card and the line list say */
+
+test('[old] the card says where a statement came from: file, how it was read, numbers, sheet', () => {
+  const csv = read(statementRows({ lines: SIX }), { numberFormat: 'eu', source: { type: 'csv', delimiter: ';' } });
+  assert.equal(sourceText(csv), 'invented.csv · CSV (semicolons) · numbers read as 1.234,56');
+  const book = read(statementRows({ lines: SIX }), { file: 'plaza.xlsx', sheet: 'T12 Actual', source: { type: 'xlsx', sheets: [{ name: 'Budget' }, { name: 'T12 Actual' }, { name: 'Notes' }] } });
+  assert.equal(sourceText(book), 'plaza.xlsx · sheet “T12 Actual” (2 of 3)');
+  assert.equal(sourceText(read(statementRows({ lines: SIX }), { file: 'plaza.xlsx', sheet: 'P&L', source: { type: 'xlsx', sheets: [{ name: 'P&L' }] } })), 'plaza.xlsx · P&L');
+  assert.equal(sourceText(read(statementRows({ lines: SIX }), { file: 'Pasted', source: { type: 'paste' } })), 'Pasted · pasted');
+  assert.equal(sourceText({ file: 'old.xlsx', sheet: 'P&L' }), 'old.xlsx · P&L', 'a statement read before 4.7.28 reads as it did');
+  assert.equal(sourceText({ file: 'old.csv', sheet: 'CSV' }), 'old.csv');
+});
+
+test('[old] a line says its blank months, its unread cells, and pasted or medium confidence', () => {
+  const st = read(statementRows({ lines: SIX }));
+  assert.deepEqual(lineNotes(st, repairs(st)), ['1 month blank (Feb), counted as $0', '1 cell unread (n/a in May), counted as $0', 'medium confidence']);
+  assert.deepEqual(lineNotes(st, st.lines.find((l) => l.label === 'Base Rent')), []);
+  const p = importStatement(pastedRows('Account\tJan 2026\tFeb 2026\tMar 2026\nRepairs\t1\t\t1\n'), { source: { type: 'paste' } });
+  assert.deepEqual(lineNotes(p, p.lines[0]), ['1 month blank (Feb), counted as $0', 'pasted']);
+  assert.deepEqual(lineNotes({ months: ['2026-01'] }, { label: 'x' }), [], 'a line read before 4.7.28 has no notes');
 });
