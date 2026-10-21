@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.7.35: T-12 periods: duplicate months, more than 12 months and cumulative columns are caught before they reach your figures (on the development branch; not merged or deployed)
+
+Fourth of the T-12 reading PRs (3a of the approved plan, `docs/proposals/t12-multiformat.md` section 5; the owner approved decisions D1 to D8 of its design note, including that older saved T-12s gain these checks). Saved deals' results and golden outputs do not change; fields are additive; no migration.
+
+- **Duplicate months no longer count twice.** A month that heads two columns is a Fail: the totals and "Use the T-12's figures" are held until you choose which column to count. The other column is set aside, not deleted.
+- **More than 12 months is split, not used as a year.** A new import of 15 months takes the latest 12 as the T-12 and keeps the earlier ones as the prior period (you can change which). An older saved statement of more than 12 months is a Fail until you choose, because "Use" used to write all of its months into the annual fields.
+- **Monthly or cumulative?** When the columns look year-to-date (each at least the one before, the last equal to the Total) you are asked; the totals are held until you answer, because the two readings differ by multiples.
+- **Missing months and N.** A month with no activity on any line, between the first and last active months, is a gap Check; months before the first or after the last are not gaps. N is the number of months with activity. When N differs from the number of columns you are asked, and "Annualise" then uses 12 divided by that N.
+- **A stated NOI, EGI or operating-expenses figure that does not match its lines is a Fail that holds "Use"** (it was a warning). NOI three ways says "not compared" while any check holds the totals.
+- **Where you see it:** a T-12 Data QC panel on the deal (one folded line when nothing is open), the same checks in Review with the fixes as buttons, one history entry per choice, so Undo works. 44 pt targets.
+- **Support-code check:** the gap and N definitions are the ones adopted from the owner's support code in `docs/proposals/underwriting.md` (rows K19 and the N-from-active-months row); nothing from it is quoted. The remaining checks adopted from it (spike, negative month, one-offs) are the next PR (3b).
+- **Not done / gaps:** thresholds, spikes, negative expenses, one-offs, year over year and the run rate are PR 3b. A column set aside and later reinstated comes back with its blank months counted as $0 and not marked. The panel's browser checks run at iPhone size only. `.action-item` now has a 44 pt minimum height in every action sheet.
+- **Tested:** 17 new tests (written first), 17 mutation checks all caught, browser flow `t12period-flow` (41 checks, axe, 44 pt), a fixture of a statement saved by 4.7.34 (same totals and ids). `check:full` passed. Golden: 0 changed in both checks.
+
 ## 4.7.34: T-12 lines you filed before are suggested, not filed for you; capital items are never moved by their wording (on the development branch; not merged or deployed)
 
 Third of the T-12 reading PRs (PR 2 of the approved plan, `docs/proposals/t12-multiformat.md` section 9 item 2, decisions 2 to 5). Saved deals and golden outputs do not change; additive data only.
