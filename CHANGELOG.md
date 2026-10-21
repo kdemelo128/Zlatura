@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.7.39: A strict review setting: figures wait until every open check is reviewed (off by default) (on the development branch; not merged or deployed)
+
+Third underwriting PR (U3 of `docs/proposals/underwriting.md` section 3.4; owner decision 8, approved 2026-10-17: off by default). At the default nothing changes; saved deals and golden outputs are unchanged.
+
+- **Settings → Calculation conventions → "Before figures can be used":** *Failed checks resolved* (the default, today's behaviour) or *Every open check resolved (strict)*. Stored with the other conventions on this device, not on any deal.
+- **In strict mode,** while the T-12 or the rent roll has an open check, a warning as well as a failure, "Use the T-12's figures", "Use normalised figures" and the rent roll's Use offers wait, saying "N checks still open: review them first" with a way to Review. NOI three ways shows the gap but says "not compared: checks open". Reviewing each check (Seen, or its fix) releases them.
+- **Nothing fills a figure without your tap in either mode;** strict only adds the wait for warnings.
+- **Tested:** 4 Node tests (C01, C02, the rent roll's checks counted, a bad saved value ignored) and the browser flow `strict-flow` (iPhone size), each failing on the previous code; 5 mutation checks all caught. `check:full` passed. Golden: 0 changed.
+- **Not tested in the browser:** the rent roll's Use offers in strict mode (the gate is in the same shared count the tests cover; a deal with an open rent roll check and empty figures was not built in the flow). Not tested: Safari.
+
 ## 4.7.38: Normalised NOI on the T-12 tab: choose how each line counts, see the bridge, and use the figures with Undo (on the development branch; not merged or deployed)
 
 Second underwriting PR (U2 of `docs/proposals/underwriting.md`, approved 2026-10-17). It puts U1's normalised NOI on screen. Saved results and golden outputs are unchanged; nothing changes until you pick a method.
