@@ -1398,6 +1398,109 @@ function build(t, { n: nGiven, reportedOnly = false } = {}) {
   return { ok: true, held: null, asks: [], n, columns: W.columns, reported, normalised, lines, steps, counts, ignored, residue, notes };
 }
 
+/* ---------------------------------------------- the words for normalise (underwriting PR U2)
+ *
+ * Pure text and ordering for the T-12 tab, so a test can pin them. The stored value 'runRate' is never shown as
+ * "run rate" (that is the whole statement's run rate, `runRate()`): on screen it is "typical month × 12". */
+
+/** How a method reads in "Counts: …" and in a history entry. */
+export const METHOD_WORDS = { reported: 'as reported', annualise: 'annualised', runRate: 'typical month × 12', exclude: 'excluded' };
+/** The methods a line can be given, in the order the sheet lists them: { id, label }. */
+export const METHOD_CHOICES = [
+  { id: 'reported', label: 'As reported' }, { id: 'annualise', label: 'Annualise (× 12 ÷ N)' },
+  { id: 'runRate', label: 'Typical month × 12' }, { id: 'exclude', label: 'Exclude' },
+];
+/** A line's chip: "Counts: as reported". */
+export const chipText = (method) => `Counts: ${METHOD_WORDS[method] || METHOD_WORDS.reported}`;
+
+/**
+ * What one method would give a line: { amount, held, asks, notes }. Only that line takes the method (the rest as
+ * reported), so a hold is its own; amount is null when held. Nothing is written to the statement.
+ * @param {any} t
+ */
+export function methodPreview(t, lineId, method) {
+  const lines = t.lines.map((l) => { const { method: _m, ...rest } = l; return l.id === lineId && method !== 'reported' ? { ...rest, method } : rest; });
+  const r = normalise({ ...t, lines });
+  const x = r.lines.find((l) => l.id === lineId);
+  return { amount: x ? x.amount : null, held: r.held, asks: r.asks, notes: x ? x.notes : [] };
+}
+
+/** Why `normalise` is held, in words (no number), for the card, the sheet and the refusal of Use. */
+export function heldWords(t, res) {
+  if (res.held === 'totals') { const h = heldBy(t); return `a period check holds the totals${h.length ? ` (${h.map((c) => c.short).join('; ')})` : ''}`; }
+  if (res.held !== 'annualise') return '';
+  if (!t.months.length) return 'this statement has no month columns, so annualise and typical month can’t be worked out';
+  const W = windowOf(t);
+  if (res.asks.includes('period.quarterends')) return `its ${W.columns} columns are 3 or 12 months apart and may be quarters or years, not months; say they are single months in Data QC first`;
+  return `${W.columns - W.active} of its ${W.columns} months ${W.columns - W.active === 1 ? 'has' : 'have'} no activity on any line; say whether to annualise over the ${W.active} months with activity or all ${W.columns} columns in Data QC first`;
+}
+
+const KIND_WORDS = { oneoff: 'Not recurring, taken out of', annualise: 'Annualised', runRate: 'Typical month × 12', exclude: 'Excluded' };
+const SIDE_WORDS = { income: 'income', expense: 'expense' };
+
+/**
+ * The bridge as a list, in order: NOI as reported (N months), one row per step of `normalise().steps` (as they come),
+ * then the normalised NOI (a year). [{ key, label, sub, amount }]; amount is dollars (a step's is signed), or null for
+ * the rows a hold takes away (never a number then). Null when there is no statement to bridge.
+ * @param {any} t
+ * @param {any} res  normalise(t)
+ */
+export function bridgeRows(t, res) {
+  if (!res || !res.reported) return null;
+  const n = t.months.length;
+  const name = new Map(t.lines.map((l) => [l.id, l.label]));
+  const rows = [{ key: 'reported', label: `NOI as reported (${n} month${n === 1 ? '' : 's'})`, sub: '', amount: res.reported.noi }];
+  for (const s of res.steps) {
+    rows.push({
+      key: `${s.kind}.${s.side}`, label: `${KIND_WORDS[s.kind]} ${SIDE_WORDS[s.side]} lines (${s.lines.length})`,
+      sub: s.lines.map((id) => name.get(id) || id).join(', '), amount: s.noi,
+    });
+  }
+  rows.push({ key: 'normalised', label: 'Normalised NOI (a year)', sub: '', amount: res.normalised ? res.normalised.noi : null });
+  return rows;
+}
+
+/** The Note when the lines as shown differ from the group figure by a cent or two ("normround"), else ''. */
+export function residueWords(res) {
+  if (!res || !res.notes || !res.notes.includes('normround')) return '';
+  const bits = [['income', res.residue.egi], ['expenses', res.residue.opex], ['taxes', res.residue.taxes]].filter(([, v]) => v !== 0).map(([w, v]) => `${w} ${v > 0 ? '+' : '−'}$${Math.abs(v).toFixed(2)}`);
+  return `Each method group is rounded once, so the lines as shown add up to a cent or two from the totals (${bits.join(', ')}); the totals are the figures.`;
+}
+
+/** What a line's notes say, in words. */
+export const NOTE_WORDS = {
+  oneoff: 'the month marked not recurring is taken out first', norun: 'no month has an amount, so a typical month is $0',
+  nomonths: 'no month columns', 'method?': 'its saved method is not one this version knows, so it counts as reported',
+};
+
+/** The source label of a figure made from the normalised statement: "T-12, normalised: 3 lines typical month × 12, 1 excluded, N = 7". */
+export function normSource(res) {
+  const c = res.counts;
+  const plural = (k, w) => `${k} line${k === 1 ? '' : 's'} ${w}`;
+  const marks = new Set(res.steps.filter((s) => s.kind === 'oneoff').flatMap((s) => s.lines)).size;
+  const parts = [
+    c.annualise ? plural(c.annualise, 'annualised') : '', c.runRate ? plural(c.runRate, 'typical month × 12') : '', c.exclude ? `${c.exclude} excluded` : '',
+    marks ? `${marks} one-off month${marks === 1 ? '' : 's'} taken out` : '',
+  ].filter(Boolean);
+  return `T-12, normalised: ${parts.join(', ')}, N = ${res.n}`;
+}
+
+/**
+ * Why "Use normalised figures" is refused, in words, or '' when it is allowed: normalise held, a line still open
+ * (no category), a stated figure that disagrees (as "Use the T-12's figures"), or nothing chosen yet.
+ * @param {any} t
+ * @param {any} res  normalise(t)
+ */
+export function normRefusal(t, res) {
+  if (res.held) return `Held: ${heldWords(t, res)}.`;
+  const open = openLines(t).length;
+  if (open || res.reported.unassigned) return `File the ${open} line${open === 1 ? '' : 's'} still waiting in Review first: the totals aren’t complete.`;
+  const hold = useHeldBy(t);
+  if (hold.length) return `Held: ${hold.map((c) => c.short || c.text).join('; ')}. Settle ${hold.length === 1 ? 'that check' : `those ${hold.length} checks`} first.`;
+  if (!res.steps.length) return 'Every line counts as reported, so there is nothing normalised yet. Choose how a line counts first.';
+  return '';
+}
+
 /**
  * The value checks, in dataqc.js's shape (see periodChecks): `spike.<line>.<month>`, `negexp.<line>`, `negmonth.<line>.<month>`,
  * `oneoff.<line>.<month>`, `yoy.lines`, `yoy.cats`, `yoy.noi`, `period.quarters`. Warnings (Review) and notes (the panel); none has `holds`.

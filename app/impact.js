@@ -456,7 +456,7 @@ export function analysisInput(d, { project = null } = {}) {
     const ap = d.t12.applied;
     if (t.months > 0 && t.months < 12 && ap) {
       const src = d.sources || {};
-      const taken = Object.fromEntries(['noi', 'gross', 'opex', 'taxes'].filter((k) => src[k] && src[k].t12 && !src[k].annualized).map((k) => [k, src[k].orig]));
+      const taken = Object.fromEntries(['noi', 'gross', 'opex', 'taxes'].filter((k) => src[k] && src[k].t12 && !src[k].annualized && !src[k].normalised).map((k) => [k, src[k].orig]));
       if (Object.keys(taken).length) out.t12 = { ...t, taken };
     }
     out.t12Om = before ? { ...before } : { noi: f.noi ?? null, gross: f.gross ?? null, opex: f.opex ?? null, taxes: f.taxes ?? null };
