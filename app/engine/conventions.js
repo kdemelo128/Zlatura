@@ -15,6 +15,11 @@ export const CONVENTIONS = [
     options: [['exclude', 'Left out'], ['zero', 'Counted at 0 years']],
     help: 'A month-to-month lease has no term left to weight. Left out, it doesn’t move WALT; counted at 0 years, it pulls WALT down by its share.',
   },
+  {
+    id: 'review.strict', label: 'Before figures can be used', settable: true, default: 'fails',
+    options: [['fails', 'Failed checks resolved'], ['all', 'Every open check resolved (strict)']],
+    help: 'Strict: while the T-12 or the rent roll has an open check (a warning as well as a failure), “Use the T-12’s figures”, “Use normalised figures” and the rent roll’s Use offers wait until each is reviewed, and NOI three ways says “not compared: checks open”. Nothing ever fills a figure without your tap either way.',
+  },
   { id: 'walt.from', label: 'WALT measured from', value: 'The rent roll’s as-of date (the WALT tool: today)' },
   { id: 'years', label: 'Years between dates', value: 'Whole days ÷ 365.25' },
   { id: 'debt.term', label: 'Loan payments', value: 'Monthly, over a whole number of months (amortization years × 12, rounded), shown a year at a time' },
