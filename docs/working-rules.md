@@ -170,3 +170,16 @@ the Review Queue or Data QC.
    before opening a PR that cites it, and report only the count.
 5. An adopted check that changes a stored field, a saved result or a golden
    output is still an approval gate, with the before/after table.
+
+## Git guardrail (owner, 2026-10-21)
+
+`.claude/hooks/git-guardrails.mjs` is a project hook on the Bash tool (registered in `.claude/settings.json`). It refuses
+the git commands CLAUDE.md already forbids without the owner's explicit authorization: a forced push, a push that deletes
+a branch or targets main or master, `reset --hard`, `clean -f`, `checkout .` or `restore .` of the whole tree, `branch -D`,
+`stash clear` or `drop`, and `--no-verify`. A normal `git push -u origin <branch>` is never blocked. When it refuses, stop
+and ask the owner; they can run the command themselves.
+
+What it is not: a sandbox. It reads the command text with a small parser (quotes and heredocs are respected), so a command
+built another way (a script that runs git, `eval`, another tool) is not seen. It guards against a slip, not an attack.
+Own-written (about 100 lines, no dependencies), so nothing in `THIRD_PARTY.md`; `tests/guardrail.test.js` holds the lists
+of refused and allowed commands. Add a case there whenever a rule changes.

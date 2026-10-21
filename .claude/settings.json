@@ -49,5 +49,18 @@
     "product-tracking-skills@knowledge-work-plugins": false,
     "searchfit-seo@knowledge-work-plugins": false,
     "slack-by-salesforce@knowledge-work-plugins": false
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/git-guardrails.mjs"
+          }
+        ]
+      }
+    ]
   }
 }
