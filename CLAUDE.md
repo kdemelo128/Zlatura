@@ -52,6 +52,9 @@ The longer wording of every rule below is in `docs/working-rules.md`.
   apply as app checks with invented-fixture tests, say in the PR what was
   adopted, covered or not applicable, and never commit or quote anything from
   it.
+- **Security checklist** (`docs/security-checklist.md`): run it at the end of each
+  phase and before accounts or hosting; fixes are separate PRs with a test that
+  fails on the old code.
 - **No feature is removed.** Everything stays reachable; whatever is touched
   gets better.
 - **Golden outputs stay identical** unless the owner approves the change,

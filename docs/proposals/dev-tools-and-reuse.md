@@ -154,3 +154,20 @@ Dollar cost is not computed (no price data used).
 2. May a sandbox be tried in the cloud session environment (UNVERIFIED there)?
 3. Approve ≈2.5M tokens for T1–T3, and which first?
 4. `hookify` or an own-written guardrail hook? Which A3 KEEP items?
+
+## 10. Owner decisions and first results (2026-10-21)
+
+**Approved by the owner: everything in section 9 as recommended** ("approve all of it go ahead"): the Claude Code settings
+trim and measurement, the A4 checklist, a fix PR for F1 to F4, a sandbox trial, about 2.5M tokens for T1 to T3, the guardrail
+hook (hookify or own-written: decided at build time after reading hookify's source; own-written if its source is not
+acceptable), and the 10 A3 KEEP items. Order: T-12 PR 1 (already in build), then this settings and checklist PR, the
+F1 to F4 fixes, the guardrail hook, the A3 text adaptations, then T1, T2, T3 one at a time.
+
+**D2 results.** `CLAUDE.md` is 137 lines (7.6k chars), already under the documented 200-line target, so nothing is trimmed;
+only the support-code bullet is domain-specific, and moving one bullet to a path-scoped rule saves too little to justify a
+second place for rules. **The sandbox cannot run in this cloud container** (`bwrap` and `socat` are not installed), so
+`sandbox.enabled` with `failIfUnavailable` is **not** turned on: it would stop commands from running. Claude Code is
+2.1.306. Three items need the owner at an interactive prompt, because they are slash commands: `/usage` (record the prompt
+cache line for a baseline session), `/doctor prompt-audit`, and the "Idle compaction" row in `/config`.
+
+**A4 result.** `docs/security-checklist.md` (34 checks in our words) is added, and is run at the end of each phase.
