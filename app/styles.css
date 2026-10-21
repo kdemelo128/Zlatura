@@ -1074,7 +1074,8 @@ dialog.sheet[open] { animation: up .26s var(--ease); }
 .action-sheet .sheet-card::before { display: none; }
 .action-sheet .sheet-card { border-radius: var(--r-lg); margin: 0 10px; padding-bottom: 0; overflow: hidden; }
 .action-title { text-align: left; font: 600 var(--t-13)/1.35 var(--ui); color: var(--muted); padding: var(--s4) 18px 6px; }
-.action-list { display: grid; padding: 4px 6px 6px; }
+.action-list { display: grid; padding: 4px 6px 6px; overflow-y: auto; min-height: 0; }
+.action-info { display: grid; gap: 2px; padding: 8px 12px; border-top: 1px solid var(--line); }
 .action-list hr { border: 0; border-top: 1px solid var(--line); margin: 4px 10px; }
 .action-item { display: flex; align-items: center; gap: var(--s3); border: 0; background: none; text-align: left; padding: 10px 12px; cursor: pointer; color: var(--ink); border-radius: var(--r-sm); transition: background var(--d1); }
 .action-item:hover:not(:disabled) { background: var(--surface-2); }
@@ -1244,6 +1245,9 @@ dialog.sheet[open] { animation: up .26s var(--ease); }
 .t12-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .t12-line.open .t12-line-label b { color: var(--warn); }
 .t12-line select { max-width: 100%; min-height: 40px; }
+.t12-line-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.btn.t12-act, .select.t12-act { min-height: 44px; }
+.t12-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .review-list { list-style: none; margin: 0; padding: 0; }
 .review-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px var(--s4); padding: 12px 0; border-top: 1px solid var(--line); }
 .review-text { flex: 1 1 280px; min-width: 0; }
@@ -1251,4 +1255,5 @@ dialog.sheet[open] { animation: up .26s var(--ease); }
 .review-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .review-acts select { min-height: 40px; max-width: 100%; }
 .review-acts label.check { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; font-size: var(--t-14); }
+.review-bulk { padding: 0 var(--s4) var(--s3); }
 .review-group .card-head { flex-wrap: wrap; gap: 8px; }

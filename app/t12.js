@@ -591,7 +591,7 @@ const PROJECTION = /\b(budget|forecast|pro ?forma|projected|projection)\b/i;
  * chosen here, and nothing is ordered by how many lines a sheet has: an actual statement is never decided
  * by size.
  * @param {{ sheet: string, hidden?: boolean, rows: any[] }[]} grids
- * @param {{ file?: string, corrections?: Record<string, string> }} [opts]
+ * @param {{ file?: string, corrections?: Record<string, string>, history?: Record<string, any>, suggest?: boolean }} [opts]
  */
 export function sheetChoices(grids, opts = {}) {
   return grids.map((g, i) => {
