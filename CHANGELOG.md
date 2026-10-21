@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.7.37: Underwriting groundwork: a normalised NOI worked out beside the reported one (no screen yet) (on the development branch; not merged or deployed)
+
+First of the underwriting PRs (U1 of `docs/proposals/underwriting.md`; the owner approved the proposal and its stored fields on 2026-10-17, and on 2026-10-22 approved how a month you marked "Recurring? No" works with a line's method). Logic and tests only: nothing on screen changes, saved results and golden outputs are unchanged.
+
+- **`normalise(t, { n })`** works out, from a T-12, what NOI would be if each line were read by a method you pick: as reported (the default), annualised (12 ÷ N, N being the months with activity), a typical month × 12 (the median of the non-zero months), or excluded. It returns the reported NOI, the normalised NOI and a bridge of steps between them, in whole cents, with one rounding per method group (the few-cent residue is shown as a Note, never absorbed). The normalised figure is always beside the reported one, never in place of it; NOI three ways keeps comparing the as-reported T-12.
+- **A month you marked "Recurring? No"** is taken out of its line first, then the line's method applies; "exclude" wins, so nothing is counted twice; a stale mark is ignored. With every line "as reported", normalised NOI equals "NOI without the one-offs you marked".
+- **It refuses rather than guesses:** nothing is worked out while a check holds the totals, while the N question is open for an annualised line, for quarter-end columns not yet answered, for a statement with no month columns, or with lines still to file (they count on neither side, as in the T-12 totals). An unknown method value is counted as reported and listed as ignored.
+- **`annualized()` is unchanged** (same signature, bit-identical results, tested with `Object.is` on every statement in the test fixtures and every saved T-12 in the backup fixtures); it shares one rounding step with `normalise`.
+- **Data:** the optional per-line `method` (approved fields; `window` and `oneoff` already existed); nothing is written to the deal's figures; no migration. A fixture of three deals saved by 4.7.36 restores with the same totals, checks and ids.
+- **Support-code check:** U1 adopts the "normalisation method per T-12 line" idea through the proposal's mapping; nothing from the support code is quoted.
+- **Next:** U2 puts the method chip, the normalised card and the bridge on the T-12 tab (labelled "typical month × 12", so a broker never sees two different "run rates").
+- **Tested:** 25 new tests (23 fail on the previous code with the missing exports stubbed; the other 2 are guards), the 4,096 method combinations, 17 mutation checks (one equivalent mutant noted), `check:full` passed, golden 0 changed. Not tested: Safari; there is no browser flow because there is no screen.
+
 ## 4.7.36: T-12 flags: spikes, credits, one-offs and year over year; editable thresholds; a run rate on request; and a wrong annualised NOI fixed (on the development branch; not merged or deployed)
 
 Fifth of the T-12 reading PRs (3b of the approved plan, `docs/proposals/t12-multiformat.md` section 5). The owner approved the design note's decisions on 2026-10-21 and 2026-10-22, including the new stored field below. Saved deals' results and golden outputs do not change.
