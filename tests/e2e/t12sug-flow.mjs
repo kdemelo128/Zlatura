@@ -14,12 +14,15 @@ const AXE = createRequire(import.meta.url).resolve('axe-core/axe.min.js');
 const F = new URL('./files/', import.meta.url).pathname;
 const OLD = JSON.parse(fs.readFileSync(new URL('../fixtures/backup-4.7.33-before-t12-suggestions.json', import.meta.url), 'utf8'));
 const R = []; const check = (n, c, d = '') => R.push([c ? 'PASS' : 'FAIL', n, d]);
-const MADE = ['t12sug-arcade.csv', 't12sug-b.csv'];
+const MADE = ['t12sug-arcade.csv', 't12sug-b.csv', 't12sug-zero.csv'];
 const cleanup = () => { for (const f of MADE) fs.rmSync(F + f, { force: true }); };
 cleanup();
 fs.writeFileSync(`${F}t12sug-arcade.csv`, arcadeCsv());
 // three remembered labels on four lines (Lawn Care twice): Confirm all
 fs.writeFileSync(`${F}t12sug-b.csv`, 'Account,Jan 2026,Feb 2026,Mar 2026,Total\nINCOME\nBase Rent,1000,1000,1000,3000\nPylon Sign Lease,50,50,50,150\nEXPENSES\nReal Estate Taxes,100,100,100,300\nLawn Care,10,10,10,30\nDumpster Hauling,20,20,20,60\nLawn Care,5,5,5,15\n');
+
+// a suggested line worth $0: only its count can hold the figures back
+fs.writeFileSync(`${F}t12sug-zero.csv`, 'Account,Jan 2026,Feb 2026,Mar 2026,Total\nINCOME\nBase Rent,1000,1000,1000,3000\nPylon Sign Lease,0,0,0,0\n');
 
 const P = await phone();
 const { page, errors } = P;
@@ -150,6 +153,11 @@ try {
   await page.click('#sheet-close');
   card = await text('#deal-t12');
   check('below the line: NOI $108,600, and the file’s NOI of $106,100 is a thing to check', /NOI\$108,600/.test(card) && /1 thing to check/.test(card), card.slice(0, 500));
+
+  await importFile('t12sug-zero.csv');
+  await page.click('#t12-use');
+  await page.waitForTimeout(400);
+  check('a suggested line worth $0 still holds “Use” back, by its count', /File the 1 line still waiting/.test(await toastText()) && (await page.locator('dialog.action-sheet').count()) === 0 && /Not yet filed\$0/.test(await text('#deal-t12')), await toastText());
 
   /* ---- 3. Review */
   await importFile('t12sug-b.csv');
