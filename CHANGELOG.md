@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.7.38: Normalised NOI on the T-12 tab: choose how each line counts, see the bridge, and use the figures with Undo (on the development branch; not merged or deployed)
+
+Second underwriting PR (U2 of `docs/proposals/underwriting.md`, approved 2026-10-17). It puts U1's normalised NOI on screen. Saved results and golden outputs are unchanged; nothing changes until you pick a method.
+
+- **How each line counts:** under the T-12 totals, a "How each line counts" fold gives each income and expense line a chip, "Counts: as reported". Tapping it shows the four methods with the amount each would give: as reported, annualised (12 ÷ the months with activity), typical month × 12 (the median of its non-zero months), or excluded. Annualise waits, with its reason, until the months-with-activity question is answered. Each choice is one history entry; Undo takes it back.
+- **The Normalised NOI card** is a list, phone first: NOI as reported (N months) → each step → normalised NOI (a year). The reported NOI never moves and stays in the totals above. A cent-rounding note appears when the group rounding differs from the lines. When a check holds the totals, the card says why in words and shows no number.
+- **Use normalised figures** goes through the same confirmation as "Use the T-12's figures": each figure old → new, the source label (for example "T-12, normalised: 3 lines annualised, 2 lines typical month × 12, 1 excluded, N = 7"), Cancel changes nothing, Undo puts the earlier figures back. It is refused, with the reason, while anything holds the totals, a line is still to file, a stated figure disagrees, no method has been chosen, or, on a statement of fewer than 12 months, any line is still as reported (those are its months, not a year's, so they never reach the deal's annual figures).
+- **Words:** the typical-month method is never called "run rate" on screen (that name is the whole-statement run rate from 4.7.36).
+- **Found in review and fixed before opening:** the first build let a partial statement's as-reported lines reach the deal's annual figures with only a caution; it is now refused, and the bridge no longer calls such a total "a year".
+- **Tested:** browser flow `t12norm-flow` (107 checks, iPhone and desktop sizes, axe in light and dark, 44 pt targets); 9 Node tests of the words and refusals (all fail on the previous code); 8 mutation checks all caught. `check:full` passed. Golden: 0 changed. Not tested: Safari; real files.
+
 ## 4.7.37: Underwriting groundwork: a normalised NOI worked out beside the reported one (no screen yet) (on the development branch; not merged or deployed)
 
 First of the underwriting PRs (U1 of `docs/proposals/underwriting.md`; the owner approved the proposal and its stored fields on 2026-10-17, and on 2026-10-22 approved how a month you marked "Recurring? No" works with a line's method). Logic and tests only: nothing on screen changes, saved results and golden outputs are unchanged.

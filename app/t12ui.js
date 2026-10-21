@@ -11,6 +11,7 @@ import {
   CATEGORIES, CATEGORY, SIDES, statementTotals, annualized, openLines, fileLine, periodText, rematch, sourceText, periodShort, lineNotes,
   statementNotes, markSeen, suggestionText, sheetChoices, pickSheet, layoutOf, numberFormatOf, importStatement, currencyRefusal,
   t12Qc, t12OpenChecks, heldBy, useHeldBy, applyT12Fix, windowOf, monthLabel, noiWithout, runRate,
+  normalise, setMethod, METHOD_WORDS, METHOD_CHOICES, chipText, methodPreview, heldWords, bridgeRows, residueWords, NOTE_WORDS, normSource, normRefusal, partialAsReported,
 } from './t12.js';
 import { qcPanel } from './dataqcui.js';
 import { qcCounts } from './dataqc.js';
@@ -19,6 +20,7 @@ import { NOI_GAP } from './engine/conventions.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const usd = (x) => (ok(x) ? (x < 0 ? `−${money0(-x)}` : money0(x)) : '—');
+const usd2 = (x) => (ok(x) ? (x < 0 ? `−${money2(-x)}` : money2(x)) : '—');
 
 /**
  * Draw the card into `box`. h: { deal, touch(meta), snapshot(reason), redraw(), rerender() (the whole deal screen),
@@ -45,7 +47,8 @@ export function renderT12Card(box, h) {
   const n = t.months.length;
   if (n && n < 12) {
     const ann = t.applied && t.applied.annualized;
-    const p = el('p', 'hint t12-partial', `A partial year: ${n} month${n === 1 ? '' : 's'}. The totals below are those months as read, not a year’s.${ann ? ` The deal uses them annualized (× 12 ÷ ${ann}), as you confirmed.` : ''}`);
+    const norm = t.applied && t.applied.normalised;
+    const p = el('p', 'hint t12-partial', `A partial year: ${n} month${n === 1 ? '' : 's'}. The totals below are those months as read, not a year’s.${ann ? ` The deal uses them annualized (× 12 ÷ ${ann}), as you confirmed.` : ''}${norm ? ' The deal uses the normalised figures below, as you confirmed.' : ''}`);
     p.id = 't12-partial';
     box.appendChild(p);
   }
@@ -132,6 +135,7 @@ export function renderT12Card(box, h) {
   wrap.appendChild(tbl);
   box.appendChild(wrap);
 
+  box.appendChild(normCard(d, t, h, held));
   if (!held.length) box.appendChild(runRateSection(d, t, h));
   box.appendChild(qcSection(h));
   box.appendChild(noiThreeWays(d, T, h));
@@ -158,6 +162,118 @@ export function renderT12Card(box, h) {
   });
   acts.append(all, use, importButton(h, 'Replace…', 'btn btn-sm btn-gray'), pasteButton(h, 'btn btn-sm btn-gray', 'Paste…'), remove);
   box.appendChild(acts);
+}
+
+/* ------------------------------------------- the Normalised NOI card (underwriting U2) */
+
+/** The deals whose list of lines is open: a screen state, never saved. */
+const linesOpen = new Set();
+
+/** A step's signed amount: "+$51,429" / "−$2,350". */
+const signed = (x) => (ok(x) ? (x < 0 ? `−${money0(-x)}` : `+${money0(x)}`) : '—');
+
+/**
+ * "Normalised NOI", under the totals: a list from the NOI as reported, through each method's step, to the normalised
+ * NOI (a year), and a chip on each NOI line to choose how it counts. It sits beside the reported figure and replaces
+ * nothing; every line starts as reported (today's screen). Held states say why in words, never a number.
+ */
+function normCard(d, t, h, held) {
+  const sec = el('div', 't12-norm');
+  sec.id = 't12-norm';
+  sec.appendChild(el('h3', 'sec-label', 'Normalised NOI'));
+  const res = normalise(t);
+  if (held.length) {
+    const p = el('p', 'hint t12-norm-held', `Not worked out: ${heldWords(t, res)}.`);
+    p.id = 't12-norm-held';
+    sec.appendChild(p);
+    useNormButton(sec, h, t, res);
+    return sec;
+  }
+  sec.appendChild(el('p', 'hint', 'A year’s NOI if each line counted the way you choose. The NOI as reported above stays as it is, and nothing changes on the deal until you use these figures.'));
+  const ol = el('ol', 't12-bridge');
+  ol.id = 't12-bridge';
+  for (const r of bridgeRows(t, res) || []) {
+    const li = el('li', `t12-step${r.key === 'normalised' ? ' total' : ''}`);
+    li.dataset.step = r.key;
+    const lab = el('span', 't12-step-label');
+    lab.appendChild(el('b', null, r.label));
+    if (r.sub) lab.appendChild(el('span', 'sub', r.sub));
+    li.append(lab, el('span', 'num', r.amount === null ? 'not worked out' : r.key === 'reported' || r.key === 'normalised' ? usd(r.amount) : signed(r.amount)));
+    ol.appendChild(li);
+  }
+  sec.appendChild(ol);
+  if (res.held) {
+    const p = el('p', 'warn-text t12-norm-held', `Not worked out: ${heldWords(t, res)}. `);
+    p.id = 't12-norm-held';
+    p.setAttribute('role', 'status');
+    const box = el('div', 't12-line-acts');
+    for (const c of t12OpenChecks(t).filter((x) => res.asks.includes(x.id))) for (const b of fixButtons(c, (f) => runFix(h, c, f))) box.appendChild(b);
+    sec.append(p, box);
+  }
+  const resid = residueWords(res);
+  if (resid) { const p = el('p', 'hint t12-norm-note', resid); p.id = 't12-norm-note'; sec.appendChild(p); }
+  const mixed = partialAsReported(t, res).length;
+  if (mixed) sec.appendChild(el('p', 'hint t12-norm-mixed', `${mixed} line${mixed === 1 ? ' is' : 's are'} still as reported over ${t.months.length} month${t.months.length === 1 ? '' : 's'}, not a year’s, so the normalised NOI mixes the two.`));
+
+  // a chip on each line that is in NOI
+  const noiLines = res.lines.filter((x) => x.side === 'income' || x.side === 'expense');
+  const set = noiLines.filter((x) => x.method !== 'reported').length;
+  const det = el('details', 't12-norm-lines');
+  det.id = 't12-norm-lines';
+  det.open = linesOpen.has(d.id);
+  det.addEventListener('toggle', () => { if (det.open) linesOpen.add(d.id); else linesOpen.delete(d.id); });
+  det.appendChild(el('summary', null, `How each line counts (${noiLines.length} lines${set ? `, ${set} changed` : ''})`));
+  for (const x of noiLines) {
+    const r = el('div', 't12-nline');
+    const lab = el('div', 't12-line-label');
+    lab.append(el('b', null, x.label), el('span', 'sub', ` ${usd2(x.reported)} as reported${x.notes.map((k) => ` · ${NOTE_WORDS[k] || k}`).join('')}${x.amount !== null && x.method !== 'reported' ? ` · ${usd2(x.amount)} counted` : ''}`));
+    const chip = el('button', 'btn btn-sm btn-gray t12-act t12-chip', chipText(x.method));
+    chip.type = 'button';
+    chip.dataset.line = x.id;
+    chip.dataset.method = x.method;
+    chip.setAttribute('aria-label', `${chipText(x.method)}: ${x.label}. Change`);
+    chip.addEventListener('click', () => chooseMethod(h, x));
+    r.append(lab, chip);
+    det.appendChild(r);
+  }
+  sec.appendChild(det);
+
+  useNormButton(sec, h, t, res);
+  return sec;
+}
+
+/** "Use normalised figures": the existing "Use the T-12's figures" flow with its own confirmation; disabled, with the reason beside it, while it is refused. */
+function useNormButton(sec, h, t, res) {
+  const why = normRefusal(t, res);
+  const use = el('button', 'btn btn-sm t12-act', 'Use normalised figures');
+  use.type = 'button';
+  use.id = 't12-norm-use';
+  use.disabled = !!why;
+  use.addEventListener('click', () => useFigures(h, true));
+  const acts = el('div', 'row-actions');
+  acts.appendChild(use);
+  sec.appendChild(acts);
+  if (why) { const p = el('p', 'hint t12-norm-why', why); p.id = 't12-norm-why'; use.setAttribute('aria-describedby', 't12-norm-why'); sec.appendChild(p); }
+}
+
+/** "Counts: …" tapped: the four methods, each with the annual amount it would give; one history step per choice. */
+async function chooseMethod(h, x) {
+  const d = h.deal;
+  const t = d.t12;
+  const n = t.months.length;
+  const items = METHOD_CHOICES.map((m) => {
+    const cur = x.method === m.id;
+    const p = methodPreview(t, x.id, m.id);
+    const sub = p.amount === null
+      ? `Not yet: ${p.notes.includes('nomonths') ? 'this statement has no month columns' : heldWords(t, { held: p.held, asks: p.asks })}.`
+      : m.id === 'reported' ? `${usd2(p.amount)} as reported${n < 12 ? `, ${n} month${n === 1 ? '' : 's'}, not a year` : ''}` : `${usd2(p.amount)} a year${p.notes.includes('norun') ? ' (no month has an amount)' : ''}`;
+    return { label: cur ? `${m.label} (now)` : m.label, sub, value: m.id, disabled: p.amount === null && !cur, primary: cur };
+  });
+  const v = await actionSheet(`How should “${x.label}” count?`, items);
+  if (!v || v === x.method || h.deal !== d || d.t12 !== t) return;
+  if (!setMethod(t, x.id, v)) return;
+  h.touch({ kind: 'edit', label: `T-12: “${x.label}” counts ${METHOD_WORDS[v]}` });
+  h.redraw();
 }
 
 /* ------------------------------------------------- the T-12 Data QC panel */
@@ -582,14 +698,51 @@ export function categorySelect(l, { sides = ['income', 'expense', 'below'], none
 }
 
 /**
+ * "Use normalised figures" (underwriting U2): the same flow as "Use the T-12's figures", with the same refusals and its
+ * confirmation (each figure, old → new), one undoable step. The normalised figures are a year's, so there is no
+ * partial-year question; the as-reported NOI stays on the card beside them.
+ */
+async function useNormalised(h) {
+  const d = h.deal;
+  const t = d.t12;
+  const res = normalise(t); // worked out again: the card may be old
+  const why = normRefusal(t, res);
+  if (why) { toast(`${why} The normalised figures aren’t used.`, openLines(t).length ? { label: 'Review', run: () => h.openReview() } : { label: 'Show', run: () => showQc() }, 9000); return; }
+  const vals = /** @type {{ egi: number, opex: number, taxes: number, noi: number }} */ (res.normalised);
+  const sets = [['gross', 'Gross income (EGI)', vals.egi], ['opex', 'Operating expenses', vals.opex], ['taxes', 'Real estate taxes', vals.taxes], ['noi', 'NOI, normalised', vals.noi]];
+  const what = sets.map(([k, label, v]) => `${label}: ${usd(d.figures[k])} → ${usd(v)}`).join(' · ');
+  const label = normSource(res);
+  const n = t.months.length;
+  const mixed = n < 12 ? res.lines.filter((x) => x.method === 'reported' && x.side && x.reported).length : 0;
+  const caveat = `${label}. The NOI as reported (${usd(res.reported.noi)}) stays on the T-12 card beside it.${mixed ? ` ${mixed} line${mixed === 1 ? ' is' : 's are'} still as reported over ${n} month${n === 1 ? '' : 's'}, not a year’s.` : ''}`;
+  /** @type {any[]} */
+  const opts = [{ label: 'Use them', sub: `${what}. ${caveat}`, value: 'deal', primary: true }];
+  if (d.rr && d.rr.leases && d.rr.leases.length) opts.push({ label: 'Use them, and the rent roll’s operating expenses too', sub: `The rent roll’s operating expenses: ${usd(d.rr.settings.opex)} → ${usd(vals.opex)}.`, value: 'both' });
+  const v = await actionSheet('Use the normalised figures?', opts);
+  if (!v || h.deal !== d || d.t12 !== t) return;
+  const snap = h.snapshot('Before using the T-12’s normalised figures');
+  const before = t.applied ? t.applied.before : { noi: d.figures.noi ?? null, gross: d.figures.gross ?? null, opex: d.figures.opex ?? null, taxes: d.figures.taxes ?? null };
+  t.applied = { at: Date.now(), before, rrOpex: v === 'both', normalised: true, counts: { ...res.counts }, n: res.n };
+  for (const [k, , val] of sets) {
+    d.figures[k] = val;
+    d.sources[k] = { t12: true, hand: false, file: t.file, line: label, orig: val, normalised: true };
+  }
+  if (v === 'both') d.rr.settings.opex = vals.opex;
+  h.touch({ kind: 'import', label: `Used the T-12’s normalised figures (${label.replace('T-12, normalised: ', '')}; EGI, expenses, taxes, NOI${v === 'both' ? ', and the rent roll’s expenses' : ''})`, snapshot: snap });
+  h.rerender();
+  toast('The T-12’s normalised figures are in the deal. Undo puts the earlier figures back; the NOI as reported is still on the T-12 card.');
+}
+
+/**
  * "Use the T-12's figures": EGI, operating expenses, taxes and NOI onto the deal (and the rent roll's
  * expenses, if asked), one undoable step. The deal's figures are a year's, so a statement of fewer than
  * 12 months is never put in as it stands: the broker keeps it as a partial year (nothing on the deal
  * changes), or annualizes it (× 12 ÷ its months), seeing each annual figure and confirming first.
  */
-async function useFigures(h) {
+async function useFigures(h, norm = false) {
   const d = h.deal;
   const t = d.t12;
+  if (norm) return useNormalised(h);
   const T = statementTotals(t);
   // by the count of lines, not their amount: lines worth $0, or that cancel out, are still not filed
   if (T.unassigned || openLines(t).length) { toast(`File the ${openLines(t).length} line${openLines(t).length === 1 ? '' : 's'} still waiting in Review first: the totals aren’t complete.`, { label: 'Review', run: () => h.openReview() }, 7000); return; }
