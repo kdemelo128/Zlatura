@@ -107,4 +107,6 @@ fs.writeFileSync(`${SHOTS}t12read-flow.json`, JSON.stringify(R, null, 1));
 for (const r of R) console.log(r.join(' | '));
 finish(R, 'errors', errors);
 await P.browser.close();
+// the invented files are made fresh each run; the fake workbook must not be left for the LibreOffice recalculation
+for (const f of fs.readdirSync(F).filter((x) => x.startsWith('t12read-'))) fs.rmSync(F + f);
 process.exit(R.some((r) => r[0] === 'FAIL') ? 1 : 0);
