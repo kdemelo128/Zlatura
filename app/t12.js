@@ -1089,6 +1089,25 @@ export function periodChecks(t) {
     });
   }
 
+  // columns exactly 3 (or 12) months apart: dated quarter ends (3/31, 6/30 …) read as single months. Annualise and
+  // the run rate would multiply by the wrong number (monthly against quarterly), so they wait for the broker (F1, PR 3b)
+  if (dated.length >= 2) {
+    const ks = dated.map(mkey);
+    const step = ks[1] - ks[0];
+    if ((step === 3 || step === 12) && ks.every((k, i) => i === 0 || k - ks[i - 1] === step)) {
+      const n = t.months.length;
+      const A = annualized(T0, n);
+      const first = dated[0]; const last = dated[dated.length - 1];
+      const span = first.slice(0, 4) === last.slice(0, 4) ? `${monthLabel(first).slice(0, 3)} to ${monthLabel(last)}` : `${monthLabel(first)} to ${monthLabel(last)}`;
+      out.push({
+        id: 'period.quarterends', kind: 'quarterends', level: 'warn', holds: 'annualise', short: `the columns may be ${step === 3 ? 'quarters' : 'years'}`,
+        text: `The ${dated.length} columns are ${step} months apart (${span}): each may be a ${step === 3 ? 'quarter' : 'year'}. Read as months, Annualize would ${A ? `multiply by ${+(12 / n).toFixed(2)}` : 'add them up as one year'}. Are they single months? If not, use the Total column.`,
+        amount: A ? cents(Math.abs(A.noi - T0.noi)) : 0, where: span,
+        fixes: [{ id: 'seen', label: 'They are single months' }],
+      });
+    }
+  }
+
   // months with no activity: N, what Annualise divides by (asked only when nothing above is open)
   if (!out.some((c) => c.holds === 'totals')) {
     const a = activity(t);
@@ -1133,10 +1152,12 @@ export const heldBy = (t) => periodChecks(t).filter((c) => c.holds === 'totals')
 /** What Annualise divides by, and whether it is still to be asked: { n, ask } (`n`: the months with activity once answered so, else the columns). */
 export function windowOf(t) {
   const a = activity(t);
-  const q = periodChecks(t).find((c) => c.id === 'period.active');
+  const seen = t.seen || {};
+  // any open check that holds Annualise: the months with no activity (answered by the window), the columns that may be quarters (answered by Seen)
+  const ask = periodChecks(t).some((c) => c.holds === 'annualise' && !seen[c.id]);
   const w = t.window;
   const active = !!(w && w.how === 'active' && w.n === a.n && a.n !== a.columns);
-  return { n: active ? a.n : a.columns, columns: a.columns, active: a.n, ask: !!(q && q.holds === 'annualise') };
+  return { n: active ? a.n : a.columns, columns: a.columns, active: a.n, ask };
 }
 
 /**
