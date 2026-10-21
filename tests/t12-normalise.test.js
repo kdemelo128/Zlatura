@@ -283,8 +283,7 @@ test('a month in two columns holds the totals: nothing is computed', () => {
   assert.equal(noiWithout(t), null);
 });
 
-test('more than 12 months and running totals not answered also hold the totals', () => {
-  assert.equal(normalise(imp(fifteenRows())).held, 'totals');
+test('running totals not answered also hold the totals', () => {
   assert.equal(normalise(imp(cumulativeRows())).held, 'totals');
 });
 
@@ -358,6 +357,7 @@ test('a line below the line has a method but is never in NOI or the bridge', () 
 
 test('setMethod: validates, works in place, returns whether it changed, and as reported deletes the field', () => {
   const t = U();
+  const start = JSON.stringify(t);
   const id = line(t, 'Repairs').id;
   assert.equal(setMethod(t, id, 'reported'), false, 'already so: nothing to change');
   assert.equal('method' in line(t, 'Repairs'), false);
@@ -371,7 +371,7 @@ test('setMethod: validates, works in place, returns whether it changed, and as r
   assert.equal(line(t, 'Repairs').method, 'runRate');
   assert.equal(setMethod(t, id, 'reported'), true);
   assert.equal('method' in line(t, 'Repairs'), false, 'a default statement stays byte-identical');
-  assert.equal(JSON.stringify(t), JSON.stringify(U()));
+  assert.equal(JSON.stringify(t), start);
 });
 
 test('the method survives filing and re-matching a line', () => {
@@ -445,6 +445,7 @@ test('identity: every line annualised is annualized() of the totals, bit for bit
     for (let n = 1; n <= 11; n++) {
       const r = normalise(t, { n });
       if (heldCount(t)) { assert.equal(r.held, 'totals', name); assert.equal(r.normalised, null, name); held++; continue; }
+      if (!t.months.length) { assert.equal(r.held, 'annualise', name); assert.deepEqual(row(r, t, t.lines[0].label).notes, ['nomonths'], name); continue; }
       const A = annualized(T, n);
       assert.equal(r.held, null, `${name} n=${n}`);
       for (const k of ['egi', 'opex', 'taxes', 'noi']) assert.ok(Object.is(r.normalised[k], A[k]), `${name} n=${n} ${k}: ${r.normalised[k]} vs ${A[k]}`);

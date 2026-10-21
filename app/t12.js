@@ -516,10 +516,11 @@ export function statementTotals(t) {
  */
 export function annualized(T, n = T.months) {
   if (!(n > 0 && n < 12)) return null;
-  const up = (v) => cents((v * 12) / n);
-  const egi = up(T.egi); const opex = up(T.opex);
-  return { egi, opex, taxes: up(T.taxes), noi: cents(egi - opex), months: n };
+  const egi = annualUp(T.egi, n); const opex = annualUp(T.opex, n);
+  return { egi, opex, taxes: annualUp(T.taxes, n), noi: cents(egi - opex), months: n };
 }
+/** The one group step of Annualize, × 12 ÷ N to whole cents: annualized() and normalise() both scale a group's total with it. */
+const annualUp = (v, n) => cents((v * 12) / n);
 
 /**
  * What the statement's own numbers say that doesn't add up, and what is
@@ -1245,10 +1246,156 @@ export function noiWithout(t) {
     marked.push({ label: l.label, iso: l.oneoff.iso, amount: l.months[i], side: s });
   }
   if (!marked.length) return null;
-  let c = c100(statementTotals(t).noi);
-  for (const m of marked) c += m.side === 'expense' ? c100(m.amount) : -c100(m.amount);
-  const noi = fromC(c);
+  const noi = /** @type {any} */ (build(t, { reportedOnly: true })).normalised.noi;
   return { noi, marked: marked.map(({ label, iso, amount }) => ({ label, iso, amount })), text: `NOI without the one-offs you marked: ${usd0(noi)} (${marked.length} marked: ${marked.map((m) => `${m.label}, ${monthWord(m.iso)}, ${usdx(m.amount)}`).join('; ')})` };
+}
+
+/* -------------------------------------------- normalise (underwriting PR U1)
+ *
+ * Each line of a T-12 can be taken as reported, annualised (× 12 ÷ N), as its
+ * typical month × 12, or excluded; the result is the normalised EGI, expenses,
+ * taxes and NOI and a bridge from the reported NOI. Pure: nothing is written to
+ * the deal, `t12ForAnalysis` and the displayed figures still read the lines as
+ * reported. Money is added in whole cents (c100 / fromC); the one scaling step
+ * is annualUp, shared with annualized(). A month marked "Recurring? No" is taken
+ * out of its line first, then the line's method applies; exclude wins, so
+ * nothing is counted twice. Design: docs/proposals/underwriting.md 3.2, 3.3. */
+
+const METHODS = ['reported', 'annualise', 'runRate', 'exclude'];
+/** A line's method; a missing or unknown value (a typo, a newer version's) is as reported. */
+const methodOf = (l) => (METHODS.includes(l.method) ? l.method : 'reported');
+
+/** A line's method set by the broker (in place): 'reported' removes the field. Returns true when something changed. */
+export function setMethod(t, lineId, method) {
+  const l = t && Array.isArray(t.lines) ? t.lines.find((x) => x.id === lineId) : null;
+  if (!l || !METHODS.includes(method)) return false;
+  if (method === 'reported') { if (!('method' in l)) return false; delete l.method; return true; }
+  if (l.method === method) return false;
+  l.method = method;
+  return true;
+}
+
+/**
+ * The statement with each line's method applied:
+ * { ok, held: null|'totals'|'annualise', asks, n, columns, reported, normalised, lines, steps, counts, ignored, residue, notes }.
+ * `held` says why there is no `normalised` (null then): 'totals' when a period check holds the totals (as noiWithout),
+ * 'annualise' when N is still to be asked, the columns may be quarters (typical month), or there are no month
+ * columns; an unavailable method is never swapped for "as reported". `n` is what annualise divides by (the
+ * statement's own answer, `windowOf`) unless given. `lines` carry each line's amount and adjustment, `steps` the
+ * effect on NOI of each method by side, in cents-exact dollars: reported.noi + the steps = normalised.noi.
+ * @param {any} t
+ * @param {{ n?: number }} [opts]
+ */
+export function normalise(t, { n: nGiven } = {}) {
+  return build(t, { n: nGiven });
+}
+
+/**
+ * normalise()'s work; `reportedOnly` takes every line as reported (what noiWithout reads: the marks alone).
+ * @param {any} t
+ * @param {{ n?: number, reportedOnly?: boolean }} [opts]
+ */
+function build(t, { n: nGiven, reportedOnly = false } = {}) {
+  const none = { reported: 0, annualise: 0, runRate: 0, exclude: 0 };
+  if (!t || !Array.isArray(t.lines) || !Array.isArray(t.months)) return { ok: false, held: 'totals', asks: [], n: 0, columns: 0, reported: null, normalised: null, lines: [], steps: [], counts: none, ignored: [], residue: { egi: 0, opex: 0, taxes: 0 }, notes: [] };
+  const R = statementTotals(t);
+  const reported = { egi: R.egi, opex: R.opex, taxes: R.taxes, noi: R.noi, unassigned: R.unassigned };
+  if (heldCount(t)) return { ok: false, held: 'totals', asks: [], n: t.months.length, columns: t.months.length, reported, normalised: null, lines: [], steps: [], counts: none, ignored: [], residue: { egi: 0, opex: 0, taxes: 0 }, notes: [] };
+  const W = windowOf(t);
+  const given = Number.isFinite(nGiven);
+  const n = given ? /** @type {number} */ (nGiven) : W.n;
+  const how = (l) => (reportedOnly ? 'reported' : methodOf(l));
+  const needs = (m) => t.lines.some((l) => how(l) === m);
+
+  // what keeps annualise or the typical month from running
+  const asks = [];
+  let held = null;
+  const noMonths = t.months.length === 0;
+  if (noMonths && (needs('annualise') || needs('runRate'))) held = 'annualise';
+  else {
+    if (needs('annualise') && (given ? !(n > 0) : W.ask)) { held = 'annualise'; if (!given) asks.push(...W.asks); }
+    if (needs('runRate') && W.asks.includes('period.quarterends')) { held = 'annualise'; if (!asks.includes('period.quarterends')) asks.push('period.quarterends'); }
+  }
+
+  const counts = { ...none };
+  const ignored = [];
+  const rows = [];
+  // per side (and taxes): the annualise lines' base, and everything else
+  const grp = { income: { ann: 0, rest: 0, shown: 0 }, expense: { ann: 0, rest: 0, shown: 0 }, taxes: { ann: 0, rest: 0, shown: 0 } };
+  // per kind and side: the lines named and the change in the side's total (cents)
+  const delta = { oneoff: { income: [0, []], expense: [0, []] }, annualise: { income: [0, []], expense: [0, []] }, runRate: { income: [0, []], expense: [0, []] }, exclude: { income: [0, []], expense: [0, []] } };
+  const annBase = { income: [], expense: [] };
+
+  for (const l of t.lines) {
+    const method = how(l);
+    if (!reportedOnly && l.method != null && !METHODS.includes(l.method)) ignored.push(l.id);
+    counts[method]++;
+    const cat = l.category && CATEGORY[l.category] ? l.category : null;
+    const side = cat ? CATEGORY[cat].side : null;
+    const inNoi = side === 'income' || side === 'expense';
+    const totalC = c100(l.total);
+    // the month marked "Recurring? No" comes out first (a stale mark is ignored by answerOf)
+    let oneC = 0; let oneAt = -1;
+    if (inNoi && l.oneoff && answerOf(t, l, l.oneoff.iso) === 'no') { oneAt = t.months.indexOf(l.oneoff.iso); oneC = c100(l.months[oneAt]); }
+    const notes = [];
+    if (method !== 'exclude' && oneC && !reportedOnly) notes.push('oneoff');
+    if (l.method != null && !METHODS.includes(l.method) && !reportedOnly) notes.push('method?');
+    let baseC = totalC - oneC;
+    let amountC = null;
+    if (method === 'exclude') { amountC = 0; oneC = 0; baseC = totalC; }
+    else if (method === 'reported') amountC = baseC;
+    else if (noMonths) notes.push('nomonths');
+    else if (method === 'annualise') { if (n > 0) amountC = c100(annualUp(fromC(baseC), n)); }
+    else {
+      const nz = l.months.map(c100).filter((v, i) => v !== 0 && i !== oneAt);
+      amountC = nz.length ? /** @type {number} */ (median(nz)) * 12 : 0;
+      if (!nz.length) notes.push('norun');
+    }
+    if (held && (method === 'annualise' || method === 'runRate')) amountC = null; // held: no figure rather than a guess
+    rows.push({ l, method, side, cat, totalC, oneC, baseC, amountC, notes, inNoi });
+  }
+
+  const lines = rows.map((x) => ({
+    id: x.l.id, label: x.l.label, side: x.side, method: x.method, reported: x.l.total, oneoff: fromC(x.oneC),
+    amount: x.amountC === null ? null : fromC(x.amountC), adjustment: x.amountC === null ? null : fromC(x.totalC - x.oneC - x.amountC), notes: x.notes,
+  }));
+  if (held) return { ok: false, held, asks, n, columns: W.columns, reported, normalised: null, lines, steps: [], counts, ignored, residue: { egi: 0, opex: 0, taxes: 0 }, notes: [] };
+
+  // the groups: a side's annualise lines are scaled together and rounded once; taxes are a bucket of their own
+  const buckets = (x) => [x.side, ...(x.cat === 'taxes' ? ['taxes'] : [])];
+  for (const x of rows) {
+    if (!x.inNoi) continue;
+    if (x.method !== 'exclude' && x.oneC) { const d = delta.oneoff[x.side]; d[0] -= x.oneC; d[1].push(x.l.id); }
+    for (const b of buckets(x)) {
+      if (x.method === 'annualise') grp[b].ann += x.baseC;
+      else if (x.method === 'runRate' || x.method === 'reported') grp[b].rest += x.amountC;
+      grp[b].shown += x.amountC;
+    }
+    if (x.method === 'annualise') annBase[x.side].push(x);
+    else if (x.method === 'runRate') { const d = delta.runRate[x.side]; d[0] += x.amountC - x.baseC; d[1].push(x.l.id); }
+    else if (x.method === 'exclude') { const d = delta.exclude[x.side]; d[0] -= x.totalC; d[1].push(x.l.id); }
+  }
+  const total = {};
+  for (const b of ['income', 'expense', 'taxes']) total[b] = (grp[b].ann ? c100(annualUp(fromC(grp[b].ann), n)) : 0) + grp[b].rest;
+  for (const side of ['income', 'expense']) {
+    if (!annBase[side].length) continue;
+    const d = delta.annualise[side];
+    d[0] = (grp[side].ann ? c100(annualUp(fromC(grp[side].ann), n)) : 0) - grp[side].ann;
+    d[1].push(...annBase[side].map((x) => x.l.id));
+  }
+  const egi = fromC(total.income); const opex = fromC(total.expense);
+  const normalised = { egi, opex, taxes: fromC(total.taxes), noi: cents(egi - opex) };
+  const steps = [];
+  for (const kind of ['oneoff', 'annualise', 'runRate', 'exclude']) {
+    for (const side of ['income', 'expense']) {
+      const [d, ids] = delta[kind][side];
+      if (ids.length) steps.push({ kind, side, noi: fromC(side === 'income' ? d : -d), lines: ids });
+    }
+  }
+  // lines as shown against the group figure: a cent or two where per-line rounding differs, shown never absorbed
+  const residue = { egi: fromC(grp.income.shown - total.income), opex: fromC(grp.expense.shown - total.expense), taxes: fromC(grp.taxes.shown - total.taxes) };
+  const notes = Object.values(residue).some((v) => v !== 0) ? ['normround'] : [];
+  return { ok: true, held: null, asks: [], n, columns: W.columns, reported, normalised, lines, steps, counts, ignored, residue, notes };
 }
 
 /**
