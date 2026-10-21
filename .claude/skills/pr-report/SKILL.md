@@ -31,6 +31,11 @@ time, unless two are independent and touch different files.
    approved a change.
 5. **Phone hand-test**: from the `hand-test` skill.
 6. What was not tested (Safari/WebKit, Excel, live services, real files).
+   **Merge danger**, one line each when it applies: a change to saved-deal
+   results, the data format, hosting or the service worker cache (the first
+   load after merge fetches new files); a new key read from a file; a
+   version other open PRs also bump; a decision still owed by the owner.
+   Say "none" when there is none.
 7. End with the attribution lines from the session's settings. No model names.
 
 **Report to the owner** (short):

@@ -5,7 +5,7 @@ description: Zlatura's quality-gate routine for a PR: tests that fail on the old
 
 # Quality gates
 
-1. **Old code fails the new tests.** Unpack the base into the scratchpad:
+1. **Old code fails the new tests** (write the test first and watch it fail for the bug's reason, then fix). Unpack the base into the scratchpad:
    `git archive origin/main | tar -x -C <scratch>/old`. Then serve it with
    `(cd <scratch>/old && python3 -m http.server 8090 --bind 127.0.0.1 &)` and run
    the new flow with `BASE=http://localhost:8090/ node tests/e2e/<flow>.mjs`.
