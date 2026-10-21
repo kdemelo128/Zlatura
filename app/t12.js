@@ -293,9 +293,13 @@ export const currencyRefusal = (sign) => (sign ? `Amounts in ${sign} can’t be 
 /**
  * Read a statement from a sheet's rows ([{ r, cells }], as sheetread.js gives
  * them). Returns { months, monthCols, totalCol, labelCol, lines, stated,
- * subtotals, sections } or throws with what was missing.
+ * subtotals, sections, period } or throws with what was missing. `numberFormat`
+ * is how the file writes its numbers (amountOf); `paste` marks text pasted in.
+ * Each line records where it was read (`src`), how sure (`conf`), and which
+ * month cells were blank (`blank`: counted as 0, never silently) or text that
+ * isn't an amount (`unread`, also 0).
  */
-export function readStatement(rows, { corrections = {}, sheet = '' } = {}) {
+export function readStatement(rows, { corrections = {}, sheet = '', numberFormat = 'us', paste = false } = {}) {
   const { head, monthCols, totalCol, labelCol, accountCol } = layoutOf(rows, { sheet });
   // dated months in order; "Month 1…12" by their number
   const months = monthCols.map((m) => m.iso || `M${pad(m.index)}`);
@@ -309,8 +313,8 @@ export function readStatement(rows, { corrections = {}, sheet = '' } = {}) {
     const raw = x.cells[labelCol];
     const label = raw === null || raw === undefined ? '' : String(raw).trim();
     const account = accountCol !== null && x.cells[accountCol] !== null && x.cells[accountCol] !== undefined ? String(x.cells[accountCol]).trim() : '';
-    const vals = monthCols.map((m) => amountOf(x.cells[m.c]));
-    const tot = totalCol !== null ? amountOf(x.cells[totalCol]) : NaN;
+    const vals = monthCols.map((m) => amountOf(x.cells[m.c], numberFormat));
+    const tot = totalCol !== null ? amountOf(x.cells[totalCol], numberFormat) : NaN;
     const hasNum = vals.some(Number.isFinite) || Number.isFinite(tot);
     const key = normalizeLabel(label);
     if (!label && !hasNum) continue;
@@ -342,13 +346,69 @@ export function readStatement(rows, { corrections = {}, sheet = '' } = {}) {
       total: cents(total),
       fileTotal: Number.isFinite(tot) && monthCols.length ? cents(tot) : null,
     };
+    // a blank month cell and a cell of words add 0, as before, but are kept on the line
+    const blank = []; const unread = [];
+    monthCols.forEach((mc, i) => {
+      if (Number.isFinite(vals[i])) return;
+      const v = x.cells[mc.c];
+      if (v === null || v === undefined || (typeof v === 'string' && !v.trim())) blank.push(i);
+      else unread.push({ i, text: cellText(v) });
+    });
+    Object.assign(line, { src: { type: paste ? 'pasteLine' : 'cell', sheet, row: x.r, col: labelCol }, conf: { read: paste || unread.length ? 'medium' : 'high' } });
+    if (blank.length) line.blank = blank;
+    if (unread.length) line.unread = unread;
     const m = matchLabel(label, { section: line.section, corrections });
     Object.assign(line, { category: m.category, how: m.how, why: m.why, candidates: m.candidates });
     lines.push(line);
     sinceMark.push(line);
   }
   if (!lines.length) throw new Error('No statement lines were found under the month headings.');
-  return { sheet, months, labelCol, accountCol, totalCol, monthCols: monthCols.map((m) => m.c), lines, stated, subtotals, sections, headRow: head.row.r };
+  const period = periodOf({ head, monthCols, totalCol }, months, rows, lines);
+  return { sheet, months, labelCol, accountCol, totalCol, monthCols: monthCols.map((m) => m.c), lines, stated, subtotals, sections, headRow: head.row.r, period };
+}
+
+/** A cell that isn't an amount, as short text (an Excel error such as #REF! included). */
+const cellText = (v) => String(v && typeof v === 'object' ? (v.error ?? v.text ?? '?') : v).trim().slice(0, 40);
+
+/**
+ * What period the statement says it covers: { basis, dated, count, columns, gaps, duplicates, emptyCols, printed }.
+ * It records and never scales: 12 dated, consecutive, distinct months are 'T-12'; fewer in a row 'T-n';
+ * a Total headed YTD 'YTD'; a Total and no months 'annual'; "Month 1…12" 'T-12' with dated false (no year is
+ * invented); anything else 'other'. `gaps` are dated months missing between the first and last, `duplicates` a
+ * month heading two columns, `emptyCols` month columns blank on every line, `printed` the first line above the
+ * headings that names a period (as text; no date is parsed from it).
+ */
+function periodOf({ head, monthCols, totalCol }, months, rows, lines) {
+  const n = monthCols.length;
+  const dated = n > 0 && monthCols.every((m) => m.iso);
+  const key = (iso) => +iso.slice(0, 4) * 12 + +iso.slice(5) - 1;
+  const have = new Set(); const duplicates = [];
+  for (const m of monthCols) if (m.iso) { if (have.has(m.iso) && !duplicates.includes(m.iso)) duplicates.push(m.iso); have.add(m.iso); }
+  const gaps = [];
+  if (dated) {
+    const ks = [...have].map(key);
+    for (let k = Math.min(...ks); k <= Math.max(...ks); k++) {
+      const iso = `${Math.floor(k / 12)}-${pad((k % 12) + 1)}`;
+      if (!have.has(iso)) gaps.push(iso);
+    }
+  }
+  const totalHead = totalCol !== null ? String(head.row.cells[totalCol]) : '';
+  const inARow = dated && !gaps.length && !duplicates.length;
+  const indexes = monthCols.map((m) => m.index);
+  let basis = 'other';
+  if (inARow && n === 12) basis = 'T-12';
+  else if (inARow && n > 0 && n < 12) basis = `T-${n}`;
+  else if (/ytd/i.test(totalHead)) basis = 'YTD';
+  else if (n === 0 && totalCol !== null) basis = 'annual';
+  else if (n === 12 && indexes.every((v, i) => v === i + 1)) basis = 'T-12';
+  const emptyCols = lines.length ? monthCols.map((_, i) => i).filter((i) => lines.every((l) => l.blank && l.blank.includes(i))).map((i) => months[i]) : [];
+  const above = rows.find((x) => x.r < head.row.r && /period|months ended|year ended|ytd|as of/i.test(x.cells.filter((v) => typeof v === 'string').join(' ')));
+  return {
+    basis, dated, count: n,
+    columns: [...monthCols.map((m) => ({ c: m.c, kind: m.iso ? 'month' : 'index', head: String(head.row.cells[m.c]).slice(0, 40) })), ...(totalCol !== null ? [{ c: totalCol, kind: 'total', head: totalHead.slice(0, 40) }] : [])],
+    gaps, duplicates, emptyCols,
+    printed: above ? above.cells.filter((v) => v !== null && v !== undefined && String(v).trim()).join(' ').slice(0, 120) : null,
+  };
 }
 
 /**
@@ -447,16 +507,35 @@ export function statementChecks(t, { tol = () => 1 } = {}) {
     const sum = cents(ls.reduce((a, l) => a + l.total, 0));
     if (Math.abs(Math.abs(sum) - Math.abs(s.value)) > tol(s.value, ls.length)) out.push({ id: `sub.${s.r}`, kind: 'stated', text: `“${s.label}” (row ${s.r}) is ${money(s.value)}; the ${ls.length} line${ls.length === 1 ? '' : 's'} above it add up to ${money(sum)}.`, amount: Math.abs(Math.abs(sum) - Math.abs(s.value)) });
   }
+  // month cells that were blank in the file: counted as $0, said so (a statement read before 4.7.28 has no `blank`)
+  const blanks = t.lines.filter((l) => Array.isArray(l.blank) && l.blank.length);
+  if (blanks.length) {
+    const cells = blanks.reduce((s, l) => s + l.blank.length, 0);
+    const where = blanks.slice(0, 3).map((l) => `${l.label}: ${l.blank.slice(0, 3).map((i) => monthName(t.months[i])).join(', ')}${l.blank.length > 3 ? ', …' : ''}`).join('; ');
+    out.push({ id: 'blanks', kind: 'blank', text: `${cells} month cell${cells === 1 ? ' is' : 's are'} blank (${where}${blanks.length > 3 ? '; …' : ''}). They count as $0 in the totals; check the source.`, amount: 0 });
+  }
   return out;
 }
+/** "Mar 2026" for "2026-03", "Month 3" for "M03". */
+const monthName = (m) => (/^M\d+$/.test(m || '') ? `Month ${+m.slice(1)}` : monthLabel(m));
 
 /**
  * The whole import: rows → the statement as the deal keeps it.
- * { file, sheet, importedAt, months, lines, stated, subtotals, signs, seen: {} }.
+ * { v: 2, file, sheet, source, period, importedAt, months, lines, stated, subtotals, signs, seen: {} }.
+ * `source` says where it came from ({ type: 'xlsx'|'xlsm'|'csv'|'tsv'|'paste', size, sheets,
+ * delimiter, numberAsked, encoding, macros }, as the screen knows them; this adds file, sheet and
+ * numberFormat); `period` is what the statement says it covers (periodOf). A statement read before
+ * 4.7.28 has neither, and `file` and `sheet` are still written for it. Nothing here is migrated.
+ * @param {any[]} rows
+ * @param {{ file?: string, sheet?: string, corrections?: Record<string, string>, now?: number, numberFormat?: string, source?: Record<string, any> }} [opts]
  */
-export function importStatement(rows, { file = '', sheet = '', corrections = {}, now = Date.now() } = {}) {
-  const st = normalizeSigns(readStatement(rows, { corrections, sheet }));
-  return { file, sheet, importedAt: now, months: st.months, lines: st.lines, stated: st.stated, subtotals: st.subtotals, signs: st.signs, headRow: st.headRow, seen: {} };
+export function importStatement(rows, { file = '', sheet = '', corrections = {}, now = Date.now(), numberFormat = 'us', source = {} } = {}) {
+  const st = normalizeSigns(readStatement(rows, { corrections, sheet, numberFormat, paste: source.type === 'paste' }));
+  const from = { type: source.type, file, size: source.size, sheet, sheets: source.sheets, delimiter: source.delimiter, numberFormat, numberAsked: source.numberAsked, encoding: source.encoding, macros: source.macros };
+  return {
+    v: 2, file, sheet, source: Object.fromEntries(Object.entries(from).filter(([, x]) => x !== undefined)), period: st.period,
+    importedAt: now, months: st.months, lines: st.lines, stated: st.stated, subtotals: st.subtotals, signs: st.signs, headRow: st.headRow, seen: {},
+  };
 }
 
 /** Of several sheets, the one that reads as a statement with the most lines: { sheet, statement } or throws the first sheet's reason. */

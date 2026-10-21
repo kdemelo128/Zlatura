@@ -8,8 +8,8 @@ import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
 import * as fflate from 'fflate';
 import { LAYOUTS, layoutFile } from './t12-layouts.js';
-import { text, grid, statementRows, SIX, EU_SEMICOLON, MON6 } from './t12-formats.js';
-import { amountOf, layoutOf, numberFormatOf, tokenFormat, currencyRefusal } from '../app/t12.js';
+import { text, grid, statementRows, SIX, EU_SEMICOLON, MON6, MON12 } from './t12-formats.js';
+import { amountOf, layoutOf, numberFormatOf, tokenFormat, currencyRefusal, importStatement, statementChecks, openChecks, markSeen } from '../app/t12.js';
 import { readGrids, detectDelimiter, csvRows, pastedRows, gridsOf } from '../app/sheetread.js';
 
 const getFflate = async () => fflate;
@@ -201,4 +201,154 @@ test('[old] a currency sign other than $ is found, and the import refusal says s
   assert.equal(formatOf([['Rent', ...six('$1,234.56'), '$7,407.36']]).foreign, null);
   assert.equal(currencyRefusal('€'), 'Amounts in € can’t be read as dollars. Zlatura reads dollar statements only; this file was not imported.');
   assert.equal(currencyRefusal(null), null);
+});
+
+/* ------------------------------------- 5. blank, zero and unread; where each line came from */
+
+const NOW = 1_700_000_000_000;
+const read = (rows, o = {}) => importStatement(grid(rows), { file: 'invented.csv', now: NOW, ...o });
+const repairs = (st) => st.lines.find((l) => l.label === 'Repairs');
+
+test('[old] a blank month cell is recorded as blank (0 in the months, the total unchanged), a dash stays a confirmed $0', () => {
+  const st = read(statementRows({ lines: SIX }));
+  const r = repairs(st);
+  assert.deepEqual(r.blank, [1]);
+  assert.deepEqual(r.months, [400, 0, 400, 0, 0, 400]);
+  assert.equal(r.total, 1200, 'the blank counts as 0: the total is what 4.7.27 gave');
+  assert.equal(r.months[3], 0);
+  assert.ok(!r.blank.includes(3), 'the dash (month 4) is a printed zero, not a blank');
+  assert.ok(!('blank' in st.lines.find((l) => l.label === 'Base Rent')), 'a line with no blank has no blank field');
+});
+
+test('[old] a cell of words (n/a, TBD, #REF!) is recorded as unread, 0 in the months', () => {
+  const rows = statementRows({ lines: [['Base Rent', 1000, 1000, 1000, 1000, 1000, 1000, 6000], ['Repairs', 400, 'n/a', 'TBD', { error: '#REF!' }, 400, '  ', 1200]] });
+  const r = repairs(read(rows));
+  assert.deepEqual(r.unread, [{ i: 1, text: 'n/a' }, { i: 2, text: 'TBD' }, { i: 3, text: '#REF!' }]);
+  assert.deepEqual(r.blank, [5]);
+  assert.deepEqual(r.months, [400, 0, 0, 0, 400, 0]);
+  assert.equal(r.conf.read, 'medium');
+  const long = repairs(read(statementRows({ lines: [['Base Rent', 1, 1, 1, 1, 1, 1, 6], ['Repairs', 'x'.repeat(80), 1, 1, 1, 1, 1, 6]] })));
+  assert.equal(long.unread[0].text.length, 40);
+});
+
+test('[old] blank months make one blanks check, naming the line and the month', () => {
+  const st = read(statementRows({ lines: SIX }));
+  const c = statementChecks(st).filter((x) => x.id === 'blanks');
+  assert.equal(c.length, 1);
+  assert.equal(c[0].kind, 'blank');
+  assert.equal(c[0].text, '1 month cell is blank (Repairs: Feb 2026). They count as $0 in the totals; check the source.');
+  assert.ok(openChecks(st).some((x) => x.id === 'blanks'));
+  markSeen(st, 'blanks');
+  assert.ok(!openChecks(st).some((x) => x.id === 'blanks'));
+  // several lines and months
+  const many = read(statementRows({ lines: [['Base Rent', '', '', 1000, 1000, 1000, 1000, 4000], ['Taxes', '', 5, 5, 5, 5, 5, 25], ['Repairs', 1, '', '', '', '', '', 1]] }));
+  assert.match(statementChecks(many).find((x) => x.id === 'blanks').text, /^8 month cells are blank \(Base Rent: Jan 2026, Feb 2026; Taxes: Jan 2026; Repairs: Feb 2026, Mar 2026, Apr 2026, …\)\. They count as \$0/);
+});
+
+test('a statement read before this version (no blank field) never gets the blanks check, even with zero months', () => {
+  const old = JSON.parse(JSON.stringify(read(statementRows({ lines: SIX }))));
+  for (const l of old.lines) { delete l.blank; delete l.unread; delete l.src; delete l.conf; }
+  delete old.v; delete old.source; delete old.period;
+  assert.equal(repairs(old).months.filter((m) => m === 0).length, 3, 'it has zero months');
+  assert.ok(!statementChecks(old).some((x) => x.id === 'blanks'));
+});
+
+test('[old] every line has src and conf, and the statement has v, source and period', () => {
+  const st = read(statementRows({ lines: SIX }), { sheet: 'T12 Actual', source: { type: 'csv', size: 321, delimiter: ',', encoding: 'utf-8' } });
+  assert.equal(st.v, 2);
+  assert.deepEqual(st.source, { type: 'csv', file: 'invented.csv', size: 321, sheet: 'T12 Actual', delimiter: ',', numberFormat: 'us', encoding: 'utf-8' });
+  assert.equal(st.file, 'invented.csv', 'file and sheet are still written for older readers');
+  assert.equal(st.period.basis, 'T-6');
+  for (const l of st.lines) {
+    assert.deepEqual(l.src, { type: 'cell', sheet: 'T12 Actual', row: l.r, col: 0 });
+    assert.ok(['high', 'medium'].includes(l.conf.read));
+  }
+  assert.equal(st.lines.find((l) => l.label === 'Base Rent').conf.read, 'high');
+});
+
+test('[old] pasted lines say so (pasteLine) and are never high confidence', () => {
+  const st = importStatement(pastedRows(text(statementRows({ lines: SIX.slice(1, 3) }), '\t')), { file: 'Pasted', source: { type: 'paste' }, now: NOW });
+  assert.equal(st.source.type, 'paste');
+  assert.equal(st.source.file, 'Pasted');
+  for (const l of st.lines) { assert.equal(l.src.type, 'pasteLine'); assert.equal(l.conf.read, 'medium'); }
+});
+
+test('[old] a paste of tab-separated cells reads: trailing tabs, blanks and all', () => {
+  const t = 'Account\tJan 2026\tFeb 2026\tMar 2026\tTotal\t\t\nBase Rent\t1,000\t1,000\t1,000\t3,000\t\t\nRepairs\t100\t\t100\t200\t\t\n';
+  const st = importStatement(pastedRows(t), { file: 'Pasted', source: { type: 'paste' } });
+  assert.deepEqual(st.lines.map((l) => [l.label, l.months, l.total]), [['Base Rent', [1000, 1000, 1000], 3000], ['Repairs', [100, 0, 100], 200]]);
+  assert.deepEqual(st.lines[1].blank, [1]);
+});
+
+test('[old] a paste in spaces reads (1,234), 1,234- and a dash', () => {
+  const t = 'Account    Jan 2026    Feb 2026    Mar 2026    Total\nBase Rent    1,000    1,000    1,000    3,000\nOwner Draws    (1,234)    —    1,234-    0\n';
+  const st = importStatement(pastedRows(t), { file: 'Pasted', source: { type: 'paste' } });
+  const d = st.lines.find((l) => l.label === 'Owner Draws');
+  assert.deepEqual(d.months.map(Math.abs), [1234, 0, 1234]);
+  assert.equal(d.blank, undefined, 'the em dash is a printed zero, not blank');
+});
+
+test('a paste with no heading row says how to copy it', () => {
+  assert.throws(() => importStatement(pastedRows('Base Rent  1000  1000\nTaxes  5  5'), { file: 'Pasted', source: { type: 'paste' } }), /No months or total column were found/);
+});
+
+test('a decimal-comma file reads through numberFormat, to the cent', () => {
+  const rows = statementRows({ lines: [['Base Rent', ...six('1.234,56'), '7.407,36'], ['Taxes', ...six('500,25'), '3.001,50']] });
+  const st = read(rows, { numberFormat: 'eu' });
+  assert.deepEqual(st.lines.map((l) => l.total), [7407.36, 3001.5]);
+  assert.equal(st.source.numberFormat, 'eu');
+  assert.equal(st.lines[0].fileTotal, 7407.36);
+});
+
+/* ------------------------------------------------------------------- 6. the period */
+
+const heads = (n) => Array.from({ length: n }, (_, i) => `${MON12[i]}`);
+
+test('[old] period: six dated months are T-6; twelve are T-12', () => {
+  const p = read(statementRows({ lines: SIX })).period;
+  assert.deepEqual([p.basis, p.dated, p.count, p.gaps, p.duplicates, p.emptyCols, p.printed], ['T-6', true, 6, [], [], [], null]);
+  assert.deepEqual(p.columns[0], { c: 1, kind: 'month', head: 'Jan 2026' });
+  assert.deepEqual(p.columns[6], { c: 7, kind: 'total', head: 'Total' });
+  const y = read(statementRows({ months: MON12, lines: [['Base Rent', ...Array(12).fill(10), 120]] })).period;
+  assert.deepEqual([y.basis, y.count], ['T-12', 12]);
+});
+
+test('[old] period: "Month 1…12" is T-12 but undated, and no year is invented', () => {
+  const months = Array.from({ length: 12 }, (_, i) => `Month ${i + 1}`);
+  const st = read(statementRows({ months, lines: [['Base Rent', ...Array(12).fill(10), 120]] }));
+  assert.deepEqual([st.period.basis, st.period.dated], ['T-12', false]);
+  assert.equal(st.months[0], 'M01');
+  assert.ok(st.period.columns.every((c) => c.kind === 'index' || c.kind === 'total'));
+  const six6 = read(statementRows({ months: months.slice(0, 6), lines: [['Base Rent', ...Array(6).fill(10), 60]] }));
+  assert.equal(six6.period.basis, 'other', 'Month 1…6 is not claimed to be a T-6');
+});
+
+test('[old] period: a Total column and no months is annual; a YTD total with a gap is YTD', () => {
+  const annual = read([['Account', 'Total'], ['Base Rent', 120000], ['Taxes', 30000]]);
+  assert.deepEqual([annual.period.basis, annual.period.count], ['annual', 0]);
+  const ytd = read(statementRows({ months: ['Jan 2026', 'Feb 2026', 'Apr 2026'], lines: [['Base Rent', 1, 1, 1, 3]] }).map((r, i) => (i === 0 ? [...r.slice(0, 4), 'YTD'] : r)));
+  assert.equal(ytd.period.basis, 'YTD');
+  assert.deepEqual(ytd.period.gaps, ['2026-03']);
+});
+
+test('[old] period: a gap and a duplicate month are recorded, not repaired', () => {
+  const gap = read(statementRows({ months: ['Jan 2026', 'Feb 2026', 'Apr 2026', 'May 2026'], lines: [['Base Rent', 1, 1, 1, 1, 4]] })).period;
+  assert.deepEqual([gap.basis, gap.gaps], ['other', ['2026-03']]);
+  const dup = read(statementRows({ months: ['Jan 2026', 'Feb 2026', 'Jan 2026'], lines: [['Base Rent', 1, 1, 1, 3]] })).period;
+  assert.deepEqual([dup.basis, dup.duplicates], ['other', ['2026-01']]);
+});
+
+test('[old] period: the printed period line is kept as text, no date parsed', () => {
+  const head = [['Invented Plaza'], ['Period: 01/02/2026 to 30/06/2026']];
+  const p = read(statementRows({ head, lines: SIX })).period;
+  assert.equal(p.printed, 'Period: 01/02/2026 to 30/06/2026');
+  assert.equal(read(statementRows({ head: [['Invented Plaza'], ['Statement of income'], ['Prepared as of Friday']], lines: SIX })).period.printed, 'Prepared as of Friday');
+});
+
+test('[old] period: Jan–Dec with Sep–Dec empty is T-12 with four empty columns and the blanks check', () => {
+  const lines = [['Base Rent', ...heads(8).map(() => 1000), '', '', '', '', 8000], ['Taxes', ...heads(8).map(() => 100), '', '', '', '', 800]];
+  const st = read(statementRows({ months: MON12, lines }));
+  assert.deepEqual([st.period.basis, st.period.emptyCols], ['T-12', ['2026-09', '2026-10', '2026-11', '2026-12']]);
+  assert.ok(statementChecks(st).some((x) => x.id === 'blanks'));
+  assert.equal(st.months.length, 12, 'nothing is dropped: that is PR 3');
 });
