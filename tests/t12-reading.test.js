@@ -9,7 +9,8 @@ import ExcelJS from 'exceljs';
 import * as fflate from 'fflate';
 import { LAYOUTS, layoutFile } from './t12-layouts.js';
 import { text, grid, statementRows, SIX, EU_SEMICOLON, MON6, MON12 } from './t12-formats.js';
-import { amountOf, layoutOf, numberFormatOf, tokenFormat, currencyRefusal, importStatement, statementChecks, openChecks, markSeen, sheetChoices, pickSheet, sourceText, periodShort, lineNotes } from '../app/t12.js';
+import { amountOf, layoutOf, numberFormatOf, tokenFormat, currencyRefusal, importStatement, statementChecks, openChecks, markSeen, sheetChoices, pickSheet, sourceText, periodShort, lineNotes, fileLine, rematch } from '../app/t12.js';
+import { buildBackup, readBackup, planRestore } from '../app/backup.js';
 import { readGrids, detectDelimiter, csvRows, pastedRows, gridsOf } from '../app/sheetread.js';
 
 const getFflate = async () => fflate;
@@ -420,4 +421,31 @@ test('[old] a line says its blank months, its unread cells, and pasted or medium
   const p = importStatement(pastedRows('Account\tJan 2026\tFeb 2026\tMar 2026\nRepairs\t1\t\t1\n'), { source: { type: 'paste' } });
   assert.deepEqual(lineNotes(p, p.lines[0]), ['1 month blank (Feb), counted as $0', 'pasted']);
   assert.deepEqual(lineNotes({ months: ['2026-01'] }, { label: 'x' }), [], 'a line read before 4.7.28 has no notes');
+});
+
+/* ------------------------------------------- 9. the new fields survive a backup and an edit */
+
+test('[old] the new fields round-trip through buildBackup, readBackup and planRestore', async () => {
+  const st = read(statementRows({ lines: SIX }), { sheet: 'T12 Actual', numberFormat: 'eu', source: { type: 'csv', size: 99, sheets: [{ name: 'T12 Actual', hidden: false, projection: false, lines: 3 }], delimiter: ';', numberAsked: true, encoding: 'windows-1252' } });
+  assert.ok(st.lines.some((l) => l.blank) && st.lines.some((l) => l.unread), 'the fixture has blank and unread cells');
+  const deal = { id: 'd1', name: 'Invented', updatedAt: 5, figures: {}, visit: { photos: [], audio: [] }, t12: st };
+  const b = await buildBackup({ deals: [deal], appVersion: '4.7.28' });
+  const back = readBackup(JSON.stringify(b));
+  const plan = planRestore(back, { deals: [], kv: {}, session: null, local: {} }, 'merge');
+  assert.deepStrictEqual(plan.deals.put[0].t12, JSON.parse(JSON.stringify(st)));
+  assert.equal(plan.deals.put[0].t12.v, 2);
+});
+
+test('an in-place edit keeps what a line records: filing it, re-matching and flipping signs', () => {
+  const st = read(statementRows({ lines: SIX }));
+  const line = repairs(st);
+  const before = JSON.stringify([line.src, line.conf, line.blank, line.unread]);
+  fileLine(st, line.id, 'otherOpex');
+  assert.equal(JSON.stringify([line.src, line.conf, line.blank, line.unread]), before);
+  const re = rematch(st, { 'base rent': 'rent' });
+  assert.equal(JSON.stringify([repairs(re).src, repairs(re).conf, repairs(re).blank, repairs(re).unread]), before);
+  const neg = read(statementRows({ lines: [['Base Rent', 100, 100, '', 100, 100, 100, 500], ['Repairs', -10, -10, '', -10, -10, -10, -50], ['Taxes', -5, -5, -5, -5, -5, -5, -30]] }));
+  assert.equal(neg.signs.expensesNegative, true);
+  assert.deepEqual(repairs(neg).blank, [2], 'a sign flip keeps the blank record');
+  assert.equal(repairs(neg).src.row, repairs(neg).r);
 });
