@@ -10,7 +10,7 @@ import { checkUpload } from './filekind.js';
 import {
   CATEGORIES, CATEGORY, SIDES, statementTotals, annualized, openLines, fileLine, periodText, rematch, sourceText, periodShort, lineNotes,
   statementNotes, markSeen, suggestionText, sheetChoices, pickSheet, layoutOf, numberFormatOf, importStatement, currencyRefusal,
-  t12Qc, t12OpenChecks, heldBy, useHeldBy, applyT12Fix, windowOf, monthLabel,
+  t12Qc, t12OpenChecks, heldBy, useHeldBy, applyT12Fix, windowOf, monthLabel, noiWithout, runRate,
 } from './t12.js';
 import { qcPanel } from './dataqcui.js';
 import { qcCounts } from './dataqc.js';
@@ -117,6 +117,9 @@ export function renderT12Card(box, h) {
     }
     const noiLabel = n && n < 12 ? `NOI, ${n} month${n === 1 ? '' : 's'}` : 'NOI';
     row(lines.length ? `${noiLabel} (lines still to file are left out)` : noiLabel, T.noi, 'total grand');
+    // beside the reported NOI, never in its place: what it would be without the one-offs the broker marked "Recurring? No"
+    const without = noiWithout(t);
+    if (without) { row('NOI without the one-offs you marked', without.noi, 'muted t12-noi-without'); }
     const below = CATEGORIES.filter((c) => c.side === 'below' && T.by[c.id]);
     if (below.length) {
       const tr = el('tr', 'sep'); const th = el('th', null, SIDES.below); th.colSpan = 2; tr.appendChild(th); tb.appendChild(tr);
@@ -129,6 +132,7 @@ export function renderT12Card(box, h) {
   wrap.appendChild(tbl);
   box.appendChild(wrap);
 
+  if (!held.length) box.appendChild(runRateSection(d, t, h));
   box.appendChild(qcSection(h));
   box.appendChild(noiThreeWays(d, T, h));
 
@@ -159,10 +163,12 @@ export function renderT12Card(box, h) {
 /* ------------------------------------------------- the T-12 Data QC panel */
 
 /** What an action sheet asks, for the fixes of a check of each kind. */
-const FIX_TITLE = { duplicate: 'Which column counts?', long: 'Which 12 months are the T-12?', chosen: 'Which 12 months are the T-12?', cumulative: 'How are the columns read?', active: 'Annualise over which months?' };
+const FIX_TITLE = { duplicate: 'Which column counts?', long: 'Which 12 months are the T-12?', chosen: 'Which 12 months are the T-12?', cumulative: 'How are the columns read?', active: 'Annualise over which months?', oneoff: 'Recurring?' };
 
 /** The history entry for a fix: "T-12: Use column N for Dec 2025". */
 export function fixLabel(c, f) {
+  if (f.id.startsWith('rec:')) return `T-12: ${c.where ? `${c.where} ` : ''}marked ${f.id === 'rec:yes' ? 'recurring' : 'not recurring'}`;
+  if (c.kind === 'quarterends' && f.id === 'seen') return 'T-12: the columns are single months';
   if (f.id === 'seen') return c.id.startsWith('stated.') ? `T-12: ${f.label}` : 'T-12: a check marked seen';
   if (c.kind === 'duplicate') return `T-12: ${f.label} for ${monthLabel(c.id.slice('period.dup.'.length))}`;
   return `T-12: ${f.label}`;
@@ -202,9 +208,57 @@ export function fixButtons(c, run) {
 /** A fix applied on the deal screen: one history entry (Undo takes it back), then the card is drawn again. */
 function runFix(h, c, f) {
   const d = h.deal;
+  // "Not sure" stores nothing: the Note stays open, and there is no history step to undo
+  if (f.id === 'rec:notsure') { toast('Left as it is: the note stays open until you answer.'); return; }
   if (!d.t12 || !applyT12Fix(d.t12, c.id, f.id)) return;
   h.touch({ kind: 'edit', label: fixLabel(c, f) });
   h.redraw();
+}
+
+/* ------------------------------------------------------ the run rate */
+
+/** The deals whose run rate is on show: a screen state, never saved, so it is off whenever the app is opened again. */
+const rateOn = new Set();
+
+/**
+ * "Show a run rate", on request, for a statement of fewer than 12 months: its totals × 12 ÷ its months beside the
+ * figures as read, headed "run rate … not a T-12". It reaches nothing on the deal; only "Use the T-12's figures"
+ * → "Annualize it, then use" does, after its own confirmation.
+ */
+function runRateSection(d, t, h) {
+  const box = el('div', 't12-rate');
+  const om = d.t12.applied ? d.t12.applied.before.noi : d.figures.noi;
+  const r = runRate(t, { omNoi: ok(om) ? om : null });
+  if (!r) return box;
+  const on = rateOn.has(d.id);
+  const toggle = el('button', 'btn btn-sm btn-gray t12-act', on ? 'Hide the run rate' : 'Show a run rate');
+  toggle.type = 'button';
+  toggle.id = 't12-rate-toggle';
+  toggle.setAttribute('aria-expanded', String(on));
+  toggle.addEventListener('click', () => { if (rateOn.has(d.id)) rateOn.delete(d.id); else rateOn.add(d.id); h.redraw(); });
+  box.appendChild(toggle);
+  if (!on) return box;
+  const T = statementTotals(t);
+  const tbl = el('table', 'mini t12-rate-table');
+  tbl.id = 't12-runrate';
+  tbl.appendChild(el('caption', 'sr-only', 'A run rate, which is not a T-12'));
+  const hr = el('tr');
+  for (const x of ['', `As read (${periodText(t)})`, r.heading]) { const c = el('th', null, x); c.setAttribute('scope', 'col'); if (!x) c.appendChild(el('span', 'sr-only', 'Figure')); hr.appendChild(c); }
+  const th = el('thead'); th.appendChild(hr); tbl.appendChild(th);
+  const tb = el('tbody');
+  for (const [label, a, b, cls] of [['Effective gross income', T.egi, r.egi], ['Operating expenses', T.opex, r.opex], ['Real estate taxes', T.taxes, r.taxes], ['NOI', T.noi, r.noi, 'grand']]) {
+    const tr = el('tr', cls || ''); const hd = el('th', null, label); hd.setAttribute('scope', 'row');
+    tr.append(hd, el('td', 'num', usd(a)), el('td', 'num', usd(b)));
+    tb.appendChild(tr);
+  }
+  tbl.appendChild(tb);
+  const wrap = el('div', 'scroll');
+  wrap.appendChild(tbl);
+  box.appendChild(wrap);
+  for (const l of r.lumps) { const p = el('p', 'hint t12-lump', l.text); box.appendChild(p); }
+  if (r.om) { const p = el('p', 'hint t12-rate-om', r.om.text); p.id = 't12-rate-om'; box.appendChild(p); }
+  box.appendChild(el('p', 'hint', 'A run rate is a screen figure, not a T-12 and not kept: it changes nothing on the deal. “Use the T-12’s figures” → “Annualize it, then use” is the one way to put an annualized figure in.'));
+  return box;
 }
 
 /** The panel, folded to one line when nothing is waiting (as the OM's is). */
@@ -214,7 +268,7 @@ function qcSection(h) {
   const n = qcCounts(qc);
   const panel = qcPanel({
     id: 'deal-t12qc', title: 'Data QC: T-12', qc,
-    intro: `${qc.intro ? `${qc.intro} ` : ''}Each check the statement’s own columns and totals were put through; a Fail or a held reading waits for your choice here or in Review.`,
+    intro: `${qc.intro ? `${qc.intro} ` : ''}Each check the statement’s own columns and totals were put through; a Fail or a held reading waits for your choice here or in Review.${noiWithout(t) ? ` ${noiWithout(t).text}; the reported NOI above is unchanged.` : ''}`,
     extra: (c) => (c.resolved ? [] : fixButtons(c, (f) => runFix(h, c, f))),
   });
   if (n.open) return panel;
@@ -556,7 +610,7 @@ async function useFigures(h) {
     const pick = await actionSheet(`This T-12 is ${n} month${n === 1 ? '' : 's'}${W.n !== n ? `, ${W.n} with activity` : ''}, not a full year`, [
       { label: 'Keep it as a partial year', sub: `Nothing on the deal changes. The T-12’s ${n}-month NOI (${usd(T.noi)}) stays on this card as a partial year, not compared with a year’s figures.`, value: 'keep', primary: true },
       asks
-        ? { label: 'Annualize it, then use the figures…', sub: `Not yet: ${W.columns - W.active} of its ${W.columns} months ${W.columns - W.active === 1 ? 'has' : 'have'} no activity on any line. Say whether to annualize over the ${W.active} months with activity or all ${W.columns} columns in “Data QC: T-12” first.`, value: 'ask', disabled: true }
+        ? { label: 'Annualize it, then use the figures…', sub: W.asks.includes('period.quarterends') ? `Not yet: its ${W.columns} columns are 3 or 12 months apart and may be quarters or years, not months. Say they are single months in “Data QC: T-12” first.` : `Not yet: ${W.columns - W.active} of its ${W.columns} months ${W.columns - W.active === 1 ? 'has' : 'have'} no activity on any line. Say whether to annualize over the ${W.active} months with activity or all ${W.columns} columns in “Data QC: T-12” first.`, value: 'ask', disabled: true }
         : { label: 'Annualize it, then use the figures…', sub: `Scales each total by 12 ÷ ${W.n}. You see the annual figures and confirm before anything changes.`, value: 'annualize' },
     ]);
     if (pick !== 'annualize') { if (pick === 'keep') toast(`Nothing changed: the T-12 stays a ${n}-month partial year.`); return; }

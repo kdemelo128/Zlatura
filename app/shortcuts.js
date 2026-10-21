@@ -39,8 +39,8 @@ export const SHORTCUTS = [
   { group: 'In the rent roll', keys: [['←'], ['→']], does: 'The cell to the left or right, from the start or end of its text', src: ['rentrollui.js'], listen: ['ArrowLeft', 'ArrowRight'] },
   { group: 'In the rent roll', keys: [['Enter']], does: 'Keep the cell and go down', src: ['rentrollui.js'], listen: ['Enter'] },
   { group: 'In the rent roll', keys: [['Esc']], does: 'Put the cell back as it was', src: ['rentrollui.js'], listen: ['Escape'] },
-  { group: 'In a date field', keys: [['Enter']], does: 'Keep the date you typed', src: ['dateinput.js'], listen: ['Enter'] },
-  { group: 'In a date field', keys: [['Esc']], does: 'Put back the last date', src: ['dateinput.js'], listen: ['Escape'] },
+  { group: 'In a date field', keys: [['Enter']], does: 'Keep the date (or a setting’s number) you typed', src: ['dateinput.js', 'settings.js'], listen: ['Enter'] },
+  { group: 'In a date field', keys: [['Esc']], does: 'Put back the last date (or setting)', src: ['dateinput.js', 'settings.js'], listen: ['Escape'] },
   { group: 'Settings', keys: [['←'], ['→']], does: 'Choose the theme, once the theme control has the focus', src: ['theme.js'], listen: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'] },
 ];
 

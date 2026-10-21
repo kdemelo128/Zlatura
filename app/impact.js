@@ -106,9 +106,11 @@ function fromEngine(R) {
   if (p === 'd.rentRollAsOf') return [keep('rr.settings.asOf')];
   // the T-12, and the OM's own figures it is compared with (kept as they were before "Use the T-12's figures")
   if (p === 'd.t12') return [keep('t12')];
-  if (p === 'd.t12Om') return ['noi', 'gross', 'opex', 'taxes'].map((k) => ({ ...R, path: `figures.${k}`, when: 'only for a deal with a T-12' }));
-  if (p === 'd.t12OmNoi') return [{ ...R, path: 'figures.noi', when: 'only for a deal with a T-12' }];
-  if (p === 'd.rrNoi1') return [{ ...R, path: 'proj.noi', when: 'only for a deal with a T-12 and a rent roll' }];
+  // the NOI three ways rules are the only readers of these three, and they compare by the thresholds in Settings (NOI_GAP)
+  const gaps = { ...R, path: 'conventions', when: 'only for a deal with a T-12: the NOI agree and warn levels' };
+  if (p === 'd.t12Om') return [...['noi', 'gross', 'opex', 'taxes'].map((k) => ({ ...R, path: `figures.${k}`, when: 'only for a deal with a T-12' })), gaps];
+  if (p === 'd.t12OmNoi') return [{ ...R, path: 'figures.noi', when: 'only for a deal with a T-12' }, gaps];
+  if (p === 'd.rrNoi1') return [{ ...R, path: 'proj.noi', when: 'only for a deal with a T-12 and a rent roll' }, gaps];
   if (p.startsWith('d.')) return [keep(`figures.${p.slice(2)}`)];
   if (p.startsWith('loan.')) return [keep(p)];
   if (p === 'comps' || p.startsWith('comps.')) return [keep('comps')];

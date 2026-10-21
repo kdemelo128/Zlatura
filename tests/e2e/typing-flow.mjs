@@ -315,6 +315,49 @@ if (await page.locator('#sheet-body table.rows-edit').count()) {
 
 });
 
+await step('Settings, the T-12 threshold boxes (T-12 PR 3b)', async () => {
+  await page.click('#sheet-close').catch(() => {}); // the WALT table above is still open
+  await pause(300);
+  await page.goto(BASE + '#settings', { waitUntil: 'load' });
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('#conv-t12-spike-times');
+  const kept = (id) => page.evaluate(async (k) => { const m = await import('./app/store.js'); const v = await m.kvGet('conventions'); return v ? v[k] : undefined; }, id);
+  // every box: typed one character at a time (nothing reformatted or wiped, focus kept), left with Tab, then what was kept
+  const box = async (name, id, text, shown, saved) => {
+    await numberField(`Settings, ${name}`, `#conv-${id.replace(/\./g, '-')}`, text, shown);
+    const v = await kept(id);
+    check(`Settings, ${name}: saved on this device as ${saved}`, v === saved, `saved ${v}`);
+  };
+  await box('spike times (a multiple), “2.5”', 't12.spike.times', '2.5', '2.5', 2.5);
+  await box('spike floor (dollars), “$2,000” typed with its sign and comma', 't12.spike.floor', '$2,000', '2000', 2000);
+  await box('spike share of income (percent), “0.75”', 't12.spike.egiPct', '0.75', '0.75', 0.75);
+  await box('spike share of income, “0.5” stays half of one percent, not 50%', 't12.spike.egiPct', '0.5', '0.5', 0.5);
+  await box('negative month (dollars)', 't12.negMonth', '750', '750', 750);
+  await box('one-off share (percent)', 't12.oneoff.share', '60', '60', 60);
+  await box('one-off side (percent), under 1', 't12.oneoff.side', '0.5', '0.5', 0.5);
+  await box('year over year, a line (percent)', 't12.yoy.line', '30', '30', 30);
+  await box('year over year, NOI (percent)', 't12.yoy.noi', '60', '60', 60);
+  await box('NOI agree level (percent)', 'noi.agree', '3', '3', 3);
+  await box('NOI warning level (percent)', 'noi.warn', '8', '8', 8);
+  // a value that is not a number reverts on Enter, with a message, and keeps focus
+  const sel = '#conv-t12-spike-times';
+  const bad = await typeChars(sel, 'abc', {});
+  check('Settings, spike times: “abc” typed key by key, nothing lost on the way', !bad.length, note(bad));
+  await page.keyboard.press('Enter');
+  await pause(200);
+  check('Settings, spike times: Enter on text puts the last value back and says why', (await page.locator(sel).inputValue()) === '2.5' && /Between 1\.5 and 20; kept at 2\.5/.test(await page.textContent('#conv-t12-spike-times-msg')) && (await page.getAttribute('#conv-t12-spike-times-msg', 'aria-live')) === 'polite', await page.textContent('#conv-t12-spike-times-msg'));
+  check('Settings, spike times: focus stays on the box after Enter', await page.evaluate((s) => document.activeElement === document.querySelector(s), sel));
+  await typeChars(sel, '99', {});
+  await page.keyboard.press('Tab');
+  await pause(200);
+  check('Settings, spike times: 99 is out of range and kept at 2.5', (await page.locator(sel).inputValue()) === '2.5' && (await kept('t12.spike.times')) === 2.5);
+  // the agree level may not pass the warning level: both stay as they were
+  await typeChars('#conv-noi-agree', '9', {});
+  await page.keyboard.press('Enter');
+  await pause(200);
+  check('Settings, NOI agree level: 9 is not below the 8 warning level, so it is kept at 3 with a message', (await page.inputValue('#conv-noi-agree')) === '3' && /below the warning level/.test(await page.textContent('#conv-noi-agree-msg')) && (await kept('noi.agree')) === 3);
+});
+
 await step('T-12 paste box', async () => {
   await page.goto(BASE + '?t12paste#deal', { waitUntil: 'load' });
   await page.evaluate(async () => { const m = await import('./app/dealui.js'); m.startDealByHand(); });

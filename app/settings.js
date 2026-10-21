@@ -2,7 +2,7 @@
  * stages, the AI connection, and the data kept on this device. Each row
  * opens the real control; nothing here is decorative. */
 
-import { $, el, svg, niceDate } from './kit.js';
+import { $, el, svg, niceDate, parseNum, parsePct } from './kit.js';
 import { getTheme } from './theme.js';
 import * as ai from './ai.js';
 import { renderDataCard } from './backupui.js';
@@ -39,6 +39,52 @@ const row = (title, desc, controls) => {
   return r;
 };
 const btn = (label, fn, cls = '') => { const b = el('button', `btn btn-sm ${cls}`.trim(), label); b.type = 'button'; b.addEventListener('click', fn); return b; };
+
+/** A number setting's text, as shown at rest: no thousands marks, so what is typed back reads the same. */
+const numText = (v) => String(v);
+const rangeText = (c) => { const f = (v) => `${c.unit === '$' ? '$' : ''}${v.toLocaleString('en-US')}${c.unit === '%' ? '%' : ''}`; return `Between ${f(c.min)} and ${f(c.max)}`; };
+
+/**
+ * A number setting (T-12 thresholds, the NOI levels): a text box read only when it is left or Enter is pressed, as
+ * the date field is (dateinput.js), so nothing is reformatted or redrawn while it is typed in. A value that is not
+ * a number, or out of its range, puts the last good value back and says why in a live region.
+ */
+function numberRow(c) {
+  const id = `conv-${c.id.replace(/\./g, '-')}`;
+  const inp = el('input', 'input n conv-num');
+  inp.type = 'text';
+  inp.inputMode = 'decimal';
+  inp.autocomplete = 'off';
+  inp.spellcheck = false;
+  inp.id = id;
+  inp.setAttribute('aria-label', c.label);
+  let shown = numText(conv(c.id));
+  inp.value = shown;
+  const msg = el('span', 'conv-msg');
+  msg.id = `${id}-msg`;
+  msg.setAttribute('aria-live', 'polite');
+  const put = () => { shown = numText(conv(c.id)); inp.value = shown; };
+  const bad = (text) => { put(); inp.setAttribute('aria-invalid', 'true'); inp.setAttribute('aria-describedby', msg.id); msg.textContent = `${text}; kept at ${shown}`; };
+  const commit = async () => {
+    if (inp.value === shown) { msg.textContent = ''; inp.removeAttribute('aria-invalid'); return; }
+    const v = c.unit === '%' ? parsePct(inp.value, { fraction: false }) : parseNum(inp.value);
+    if (v === null || v < c.min || v > c.max) { bad(rangeText(c)); return; }
+    setConventions({ [c.id]: v });
+    if (conv(c.id) !== v) { bad(c.id === 'noi.agree' ? `Must stay below the warning level (${conv('noi.warn')}%)` : `Must stay above the agree level (${conv('noi.agree')}%)`); return; }
+    msg.textContent = '';
+    inp.removeAttribute('aria-invalid');
+    inp.removeAttribute('aria-describedby');
+    put();
+    await kvSet('conventions', conventionValues());
+    document.dispatchEvent(new CustomEvent('conventionchange'));
+  };
+  inp.addEventListener('input', () => { if (inp.hasAttribute('aria-invalid')) { inp.removeAttribute('aria-invalid'); msg.textContent = ''; } });
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); } else if (e.key === 'Escape' && inp.value !== shown) { e.preventDefault(); put(); }
+  });
+  return row(c.label, c.help, [inp, el('span', 'conv-unit', c.unit), msg]);
+}
 
 export async function renderSettings() {
   const root = $('settings-root');
@@ -105,7 +151,8 @@ export async function renderSettings() {
   const cv = section('Calculation conventions', 'settings-conventions');
   const cl = el('ul', 'set-list');
   for (const c of CONVENTIONS) {
-    if (c.settable) {
+    if (c.settable && c.kind === 'number') cl.appendChild(numberRow(c));
+    else if (c.settable) {
       const sel = el('select', 'compact');
       sel.id = `conv-${c.id.replace('.', '-')}`;
       sel.setAttribute('aria-label', c.label);

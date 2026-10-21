@@ -10,6 +10,8 @@
  * fewer months it is what those months add up to, never scaled up). */
 
 import { toCents } from './engine/money.js';
+import { median } from './engine/comps.js';
+import { conv } from './engine/conventions.js';
 
 /* ------------------------------------------------------------ categories */
 
@@ -192,6 +194,8 @@ export function monthOf(v) {
   if (m && +m[2] >= 1 && +m[2] <= 12) return { index: +m[2] };
   return null;
 }
+/** A column heading that is a quarter or a fiscal year: "Q1 2025", "2Q25", "Quarter 3", "3 months ended", "FY2025". */
+const QUARTER_HEAD = /^(q[1-4]|[1-4]q)\b|quarter|3 months ended|^fy\s?\d{2,4}$/i;
 const TOTAL_HEAD = /^(total|totals|t-?12|ttm|trailing( 12| twelve)?( months?)?|annual|year total|ytd|12 months?)\b/i;
 
 /** "Jan 2025" for "2025-01". */
@@ -444,12 +448,16 @@ function periodOf({ head, monthCols, totalCol }, months, rows, lines) {
   else if (n === 0 && totalCol !== null) basis = 'annual';
   else if (n === 12 && indexes.every((v, i) => v === i + 1)) basis = 'T-12';
   const emptyCols = lines.length ? monthCols.map((_, i) => i).filter((i) => lines.every((l) => l.blank && l.blank.includes(i))).map((i) => months[i]) : [];
+  // columns headed as quarters or fiscal years, not months: only the Total is read; said, never guessed at (PR 3b)
+  const heads = n === 0 ? head.row.cells.filter((v) => typeof v === 'string' && QUARTER_HEAD.test(v.trim())).map((v) => v.trim().slice(0, 40)) : [];
+  const nonMonthly = heads.length >= 2 ? { kind: heads.every((h) => /^fy/i.test(h)) ? 'years' : 'quarters', heads } : null;
   const above = rows.find((x) => x.r < head.row.r && /period|months ended|year ended|ytd|as of/i.test(x.cells.filter((v) => typeof v === 'string').join(' ')));
   return {
     basis, dated, count: n,
     columns: [...monthCols.map((m) => ({ c: m.c, kind: m.iso ? 'month' : 'index', head: String(head.row.cells[m.c]).slice(0, 40) })), ...(totalCol !== null ? [{ c: totalCol, kind: 'total', head: totalHead.slice(0, 40) }] : [])],
     gaps, duplicates, emptyCols,
     printed: above ? above.cells.filter((v) => v !== null && v !== undefined && String(v).trim()).join(' ').slice(0, 120) : null,
+    ...(nonMonthly ? { nonMonthly } : {}),
   };
 }
 
@@ -1089,6 +1097,25 @@ export function periodChecks(t) {
     });
   }
 
+  // columns exactly 3 (or 12) months apart: dated quarter ends (3/31, 6/30 …) read as single months. Annualise and
+  // the run rate would multiply by the wrong number (monthly against quarterly), so they wait for the broker (F1, PR 3b)
+  if (dated.length >= 2) {
+    const ks = dated.map(mkey);
+    const step = ks[1] - ks[0];
+    if ((step === 3 || step === 12) && ks.every((k, i) => i === 0 || k - ks[i - 1] === step)) {
+      const n = t.months.length;
+      const A = annualized(T0, n);
+      const first = dated[0]; const last = dated[dated.length - 1];
+      const span = first.slice(0, 4) === last.slice(0, 4) ? `${monthLabel(first).slice(0, 3)} to ${monthLabel(last)}` : `${monthLabel(first)} to ${monthLabel(last)}`;
+      out.push({
+        id: 'period.quarterends', kind: 'quarterends', level: 'warn', holds: 'annualise', short: `the columns may be ${step === 3 ? 'quarters' : 'years'}`,
+        text: `The ${dated.length} columns are ${step} months apart (${span}): each may be a ${step === 3 ? 'quarter' : 'year'}. Read as months, Annualize would ${A ? `multiply by ${+(12 / n).toFixed(2)}` : 'add them up as one year'}. Are they single months? If not, use the Total column.`,
+        amount: A ? cents(Math.abs(A.noi - T0.noi)) : 0, where: span,
+        fixes: [{ id: 'seen', label: 'They are single months' }],
+      });
+    }
+  }
+
   // months with no activity: N, what Annualise divides by (asked only when nothing above is open)
   if (!out.some((c) => c.holds === 'totals')) {
     const a = activity(t);
@@ -1133,10 +1160,256 @@ export const heldBy = (t) => periodChecks(t).filter((c) => c.holds === 'totals')
 /** What Annualise divides by, and whether it is still to be asked: { n, ask } (`n`: the months with activity once answered so, else the columns). */
 export function windowOf(t) {
   const a = activity(t);
-  const q = periodChecks(t).find((c) => c.id === 'period.active');
+  const seen = t.seen || {};
+  // any open check that holds Annualise: the months with no activity (answered by the window), the columns that may be quarters (answered by Seen)
+  const asks = periodChecks(t).filter((c) => c.holds === 'annualise' && !seen[c.id]).map((c) => c.id);
   const w = t.window;
   const active = !!(w && w.how === 'active' && w.n === a.n && a.n !== a.columns);
-  return { n: active ? a.n : a.columns, columns: a.columns, active: a.n, ask: !!(q && q.holds === 'annualise') };
+  return { n: active ? a.n : a.columns, columns: a.columns, active: a.n, ask: asks.length > 0, asks };
+}
+
+/* ------------------------------------------------ value checks (T-12 PR 3b)
+ *
+ * What the amounts in the months say, worked out from the statement each time (nothing stored): a spike, a
+ * negative expense, a large one-off and a year over year change, with thresholds the broker can set (Settings →
+ * Calculation conventions, `conv('t12.…')`). All of them warn or note and none holds the totals or Use
+ * (docs/proposals/underwriting.md §7). Amounts are compared in whole cents so a boundary is exact. Lines are
+ * as stored (signed by normalizeSigns); blank months are 0 and left out of a typical month. Not run while a
+ * period check holds the totals (a month counted twice would make spikes). Design: docs/proposals/t12-multiformat.md §4-5. */
+
+const c100 = (x) => Math.round(cents(x) * 100);
+const fromC = (c) => cents(c / 100);
+/** Dollars, with cents only where there are some: "$3,000", "$499.99". */
+const usdx = (x) => (c100(x) % 100 === 0 ? usd0(x) : `${x < 0 ? '−' : ''}$${Math.abs(x).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+const sideOfLine = (l) => (l.category && CATEGORY[l.category] ? CATEGORY[l.category].side : l.section);
+/** 'income' or 'expense' for a line that is in NOI's reach (filed or not), else null (below the line). */
+const noiSide = (l) => { const s = sideOfLine(l); return s === 'income' || s === 'expense' ? s : null; };
+const isReduction = (l) => !!(l.category && CATEGORY[l.category] && CATEGORY[l.category].reduces);
+const monthWord = (iso) => (/^M\d+$/.test(iso || '') ? `Month ${+iso.slice(1)}` : monthLabel(iso));
+const gets = (n) => `${+n.toFixed(2)}`;
+
+/**
+ * The lines with a large one-off month: [{ line, side, i, iso, amountC, totalC }] (cents). An income or expense
+ * line whose period total (in the direction it counts: a reduction such as vacancy the other way) is at least
+ * `t12.oneoff.side` % of its side's total, and one month holds at least `t12.oneoff.share` % of it (the largest, the earliest on a tie).
+ */
+function oneoffs(t) {
+  const side = { income: 0, expense: 0 };
+  for (const l of t.lines) { const s = noiSide(l); if (s) side[s] += c100(l.total); }
+  const share = conv('t12.oneoff.share'); const sidePct = conv('t12.oneoff.side');
+  const out = [];
+  for (const l of t.lines) {
+    const s = noiSide(l);
+    if (!s) continue;
+    const sign = isReduction(l) ? -1 : 1;
+    const tc = c100(l.total) * sign;
+    if (!(tc > 0) || tc < Math.round((Math.abs(side[s]) * sidePct) / 100)) continue;
+    let at = -1; let top = 0;
+    l.months.forEach((m, i) => { const v = c100(m) * sign; if (v > top) { top = v; at = i; } });
+    if (at < 0 || top * 100 < share * tc) continue;
+    out.push({ line: l, side: s, i: at, iso: t.months[at], amountC: c100(l.months[at]), totalC: c100(l.total) });
+  }
+  return out;
+}
+
+/** The broker's answer to "Recurring?" for a line's month, 'yes' or 'no', while the month still holds the amount answered about; else null. */
+function answerOf(t, l, iso) {
+  const o = l.oneoff;
+  const i = t.months.indexOf(iso);
+  return o && o.iso === iso && i >= 0 && c100(l.months[i]) === c100(o.amount) && (o.recurring === 'yes' || o.recurring === 'no') ? o.recurring : null;
+}
+
+/** "Recurring?" answered for a one-off check `oneoff.<lineId>.<month>` (in place, on the line: nothing else moves). Returns true when it changed. */
+function answerOneoff(t, checkId, how) {
+  const [, lineId, iso] = String(checkId).split('.');
+  const l = t.lines.find((x) => x.id === lineId);
+  const i = t.months.indexOf(iso);
+  if (!l || i < 0 || answerOf(t, l, iso) === how) return false;
+  l.oneoff = { iso, amount: l.months[i], recurring: how };
+  return true;
+}
+
+/**
+ * NOI without the one-offs the broker marked "No, not recurring": { noi, marked: [{ label, iso, amount }], text }, or
+ * null when none is marked. NOI + the marked expense months - the marked income months, to the cent. Shown beside
+ * the reported NOI, never in its place, never written to the deal.
+ */
+export function noiWithout(t) {
+  if (!t || !Array.isArray(t.lines) || !Array.isArray(t.months) || heldCount(t)) return null;
+  const marked = [];
+  for (const l of t.lines) {
+    const s = noiSide(l);
+    if (!l.category || !s || !l.oneoff) continue;
+    const i = t.months.indexOf(l.oneoff.iso);
+    if (answerOf(t, l, l.oneoff.iso) !== 'no') continue;
+    marked.push({ label: l.label, iso: l.oneoff.iso, amount: l.months[i], side: s });
+  }
+  if (!marked.length) return null;
+  let c = c100(statementTotals(t).noi);
+  for (const m of marked) c += m.side === 'expense' ? c100(m.amount) : -c100(m.amount);
+  const noi = fromC(c);
+  return { noi, marked: marked.map(({ label, iso, amount }) => ({ label, iso, amount })), text: `NOI without the one-offs you marked: ${usd0(noi)} (${marked.length} marked: ${marked.map((m) => `${m.label}, ${monthWord(m.iso)}, ${usdx(m.amount)}`).join('; ')})` };
+}
+
+/**
+ * The value checks, in dataqc.js's shape (see periodChecks): `spike.<line>.<month>`, `negexp.<line>`, `negmonth.<line>.<month>`,
+ * `oneoff.<line>.<month>`, `yoy.lines`, `yoy.cats`, `yoy.noi`, `period.quarters`. Warnings (Review) and notes (the panel); none has `holds`.
+ * @param {any} t
+ * @returns {any[]}
+ */
+export function valueChecks(t) {
+  /** @type {any[]} */
+  const out = [];
+  if (!t || !Array.isArray(t.months) || !Array.isArray(t.lines)) return out;
+  const p = t.period || {};
+  const seenFix = [{ id: 'seen', label: 'Seen' }];
+  // columns headed as quarters or years: only the Total is read
+  if (p.nonMonthly && p.nonMonthly.heads && p.nonMonthly.heads.length >= 2 && !t.months.length) {
+    const h = p.nonMonthly.heads;
+    out.push({ id: 'period.quarters', kind: 'quarters', level: 'info', amount: 0, text: `The columns are ${p.nonMonthly.kind === 'years' ? 'fiscal years' : 'quarters'} (${h[0]} to ${h[h.length - 1]}); only the Total column is read, as one period.` });
+  }
+  if (heldCount(t)) return out;
+  const lines = t.lines.filter((l) => noiSide(l));
+  const egiC = Math.max(0, c100(statementTotals(t).egi));
+
+  // a spike: a month far above the line's typical month
+  const times = conv('t12.spike.times'); const floorC = Math.round(conv('t12.spike.floor') * 100); const pctEgi = conv('t12.spike.egiPct');
+  const limitC = Math.max(floorC, Math.round((egiC * pctEgi) / 100));
+  for (const l of lines) {
+    const mc = l.months.map(c100);
+    const nz = mc.filter((v) => v !== 0);
+    if (nz.length < 3) continue;
+    const med = median(nz);
+    if (!med) continue;
+    const sg = med < 0 ? -1 : 1; const mag = Math.abs(med);
+    const hits = [];
+    mc.forEach((v, i) => { const m = v * sg; if (m > times * mag && m > limitC) hits.push({ i, m }); });
+    if (!hits.length) continue;
+    const top = hits.reduce((a, b) => (b.m > a.m ? b : a));
+    const iso = t.months[top.i];
+    const others = hits.filter((h) => h !== top).map((h) => monthWord(t.months[h.i]));
+    out.push({
+      id: `spike.${l.id}.${iso}`, kind: 'spike', level: 'warn', amount: fromC(top.m - mag), where: `${l.label}, ${monthWord(iso)}`,
+      text: `${l.label}: ${monthWord(iso)} is ${usdx(l.months[top.i])}, more than ${gets(times)} × its typical month (${usdx(fromC(med))}) and over ${usdx(fromC(limitC))} (the larger of ${usdx(fromC(floorC))} and ${gets(pctEgi)}% of EGI).${others.length ? ` Also ${list(others)}.` : ''}`,
+      fixes: seenFix,
+    });
+  }
+
+  // an expense line below zero, or a negative month inside an expense line
+  const negC = Math.round(conv('t12.negMonth') * 100);
+  for (const l of lines) {
+    if (noiSide(l) !== 'expense') continue;
+    const tc = c100(l.total);
+    if (tc < 0) {
+      out.push({ id: `negexp.${l.id}`, kind: 'negexp', level: 'warn', amount: fromC(-tc), where: l.label, text: `${l.label} adds up to ${usdx(l.total)}: an expense line below zero. A refund or credit, or a sign the file got wrong?`, fixes: seenFix });
+      continue;
+    }
+    const mc = l.months.map(c100);
+    const low = mc.reduce((a, v, i) => (v < mc[a] ? i : a), 0);
+    if (mc.length && mc[low] < 0 && mc[low] <= -negC) {
+      out.push({ id: `negmonth.${l.id}.${t.months[low]}`, kind: 'negmonth', level: 'info', amount: fromC(-mc[low]), where: `${l.label}, ${monthWord(t.months[low])}`, text: `${l.label}: ${monthWord(t.months[low])} is ${usdx(l.months[low])}, a credit inside an expense line that adds up to ${usdx(l.total)}.` });
+    }
+  }
+
+  // a large one-off month: asked whether it recurs (Yes / No / Not sure); nothing is set by the app
+  const asked = new Set();
+  for (const o of oneoffs(t)) {
+    const l = o.line; const id = `oneoff.${l.id}.${o.iso}`;
+    asked.add(id);
+    const ans = answerOf(t, l, o.iso);
+    const what = `${l.label}, ${monthWord(o.iso)}`;
+    out.push(ans ? oneoffAnswered(id, what, fromC(o.amountC), ans) : {
+      id, kind: 'oneoff', level: 'info', amount: fromC(Math.abs(o.amountC)), where: what,
+      text: `${l.label}: ${monthWord(o.iso)} is ${usdx(fromC(o.amountC))}, ${Math.round((Math.abs(o.amountC) * 100) / Math.abs(o.totalC))}% of the line’s ${usdx(fromC(o.totalC))} for the period: it looks like a one-off, and needs classification. Recurring?`,
+      fixes: [{ id: 'rec:yes', label: 'Recurring? Yes' }, { id: 'rec:no', label: 'Recurring? No' }, { id: 'rec:notsure', label: 'Not sure' }],
+    });
+  }
+  // an answer about a month no longer flagged (a setting moved): still kept, still changeable
+  for (const l of lines) {
+    const iso = l.oneoff && l.oneoff.iso;
+    const id = `oneoff.${l.id}.${iso}`;
+    const ans = iso && !asked.has(id) ? answerOf(t, l, iso) : null;
+    if (ans) out.push(oneoffAnswered(id, `${l.label}, ${monthWord(iso)}`, l.months[t.months.indexOf(iso)], ans));
+  }
+
+  out.push(...yoyChecks(t, lines));
+  return out;
+}
+
+/** A "Recurring?" answer, kept as a pass line with the other answer as a change. */
+function oneoffAnswered(id, what, amount, ans) {
+  return {
+    id, kind: 'oneoff', level: 'pass', amount: 0, where: what,
+    text: `${what}, ${usdx(amount)}: you said it ${ans === 'yes' ? 'recurs, so it stays in NOI as it is' : 'is a one-off. “NOI without the one-offs you marked” is shown beside the reported NOI, which does not change'}.`,
+    fixes: [{ id: ans === 'yes' ? 'rec:no' : 'rec:yes', label: ans === 'yes' ? 'Change to: not recurring' : 'Change to: recurring', more: true }],
+  };
+}
+
+/** Year over year, like months only (a prior period is never scaled): lines, categories and NOI against the same months a year before. */
+function yoyChecks(t, lines) {
+  const pr = t.period && t.period.prior && Array.isArray(t.period.prior.months) ? t.period.prior.months : [];
+  const pairs = [];
+  pr.forEach((iso, j) => { if (!isIso(iso)) return; const i = t.months.indexOf(isoOfKey(mkey(iso) + 12)); if (i >= 0) pairs.push([i, j]); });
+  if (!pairs.length) return [];
+  const curIsos = pairs.map(([i]) => t.months[i]); const prevIsos = pairs.map(([, j]) => pr[j]);
+  const span = `${rangesText(curIsos)} against ${rangesText(prevIsos)}`;
+  const both = (l) => ({ cur: pairs.reduce((s, [i]) => s + c100(l.months[i]), 0), prev: pairs.reduce((s, [, j]) => s + c100((l.prior && l.prior.months[j]) || 0), 0) });
+  const over = (cur, prev, pct) => prev !== 0 && Math.abs(cur - prev) * 100 > pct * Math.abs(prev);
+  const say = (x) => `${x.label} ${x.cur >= x.prev ? '+' : '−'}${((Math.abs(x.cur - x.prev) * 100) / Math.abs(x.prev)).toFixed(1)}% (${usdx(fromC(x.prev))} to ${usdx(fromC(x.cur))})`;
+  const group = (items) => {
+    const top = [...items].sort((a, b) => Math.abs(b.cur - b.prev) - Math.abs(a.cur - a.prev));
+    return `${top.slice(0, 3).map(say).join('; ')}${top.length > 3 ? '; …' : ''}`;
+  };
+  const out = [];
+  const linePct = conv('t12.yoy.line');
+  const byLine = lines.map((l) => ({ label: l.label, ...both(l) })).filter((x) => over(x.cur, x.prev, linePct));
+  if (byLine.length) out.push({ id: 'yoy.lines', kind: 'yoy', level: 'info', amount: fromC(byLine.reduce((s, x) => s + Math.abs(x.cur - x.prev), 0)), text: `Year over year on like months (${span}), ${byLine.length} line${byLine.length === 1 ? ' moved' : 's moved'} more than ${gets(linePct)}%: ${group(byLine)}.` });
+  const cats = new Map();
+  for (const l of lines) {
+    if (!l.category) continue;
+    const b = both(l); const x = cats.get(l.category) || { label: CATEGORY[l.category].label, cur: 0, prev: 0 };
+    x.cur += b.cur; x.prev += b.prev; cats.set(l.category, x);
+  }
+  const byCat = [...cats.values()].filter((x) => over(x.cur, x.prev, linePct));
+  if (byCat.length) out.push({ id: 'yoy.cats', kind: 'yoy', level: 'info', amount: fromC(byCat.reduce((s, x) => s + Math.abs(x.cur - x.prev), 0)), text: `Year over year on like months (${span}), ${byCat.length} categor${byCat.length === 1 ? 'y moved' : 'ies moved'} more than ${gets(linePct)}%: ${group(byCat)}.` });
+  const noi = { cur: 0, prev: 0 };
+  for (const l of lines) {
+    if (!l.category) continue;
+    const b = both(l); const f = noiSide(l) === 'expense' ? -1 : 1;
+    noi.cur += f * b.cur; noi.prev += f * b.prev;
+  }
+  const noiPct = conv('t12.yoy.noi');
+  if (over(noi.cur, noi.prev, noiPct)) out.push({ id: 'yoy.noi', kind: 'yoy', level: 'warn', amount: fromC(Math.abs(noi.cur - noi.prev)), where: span, text: `NOI is ${noi.cur >= noi.prev ? 'up' : 'down'} ${((Math.abs(noi.cur - noi.prev) * 100) / Math.abs(noi.prev)).toFixed(1)}% year over year on like months (${span}): ${usdx(fromC(noi.prev))} to ${usdx(fromC(noi.cur))}, more than ${gets(noiPct)}%.`, fixes: [{ id: 'seen', label: 'Seen' }] });
+  return out;
+}
+
+/**
+ * A run rate for a statement of fewer than 12 months, on request only: its totals scaled by the one function
+ * (annualized) over the same N Annualize uses. { n, columns, heading, egi, opex, taxes, noi, lumps, om }, or null
+ * (a full year, nothing to scale; a period check holds the totals or Annualise; lines still to file). Not a T-12
+ * and never stored: it reaches no figure of the deal, only the confirmed "Annualize it, then use" does.
+ * `lumps`: lines passing the one-off rule over these months, which a run rate counts again; `om`: a Note against
+ * the OM's NOI (`omNoi`) whatever the gap.
+ * @param {any} t
+ * @param {{ omNoi?: number | null }} [opts]
+ */
+export function runRate(t, { omNoi = null } = {}) {
+  if (!t || !Array.isArray(t.lines) || !Array.isArray(t.months) || !(t.months.length > 0 && t.months.length < 12)) return null;
+  if (heldCount(t) || openLines(t).length) return null;
+  const W = windowOf(t);
+  if (W.ask) return null;
+  const A = annualized(statementTotals(t), W.n);
+  if (!A) return null;
+  const factor = 12 % W.n === 0 ? String(12 / W.n) : `12 ÷ ${W.n}`;
+  const times = 12 % W.n === 0 && 12 / W.n === 2 ? 'twice' : `${gets(12 / W.n)} times`;
+  const lumps = oneoffs(t).map((o) => ({ label: o.line.label, iso: o.iso, amount: fromC(o.amountC), annual: cents((fromC(o.amountC) * 12) / W.n), text: `${o.line.label}: ${usdx(fromC(o.amountC))} paid in ${monthWord(o.iso)}; a run rate counts it ${times} (${usdx(cents((fromC(o.amountC) * 12) / W.n))})` }));
+  let om = null;
+  if (typeof omNoi === 'number' && Number.isFinite(omNoi)) {
+    const base = Math.max(Math.abs(A.noi), Math.abs(omNoi));
+    const g = base ? (Math.abs(A.noi - omNoi) / base) * 100 : 0;
+    om = { gap: g, text: `Run-rate NOI ${usdx(A.noi)} is ${g.toFixed(1) === '0.0' ? 'the same as' : `${g.toFixed(1)}% ${A.noi > omNoi ? 'above' : 'below'}`} the OM’s ${usdx(omNoi)}: a run rate is not a T-12.` };
+  }
+  return { n: W.n, columns: W.columns, heading: `run rate: ${W.n} month${W.n === 1 ? '' : 's'}${W.n !== W.columns ? ' with activity' : ''} × ${factor}, not a T-12`, egi: A.egi, opex: A.opex, taxes: A.taxes, noi: A.noi, lumps, om };
 }
 
 /**
@@ -1151,7 +1424,7 @@ export function t12Qc(t) {
   const seen = (t && t.seen) || {};
   const T = statementTotals(t);
   /** @type {any[]} */
-  const checks = [...periodChecks(t)];
+  const checks = [...periodChecks(t), ...valueChecks(t)];
   // the file's Total column is the T-12 or, once 12 of its months were chosen, the T-12 plus the prior period
   const adj = t.period && t.period.chosen
     ? { ...t, lines: t.lines.map((l) => (l.prior && l.fileTotal !== null && l.fileTotal !== undefined && Math.abs(l.fileTotal - l.total) > 1 && Math.abs(l.fileTotal - cents(l.total + l.prior.total)) <= 1 ? { ...l, fileTotal: null } : l)) }
@@ -1176,7 +1449,7 @@ export const useHeldBy = (t) => t12OpenChecks(t).filter((c) => c.holds === 'tota
 
 /**
  * Apply one of a check's fixes (in place): 'seen', `col:<iso>:<k>`, `months:<iso>`, `cols:monthly|cumulative`,
- * `win:active|columns`. Returns true when something changed.
+ * `win:active|columns`, `rec:yes|no` ("Recurring?"; `rec:notsure` stores nothing). Returns true when something changed.
  * @param {any} t
  */
 export function applyT12Fix(t, checkId, fixId) {
@@ -1186,5 +1459,6 @@ export function applyT12Fix(t, checkId, fixId) {
   if (kind === 'months') return chooseMonths(t, a);
   if (kind === 'cols' && (a === 'monthly' || a === 'cumulative')) { readColumnsAs(t, a); return true; }
   if (kind === 'win' && (a === 'active' || a === 'columns')) { setWindow(t, a); return true; }
+  if (kind === 'rec' && (a === 'yes' || a === 'no')) return answerOneoff(t, checkId, a);
   return false;
 }
