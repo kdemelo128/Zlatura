@@ -8,8 +8,8 @@ import { el, toast, money0, localDate, actionSheet } from './kit.js';
 import { reviewItems, reviewCount } from './review.js';
 import { listAllDeals, updateDeal, showDeal, openTemplates } from './dealui.js';
 import { listTemplates, putTemplate } from './library.js';
-import { CATEGORY, markSeen, confirmSuggested, suggestionText } from './t12.js';
-import { categorySelect, fileT12Line, lineChoices, suggestedText } from './t12ui.js';
+import { CATEGORY, markSeen, confirmSuggested, suggestionText, applyT12Fix } from './t12.js';
+import { categorySelect, fileT12Line, lineChoices, suggestedText, fixButtons, fixLabel } from './t12ui.js';
 import { rememberLabels } from './t12labels.js';
 import { resolveCheck, resolveLabel } from './dataqc.js';
 import { lineWithCell } from './dataqcui.js';
@@ -156,11 +156,15 @@ function itemRow(g, it) {
       changed('Marked seen. The lines stay as they were.');
     }).dataset.act = 'note-seen';
   } else if (it.kind === 't12check') {
-    text.append(el('b', null, 'T-12: '), el('span', null, it.text));
-    btn('Seen', 'btn-gray', async () => {
-      await updateDeal(g.id, (d) => { if (!d.t12) return false; markSeen(d.t12, it.checkId); return true; }, { kind: 'edit', label: 'T-12: a check marked seen' });
-      changed('Marked seen. It stays on the T-12 card.');
-    });
+    text.append(el('b', null, `T-12 check${it.level === 'fail' ? ' failed' : ''}: `), el('span', null, it.text));
+    if (it.where) text.append(el('span', 'sub', ` ${it.where}`));
+    // each fix is one step on the deal (Undo takes it back); a Fail is cleared by a fix, never by "accept"
+    const fix = async (f) => {
+      let did = false;
+      await updateDeal(g.id, (d) => { if (!d.t12) return false; did = applyT12Fix(d.t12, it.checkId, f.id); return did; }, { kind: 'edit', label: fixLabel({ id: it.checkId, kind: it.checkKind }, f) });
+      if (did) changed(f.id === 'seen' ? 'Marked seen. It stays on the T-12 card.' : 'Done. Undo on the deal puts it back.');
+    };
+    for (const b of fixButtons({ fixes: it.fixes, level: it.level, kind: it.checkKind }, fix)) acts.appendChild(b);
   } else if (it.kind === 'rrcheck') {
     text.append(el('b', null, `Rent roll ${it.level === 'fail' ? 'check failed' : 'check'}: `), el('span', null, it.text));
     if (it.where) text.append(el('span', 'sub', ` ${it.where}`));

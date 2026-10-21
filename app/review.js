@@ -43,7 +43,7 @@ export function reviewItems({ deals = [], templates = [] } = {}) {
       // a statement filed by an earlier version: one Note, kept apart from the checks (their ids never change)
       for (const n of statementNotes(d.t12)) items.push({ kind: 't12note', id: `t12note:${n.id}`, noteId: n.id, text: n.text, amount: 0 });
       // each with its level, where it points and the fixes it offers (applyT12Fix); a Fail holds the totals or Use
-      for (const c of t12OpenChecks(d.t12)) items.push({ kind: 't12check', id: `t12check:${c.id}`, checkId: c.id, level: c.level, text: c.text, where: c.where || '', fixes: (c.fixes || []).map((f) => ({ id: f.id, label: f.label, ...(f.more ? { more: true } : {}) })), amount: num(c.amount) });
+      for (const c of t12OpenChecks(d.t12)) items.push({ kind: 't12check', id: `t12check:${c.id}`, checkId: c.id, level: c.level, checkKind: c.kind, text: c.text, where: c.where || '', fixes: (c.fixes || []).map((f) => ({ id: f.id, label: f.label, ...(f.more ? { more: true } : {}) })), amount: num(c.amount) });
     }
     for (const c of openQc(d.rrQc)) {
       items.push({ kind: 'rrcheck', id: `rrcheck:${c.id}`, checkId: c.id, level: c.level, checkKind: c.kind, text: c.text, where: whereText(c), page: c.page || null, row: c.row || null, col: c.colLabel || null, cell: c.cell ? c.cell.text : null, lineText: c.lineText || '',

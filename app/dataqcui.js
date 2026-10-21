@@ -24,10 +24,11 @@ export function lineWithCell(c) {
 }
 
 /**
- * opts: { id, title, qc, intro, blockedText, onResolve(check), onAcceptAll(), extra(check) => Node[] }
+ * opts: { id, title, qc, intro, blockedText, blocked, onResolve(check), onAcceptAll(), extra(check) => Node[] }
+ * (`blocked` shows blockedText although no check is a Fail)
  * Returns the panel element.
  */
-export function qcPanel({ id, title = 'Data QC', qc, intro = '', blockedText = '', onResolve = null, onAcceptAll = null, extra = null }) {
+export function qcPanel({ id, title = 'Data QC', qc, intro = '', blockedText = '', blocked = false, onResolve = null, onAcceptAll = null, extra = null }) {
   const box = el('section', 'qc');
   if (id) box.id = id;
   const head = el('div', 'qc-head');
@@ -41,7 +42,7 @@ export function qcPanel({ id, title = 'Data QC', qc, intro = '', blockedText = '
   head.appendChild(el('span', 'qc-count', parts.join(' · ')));
   box.appendChild(head);
   if (intro) box.appendChild(el('p', 'hint-sm qc-intro', intro));
-  if (n.blocking && blockedText) {
+  if ((n.blocking || blocked) && blockedText) {
     const b = el('div', 'qc-blocked');
     b.setAttribute('role', 'status');
     b.appendChild(el('p', null, blockedText));

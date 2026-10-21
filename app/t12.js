@@ -1158,7 +1158,7 @@ export function t12Qc(t) {
     : t;
   for (const c of statementChecks(adj)) {
     const stated = c.id.startsWith('stated.');
-    const q = { ...c, level: stated ? 'fail' : 'warn', ...(stated ? { holds: 'use' } : {}), fixes: [{ id: 'seen', label: stated ? `Use the lines’ sum (${usd0(T[c.id.slice(7)])})` : 'Seen' }] };
+    const q = { ...c, level: stated ? 'fail' : 'warn', ...(stated ? { holds: 'use', short: `the file’s ${{ egi: 'effective gross income', opex: 'operating expenses', noi: 'NOI' }[c.id.slice(7)]} doesn’t match its lines` } : {}), fixes: [{ id: 'seen', label: stated ? `Use the lines’ sum (${usd0(T[c.id.slice(7)])})` : 'Seen' }] };
     checks.push(q);
   }
   for (const c of checks) {
