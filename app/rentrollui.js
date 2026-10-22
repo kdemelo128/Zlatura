@@ -6,7 +6,7 @@
  * from them: in-place rent, expirations, concentration, and the projection
  * through NOI. Every change goes through `onChange`, which saves the deal. */
 
-import { cellValue, csvRows, unreadable, isCsv } from './sheetread.js';
+import { cellValue, textGrid, unreadable, isCsv } from './sheetread.js';
 import { readText } from './textfile.js';
 import { waltMethod } from './engine/walt.js';
 import {
@@ -866,7 +866,8 @@ async function readTable(file) {
   return best;
 }
 function parseCsv(text) {
-  const t = headerAndRows(csvRows(text).filter((r) => r.some((x) => String(x).trim())), 'CSV');
+  // comma, semicolon or tab between fields, found as the T-12 import finds it
+  const t = headerAndRows(textGrid(text).rows.map((x) => x.cells), 'CSV');
   if (!t) throw new Error('No rent roll was found: it needs a row of headings such as Unit, Tenant, SF and Rent.');
   return t;
 }

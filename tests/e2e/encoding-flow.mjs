@@ -21,11 +21,11 @@ await page.evaluate(async () => { const m = await import('./app/dealui.js'); m.s
 await page.waitForSelector('#deal-t12 #t12-import');
 
 // ---- 1. a rent roll CSV, first as Windows-1252, then the same as UTF-8
-async function importRr(file) {
+async function importRr(file, dir = E) {
   await page.click('#tab-rentroll');
   await page.locator('#deal-rentroll button[aria-label="More rent roll actions"]').click();
   const [ch] = await Promise.all([page.waitForEvent('filechooser'), page.locator('.action-sheet .action-item', { hasText: 'Import from Excel or CSV' }).click()]);
-  await ch.setFiles(E + file);
+  await ch.setFiles(dir + file);
   await page.waitForSelector('#sheet-body .map-row');
   const note = await text('#rr-encoding');
   const samples = await page.$$eval('#sheet-body .map-row .h small', (s) => s.map((x) => x.textContent));
@@ -43,6 +43,15 @@ check('the tenants are imported with their accents, apostrophe and dash', JSON.s
 r = await importRr('rentroll-utf8.csv');
 check('the same rent roll as UTF-8: no note', r.note === '', r.note);
 check('and the same tenants', JSON.stringify(r.tenants) === JSON.stringify(TENANTS), JSON.stringify(r.tenants));
+// the same rent roll saved with semicolons (Excel in many European locales), with sep=; first, and with tabs: the
+// separator is found as the T-12 import finds it (sheetread.js textGrid), not assumed to be a comma
+const rows = [['Suite', 'Tenant', 'Square Feet', 'Lease Start', 'Lease Expiration', 'Annual Base Rent'], ['101', TENANTS[0], '1500', '2024-01-01', '2029-12-31', '$45,000'], ['102', TENANTS[1], '800', '2025-03-01', '2030-02-28', '$24,000'], ['103', TENANTS[2], '1200', '2024-06-01', '2031-05-31', '$38,400']];
+for (const [name, sep, head] of [['semicolon', ';', ''], ['sep-marker', ';', 'sep=;\n'], ['tab', '\t', '']]) {
+  fs.writeFileSync(F + `rr-${name}.csv`, head + rows.map((x) => x.join(sep)).join('\n') + '\n');
+  r = await importRr(`rr-${name}.csv`, F);
+  fs.rmSync(F + `rr-${name}.csv`);
+  check(`a rent roll separated by ${name === 'tab' ? 'tabs' : name === 'sep-marker' ? 'semicolons, with Excel’s sep=; line' : 'semicolons'}: the same tenants`, JSON.stringify(r.tenants) === JSON.stringify(TENANTS), JSON.stringify(r.tenants));
+}
 
 // ---- 2. a T-12 CSV saved as Windows-1252
 await page.click('#tab-overview');

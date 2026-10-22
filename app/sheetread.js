@@ -59,6 +59,16 @@ export function detectDelimiter(text) {
 }
 
 /**
+ * A text file's table: rows [{ r (the 1-based line), cells }] and the delimiter found, empty rows left out. One rule
+ * for every text table the app reads (the T-12 and rent roll imports): detectDelimiter, then csvRows.
+ */
+export function textGrid(text) {
+  const { delimiter, skipFirst } = detectDelimiter(text);
+  const rows = csvRows(skipFirst ? text.replace(/^[^\r\n]*\r?\n?/, '') : text, { delimiter }).map((cells, i) => ({ r: i + 1 + (skipFirst ? 1 : 0), cells })).filter((x) => x.cells.some((v) => String(v).trim()));
+  return { rows, delimiter };
+}
+
+/**
  * Text pasted from a spreadsheet as rows [{ r (the 1-based line), cells }]:
  * split on tabs where any line has one (Excel and Numbers copy that way,
  * with empty cells trailing), otherwise on runs of two or more spaces.
@@ -101,8 +111,7 @@ export async function readGrids(file, getXlsx, { maxRows = 400, includeHidden = 
   if (up.refuse) throw new Error(up.refuse);
   if (up.kind === 'text') {
     const { text, encoding, note } = await readText(file);
-    const { delimiter, skipFirst } = detectDelimiter(text);
-    const rows = csvRows(skipFirst ? text.replace(/^[^\r\n]*\r?\n?/, '') : text, { delimiter }).map((cells, i) => ({ r: i + 1 + (skipFirst ? 1 : 0), cells })).filter((x) => x.cells.some((v) => String(v).trim()));
+    const { rows, delimiter } = textGrid(text);
     return [{ sheet: 'CSV', hidden: false, rows, delimiter, encoding, note, macros: false }];
   }
   const { ExcelJS } = await getXlsx();
