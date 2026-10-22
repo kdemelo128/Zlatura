@@ -34,6 +34,10 @@ trap 'rm -rf "$LOCK"' EXIT
 PORT=$((8080 + SLOT))
 if [ "$SLOT" = 0 ]; then SIDE=8096; else SIDE=$((9000 + 10 * SLOT)); fi
 export BASE=${BASE:-http://localhost:$PORT/} MIGRATE_PORT=${MIGRATE_PORT:-$SIDE} RENAME_PORT=${RENAME_PORT:-$((SIDE + 1))} UPGRADE_PORT=${UPGRADE_PORT:-$((SIDE + 2))}
+# LibreOffice (recalc.py, lo_values.py) gets the slot's own socket ports and, beyond slot 0, its own user profile:
+# two LibreOffice instances on one profile or one port lock each other up
+export LO_PORT_RECALC=$((2002 + 10 * SLOT)) LO_PORT_VALUES=$((2003 + 10 * SLOT))
+if [ "$SLOT" = 0 ]; then unset LO_PROFILE; else export LO_PROFILE="$LOCKDIR/zlatura-lo-slot$SLOT"; fi
 [ "$SLOT" = 0 ] || echo "Browser runs share this machine: this one uses slot $SLOT (port $PORT)." >&2
 mkdir -p files shots
 # the fixture scripts' packages must be the pinned ones (an older Pillow has published security advisories)
@@ -72,7 +76,7 @@ for f in $FLOWS; do echo "===== $f"; node "$f.mjs" || FAILED+=("$f"); done
 # which has no LibreOffice: check:full always runs it)
 if [ "${E2E_SKIP_RECALC:-}" = 1 ]; then echo "===== recalc skipped (E2E_SKIP_RECALC=1)"; else
 node make_engine_check.mjs files/engine-check.xlsx
-for x in files/*.xlsx files/*.xlsm; do case "$x" in *acme-template.xlsx) continue;; esac; echo "===== recalc $x"; python3 -W ignore recalc.py "$x" || FAILED+=("recalc $x"); done
+for x in files/*.xlsx files/*.xlsm; do case "$x" in *acme-template.xlsx) continue;; esac; echo "===== recalc $x"; timeout 300 python3 -W ignore recalc.py "$x" || FAILED+=("recalc $x"); done
 fi
 if [ ${#FAILED[@]} -gt 0 ]; then echo "===== FAILED: ${FAILED[*]}" >&2; exit 1; fi
 echo "===== all flows passed"
