@@ -26,6 +26,7 @@ import { renderDealBrief, dealSummaryText, placeLine } from './brief.js';
 import { project, rentRollSummary } from './lease.js';
 import { projectionNow, projectionLater, projectionSync, projectionError } from './projector.js';
 import { legacyRows, omRollRecord, applyHeldRows, addOcrRows, ocrReading, rollOffers, withoutRollFigures, ROLL_TOOL } from './rentroll.js';
+import { signOf } from './numtext.js';
 import { qcPanel } from './dataqcui.js';
 import { omReadRecord, applyOmFix, heldFields, basisText } from './omstatement.js';
 import { resolveCheck, blockingChecks, qcCounts } from './dataqc.js';
@@ -1303,11 +1304,11 @@ const SCN = [
   ['exitCap', 'Exit cap rate %', 'pct'], ['hold', 'Hold, years', 'int'], ['growth', 'NOI growth a year %', 'delta'], ['saleCost', 'Sale costs %', 'pct0'],
 ];
 const HOLD_KEYS = ['exitCap', 'hold', 'growth', 'saleCost', 'noiBasis'];
-const scnShow = (kind, v) => {
+export const scnShow = (kind, v) => {
   if (!ok(v)) return '';
   if (kind === 'money') return money0(v);
   if (kind === 'int') return String(Math.round(v));
-  if (kind === 'delta') return `${v > 0 ? '+' : ''}${dec(v, 2)}%`;
+  if (kind === 'delta') { const s = dec(Math.abs(v), 2); return `${signOf(v, s, true)}${s}%`; }
   return `${dec(v, 2)}%`;
 };
 const scnRead = (kind, raw) => {
@@ -1478,7 +1479,7 @@ function renderScenario(m) {
     ['Equity, with closing', (r) => money0(r.m.equity)],
     [`Exit value, year ${B.inputs.hold}`, (r) => money0(r.returns?.exitValue)],
     ['Levered IRR', (r) => pct(r.returns?.leveredIrr)],
-    ['Equity multiple', (r) => (ok(r.returns?.leveredMultiple) ? `${r.returns.leveredMultiple.toFixed(2)}x` : '—')],
+    ['Equity multiple', (r) => times(r.returns?.leveredMultiple)],
     ['Unlevered IRR', (r) => pct(r.returns?.unleveredIrr)],
   ];
   for (const [label, f] of rows) {

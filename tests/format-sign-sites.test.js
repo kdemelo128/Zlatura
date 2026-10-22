@@ -17,13 +17,20 @@ const mk = (tag) => ({
 globalThis.document = {
   createElement: mk,
   createElementNS: (ns, tag) => mk(tag),
+  getElementById: () => null,
+  addEventListener() {},
+  documentElement: { style: {} },
+  querySelector: () => null,
+  body: {},
   createTextNode: (t) => ({ tag: '#text', textContent: t, children: [] }),
 };
 const textOf = (n) => [n.textContent, ...n.children.map(textOf)].join('|');
 
 const { renderKpis, renderTime } = await import('../app/glance.js');
 const { buildFacts } = await import('../app/aifacts.js');
-const { gapMoney } = await import('../app/t12ui.js');
+const { gapMoney, usd, usd2, signed } = await import('../app/t12ui.js');
+const { usd: reviewUsd } = await import('../app/reviewui.js');
+const { scnShow } = await import('../app/dealui.js');
 const { importStatement, applyT12Fix, noiWithout } = await import('../app/t12.js');
 const { readOm } = await import('../app/om.js');
 const { evaluate } = await import('../app/engine/figures.js');
@@ -120,4 +127,45 @@ test('engine figures: the negative-NOI check prints no sign on a NOI under a dol
   assert.ok(text(-0.4).includes('The NOI is negative ($0), so'), text(-0.4));
   assert.ok(text(-12400).includes('The NOI is negative (-$12,400), so'), text(-12400));
   assert.ok(text(0).includes('The NOI is zero ($0), so'), text(0));
+});
+
+test('t12ui: usd, usd2 and signed print no sign on a figure under half a cent / dollar', () => {
+  assert.equal(usd(-0.4), '$0');
+  assert.equal(usd2(-0.004), '$0.00');
+  assert.equal(signed(-0.4), '$0');
+  assert.equal(signed(0.4), '$0');
+  assert.equal(usd(-1500), '−$1,500');
+  assert.equal(usd2(-1.5), '−$1.50');
+  assert.equal(signed(-1500), '−$1,500');
+  assert.equal(signed(1500), '+$1,500');
+  assert.equal(usd(null), '—');
+});
+
+test('reviewui: the review queue dollar text has no "−$0"', () => {
+  assert.equal(reviewUsd(-0.4), '$0');
+  assert.equal(reviewUsd(-12400), '−$12,400');
+  assert.equal(reviewUsd(12400), '$12,400');
+  assert.equal(reviewUsd('n/a'), 'n/a');
+});
+
+test('dealui: a scenario change that prints as zero has no "+"', () => {
+  assert.equal(scnShow('delta', 0.001), '0%');
+  assert.equal(scnShow('delta', -0.001), '0%');
+  assert.equal(scnShow('delta', 1.5), '+1.5%');
+  assert.equal(scnShow('delta', -1.5), '-1.5%');
+  assert.equal(scnShow('pct', 6.5), '6.5%');
+});
+
+test('aifacts: DSCR, equity multiple, term left and WALT print no signed zero', () => {
+  const labels = (m, scenario, rrSum) => Object.fromEntries(
+    buildFacts({ deal: { figures: {}, sources: {} }, fields: [], m, scenario, rrSum }).map((f) => [f.label, f.value]));
+  const sc = { changed: ['x'], inputs: { price: 1, noi: 1, hold: 5, growth: 3, exitCap: 6.5 }, returns: { leveredMultiple: -0.001 } };
+  const f = labels({ dscr: -0.001, termLeft: -0.04 }, sc, null);
+  assert.equal(f.DSCR, '0.00x');
+  assert.equal(f['Lease term remaining, years'], '0.0');
+  assert.equal(f['Scenario: equity multiple'], '0.00x');
+  const g = labels({ dscr: 1.256, termLeft: -2.5 }, { ...sc, returns: { leveredMultiple: -0.5 } }, null);
+  assert.equal(g.DSCR, '1.26x');
+  assert.equal(g['Lease term remaining, years'], '-2.5');
+  assert.equal(g['Scenario: equity multiple'], '-0.50x');
 });

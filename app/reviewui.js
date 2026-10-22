@@ -6,6 +6,7 @@
 
 import { el, toast, money0, localDate, actionSheet } from './kit.js';
 import { reviewItems, reviewCount } from './review.js';
+import { signOf } from './numtext.js';
 import { listAllDeals, updateDeal, showDeal, openTemplates } from './dealui.js';
 import { listTemplates, putTemplate } from './library.js';
 import { CATEGORY, markSeen, confirmSuggested, suggestionText, applyT12Fix } from './t12.js';
@@ -19,7 +20,11 @@ import { applyHeldRows, addOcrRows } from './rentroll.js';
 let visible = false;
 let drawing = 0;
 const $ = (id) => document.getElementById(id);
-const usd = (x) => (typeof x === 'number' && Number.isFinite(x) ? (x < 0 ? `−${money0(-x)}` : money0(x)) : String(x ?? ''));
+export const usd = (x) => {
+  if (typeof x !== 'number' || !Number.isFinite(x)) return String(x ?? '');
+  const d = money0(Math.abs(x));
+  return signOf(x, d).replace('-', '−') + d;
+};
 
 async function gather() {
   const [deals, templates] = await Promise.all([listAllDeals(), listTemplates()]);

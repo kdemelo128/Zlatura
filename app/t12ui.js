@@ -21,8 +21,10 @@ import { strictOpen, strictWords } from './review.js';
 import { signOf } from './numtext.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
-const usd = (x) => (ok(x) ? (x < 0 ? `−${money0(-x)}` : money0(x)) : '—');
-const usd2 = (x) => (ok(x) ? (x < 0 ? `−${money2(-x)}` : money2(x)) : '—');
+// a true minus in front of the printed digits, and none when they are all zero (numtext.js)
+const withSign = (x, d, plus = false) => signOf(x, d, plus).replace('-', '−') + d;
+export const usd = (x) => (ok(x) ? withSign(x, money0(Math.abs(x))) : '—');
+export const usd2 = (x) => (ok(x) ? withSign(x, money2(Math.abs(x))) : '—');
 
 /**
  * Draw the card into `box`. h: { deal, touch(meta), snapshot(reason), redraw(), rerender() (the whole deal screen),
@@ -172,7 +174,7 @@ export function renderT12Card(box, h) {
 const linesOpen = new Set();
 
 /** A step's signed amount: "+$51,429" / "−$2,350". */
-const signed = (x) => (ok(x) ? (x < 0 ? `−${money0(-x)}` : `+${money0(x)}`) : '—');
+export const signed = (x) => (ok(x) ? withSign(x, money0(Math.abs(x)), true) : '—');
 
 /**
  * "Normalised NOI", under the totals: a list from the NOI as reported, through each method's step, to the normalised

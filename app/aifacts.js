@@ -11,6 +11,7 @@ const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 // a figure that prints as zero carries no sign (numtext.js)
 const money = (n) => { const d = Math.abs(Math.round(n)).toLocaleString('en-US'); return `${signOf(n, d)}$${d}`; };
 const money2 = (n) => { const d = Math.abs(n).toFixed(2); return `${signOf(n, d)}$${d}`; };
+const fixed = (n, d) => { const s = Math.abs(n).toFixed(d); return signOf(n, s) + s; };
 const pct = (n, d = 2) => { const s = Math.abs(n).toFixed(d); return `${signOf(n, s)}${s}%`; };
 
 function show(kind, v) {
@@ -50,9 +51,9 @@ export function buildFacts({ deal, fields, m = {}, scenario = null, rrSum = null
   const calc = [
     ['cap', 'Cap rate on the asking price (NOI ÷ price)', (x) => pct(x)], ['ppsf', 'Price per SF', money2], ['perUnit', 'Price per unit', money],
     ['noiPsf', 'NOI per SF', money2], ['expenseRatio', 'Expense ratio', (x) => pct(x, 1)], ['loan', 'Loan at the broker’s terms', money],
-    ['debtService', 'Annual debt service', money], ['dscr', 'DSCR', (x) => `${x.toFixed(2)}x`], ['debtYield', 'Debt yield', (x) => pct(x)],
+    ['debtService', 'Annual debt service', money], ['dscr', 'DSCR', (x) => `${fixed(x, 2)}x`], ['debtYield', 'Debt yield', (x) => pct(x)],
     ['equity', 'Equity needed, with closing costs', money], ['cashOnCash', 'Cash-on-cash, year 1', (x) => pct(x, 1)], ['breakEven', 'Break-even occupancy', (x) => pct(x, 1)],
-    ['termLeft', 'Lease term remaining, years', (x) => x.toFixed(1)],
+    ['termLeft', 'Lease term remaining, years', (x) => fixed(x, 1)],
   ];
   for (const [k, label, fmt] of calc) if (ok(m[k])) add(label, fmt(/** @type {number} */ (m[k])), 'calculated from the figures above');
   if (deal.loan) {
@@ -65,7 +66,7 @@ export function buildFacts({ deal, fields, m = {}, scenario = null, rrSum = null
     if (ok(rrSum.occupancy)) add('Rent roll: occupancy by SF', pct(rrSum.occupancy, 1), src);
     add('Rent roll: in-place annual rent', money(rrSum.annualRent), src);
     if (ok(rrSum.avgRentPsf)) add('Rent roll: average rent per SF', money2(rrSum.avgRentPsf), src);
-    if (ok(rrSum.walt)) add(`Rent roll: WALT ${waltMethod()}, years`, rrSum.walt.toFixed(1), src);
+    if (ok(rrSum.walt)) add(`Rent roll: WALT ${waltMethod()}, years`, fixed(rrSum.walt, 1), src);
     if (rrSum.top) add('Rent roll: largest tenant', `${rrSum.top.tenant} (${ok(rrSum.top.share) ? pct(rrSum.top.share, 1) : '?'} of rent)`, src);
     for (const e of (rrSum.expirations || []).slice(0, 4)) add(`Rent roll: leases expiring in ${e.year}`, `${e.count}, ${money(e.rent)} of rent${ok(e.rentPct) ? ` (${pct(e.rentPct, 1)})` : ''}`, src);
     if (ok(rrSum.lossToLeasePct)) add('Rent roll: loss to lease', pct(rrSum.lossToLeasePct, 1), `${src} against the market rents entered`);
@@ -75,7 +76,7 @@ export function buildFacts({ deal, fields, m = {}, scenario = null, rrSum = null
     const r = scenario.returns;
     add('Scenario assumptions', `price ${money(s.price)}, NOI ${money(s.noi)}, hold ${s.hold} years, growth ${s.growth}%, exit cap ${s.exitCap}%`, 'scenario (the broker’s what-if, not the OM)');
     if (ok(r.leveredIrr)) add('Scenario: levered IRR', pct(r.leveredIrr), 'scenario, calculated');
-    if (ok(r.leveredMultiple)) add('Scenario: equity multiple', `${r.leveredMultiple.toFixed(2)}x`, 'scenario, calculated');
+    if (ok(r.leveredMultiple)) add('Scenario: equity multiple', `${fixed(r.leveredMultiple, 2)}x`, 'scenario, calculated');
   }
   if (comps && comps.n) {
     add('Sale comps loaded', String(comps.n), 'the Comps tab');
