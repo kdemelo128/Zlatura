@@ -25,6 +25,10 @@ description: Zlatura's quality-gate routine for a PR: tests that fail on the old
    which still prints the before/after table for the PR body. By hand:
    `node tests/tools/golden.mjs <old>/app > a.json`, the same for `app` into
    `b.json`, then `node tests/tools/golden.mjs --diff a.json b.json`.
-5. **Full check once, on the final commit:** `npm run check:full`. Kill any
-   stray server on 8080 first:
-   `ps -eo pid,comm,args | awk '$2 ~ /^python/ && /http.server/ {print $1}' | xargs -r kill`.
+5. **Full check once, on the final commit:** `npm run check:full`. It runs the
+   AI server's tests too. `tests/e2e/run.sh` takes a lock on port 8080, so a
+   second run in another worktree waits its turn; kill a stray server by PID
+   only, never with `pkill -f` (it can match your own shell).
+6. **A new browser flow:** take one screenshot or page dump of the screen
+   before choosing selectors, then pick selectors a broker would recognise
+   (labels and roles before classes).

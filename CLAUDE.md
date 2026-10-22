@@ -100,7 +100,9 @@ Run the `release` skill: bump the version (it folds the changelog fragment),
 
 ## Usage rules
 
-- One agent at a time, never parallel Opus; routine work in the main
+- Builder agents may run in parallel on independent work, each in its own
+  git worktree (owner, 2026-10-22); never two designer (Opus) agents at once;
+  PRs still open for the owner one at a time. Routine work in the main
   session; no agents for small things. Plan mode before any design or risky
   change.
 - Batch related steps; point at exact files and line ranges; don't re-read
