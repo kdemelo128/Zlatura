@@ -46,6 +46,7 @@ const ASSETS = [
   'app/glance.js',
   'app/exporters.js',
   'app/kit.js',
+  'app/numtext.js',
   'app/om.js',
   'app/omroll.js',
   'app/scale.js',

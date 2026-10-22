@@ -23,6 +23,7 @@
  *   CoStar Notes     the full notes behind each comp
  */
 import { addRentRollTabs } from './rrbook.js';
+import { signOf } from './numtext.js';
 import { ROLL_TOOL } from './dealfields.js';
 import { netEffectiveRent, nerExcel } from './engine/leasing.js';
 import * as S from './stats.js';
@@ -487,7 +488,7 @@ function trendRate(sales) {
   const med = S.median(ys);
   const r2 = S.rsq(ys, xs);
   const raw = sl !== null && med ? (sl * 365.25) / med : null;
-  const pctTxt = (x) => `${x >= 0 ? '+' : ''}${(x * 100).toFixed(1)}%`;
+  const pctTxt = (x) => { const d = Math.abs(x * 100).toFixed(1); return `${signOf(x, d, true)}${d}%`; };
   let rate = 0;
   let why;
   if (raw === null || n < TREND_MIN_SALES) {
