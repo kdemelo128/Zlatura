@@ -190,7 +190,7 @@ await menu('Ask about this deal');
 await page.waitForSelector('#ai-question');
 await page.fill('#ai-question', 'And the cap rate?');
 await page.click('#ai-ask');
-await page.waitForSelector('#sheet-body .ai-msg.a.warn-text, #sheet-body .warn-text');
+await page.waitForFunction(() => /AI requests\./.test(document.querySelector('#sheet-body').innerText), null, { timeout: 30000 });
 const limited = (await page.locator('#sheet-body').innerText()).replace(/\s+/g, ' ');
 check('a daily limit shows the server’s message, not a bare status', new RegExp(`This device has used today's ${used} AI requests\\. It resets at 00:00 UTC, in \\d+ h \\d+ min\\.`).test(limited), limited.slice(-200));
 await page.click('#sheet-close');
