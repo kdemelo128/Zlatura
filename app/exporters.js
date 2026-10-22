@@ -6,7 +6,7 @@
 
 import { signOf } from './numtext.js';
 
-export const VERSION = '4.7.51';
+export const VERSION = '4.7.52';
 
 const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
 const ppsf = (c) => (num(c.price) && num(c.bsf) ? c.price / c.bsf : null);
