@@ -1,0 +1,4 @@
+# zizmor 1.31.1 (MIT) for the security-scan workflow, installed with pip --require-hashes.
+# The hash is the sha256 PyPI publishes for the manylinux_2_28 x86_64 wheel (GitHub runners are x86_64).
+zizmor==1.31.1 \
+    --hash=sha256:58e878eb2dbd2c6183c105e1ac28c14f7dd1eca44a783f1fe2a69647d012c410
