@@ -361,7 +361,7 @@ stand-in model; **no real company data**), no live calls in the suite.
 |---|---|---|---|---|
 | **A** | This audit and architecture | done (this file) | owner decisions answered | proposal approval |
 | **B** | Manual company research: B1 "bring your own sources" (paste text or upload PDFs the broker is entitled to use; no fetching), B2 one connector (SEC); 10-part brief; claims checked; saved to the research queue; **no CRM writes** | M (B1), M (B2) | a brief on an invented fixture shows every claim with a verified quote or a hypothesis label; a planted injection yields nothing confirmed; cancel/pause/resume survive reload; budget stops a job; nothing reaches `crm.*`; backups carry and restore the keys; old backup restores unchanged | F12 merged; owner approves sources, budget, retention |
-| **C** | CRM enrichment of the built-in CRM: company records, proposals, provenance, dedup, undo; then C2 read-only import from one external CRM | M + L | a lower-confidence claim never replaces a verified field (test); undo restores the exact previous contact; dedup merges two invented duplicates only on broker approval; old-backup fixture migrates | data-format change; for C2, OAuth and hosting |
+| **C** | CRM enrichment of the built-in CRM: company records, proposals, provenance, dedup, undo; then C2 the CRM adapter layer (built-in CRM first; each major external CRM its own connector: file exchange, then read-only API, then broker-approved writes; see 11a) | M + L | a lower-confidence claim never replaces a verified field (test); undo restores the exact previous contact; dedup merges two invented duplicates only on broker approval; old-backup fixture migrates | data-format change; for C2 API connectors, sign-in tokens (hosting, decision 3) and legal review per CRM |
 | **D** | Meeting intelligence: link existing notes (`aiui.js`) to contacts and companies, proposed updates through C's proposals; later Teams/Zoom/calendar | S (local) + L (integrations) | proposed updates carry transcript quotes; consent recorded per recording; nothing written without a tap | integrations need hosting, accounts, legal review |
 | **E** | Relationship graph: edges = confirmed claims; "why connected" path explanation; evidence-backed relationship strength | M | co-membership or a social tag alone produces no edge (test); every path shows its claims and sources; traversal under 150 ms for 5,000 invented edges | none beyond C, unless `DB_VERSION 3` |
 | **F** | Continuous automation: due jobs on launch (device); server scheduler, event triggers and notifications only if hosting is approved | S (device) + XL (server) | jobs dedup by `dedupKey`; retries with backoff; daily budget holds; notifications never contain names on lock screen by default | hosting, accounts, retention, always-on server |
@@ -441,6 +441,60 @@ backups (UNVERIFIED; quote before deciding).
     old-backup fixture.
 12. **Rewording checklist item 23** to "no fetching of user-supplied URLs;
     connectors use constant hosts": *Recommend: yes* (it narrows nothing).
+
+## 11a. Owner decisions (2026-10-22)
+
+**Approved by the owner: all twelve as recommended**, with one change to
+decision 2. What that means for the build:
+
+1. **Phase B is approved as scoped**, and it starts after F12: B1 works from
+   sources the broker brings, B2 adds the SEC connector only, results are
+   stored on the device, and nothing is written to a CRM.
+2. **Changed by the owner: "the existing CRM" is both.** Zlatura's built-in
+   CRM (`app/crm.js`) stays supported and is the default. Zlatura must also
+   integrate with all the major external CRM systems. In the plan:
+   - **C1** enriches the built-in CRM, as written in section 9.
+   - **C2** becomes a **CRM adapter layer**: one interface in `app/crmadapt.js`
+     (list, read, propose a change, apply an approved change, undo where the
+     CRM allows it), with the built-in CRM as its first adapter. Each external
+     CRM is then its own connector and its own PR.
+   - The candidate list is general CRMs (Salesforce, HubSpot, Microsoft
+     Dynamics 365, Zoho CRM, Pipedrive) and CRE-specific ones (for example
+     Apto, Buildout, REthink, ClientLook). All UNVERIFIED: the C2 proposal
+     settles the list with a prior-art check (API editions, limits, terms,
+     whether a browser-only sign-in is allowed).
+   - **Order, so nothing waits on hosting:**
+     - (a) file exchange first: export contacts and companies in each CRM's
+       own import format, and read each CRM's export. No account is
+       connected, it works offline, and nothing leaves the device unless the
+       broker sends the file;
+     - (b) read-only API connectors next;
+     - (c) writes last.
+   - API connectors need sign-in tokens held somewhere. A browser-only sign-in
+     where the CRM allows it (UNVERIFIED for each), or a server that holds
+     tokens, which is decision 3's hosting gate. Connecting any account is
+     the owner's step, never done by a build.
+   - **Every write to an external CRM is a proposal the broker approves**,
+     record by record, with what changes and the evidence behind it. Research
+     content never approves its own write (section 4). Each connector passes
+     decision 10's legal and terms review before it is built.
+3. **Hosting and user accounts:** not now. They are decided with the Phase 7
+   hosting proposal.
+4. **The AI server stays stateless** for Phases B to E.
+5. **F12 comes first**: a spending cap, a token per device, the "text is data"
+   line, and the adversarial test set. It is the next build.
+6. **Contact names stay on the device** in Phase B. Matching runs locally.
+7. **Retention:** briefs and evidence excerpts are kept for 365 days on the
+   device. Backups made earlier keep theirs, and the screen says so.
+8. **Budgets:** caps per job and per day, in whole cents, set on the server.
+   The owner names the figures when F12 is built.
+9. **No data providers beyond SEC** until the legal review.
+10. **Legal review** before B2, before Phase D, and before each external CRM
+    connector (from decision 2).
+11. **Phase C's contact data-format change** is approved together with C's
+    proposal and its old-backup fixture. It stays an approval gate at that
+    point.
+12. **Security checklist item 23** is reworded in F12's PR.
 
 ## 12. Low-risk improvements noticed, not made
 
