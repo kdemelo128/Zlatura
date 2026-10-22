@@ -203,7 +203,7 @@ const run = async (P, name) => {
   await page.click('.sidebar .tab[data-view="settings"]').catch(() => page.evaluate(() => { location.hash = '#settings'; }));
   await page.waitForSelector('#conv-t12-spike-times');
   const boxes = await page.locator('#settings-conventions input.conv-num').count();
-  c('Settings has the ten number boxes', boxes === 10, String(boxes));
+  c('Settings has the ten T-12 and NOI number boxes and the four rent roll band ones', boxes === 14 && (await page.locator('#settings-conventions input[id^="conv-rr-psf-"]').count()) === 4, String(boxes));
   c('each box is at least 44 pt high', (await height(page.locator('#conv-t12-spike-times'))) >= 43.9 && (await height(page.locator('#conv-noi-warn'))) >= 43.9);
   const sc = await t('#settings-conventions');
   c('with their units and help in words', /T-12 spike: times the typical month/.test(sc) && /NOI three ways: a warning above/.test(sc) && /Typed in points: 0\.5 is half of one percent/.test(sc), sc.slice(0, 200));

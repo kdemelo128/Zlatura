@@ -46,6 +46,14 @@ const T12_NUMBERS = [
   { id: 't12.yoy.noi', label: 'T-12 year over year: NOI moved more than', unit: '%', default: 50, min: 1, max: 1000, help: 'Over the same like months. A warning, because NOI is what is bought.' },
 ].map((c) => ({ ...c, settable: true, kind: 'number' }));
 CONVENTIONS.push(...T12_NUMBERS);
+/* Rent roll K33 (underwriting U5): the median rent per SF a year outside this band is a Note, never a hold or a change. */
+const RR_NUMBERS = [
+  { id: 'rr.psf.low', label: 'Rent roll median rent per SF a year: a note below', unit: '$/SF/yr', default: 3, min: 0, max: 1000, help: 'Commercial property. Below it, a monthly rent may have been typed as annual.' },
+  { id: 'rr.psf.high', label: 'Rent roll median rent per SF a year: a note above', unit: '$/SF/yr', default: 200, min: 1, max: 5000, help: 'Commercial property. Above it, an annual rent may have been typed in the monthly box.' },
+  { id: 'rr.psf.mfLow', label: 'Multifamily median rent per SF a year: a note below', unit: '$/SF/yr', default: 3, min: 0, max: 1000, help: 'Property type multifamily or apartments.' },
+  { id: 'rr.psf.mfHigh', label: 'Multifamily median rent per SF a year: a note above', unit: '$/SF/yr', default: 80, min: 1, max: 5000, help: 'Property type multifamily or apartments.' },
+].map((c) => ({ ...c, settable: true, kind: 'number' }));
+CONVENTIONS.push(...RR_NUMBERS);
 
 const current = Object.fromEntries(CONVENTIONS.filter((c) => c.settable).map((c) => [c.id, c.default]));
 
@@ -68,6 +76,7 @@ export function setConventions(saved) {
   }
   // the NOI levels must stay in order: both go back to what they were
   if (!(current['noi.agree'] < current['noi.warn'])) { current['noi.agree'] = before['noi.agree']; current['noi.warn'] = before['noi.warn']; }
+  for (const [lo, hi] of [['rr.psf.low', 'rr.psf.high'], ['rr.psf.mfLow', 'rr.psf.mfHigh']]) if (!(current[lo] < current[hi])) { current[lo] = before[lo]; current[hi] = before[hi]; }
   return { ...current };
 }
 

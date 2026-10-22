@@ -42,6 +42,13 @@ const btn = (label, fn, cls = '') => { const b = el('button', `btn btn-sm ${cls}
 
 /** A number setting's text, as shown at rest: no thousands marks, so what is typed back reads the same. */
 const numText = (v) => String(v);
+// a number that must stay on one side of its partner (conventions.js setConventions keeps each pair in order): what to tell the person
+const PAIRS = {
+  'noi.agree': ['below', 'warning level', 'noi.warn', '%'], 'noi.warn': ['above', 'agree level', 'noi.agree', '%'],
+  'rr.psf.low': ['below', 'note-above level', 'rr.psf.high', '$'], 'rr.psf.high': ['above', 'note-below level', 'rr.psf.low', '$'],
+  'rr.psf.mfLow': ['below', 'note-above level', 'rr.psf.mfHigh', '$'], 'rr.psf.mfHigh': ['above', 'note-below level', 'rr.psf.mfLow', '$'],
+};
+const pairText = (c) => { const [side, name, other, u] = PAIRS[c.id]; return `Must stay ${side} the ${name} (${u === '$' ? '$' : ''}${conv(other)}${u === '%' ? '%' : ''})`; };
 const rangeText = (c) => { const f = (v) => `${c.unit === '$' ? '$' : ''}${v.toLocaleString('en-US')}${c.unit === '%' ? '%' : ''}`; return `Between ${f(c.min)} and ${f(c.max)}`; };
 
 /**
@@ -70,7 +77,7 @@ function numberRow(c) {
     const v = c.unit === '%' ? parsePct(inp.value, { fraction: false }) : parseNum(inp.value);
     if (v === null || v < c.min || v > c.max) { bad(rangeText(c)); return; }
     setConventions({ [c.id]: v });
-    if (conv(c.id) !== v) { bad(c.id === 'noi.agree' ? `Must stay below the warning level (${conv('noi.warn')}%)` : `Must stay above the agree level (${conv('noi.agree')}%)`); return; }
+    if (conv(c.id) !== v) { bad(pairText(c)); return; }
     msg.textContent = '';
     inp.removeAttribute('aria-invalid');
     inp.removeAttribute('aria-describedby');

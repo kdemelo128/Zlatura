@@ -37,6 +37,27 @@ export function richRentRoll() {
   };
 }
 
+/**
+ * A messy rent roll (invented), as of 2026-06-30, on which every rent roll check (K20-K33) fires, each on a lease that
+ * lets its fields be seen to move it: 201 has no rent, no start and has ended (K21, K22, K24), and would start rent in
+ * 2027, so a rent typed in raises K25; D1 has no SF, starts rent in 2027 (K20, K25) and shares its unit with another
+ * suite (K27) and its tenant and end date with a third (the same lease); Late Co also starts paying in 2027, so the
+ * median rent per SF moves when the as-of date does; $400, $500 and $900 per SF a year put the median over the band (K33).
+ */
+export function messyRentRoll() {
+  const rr = richRentRoll();
+  const later = (rate) => [{ start: '2027-01-01', end: '2031-12-31', rate, unit: 'psf_year', source: 'documented' }];
+  rr.leases = [
+    lease('m0', '201', 'Blank Co', 1000, null, '2026-03-31', null, { rentStart: '2027-03-01' }),
+    lease('m1', 'D1', 'Acme', null, '2022-01-01', '2030-06-30', 20, { periods: later(20) }),
+    lease('m2', 'D1', 'Dup Co', 1000, '2022-01-01', '2031-12-31', 400),
+    lease('m3', 'D3', 'Acme', 1000, '2022-01-01', '2030-06-30', 500, { periods: [{ start: '2022-01-01', end: '2030-06-30', rate: 500000, unit: 'year', source: 'documented' }] }), // quoted a year, so its SF sets its rent per SF
+    lease('m4', 'E4', 'Late Co', 1000, '2022-01-01', '2031-12-31', 600, { periods: later(600) }),
+    lease('m5', 'F5', 'Pricey Co', 1000, '2022-01-01', '2031-12-31', 900),
+  ];
+  return rr;
+}
+
 /** A different value of the same kind, for trying a change: never equal to `v`. */
 export function nudge(v, key = '') {
   if (typeof v === 'number') return v === 0 ? 1 : Math.round(v * 1.37 * 1e4) / 1e4 + (Number.isInteger(v) ? 1 : 0);
@@ -228,6 +249,7 @@ export function changesFor(deal, { leases = 3 } = {}) {
     for (const id of [...new Set(ids)]) for (const [f, fn] of Object.entries(LEASE_CHANGES)) add(`lease.${f}`, `lease ${id} ${f}`, (d) => fn(d.rr.leases.find((L) => L.id === id)), id);
     for (const [k, fn] of Object.entries(SETTING_CHANGES)) add(`rr.settings.${k}`, `setting ${k}`, (d) => fn(d.rr.settings));
     add('leases', 'a lease removed', (d) => { d.rr.leases.splice(1, 1); });
+    add('leases', 'the last lease removed', (d) => { d.rr.leases.pop(); });
     add('leases', 'a lease added', (d) => { d.rr.leases.push({ ...structuredClone(d.rr.leases[0]), id: 'added', unit: '999', tenant: 'Newco', sf: 1500 }); });
   }
   if (deal.t12) {

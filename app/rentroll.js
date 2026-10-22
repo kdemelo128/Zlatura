@@ -185,6 +185,19 @@ export function legacyRows(rr) {
   });
 }
 
+/** What the roll checks read of each lease (engine/figures.js, K20-K33): never stored. `annual` is the contract rent
+ * in force on the as-of date, a year (0 when none is); `rent` is 'blank' when no period has a rent at all. */
+export function rollFacts(rr) {
+  const asOf = (rr.settings || {}).asOf;
+  return (rr.leases || []).map((L) => {
+    const ip = inPlace(L, asOf);
+    const rated = (L.periods || []).filter((p) => ok(p.rate) && dayOf(p.start) !== null);
+    const first = rated.length ? rated.map((p) => p.start).sort()[0] : null;
+    return { unit: L.unit || '', tenant: L.vacant ? '' : (L.tenant || ''), sf: pos(L.sf) ? L.sf : null, vacant: !!L.vacant, mtm: !!L.mtm, holdover: /holdover/i.test(L.status || ''),
+      start: L.leaseStart || null, rentStart: L.rentStart || first, end: L.leaseEnd || null, rent: L.vacant ? null : rated.length ? 'set' : 'blank', annual: L.vacant || !rated.length ? null : ip.monthly * 12 };
+  });
+}
+
 /** The context the column getters read. */
 export function gridContext(rr) {
   const s = { ...DEFAULT_SETTINGS, ...(rr.settings || {}) };

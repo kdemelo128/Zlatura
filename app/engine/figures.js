@@ -13,7 +13,7 @@ import { registry } from './graph.js';
 import { debtService, sizeLoan } from './debt.js';
 import { walt } from './walt.js';
 import { breakEvenOccupancy } from './breakeven.js';
-import { NOI_GAP } from './conventions.js';
+import { NOI_GAP, conv } from './conventions.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const pos = (x) => ok(x) && x > 0;
@@ -258,6 +258,59 @@ rule('vacantSpace', 'Vacant space', ['leases'], (m, i, C, Q) => {
 });
 rule('undatedLeases', 'Leases with no expiration date', ['leases'], (m, i, C, Q) => {
   if (m.leases && m.leases.undatedRent > 0) Q.push('Some leases show no expiration date: are they month-to-month?');
+});
+/* Rent roll checks K20-K33 (underwriting.md 3.6, U5): from the rent roll's own leases (`d.rollFacts`, impact.js
+ * analysisInput), as of its as-of date. A Check is a warning, a Note is info; none changes a figure. */
+// each rule says which lease fields it uses (impact.js fromEngine maps them to the inputs a person edits)
+const RF = (...fields) => ({ path: 'd.rollFacts', fields });
+const AS_OF = ['d.rentRollAsOf', { path: 'today', when: 'only when the rent roll has no as-of date' }];
+const occ = (d) => (Array.isArray(d.rollFacts) ? d.rollFacts.filter((r) => !r.vacant) : []);
+const rollDay = (d, today) => { const a = d.rentRollAsOf; return a ? String(a).slice(0, 10) : today.toISOString().slice(0, 10); };
+const who = (r) => `${r.unit || '(no unit)'}${r.tenant ? ` (${r.tenant})` : ''}`;
+const list = (rs) => `${rs.slice(0, 5).map(who).join(', ')}${rs.length > 5 ? ` and ${rs.length - 5} more` : ''}`;
+const n = (k, w) => `${k} ${w}${k === 1 ? '' : 's'}`;
+rule('rollNoSf', 'Occupied suites with no SF', [RF('sf', 'status', 'unit', 'tenant')], (m, { d }, C) => {
+  const rs = occ(d).filter((r) => r.sf === null);
+  if (rs.length) C.push({ level: 'warn', text: `${n(rs.length, 'occupied suite')} on the rent roll ${rs.length === 1 ? 'has' : 'have'} no SF: ${list(rs)}. ${rs.length === 1 ? 'It is' : 'They are'} left out of the roll's SF, occupancy and rent per SF until the SF is entered.` });
+});
+rule('rollNoRent', 'Tenants with no rent', [RF('rent', 'status', 'unit', 'tenant')], (m, { d }, C) => {
+  const rs = occ(d).filter((r) => r.rent === 'blank');
+  if (rs.length) C.push({ level: 'warn', text: `${n(rs.length, 'tenant')} on the rent roll ${rs.length === 1 ? 'has' : 'have'} no rent entered (blank, not $0): ${list(rs)}. Until a rent is entered, ${rs.length === 1 ? 'the suite counts' : 'these suites count'} as vacant in occupancy, leased SF and WALT.` });
+});
+rule('rollNoStart', 'Leases with no start date', [RF('leaseStart', 'status', 'unit', 'tenant')], (m, { d }, C) => {
+  const rs = occ(d).filter((r) => !r.start);
+  if (rs.length) C.push({ level: 'info', text: `${n(rs.length, 'lease')} on the rent roll ${rs.length === 1 ? 'has' : 'have'} no start date: ${list(rs)}.` });
+});
+rule('rollEnded', 'Leases already ended at the as-of date', [RF('leaseEnd', 'status', 'unit', 'tenant'), ...AS_OF], (m, { d, today }, C) => {
+  const at = rollDay(d, today);
+  const rs = occ(d).filter((r) => r.end && !r.mtm && !r.holdover && r.end.slice(0, 10) < at);
+  if (rs.length) C.push({ level: 'warn', text: `${n(rs.length, 'lease')} on the rent roll ended before its as-of date (${at}): ${list(rs)}. Is the tenant holding over, month to month, or gone?` });
+});
+rule('rollRentLater', 'Rent starting after the as-of date', [RF('rentStart', 'rent', 'status', 'unit', 'tenant'), ...AS_OF], (m, { d, today }, C) => {
+  const at = rollDay(d, today);
+  const rs = occ(d).filter((r) => r.rent === 'set' && r.rentStart && r.rentStart.slice(0, 10) > at);
+  if (rs.length) C.push({ level: 'info', text: `${n(rs.length, 'lease')} on the rent roll ${rs.length === 1 ? 'starts' : 'start'} paying rent after its as-of date (${at}): ${list(rs)}. Until then ${rs.length === 1 ? 'it counts' : 'they count'} as vacant in occupancy and in-place rent.` });
+});
+rule('rollDupUnits', 'Duplicate unit IDs on the rent roll', [RF('unit')], (m, { d }, C) => {
+  const seen = new Map();
+  for (const r of Array.isArray(d.rollFacts) ? d.rollFacts : []) { const k = String(r.unit || '').trim().replace(/\s+/g, ' ').toLowerCase(); if (k) seen.set(k, [...(seen.get(k) || []), r]); }
+  const dup = [...seen.values()].filter((g) => g.length > 1);
+  if (dup.length) C.push({ level: 'warn', text: `The rent roll lists ${dup.length === 1 ? 'a unit' : `${dup.length} units`} more than once: ${dup.slice(0, 5).map((g) => `${g[0].unit} (${g.length} times)`).join(', ')}${dup.length > 5 ? ` and ${dup.length - 5} more` : ''}. Its SF and rent may be counted twice.` });
+});
+rule('rollSameLease', 'The same lease across suites', [RF('tenant', 'leaseEnd', 'unit', 'status')], (m, { d }, C) => {
+  const g = new Map();
+  for (const r of occ(d)) { const t = String(r.tenant || '').trim().toLowerCase(); if (t && r.end) g.set(`${t}|${r.end.slice(0, 10)}`, [...(g.get(`${t}|${r.end.slice(0, 10)}`) || []), r]); }
+  const many = [...g.values()].filter((x) => new Set(x.map((r) => String(r.unit).trim().toLowerCase())).size > 1);
+  for (const x of many.slice(0, 5)) C.push({ level: 'info', text: `${x[0].tenant} has ${x.length} suites ending on the same day (${x.map((r) => r.unit).join(', ')}): if it is one lease, tenant concentration counts it as ${x.length} tenants.` });
+});
+const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const h = s.length >> 1; return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2; };
+rule('rollPsfBand', 'Median rent per SF a year outside the usual band (monthly against annual)', [RF('rent', 'sf', 'status', 'asOf'), { path: 'd.ptype', when: 'with the band set in Settings (conventions rr.psf.*)' }], (m, { d }, C) => {
+  const psf = occ(d).filter((r) => pos(r.annual) && pos(r.sf)).map((r) => r.annual / r.sf);
+  if (!psf.length) return;
+  const mf = /multi|apartment|residential/i.test(d.ptype || '');
+  const lo = conv(mf ? 'rr.psf.mfLow' : 'rr.psf.low'); const hi = conv(mf ? 'rr.psf.mfHigh' : 'rr.psf.high');
+  const med = median(psf);
+  if (med < lo || med > hi) C.push({ level: 'info', text: `The rent roll's median rent is $${med.toFixed(2)} per SF a year, outside $${lo}-$${hi} for ${mf ? 'multifamily' : 'a commercial property'}. Was an annual rent typed as monthly, or a monthly one as annual? No figure has been changed.` });
 });
 rule('shortTerm', 'Under five years left on the lease', ['termLeft'], (m, i, C, Q) => {
   if (m.termLeft !== null && m.termLeft < 5) {

@@ -16,7 +16,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { cases } from './analyze-cases.js';
-import { richRentRoll, changesFor, tryChange } from './impact-cases.js';
+import { richRentRoll, messyRentRoll, changesFor, tryChange } from './impact-cases.js';
 import { FIGURES, RULES } from '../app/engine/figures.js';
 import { registry } from '../app/engine/graph.js';
 import {
@@ -112,7 +112,7 @@ function guarded(F, x, m) {
 
 test('each formula and rule reads only what it declares (618 deals and the rich rent roll)', () => {
   const rr = richRentRoll();
-  const extra = [{ d: { price: 9e6, noi: 6e5, bsf: 32000, rentRoll: rentRollSummary(rr, rr.settings.asOf).rows.map((r) => ({ ...r, vacant: !r.occupied })), rentRollAsOf: rr.settings.asOf, loan: { ltv: 60, rate: 7, amort: 25 } } }];
+  const extra = [{ d: { price: 9e6, noi: 6e5, bsf: 32000, rentRoll: rentRollSummary(rr, rr.settings.asOf).rows.map((r) => ({ ...r, vacant: !r.occupied })), rentRollAsOf: rr.settings.asOf, loan: { ltv: 60, rate: 7, amort: 25 } } }, { d: analysisInput(messyDeal()) }, { d: analysisInput(messyDeal(null)) }];
   for (const c of [...ALL, ...extra]) {
     const m = { derived: {}, checks: [], questions: [] };
     const x = { d: c.d, loan: c.d.loan || {}, comps: c.comps || null, today: new Date() };
@@ -186,6 +186,23 @@ for (const [label, rrOf] of [['rents per SF', richRentRoll], ['rents a year', ye
   assert.deepEqual([...new Set(missing)], []);
 });
 
+// the messy roll: all eight rent roll checks fire, and each lease field a rule reads is seen to move it
+const MESSY_RULES = ['rollNoSf', 'rollNoRent', 'rollNoStart', 'rollEnded', 'rollRentLater', 'rollDupUnits', 'rollSameLease', 'rollPsfBand'];
+export const messyDeal = (asOf) => { const rr = messyRentRoll(); if (asOf !== undefined) rr.settings.asOf = asOf; return { name: 'Messy', figures: { price: 9e6, noi: 6e5, bsf: 32000, occ: 92, ptype: 'Multifamily' }, loan: { ltv: 65, rate: 6.75, amort: 30, closing: 2 }, rr, live: {}, scenarios: [], targets: {} }; };
+test('the messy roll: every rent roll check fires, and what its lease fields move is on the map', async () => {
+  const fired = traceAnalysis(analysisInput(messyDeal())).m.checks.map((c) => c.text).join('|');
+  for (const re of [/no SF/, /no rent entered/, /no start date/, /ended before/, /paying rent after/, /more than once/, /suites ending on the same day/, /median rent/]) assert.match(fired, re);
+  const missing = [];
+  for (const ch of changesFor(messyDeal(), { leases: 6 })) {
+    if (!/^(lease|leases|rr\.|figures\.ptype$)/.test(ch.input)) continue;
+    const r = await tryChange(messyDeal(), ch, {});
+    for (const k of r.missing) missing.push(`changing ${ch.label} moved ${k}, but the map doesn't say so`);
+    for (const k of r.moved) { if (!seenMoving.has(k)) seenMoving.set(k, new Set()); seenMoving.get(k).add(ch.input); }
+  }
+  assert.deepEqual([...new Set(missing)], []);
+  for (const id of MESSY_RULES) assert.ok(seenMoving.has(`check.${id}`), `check.${id} moved by something`);
+});
+
 // a T-12 (invented): each line the same every month, so its NOI is easy to see; far enough from the OM's and the rent roll's to warn
 const T12_ROWS = [['Line', ...['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m) => `${m} 2025`), 'Total'],
   ['Base Rent', 60000], ['Expense Recoveries', 9000], ['Real Estate Taxes', 9000], ['Insurance', 2000], ['Repairs & Maintenance', 4000], ['Utilities', 3000]]
@@ -235,7 +252,8 @@ test('each formula’s declared reads are each read on some deal, and each input
   const rr = richRentRoll();
   const more = [{ d: { price: 9e6, noi: 6e5, bsf: 32000, rentRoll: [{ sf: 1000, annual: 50000, end: '2030-01-01T00:00:00.000Z' }], rentRollAsOf: rr.settings.asOf } },
     { d: analysisInput(t12Deal(), { project: (r, o) => projectionSummary(project(r, o)) }) },
-    { d: analysisInput(partialDeal()) }];
+    { d: analysisInput(partialDeal()) },
+    { d: analysisInput(messyDeal()) }, { d: analysisInput(messyDeal(null)) }]; // the second has no as-of date: the rules read today
   for (const c of [...ALL, ...more]) for (const [id, s] of traceAnalysis(c.d, c.comps || null).reads) { if (!traced.has(id)) traced.set(id, new Set()); for (const p of s) traced.get(id).add(p); }
   const unread = [];
   const unmoved = [];

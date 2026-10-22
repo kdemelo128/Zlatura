@@ -339,6 +339,12 @@ await step('Settings, the T-12 threshold boxes (T-12 PR 3b)', async () => {
   await box('year over year, NOI (percent)', 't12.yoy.noi', '60', '60', 60);
   await box('NOI agree level (percent)', 'noi.agree', '3', '3', 3);
   await box('NOI warning level (percent)', 'noi.warn', '8', '8', 8);
+  // the rent roll's rent per SF band (underwriting U5): dollars a SF a year, typed with a sign or a comma
+  await box('rent roll band, note above (dollars per SF), “$250” typed with its sign', 'rr.psf.high', '$250', '250', 250);
+  await box('rent roll band, note below (dollars per SF), “1.5”', 'rr.psf.low', '1.5', '1.5', 1.5);
+  await box('multifamily band, note above (dollars per SF), “90”', 'rr.psf.mfHigh', '90', '90', 90);
+  await box('multifamily band, note below (dollars per SF), “2.25”', 'rr.psf.mfLow', '2.25', '2.25', 2.25);
+  await box('rent roll band, note above, “1,000” typed with its comma', 'rr.psf.high', '1,000', '1000', 1000);
   // a value that is not a number reverts on Enter, with a message, and keeps focus
   const sel = '#conv-t12-spike-times';
   const bad = await typeChars(sel, 'abc', {});
@@ -356,6 +362,15 @@ await step('Settings, the T-12 threshold boxes (T-12 PR 3b)', async () => {
   await page.keyboard.press('Enter');
   await pause(200);
   check('Settings, NOI agree level: 9 is not below the 8 warning level, so it is kept at 3 with a message', (await page.inputValue('#conv-noi-agree')) === '3' && /below the warning level/.test(await page.textContent('#conv-noi-agree-msg')) && (await kept('noi.agree')) === 3);
+  // each band's low may not pass its high: both stay as they were, and the message names the band, not the NOI levels
+  await typeChars('#conv-rr-psf-low', '2000', {});
+  await page.keyboard.press('Enter');
+  await pause(200);
+  check('Settings, rent roll band: a low of 2,000 is out of range, kept at 1.5', (await page.inputValue('#conv-rr-psf-low')) === '1.5' && /Between \$0 and \$1,000|Between 0 and 1,000/.test(await page.textContent('#conv-rr-psf-low-msg')), await page.textContent('#conv-rr-psf-low-msg'));
+  await typeChars('#conv-rr-psf-mfLow', '95', {});
+  await page.keyboard.press('Enter');
+  await pause(200);
+  check('Settings, multifamily band: a low of 95 is not below the 90 high, so it is kept at 2.25 with the band’s own message', (await page.inputValue('#conv-rr-psf-mfLow')) === '2.25' && /Must stay below the note-above level \(\$90\); kept at 2\.25/.test(await page.textContent('#conv-rr-psf-mfLow-msg')) && (await kept('rr.psf.mfLow')) === 2.25, await page.textContent('#conv-rr-psf-mfLow-msg'));
 });
 
 await step('T-12 paste box', async () => {

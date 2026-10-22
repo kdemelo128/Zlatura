@@ -152,7 +152,13 @@ interface Event { detail?: any }
 
 /* ---------------------------------- what the analysis and scenarios take */
 /** What analyze() reads of a deal (impact.js analysisInput). */
-type AnalysisInput = Figures & { rentRoll?: OmRentRow[]; loan?: Loan; rentRollAsOf?: IsoDate | null };
+type AnalysisInput = Figures & { rentRoll?: OmRentRow[]; loan?: Loan; rentRollAsOf?: IsoDate | null; rollFacts?: RollFact[] };
+/** One lease as the rent roll checks read it (rentroll.js rollFacts); built for each analysis, never stored. `rent` is
+ * 'blank' when no period has a rent (never 0), 'set' otherwise, null for a vacant suite; `annual` is null when blank. */
+interface RollFact {
+  unit: string; tenant: string; sf: Sf | null; vacant: boolean; mtm: boolean; holdover: boolean;
+  start: IsoDate | null; rentStart: IsoDate | null; end: IsoDate | null; rent: 'blank' | 'set' | null; annual: UsdPerYear | null;
+}
 /** A scenario's assumptions, worked through (deal.js scenarioBase, runScenario). */
 interface ScenarioInputs {
   price: Usd | null; noi: UsdPerYear | null; occ: Pct | null; gross: UsdPerYear | null; opex: UsdPerYear | null;
