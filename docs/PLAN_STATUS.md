@@ -21,16 +21,15 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.49; CI security scanners (PR opening); tool ideas and GitHub tools scan (#73, merged); F12, AI server limits (#72, merged); CodeQL alert fixes (4.7.46, #70, merged); Pillow audit (#68, merged); ponytail skill (#67, merged); underwriting U6, T-12 line checks (#66, merged); underwriting U5, rent roll checks (#65, merged); underwriting U4, WALT by total area (#64, merged); underwriting U3, strict review (#63, merged); underwriting U2, normalised NOI on screen (#62, merged); underwriting U1, normalise() (#61, merged); T-12 PR 3b, value flags and run rate (#60, merged); T-12 PR 3a, periods and the Data QC panel (#59, merged); T-12 PR 2, suggestions (#58, merged); A3 skills and glossary (#57, merged); git guardrail hook (#56, merged); security fixes F1 to F3 (#55, merged); T-12 PR 1b, the paste box (#54, merged); T-12 PR 1, the reading foundation (#53, merged); security checklist and tools decisions (#51, merged); support-code rule (PR opening); underwriting proposal (#48), roll comparison (#47), property-manager profile (#46), rent roll PDF upload (#45), `impact-flow` fix (#44) merged (2026-10-17).
+Last updated: 4.7.51; AI server injection set (PR opening); fast-check property tests (#75, merged); CI security scanners (#74, merged); tool ideas and GitHub tools scan (#73, merged); F12, AI server limits (#72, merged); CodeQL alert fixes (4.7.46, #70, merged); Pillow audit (#68, merged); ponytail skill (#67, merged); underwriting U6, T-12 line checks (#66, merged); underwriting U5, rent roll checks (#65, merged); underwriting U4, WALT by total area (#64, merged); underwriting U3, strict review (#63, merged); underwriting U2, normalised NOI on screen (#62, merged); underwriting U1, normalise() (#61, merged); T-12 PR 3b, value flags and run rate (#60, merged); T-12 PR 3a, periods and the Data QC panel (#59, merged); T-12 PR 2, suggestions (#58, merged); A3 skills and glossary (#57, merged); git guardrail hook (#56, merged); security fixes F1 to F3 (#55, merged); T-12 PR 1b, the paste box (#54, merged); T-12 PR 1, the reading foundation (#53, merged); security checklist and tools decisions (#51, merged); support-code rule (PR opening); underwriting proposal (#48), roll comparison (#47), property-manager profile (#46), rent roll PDF upload (#45), `impact-flow` fix (#44) merged (2026-10-17).
 
 ## Now
 
-- **Current step (4.7.49):** the CI security scanners (actionlint, zizmor, gitleaks, osv-scanner; PR opening;
-  the tool ideas are merged, #73), then the owner-approved tool integrations one PR at a time: fast-check
-  property tests (test-only), and a wider in-house prompt-injection set for the AI server. Then Phase B1 of the
-  relationship-intelligence proposal (#69, decisions #71), then U7. F12, the AI server limits, is merged (#72,
-  4.7.47). The master plan (`ZLATURA_MASTER_PROMPT_v2.md`) stays in force; the history of earlier steps is in
-  `CHANGELOG.md` and the "Last updated" line above.
+- **Current step (4.7.51):** the AI server's prompt-injection set doubled to 25 invented documents across 11
+  categories (PR opening). Property tests (#75), the CI security scanners (#74), the tool ideas (#73) and F12 (#72)
+  are merged. Next, one PR at a time: the "-$0" display fix (built and reviewed), then Phase B1 of the
+  relationship-intelligence proposal (#69, decisions #71), then U7. The master plan (`ZLATURA_MASTER_PROMPT_v2.md`)
+  stays in force; the history of earlier steps is in `CHANGELOG.md` and the "Last updated" line above.
 - **Lost edit (since 4.7.3), fixed in 4.7.7:** `app/focuskeep.js` held the
   whole change handler, the save included, until Tab's focus landed, so
   leaving the deal or closing the app in that beat lost the edit. Now the
