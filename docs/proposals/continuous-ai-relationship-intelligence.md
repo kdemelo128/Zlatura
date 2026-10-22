@@ -496,6 +496,38 @@ decision 2. What that means for the build:
     point.
 12. **Security checklist item 23** is reworded in F12's PR.
 
+## 11b. The owner's request to allow the prohibited items, and what is built instead (2026-10-22)
+
+The owner asked whether these could be allowed "where possible":
+- extracting private friend or follower lists;
+- login bypass, access-control circumvention or unauthorized scraping;
+- facial recognition, and identifying anonymous people from images or tags;
+- private messages or non-public account data without authorization;
+- sensitive personal attributes for lead scoring.
+
+**They stay prohibited, in full.** Each one is unlawful or a serious privacy harm in most places the firm works:
+- **Computer-fraud law and platform terms:** scraping, login bypass and taking private account data.
+- **Biometric-privacy law, with damages counted per person:** facial recognition and identifying people.
+- **Discrimination exposure under fair-lending and fair-housing law:** sensitive attributes used in scoring.
+
+The risk falls on the firm, not only on the software. The owner then approved building the lawful versions of what these were meant to achieve, all of them. Each keeps this proposal's rules: broker approval before any external write or communication, research content never approving its own write, and evidence before a claim is confirmed.
+
+| # | What is built | Where it lands | Gates |
+|---|---|---|---|
+| L1 | **The broker's own network, imported.** The broker exports their own LinkedIn connections (LinkedIn's "Get a copy of your data" CSV) or phone and Google contacts (vCard or CSV). Zlatura imports it on the device and matches it against companies and research claims. Nothing is fetched; the broker supplies their own file. | C2a (file exchange), after B1c | Data format: imported contacts are a new kind of record, approved with C's proposal. The match rules are B1b's: two-word full names, multi-word company names, never a surname alone. |
+| L2 | **The broker's own email and calendar,** through each provider's official sign-in. Explicit consent per account, read-only first, and only messages and events the broker chooses to link to a deal or contact. | Phase D | Hosting or browser-only sign-in (decision 3), legal review (decision 10). Google's restricted email scopes need Google's own app verification, an outside process (UNVERIFIED cost and time). |
+| L3 | **Public business records.** SEC filings first, then state business-entity registries one by one, each only after its terms are read. | B2, then one connector per registry | Legal review per source (decisions 9 and 10). Fixed hosts only, and no user-supplied URLs (security checklist item 23). |
+| L4 | **Lead scoring on business facts only:** ownership and holding period, deal history, debt maturities, filings and the firm's own activity history. No personal attributes, ever, enforced by a closed list of allowed inputs and a test that refuses any other. | After C, when the firm names the weights | Financial meaning: the owner names the weights (the deferred lead score). The closed input list is a security-checklist item. |
+| L5 | **Text in photos, by OCR on the device:** signage, a business name, an address or a "for lease" sign, read with the OCR Zlatura already ships (tesseract.js, `THIRD_PARTY.md`). Never faces. Any person in a photo is ignored, and no image leaves the device unless the broker sends it to the AI server's vision call (Phase G). | Phase G (moved earlier: it needs no server) | None for the on-device OCR. A vision call is an AI-server route under F12's budget. A test proves no face-detection code or model is shipped. |
+
+Order, one PR at a time:
+1. B1c (the research screens);
+2. L5 (photo text, on the device);
+3. L1 inside C2a (own-network import);
+4. B2 (SEC);
+5. L4 once the weights are named;
+6. L2 and state registries as their gates clear.
+
 ## 12. Low-risk improvements noticed, not made
 
 - `saveContact` (`app/crm.js:55`) drops any field outside its fixed list; a
