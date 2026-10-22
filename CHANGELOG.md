@@ -9,6 +9,16 @@ Test tooling only. Pillow is not part of the app, the AI server or anything depl
 - **Exposure:** none identified. Pillow is used only by `tests/e2e/make_pdfs.py`, which draws invented images from scratch (blank canvases, fixed text, solid colours) and saves them; it never opens or parses an image, PDF or TIFF from outside, and nothing a broker uploads reaches it (the app reads uploads in the browser with pdf.js, ExcelJS and tesseract.js; the AI server is Node).
 - **Tested:** `tests/e2e-requirements.test.js` (a mismatched pin and a missing package stop the check with the install command; the real file pins Pillow 13.0.0 exactly; run.sh runs the check before any fixture) fails on the previous code; 3 mutation checks all caught; `check:full` passed with Pillow 13.0.0.
 
+## 4.7.43: Ponytail, the "smallest complete change" skill, is integrated as text (on the development branch; not merged or deployed)
+
+Tooling only: no app code, saved deals or golden outputs change. The owner approved ponytail (A1 in `docs/proposals/dev-tools-and-reuse.md`) on 2026-10-21 and asked for it to be integrated on 2026-10-22.
+
+- **What is added:** `.claude/skills/ponytail/SKILL.md`, the upstream skill from DietrichGebert/ponytail at commit `09c434a`, unchanged, with its MIT license beside it, plus one section at the end, "In this repository": `CLAUDE.md` and the working rules win wherever they differ; tests that fail on the old code, mutation checks, the golden checks, `check:quick`/`check:full` and the release steps are part of every change, never trimmed as "extra"; money, units and periods are never cut short; a new library is still an approval gate.
+- **What is not taken:** its hooks (SessionStart, mode tracker, subagent and status line scripts), the band UI and its five other skills. Text only, so it adds no code that runs and no network access.
+- **Recorded in `THIRD_PARTY.md`** with the commit and the SHA-256 of the upstream file and the license; `tests/ponytail-skill.test.js` checks the upstream text is unchanged, the license is there, and nothing of ponytail's is registered in the project settings.
+- **Not measured yet:** the approved A/B test (T1: PR size with and without it) was not run; the owner chose to integrate first. Its effect will show in the next PRs' diff sizes, and it can be removed by deleting the folder.
+- **Cost:** about 0.9k tokens a session for its description; the body loads when used.
+
 ## 4.7.42: T-12 checks: a line filed on the wrong side, and the same line read twice (on the development branch; not merged or deployed)
 
 Sixth underwriting PR (U6 of `docs/proposals/underwriting.md`, checks K13 and K28; no owner decision needed). Saved results and golden outputs are unchanged.
