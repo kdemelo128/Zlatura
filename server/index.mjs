@@ -1,9 +1,9 @@
 /* The Zlatura AI server: a small HTTP service that holds the API keys the
- * static app must never carry, and does three things for it: reads figures
- * out of documents, answers questions about a deal from its facts, and
+ * static app must never carry, and does four things for it: reads figures
+ * out of documents, researches a company from the broker's own documents, answers questions about a deal from its facts, and
  * transcribes and summarizes audio.
  *
- *   ANTHROPIC_API_KEY  required for /api/extract, /api/assist, /api/meeting
+ *   ANTHROPIC_API_KEY  required for /api/extract, /api/assist, /api/meeting, /api/research
  *   APP_TOKENS_FILE    one line per device, "<label> <sha256-hex>" (node tokens.mjs new <label>);
  *                      re-read when the file changes and on SIGHUP, so deleting a line revokes it
  *   APP_TOKEN_HASHES   the same as "label:hex,label:hex", for hosts with no file
@@ -25,7 +25,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { extract, assist, meeting, AiError, MODEL } from './ai.mjs';
+import { extract, assist, meeting, research, AiError, MODEL } from './ai.mjs';
 import { costCents, ledger, dollars, untilReset } from './budget.mjs';
 import { readTokensFile, parseHashList, matchDevice, hashToken, assertDistinct } from './tokens.mjs';
 
@@ -172,10 +172,15 @@ export function handler(cfg, client, deps = {}) {
   const hookFor = (label) => {
     let r = null;
     return {
+      charged: null, // the cents settle() charged, for a route that reports them
       // wholeJob: the input size is unknown and not text (a PDF is charged per page), so hold the job cap
       reserve: (inTokens, maxTokens, wholeJob) => { r = hold(label, wholeJob ? (cfg.jobCents ?? 300) : costCents({ input_tokens: inTokens, output_tokens: maxTokens }, prices())); },
       // a missing or part-missing count is never read as zero: the hold is charged
-      settle: (usage) => books.settle(r, Number.isInteger(usage?.input_tokens) && Number.isInteger(usage?.output_tokens) ? costCents(usage, prices()) : r.worst),
+      settle(usage) {
+        const cents = Number.isInteger(usage?.input_tokens) && Number.isInteger(usage?.output_tokens) ? costCents(usage, prices()) : r.worst;
+        books.settle(r, cents);
+        this.charged = cents;
+      },
       release: () => { if (r) books.release(r); },
     };
   };
@@ -207,6 +212,12 @@ export function handler(cfg, client, deps = {}) {
       if (path === '/api/extract') { needAi(); out = await extract(client, body, hookFor(device)); }
       else if (path === '/api/assist') { needAi(); out = await assist(client, body, hookFor(device)); }
       else if (path === '/api/meeting') { needAi(); out = await meeting(client, body, hookFor(device)); }
+      else if (path === '/api/research') {
+        needAi();
+        const hook = hookFor(device);
+        out = await research(client, body, hook);
+        out.chargedCents = hook.charged;
+      }
       else if (path === '/api/transcribe') {
         // the cost is known only afterwards, so hold the whole job cap now; the charge, by the minute, never exceeds that hold
         const cap = cfg.jobCents ?? 300;

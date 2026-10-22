@@ -7,6 +7,7 @@ app:
 | Endpoint | What it does |
 |---|---|
 | `POST /api/extract` | Reads figures out of PDFs or text (OM, rent roll, T-12, lease) with Claude. Each figure comes back with the verbatim passage it was read from, which the app checks against the document before showing it. |
+| `POST /api/research` | Writes a company brief from the PDFs and text the broker supplies (at most 10 documents and 60,000 characters of text), as claims that each carry the verbatim passage they rest on. It takes only `{subject, documents}`; any other key, such as a contacts list, is refused with 400. Names, section titles and kinds come from a closed list. A shared registered agent, address or surname is never taken as a relationship. The server never marks a claim verified: the app searches the broker's own text for each quote. Costs count against the same per-job and per-day limits as the other routes, and the reply says what it cost in whole cents (`chargedCents`). |
 | `POST /api/assist` | Answers a question about one deal from the facts the app sends (figures and their sources), citing the facts it used. |
 | `POST /api/transcribe` | Sends a recording to a speech-to-text service and returns the transcript with timings. |
 | `POST /api/meeting` | Turns a transcript into a summary, decisions, action items and figures mentioned, each with the words that support it. |
