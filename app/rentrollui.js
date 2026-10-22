@@ -141,7 +141,7 @@ export function renderRentRollWorkspace(box, deal, compsApi, onChange, hooks = {
     tile('In-place rent', sum.annualRent ? short(sum.annualRent) : '—', sum.annualRent ? `${money0(sum.monthlyRent)} a month` : 'add rents to the units');
     tile('Occupancy', pct(sum.occupancy, 1), sum.totalSf ? `${int(sum.leasedSf)} of ${int(sum.totalSf)} SF` : 'needs SF', ok(sum.occupancy) && sum.occupancy < 85 ? 'warn' : '');
     // the headline WALT is the one Settings picks; the other basis is shown beside it
-    const other = sum.waltWeight === 'sf' ? (ok(sum.waltIncome) ? ` · ${yrs(sum.waltIncome)} by income` : '') : (ok(sum.waltSf) ? ` · ${yrs(sum.waltSf)} by area` : '');
+    const other = sum.waltWeight === 'income' ? (ok(sum.waltSf) ? ` · ${yrs(sum.waltSf)} by area` : '') : (ok(sum.waltIncome) ? ` · ${yrs(sum.waltIncome)} by income` : '');
     tile('WALT', yrs(sum.walt), `${waltMethod()}${other}`);
     tile('Loss to lease', ok(sum.lossToLease) ? short(sum.lossToLease) : '—', ok(sum.lossToLeasePct) ? `${pct(sum.lossToLeasePct, 1)} below market` : 'set market rents');
     if (sum.top) tile('Largest tenant', pct(sum.top.share, 1), `${sum.top.tenant || sum.top.unit} of rent`, sum.top.share > 40 ? 'warn' : '');

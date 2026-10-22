@@ -7,8 +7,8 @@
 export const CONVENTIONS = [
   {
     id: 'walt.weight', label: 'WALT weighting', settable: true, default: 'income',
-    options: [['income', 'By income'], ['sf', 'By area (SF)']],
-    help: 'Which WALT is shown as the headline. Both are worked out; this picks the one shown as “WALT”.',
+    options: [['income', 'By income'], ['sf', 'By area (SF)'], ['gla', 'By total area (vacant at 0 years)']],
+    help: 'Which WALT is shown as the headline. All three are worked out; this picks the one shown as “WALT”. By total area weights each lease by its SF over the whole building, so vacant space counts at 0 years and pulls WALT down.',
   },
   {
     id: 'walt.mtm', label: 'Month-to-month leases in WALT', settable: true, default: 'exclude',
