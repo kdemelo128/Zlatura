@@ -4,7 +4,9 @@
  * Both take the comps exactly as the workbook would (included, edited, in
  * $/SF order), so the three outputs never disagree. */
 
-export const VERSION = '4.7.50';
+import { signOf } from './numtext.js';
+
+export const VERSION = '4.7.54';
 
 const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
 const ppsf = (c) => (num(c.price) && num(c.bsf) ? c.price / c.bsf : null);
@@ -88,11 +90,22 @@ export function compsCsv(sales, market) {
 
 /* ------------------------------------------------------------ comp sheet */
 
-const money0 = (n) => (num(n) === null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`);
-const money2 = (n) => (num(n) === null ? '—'
-  : `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-const int = (n) => (num(n) === null ? '—' : Math.round(n).toLocaleString('en-US'));
-const pct = (n) => (num(n) === null ? '—' : `${n.toFixed(2)}%`);
+const money0 = (n) => {
+  if (num(n) === null) return '—';
+  const d = Math.abs(Math.round(n)).toLocaleString('en-US');
+  return `${signOf(n, d)}$${d}`;
+};
+const money2 = (n) => {
+  if (num(n) === null) return '—';
+  const d = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${signOf(n, d)}$${d}`;
+};
+const int = (n) => {
+  if (num(n) === null) return '—';
+  const d = Math.abs(Math.round(n)).toLocaleString('en-US');
+  return signOf(n, d) + d;
+};
+const pct = (n) => (num(n) === null ? '—' : `${signOf(n, Math.abs(n).toFixed(2)) + Math.abs(n).toFixed(2)}%`);
 
 function weighted(list) {
   const p = list.filter((c) => ppsf(c) !== null);

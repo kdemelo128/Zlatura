@@ -2,7 +2,9 @@
  *
  *   npm run check:quick   while developing: the unit tests the change can
  *                         affect, the type check and the golden check
- *   npm run check:full    once before each PR: the whole Node suite, the type
+ *   npm run check:full    once before each PR: the whole Node suite (and the AI
+ *                         server's own suite, which quick runs too when server/
+ *                         changed), the type
  *                         check, the golden check and the full browser suite
  *                         (tests/e2e/run.sh: every flow, axe, perf budgets,
  *                         typing, LibreOffice recalc), and last that the
@@ -71,13 +73,20 @@ function golden() {
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 }
 
+const changed = mode === 'quick' ? changedFiles() : null;
 if (mode === 'quick') {
-  const changed = changedFiles();
   const tests = affectedTests(changed, ROOT);
   console.log(`changed against ${BASE}: ${changed.length} files; unit tests to run: ${tests.join(' ')}`);
   step('unit tests (affected)', 'node', ['--test', ...tests]);
 } else {
   step('unit tests (all)', 'npm', ['test']);
+}
+// the AI server's own suite (server/, its own package): CI's test job runs it, so full always does too, and quick
+// does whenever a server/ file changed; its one package is installed first if missing
+if (mode === 'full' || changed.some((f) => f.startsWith('server/'))) {
+  const SERVER = path.join(ROOT, 'server');
+  if (!fs.existsSync(path.join(SERVER, 'node_modules', '@anthropic-ai', 'sdk'))) step('AI server install', 'npm', ['ci', '--silent'], { cwd: SERVER });
+  step('AI server tests', 'npm', ['test'], { cwd: SERVER });
 }
 step('type check', 'npx', ['tsc', '-p', 'types/tsconfig.json']);
 golden();

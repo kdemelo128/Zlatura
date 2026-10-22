@@ -23,6 +23,7 @@
  *   CoStar Notes     the full notes behind each comp
  */
 import { addRentRollTabs } from './rrbook.js';
+import { signOf } from './numtext.js';
 import { ROLL_TOOL } from './dealfields.js';
 import { netEffectiveRent, nerExcel } from './engine/leasing.js';
 import * as S from './stats.js';
@@ -479,7 +480,7 @@ const TREND_MAX_RATE = 0.10;      // a market rarely moves more than 10% a year 
  *  median, and whether it is reliable enough to adjust by. The rate used is
  *  rounded to the precision written into the cell, so the cached adjustments
  *  downstream agree with Excel to the last digit. */
-function trendRate(sales) {
+export function trendRate(sales) {
   const ys = sales.map(ppsfOf);
   const xs = sales.map((c) => (c.date ? S.serial(new Date(c.date)) : null));
   const n = ys.filter((y, i) => y !== null && xs[i] !== null).length;
@@ -487,7 +488,7 @@ function trendRate(sales) {
   const med = S.median(ys);
   const r2 = S.rsq(ys, xs);
   const raw = sl !== null && med ? (sl * 365.25) / med : null;
-  const pctTxt = (x) => `${x >= 0 ? '+' : ''}${(x * 100).toFixed(1)}%`;
+  const pctTxt = (x) => { const d = Math.abs(x * 100).toFixed(1); return `${signOf(x, d, true)}${d}%`; };
   let rate = 0;
   let why;
   if (raw === null || n < TREND_MIN_SALES) {

@@ -103,6 +103,9 @@ test('check:quick and check:full exist, run every gate and fail the command on a
   assert.match(src, /if \(mode === 'full'\) step\(.*'bash', \['tests\/e2e\/run\.sh'\]\)/);
   assert.match(fs.readFileSync(path.join(ROOT, 'tests/tools/affected.mjs'), 'utf8'), /'tests\/analyze-golden\.test\.js'/); // saved results always run in quick
   assert.match(src, /affectedTests\(changed, ROOT\)/);
+  // the AI server's suite: always in full, in quick when server/ changed (CI's test job runs it)
+  assert.match(src, /if \(mode === 'full' \|\| changed\.some\(\(f\) => f\.startsWith\('server\/'\)\)\)/);
+  assert.match(src, /step\('AI server tests', 'npm', \['test'\], \{ cwd: SERVER \}\)/);
   assert.match(src, /if \(failed\.length\) \{.*process\.exit\(1\); \}/);
   assert.equal(spawnSync('node', [path.join(ROOT, 'tests/tools/check.mjs'), 'bogus']).status, 2);
 });

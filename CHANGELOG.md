@@ -1,5 +1,57 @@
 # Changelog
 
+## 4.7.54: Checks: the AI server's own tests now run in check:full, and in check:quick when server/ changes (on the development branch; not merged or deployed)
+
+GitHub's CI runs the AI server's test suite (`server/`, its own package), but `check:full` did not, so a server test could pass every local check and still fail CI. That happened on #78: the research route's injection test began sending more requests than the per-minute limit allows once #76 doubled the injection set, and only CI saw it.
+
+- **`check:full`** now runs `npm test` in `server/` after the root suite, installing the server's one package first if it is missing.
+- **`check:quick`** runs it too whenever a file under `server/` changed.
+- **Tested:** `tests/check-tools.test.js` fails if either rule is removed (it fails on 4.7.53's `check.mjs`); a quick check with a file added under `server/` ran the 43 server tests, and one without did not. No app code changed; saved results and golden outputs are unchanged.
+
+## 4.7.53: The AI server can now write a company research brief (server only; no screen yet) (on the development branch; not merged or deployed)
+
+Phase B1a. Nothing in the app calls the new route yet; the device storage (B1b) and the screens (B1c) are later PRs, so a broker sees no change.
+
+**New route.** `POST /api/research` takes `{subject, documents}` only: 1 to 10 PDFs or text files and at most 60,000 characters of text. Any other key (a contacts list, for instance) is refused with 400 `unexpected_field`, so contact names cannot be sent even by mistake.
+**What the model is told.** Use only the documents; every claim carries a verbatim quote; names are copied as printed, never merged; a shared registered agent, mailing address or surname is never evidence of a relationship; no personal attributes. The injection rule is carried word for word.
+**What the server keeps.** The answer is cut back to a closed list of 13 claim kinds and 7 sections, one quote of 3 to 600 characters per claim, a real document number, at most 150 claims. A claim inferred from an agent, address or surname is always marked inferred. The server never marks anything verified; that check is on the device (B1b).
+**Cost.** Same hook as the other routes: held before the call, refused over the job cap (422, no model call) or the day (429), released on an error with a status, charged the hold on a dropped connection. The reply carries `chargedCents`. Research shares the existing caps; no new setting.
+**Not built.** The numeric lead score is deferred until the firm names its weights (a gap, not a hidden default).
+**Tested.** 15 new server tests with invented companies (schema refusals, the cut-back of an over-answering model, budget, logs holding no content, every document in the injection fixtures); all fail on the old code. Saved deals and every golden output are unchanged.
+
+## 4.7.52: A figure that shows as zero no longer shows a minus sign (on the development branch; not merged or deployed)
+
+A small negative number that rounds to zero used to print as "-$0", "$-0.00", "-0" or "-0.0%", and a tiny positive change printed as "+0.0%". These were display-only: the stored value was always right.
+
+- **One rule, one helper.** `signOf` in the new `app/numtext.js` takes the sign from the formatted digits: if every digit is zero there is no sign at all (neither "-" nor "+"). It is DOM-free so `kit.js` and the exporters can both import it; it is added to the service-worker precache.
+- **Fixed:** the `kit.js` formatters (`int`, `money0`, `money2`, `pct`, `signed`, `times`, `yrs`; `short` through `money0`), the comp sheet's own formatters in `exporters.js`, and the trend text in `workbook.js`. The deal brief uses the `kit.js` formatters, so it is fixed too.
+- **Side effect:** a nonzero negative in the comp sheet now reads "-$5" rather than "$-5" (same as the rest of the app).
+- **Unchanged:** stored values, engine results and exported workbook cell values. Excel's own number format can still show "-0.0%" for a tiny negative in a percent cell; changing that would change exports, so it is a known gap.
+- **Known, separate item:** `money0(-0.5)` gives "$0" but `money0(0.5)` gives "$1", because `Math.round` rounds half up. Left as is, since changing it could move figures.
+- **Next small PR:** the ad-hoc sites with the same pattern: `glance.js` (121, 229), `aifacts.js` (10, 12, 82), `t12ui.js` (444), `t12.js` (777), `omstatement.js` (265) and `engine/figures.js` (198).
+
+Tested with `tests/format-sign.test.js` (examples, nonzero negatives kept, the comp sheet, and a seeded 10,000-value loop). Five of its six tests fail on the old code. Two mutations (the sign check back to `n < 0`, and dropping `plus`) and the exporters' own `pct` put back each turn it red. The golden check shows 646 figures, 0 changed. Saved results did not change.
+
+## 4.7.51: Security: the AI server's prompt-injection test set doubled, covering every published attack type (on the development branch; not merged or deployed)
+
+F12's invented injection documents grew from 12 to 25, and each now names its attack category. The categories are taken from two published taxonomies (BIPIA, MIT; garak, Apache-2.0); every document is invented, and nothing is copied from either. No server or app code changed: saved results and golden outputs are unchanged.
+
+- **New attacks:**
+  - encoded instructions (base64, ROT13, zero-width characters, another language);
+  - instructions hidden in a table cell, a footnote or an HTML comment;
+  - a request to put the figures into a link (exfiltration);
+  - a request to print the access token;
+  - a fake end of document followed by a fake "Human:" turn;
+  - "developer mode";
+  - a spreadsheet formula (`=HYPERLINK`);
+  - an instruction split across two documents.
+- **Checked for each:** the server keeps the document's words out of the system prompt, sends the text through unchanged as a document block, strips control characters from names, and cuts an "obeying" model's answer back to the fields that were asked for.
+- **New test (10e):** the set must cover all 11 categories, with unique ids and markers. It fails on 4.7.49's fixtures.
+- **App side (a pin, which passes on the old code):** a value carrying a formula (`=`, `+`, `-`, `@`, a tab) is written as text in the comp set's CSV. The rent roll CSV and the copied table already did the same.
+- **Test fix:** test 10 sends one request per document, so it now raises its own per-minute limit, and it closes its server even when an assertion fails. Before, a failure left the test run hanging.
+- **Mutation checks:** removing the CSV formula guard, dropping a category from the set, and removing test 10's rate setting each turn a test red.
+- **Still not tested:** whether the real model resists these documents. The live run is not built, an open gap.
+
 ## 4.7.50: Property tests for the money rounding, the text decoder and the CSV readers (on the development branch; not merged or deployed)
 
 Tests only; nothing a broker sees changes, and no saved result changes.

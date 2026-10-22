@@ -2,6 +2,8 @@
  * numbers the way brokers type them, formatting, toasts, sheets, and handing
  * a finished file to the person. */
 
+import { signOf } from './numtext.js';
+
 export const $ = (id) => document.getElementById(id);
 export const el = (tag, cls, text) => {
   const n = document.createElement(tag);
@@ -53,21 +55,49 @@ export function parsePct(raw, { fraction = true } = {}) {
   return asPercent(v);
 }
 
-export const int = (n) => (ok(n) ? Math.round(n).toLocaleString('en-US') : '');
+const fmt = (n, d) => Math.abs(n).toFixed(d);
+export const int = (n) => {
+  if (!ok(n)) return '';
+  const d = Math.abs(Math.round(n)).toLocaleString('en-US');
+  return signOf(n, d) + d;
+};
 export const dec = (n, d = 2) => (ok(n) ? String(Math.round(n * 10 ** d) / 10 ** d) : '');
 /** @type {(n: AnyUsd | null | undefined) => string} */
-export const money0 = (n) => (ok(n) ? `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}` : '—');
+export const money0 = (n) => {
+  if (!ok(n)) return '—';
+  const d = Math.abs(Math.round(n)).toLocaleString('en-US');
+  return `${signOf(n, d)}$${d}`;
+};
 /** @type {(n: AnyUsd | null | undefined) => string} */
-export const money2 = (n) => (ok(n)
-  ? `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—');
+export const money2 = (n) => {
+  if (!ok(n)) return '—';
+  const d = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${signOf(n, d)}$${d}`;
+};
 /** @type {(n: AnyPct | null | undefined, d?: number) => string} */
-export const pct = (n, d = 2) => (ok(n) ? `${n.toFixed(d)}%` : '—');
+export const pct = (n, d = 2) => {
+  if (!ok(n)) return '—';
+  const s = fmt(n, d);
+  return `${signOf(n, s)}${s}%`;
+};
 /** @type {(n: AnyPct | null | undefined, d?: number) => string} */
-export const signed = (n, d = 1) => (ok(n) ? `${n > 0 ? '+' : ''}${n.toFixed(d)}%` : '—');
+export const signed = (n, d = 1) => {
+  if (!ok(n)) return '—';
+  const s = fmt(n, d);
+  return `${signOf(n, s, true)}${s}%`;
+};
 /** @type {(n: Multiple | null | undefined) => string} */
-export const times = (n) => (ok(n) ? `${n.toFixed(2)}x` : '—');
+export const times = (n) => {
+  if (!ok(n)) return '—';
+  const s = fmt(n, 2);
+  return `${signOf(n, s)}${s}x`;
+};
 /** @type {(n: Years | null | undefined) => string} */
-export const yrs = (n) => (ok(n) ? `${n.toFixed(1)} yrs` : '—');
+export const yrs = (n) => {
+  if (!ok(n)) return '—';
+  const s = fmt(n, 1);
+  return `${signOf(n, s)}${s} yrs`;
+};
 /**
  * $6.45M, $850K: for tiles where width is tight.
  * @type {(n: AnyUsd | null | undefined) => string}
