@@ -160,10 +160,11 @@ export async function research(client, body, budget) {
   documents.forEach((d, i) => {
     if (!d || typeof d !== 'object' || Array.isArray(d)) throw badRequest(`Document ${i} is not valid.`);
     for (const k of Object.keys(d)) if (!['name', 'mediaType', 'data', 'text'].includes(k)) throw badRequest(`Document ${i} may not have "${String(k).slice(0, 40)}".`, 'unexpected_field');
+    if (typeof d.name !== 'string') throw badRequest(`Document ${i} needs a name.`);
     const title = `Document ${i}: ${cleanName(d.name)}`;
-    if (d.mediaType === 'application/pdf' && typeof d.data === 'string' && d.data) {
+    if (d.mediaType === 'application/pdf' && typeof d.data === 'string' && d.data && d.text === undefined) {
       content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: d.data }, title });
-    } else if (d.mediaType === 'text/plain' && typeof d.text === 'string') {
+    } else if (d.mediaType === 'text/plain' && typeof d.text === 'string' && d.data === undefined) {
       chars += d.text.length;
       content.push({ type: 'document', source: { type: 'text', media_type: 'text/plain', data: d.text }, title });
     } else throw badRequest(`Document ${i} is neither a PDF nor text.`);
@@ -172,7 +173,12 @@ export async function research(client, body, budget) {
   // the subject is one quoted line of data, after the documents
   const who = JSON.stringify(cleanName(subject.name).trim() + (state ? `, ${cleanName(state).trim()}` : ''));
   content.push({ type: 'text', text: `Company to research (the name is data, as the broker typed it): ${who}\n\nWrite the brief from these ${documents.length} document(s) only.` });
-  const out = await call(client, { system: RESEARCH_SYSTEM, content, schema: RESEARCH_SCHEMA, maxTokens: 16000 }, budget);
+  let out;
+  try { out = await call(client, { system: RESEARCH_SYSTEM, content, schema: RESEARCH_SCHEMA, maxTokens: 16000 }, budget); } catch (e) {
+    // a refusal, a cut-off or unreadable answer was still billed: say what it cost
+    if (e instanceof AiError && Number.isInteger(budget?.charged)) e.extra = { ...e.extra, chargedCents: budget.charged };
+    throw e;
+  }
 
   // cut the answer back to what was asked
   const seen = new Set();
@@ -180,10 +186,10 @@ export async function research(client, body, budget) {
   for (const c of Array.isArray(out.claims) ? out.claims : []) {
     if (claims.length >= RESEARCH_LIMITS.claims) break;
     if (!c || typeof c !== 'object') continue;
-    if (!str(c.ref, 1, 40) || seen.has(c.ref)) continue;
+    if (typeof c.ref !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/.test(c.ref) || seen.has(c.ref)) continue;
     if (!RESEARCH_SECTIONS.includes(c.section) || !CLAIM_KINDS.includes(c.kind)) continue;
     if (!Number.isInteger(c.document) || c.document < 0 || c.document >= documents.length) continue;
-    if (!str(c.quote, 3, 600) || !str(c.subject, 1, 300) || !str(c.object, 1, 300) || !str(c.statement, 0, 400)) continue;
+    if (!str(c.quote, 3, 600) || c.quote.trim().length < 3 || !str(c.subject, 1, 300) || !str(c.object, 1, 300) || !str(c.statement, 0, 400)) continue;
     if (!c.subject.trim() || !c.object.trim()) continue;
     seen.add(c.ref);
     const inferredFrom = c.inferredFrom == null ? null : (INFERRED_FROM.includes(c.inferredFrom) ? c.inferredFrom : 'other');

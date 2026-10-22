@@ -66,6 +66,10 @@ test('R3: the shape limits: 11 documents, over 60,000 characters of text, no sub
   await refused({ ...BODY, subject: { name: 'x'.repeat(201), state: null } }, 'name too long');
   await refused({ ...BODY, subject: { name: 'Example', state: 'x'.repeat(41) } }, 'state too long');
   await refused({ ...BODY, documents: [] }, 'no documents');
+  await refused({ ...BODY, documents: [{ name: 7, mediaType: 'text/plain', text: 'x' }] }, 'a name that is not a string');
+  await refused({ ...BODY, documents: [{ name: { a: 1 }, mediaType: 'text/plain', text: 'x' }] }, 'an object as a name');
+  await refused({ ...BODY, documents: [{ name: 'a.pdf', mediaType: 'application/pdf', data: 'AAAA', text: 'x' }] }, 'a PDF that also carries text');
+  await refused({ ...BODY, documents: [{ name: 'a.txt', mediaType: 'text/plain', text: 'x', data: 'AAAA' }] }, 'text that also carries data');
   await refused({ ...BODY, documents: [{ name: 'a', mediaType: 'image/png', data: 'AAAA' }] }, 'not a PDF or text');
   assert.equal(r.seen.length, 0);
   // the edges are accepted: 10 documents, exactly 60,000 characters, no state
@@ -122,6 +126,7 @@ test('R6: a model that over-answers is cut back claim by claim, section by secti
       claim('c12', { basis: 'stated', inferredFrom: 'zodiac' }),
       claim('c13', { page: 3 }),
       claim('c14', { confidence: 'certain' }),
+      claim('c15', { quote: '   ' }),
     ],
     sections: [
       { key: 'S1', text: 'a'.repeat(900), claimRefs: ['c1', 'c2', 'c1', 'nope', 'c11'] },
@@ -146,6 +151,38 @@ test('R6: a model that over-answers is cut back claim by claim, section by secti
   assert.deepEqual(j.sections[0].claimRefs, ['c1', 'c11'], 'refs to dropped or missing claims go, and a repeat is counted once');
   assert.equal(j.notChecked.length, 20); assert.ok(j.notChecked.every((n) => n.length === 300));
   assert.deepEqual(j.notes, ['ok']);
+  r.close();
+});
+
+test('R6a: a claim ref must be 1 to 40 letters, digits, _ or -, starting with a letter or digit: __proto__, spaces and long refs are dropped', async () => {
+  const reply = brief({ claims: [claim('__proto__'), claim('a b'), claim('x'.repeat(41)), claim('constructor.x'), claim('ok_1-A')], sections: [{ key: 'S1', text: 't', claimRefs: ['__proto__', 'ok_1-A'] }] });
+  const r = await ready(reply);
+  const j = await (await post(r, BODY)).json();
+  assert.deepEqual(j.claims.map((c) => c.ref), ['ok_1-A']);
+  assert.deepEqual(j.sections[0].claimRefs, ['ok_1-A']);
+  r.close();
+});
+
+test('R11: a failure after the model answered (refusal, truncated, bad JSON) says what it was charged; a refusal before the call does not', async () => {
+  const r = await ready();
+  const usage = { input_tokens: 20000, output_tokens: 3000 };
+  const cases = [
+    ['refused', 422, () => answer(null, usage, 'refusal')],
+    ['truncated', 502, () => answer(null, usage, 'max_tokens')],
+    ['bad_output', 502, () => ({ ...answer(null, usage), content: [{ type: 'text', text: 'not json' }] })],
+  ];
+  for (const [code, status, reply] of cases) {
+    r.mock.reply = reply;
+    const res = await post(r, BODY);
+    assert.equal(res.status, status, code);
+    const j = await res.json();
+    assert.equal(j.error, code);
+    assert.equal(j.chargedCents, 53, `${code}: the cents it cost`);
+  }
+  r.mock.count = () => ({ input_tokens: 400000 });
+  const over = await (await post(r, BODY)).json();
+  assert.equal(over.error, 'job_over_budget');
+  assert.equal(over.chargedCents, undefined, 'nothing was charged');
   r.close();
 });
 
