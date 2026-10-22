@@ -27,6 +27,7 @@ export async function rig({ env = {}, deps = {}, tweak } = {}) {
       if (mock.delayMs) await new Promise((r) => setTimeout(r, mock.delayMs));
       const counting = req.url.startsWith('/v1/messages/count_tokens');
       const r = counting ? mock.count(body) : mock.reply(body);
+      if (r.drop) { req.socket.destroy(); return; } // the connection drops mid-call
       res.writeHead(r.status || 200, { 'content-type': 'application/json' });
       res.end(JSON.stringify(r.body ?? r));
     });

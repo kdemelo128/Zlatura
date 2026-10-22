@@ -15,6 +15,7 @@ export function parseEntries(pairs, where) {
   const seen = new Set();
   return pairs.map(([label, hex], i) => {
     if (!LABEL.test(label || '')) throw new Error(`${where}, entry ${i + 1}: the label must be 1-40 characters of a-z, 0-9 and "-".`);
+    if (label === 'legacy') throw new Error(`${where}, entry ${i + 1}: the label "legacy" is reserved for APP_TOKEN.`);
     if (!HEX.test(hex || '')) throw new Error(`${where}, entry ${i + 1} (${label}): the hash must be 64 hex characters (a SHA-256).`);
     if (seen.has(label)) throw new Error(`${where}: the label "${label}" is used twice.`);
     seen.add(label);
@@ -33,6 +34,12 @@ export function parseHashList(s) {
   return parseEntries(String(s).split(',').map((x) => x.trim()).filter(Boolean).map((x) => x.split(':')), 'APP_TOKEN_HASHES');
 }
 
+/** The file's labels and APP_TOKEN_HASHES' labels must not overlap. */
+export function assertDistinct(fileEntries, hashEntries) {
+  const labels = new Set(fileEntries.map(([l]) => l));
+  for (const [l] of hashEntries) if (labels.has(l)) throw new Error(`the label "${l}" is in both the tokens file and APP_TOKEN_HASHES.`);
+}
+
 export const readTokensFile = (path) => parseTokenLines(fs.readFileSync(path, 'utf8'), 'tokens file');
 
 /** The label whose hash matches the token presented, or null. Compares against every entry, with no early exit. */
@@ -45,7 +52,7 @@ export function matchDevice(entries, presented) {
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const [cmd, label] = process.argv.slice(2);
-  if (cmd !== 'new' || !LABEL.test(label || '')) { console.error('usage: node tokens.mjs new <label>   (label: a-z, 0-9, "-", up to 40 characters)'); process.exit(2); }
+  if (cmd !== 'new' || !LABEL.test(label || '') || label === 'legacy') { console.error('usage: node tokens.mjs new <label>   (label: a-z, 0-9, "-", up to 40 characters)'); process.exit(2); }
   const token = randomBytes(24).toString('hex');
   console.log(`Token for ${label} (shown once; give it to that device's broker):\n  ${token}\n\nLine for the tokens file (APP_TOKENS_FILE):\n  ${label} ${hashToken(token).toString('hex')}`);
 }

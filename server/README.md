@@ -25,7 +25,7 @@ Needs Node 20 or later.
 ```sh
 cd server
 npm ci
-node tokens.mjs new kyle-phone      # prints a token once, and the line to paste into the tokens file
+node tokens.mjs new device-a-phone      # prints a token once, and the line to paste into the tokens file
 APP_TOKENS_FILE="$HOME/zlatura-tokens.txt" \
 ALLOWED_ORIGINS="https://yourname.github.io" \
 ANTHROPIC_API_KEY="sk-ant-..." \
@@ -82,15 +82,20 @@ and a **requests per day** count. The day ends at 00:00 UTC.
 Before a call the server asks the API for the exact input size (`countTokens`,
 which takes the call's model, system prompt, messages and output settings;
 it does not take `fallbacks` or `max_tokens`, which the call adds). If that
-fails it estimates the size as the request's bytes / 3, which over-estimates.
+fails, a text-only request is estimated as its bytes / 3, which over-estimates;
+a request with a PDF or image holds the whole job cap instead, because those
+are charged per page, not per byte.
 The worst case, `input * input price + max_tokens * output price`, is held; if
 it is over any limit the call is refused before the model is touched. After the
 call the hold is replaced by the real usage (output includes thinking tokens;
 cache tokens count at the input price; a fallback model is priced at the same
-rates). A failed call gives its hold back. Holding first is what stops two
-jobs started together from overshooting. Transcription holds one cent and is
-settled at the audio's minutes (rounded up) times `STT_PRICE_CENTS_PER_MIN`, or
-the whole job cap when the speech service gives no length.
+rates). A call that fails with an HTTP status gives its hold back; one that
+times out or drops (it may have been billed) is charged the hold, and so is a
+reply whose token counts are missing. Holding first is what stops two
+jobs started together from overshooting. Transcription holds the whole job cap
+and is charged the audio's minutes (rounded up) times `STT_PRICE_CENTS_PER_MIN`,
+or the job cap when the speech service gives no length; a recording that would
+cost more than the job cap is charged the job cap, no more.
 
 | Variable | Default | |
 |---|---|---|

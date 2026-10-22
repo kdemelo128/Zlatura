@@ -4,8 +4,8 @@
  * rule and never the document's words, names have no control characters,
  * and when the model "obeys" (the stand-in is made to), the server drops the
  * keys, documents and citations nobody asked for. Whether the real model
- * resists is NOT tested here: see live-injection.mjs (to be run by the
- * owner; UNVERIFIED until then). The app's own check that every quoted
+ * resists is NOT tested here: a live-model injection test is not
+ * built yet (an open gap, UNVERIFIED). The app's own check that every quoted
  * passage is in the document is tested in tests/ai-injection.test.js. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -118,4 +118,19 @@ test('11: logs hold no token, body, name, document, question, transcript or mode
   } finally { Object.assign(console, keep); }
   assert.ok(out.length > 0, 'the failures were logged (name only)');
   for (const line of out) assert.ok(!line.includes(CANARY), `a log line holds the canary: ${line}`);
+});
+
+test('11b: when counting tokens fails, the log holds only its status and error name', async () => {
+  const CANARY = 'CANARY-b82c10';
+  const out = [];
+  const keep = { log: console.log, error: console.error, warn: console.warn };
+  for (const k of Object.keys(keep)) console[k] = (...a) => { out.push(a.map((x) => (typeof x === 'string' ? x : util.inspect(x, { depth: 8 }))).join(' ')); };
+  try {
+    const r = await rig();
+    r.mock.count = () => ({ status: 500, body: { type: 'error', error: { type: 'api_error', message: `${CANARY} detail` } } });
+    await r.call(T, '/api/extract', { documents: [{ name: `${CANARY}.txt`, text: `${CANARY} text` }], fields: FIELDS });
+    r.close();
+  } finally { Object.assign(console, keep); }
+  assert.ok(out.some((l) => /countTokens failed: 500 \w+/.test(l)), out.join('\n'));
+  for (const l of out) assert.ok(!l.includes(CANARY), l);
 });

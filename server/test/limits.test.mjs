@@ -21,13 +21,13 @@ test('1: two devices from a file are accepted; deleting a line revokes within th
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zl-tok-'));
   const file = path.join(dir, 'tokens.txt');
   const a = 'a'.repeat(48); const b = 'b'.repeat(48);
-  fs.writeFileSync(file, `# devices\nkyle-phone ${await sha(a)}\nanna-laptop ${await sha(b)}  # second\n`);
+  fs.writeFileSync(file, `# devices\ndevice-a-phone ${await sha(a)}\ndevice-b-laptop ${await sha(b)}  # second\n`);
   const c = clock();
   const r = await rig({ env: { APP_TOKEN: '', APP_TOKENS_FILE: file }, deps: { now: c.now } });
   assert.equal((await r.call(a, '/api/health')).status, 200);
   assert.equal((await r.call(b, '/api/health')).status, 200);
   assert.equal((await r.call('c'.repeat(48), '/api/health')).status, 401);
-  fs.writeFileSync(file, `anna-laptop ${await sha(b)}\n`);
+  fs.writeFileSync(file, `device-b-laptop ${await sha(b)}\n`);
   fs.utimesSync(file, new Date(T0 + 5000), new Date(T0 + 5000));
   c.t += 11000;
   const gone = await r.call(a, '/api/health');
@@ -35,7 +35,7 @@ test('1: two devices from a file are accepted; deleting a line revokes within th
   assert.match((await gone.json()).message, /missing or wrong/);
   assert.equal((await r.call(b, '/api/health')).status, 200, 'the other device carries on');
   // a malformed file fails closed, naming no token
-  fs.writeFileSync(file, `anna-laptop not-a-hash\n`);
+  fs.writeFileSync(file, `device-b-laptop not-a-hash\n`);
   fs.utimesSync(file, new Date(T0 + 9000), new Date(T0 + 9000));
   c.t += 11000;
   const down = await r.call(b, '/api/health');
@@ -43,7 +43,7 @@ test('1: two devices from a file are accepted; deleting a line revokes within th
   const j = await down.json();
   assert.equal(j.error, 'tokens_unavailable');
   assert.ok(!JSON.stringify(j).includes(b));
-  fs.writeFileSync(file, `anna-laptop ${await sha(b)}\n`);
+  fs.writeFileSync(file, `device-b-laptop ${await sha(b)}\n`);
   fs.utimesSync(file, new Date(T0 + 20000), new Date(T0 + 20000));
   r.app.reload();
   assert.equal((await r.call(b, '/api/health')).status, 200, 'SIGHUP (reload) picks up the fix at once');
@@ -93,7 +93,7 @@ test('5: a job over the cap is refused with 422 before any model call', async ()
   r.close();
 });
 
-test('5b: when counting tokens fails, bytes/3 over-estimates and the job is still checked', async () => {
+test('5b: when counting tokens fails, bytes/3 over-estimates text; PDFs and images hold the job cap', async () => {
   const r = await rig();
   r.mock.count = () => ({ status: 500, body: { type: 'error', error: { type: 'api_error', message: 'x' } } });
   const big = { ...EXTRACT_BODY, documents: [{ name: 'big.txt', text: 'x'.repeat(1500000) }] }; // ~500k estimated tokens
@@ -216,8 +216,104 @@ test('8: startup refuses bad hashes, duplicate labels and cents that are not who
 });
 
 test('tokens.mjs new prints a token once and the line to paste, and the line matches it', async () => {
-  const out = spawnSync(process.execPath, [new URL('../tokens.mjs', import.meta.url).pathname, 'new', 'kyle-phone'], { encoding: 'utf8' }).stdout;
+  const out = spawnSync(process.execPath, [new URL('../tokens.mjs', import.meta.url).pathname, 'new', 'device-a-phone'], { encoding: 'utf8' }).stdout;
   const token = out.match(/\n  ([0-9a-f]{48})\n/)[1];
-  const line = out.match(/\n  (kyle-phone [0-9a-f]{64})\n?$/)[1];
-  assert.equal(line, `kyle-phone ${await sha(token)}`);
+  const line = out.match(/\n  (device-a-phone [0-9a-f]{64})\n?$/)[1];
+  assert.equal(line, `device-a-phone ${await sha(token)}`);
+});
+
+test('9a: transcription holds the job cap: two parallel recordings cannot both pass a cap that fits one', async () => {
+  const body = { name: 'm.m4a', mediaType: 'audio/mp4', data: Buffer.from('abc').toString('base64') };
+  const slow = async () => { await new Promise((r) => setTimeout(r, 150)); return { ok: true, json: async () => ({ text: 'hi', segments: [] }) }; }; // no duration
+  const r = await rig({ env: { AI_DEVICE_DAY_CAP_CENTS: '400' }, deps: { fetch: slow } });
+  const t = 'test-token-0123456789';
+  const both = await Promise.all([r.call(t, '/api/transcribe', body), r.call(t, '/api/transcribe', body)]);
+  assert.deepEqual(both.map((x) => x.status).sort(), [200, 429]);
+  r.close();
+});
+
+test('9b: a recording that would cost more than the job cap is charged the job cap, no more', async () => {
+  const body = { name: 'm.m4a', mediaType: 'audio/mp4', data: Buffer.from('abc').toString('base64') };
+  const long = async () => ({ ok: true, json: async () => ({ text: 'hi', segments: [], duration: 3 * 3600 }) }); // 180 min * 2 = 360 cents
+  const r = await rig({ deps: { fetch: long } });
+  assert.equal((await r.call('test-token-0123456789', '/api/transcribe', body)).status, 200);
+  assert.equal((await (await r.call('test-token-0123456789', '/api/health')).json()).budget.usedCents, 300);
+  r.close();
+});
+
+test('9c: when the speech service fails, the hold is released', async () => {
+  const body = { name: 'm.m4a', mediaType: 'audio/mp4', data: Buffer.from('abc').toString('base64') };
+  let ok = false;
+  const stt = async () => (ok ? { ok: true, json: async () => ({ text: 'hi', segments: [], duration: 30 }) } : { ok: false, status: 503 });
+  const r = await rig({ env: { AI_DEVICE_DAY_CAP_CENTS: '400' }, deps: { fetch: stt } });
+  const t = 'test-token-0123456789';
+  assert.equal((await r.call(t, '/api/transcribe', body)).status, 502);
+  assert.equal((await (await r.call(t, '/api/health')).json()).budget.usedCents, 0);
+  ok = true;
+  assert.equal((await r.call(t, '/api/transcribe', body)).status, 200, 'the failed call did not keep its 300-cent hold');
+  r.close();
+});
+
+test('9d: a PDF whose size cannot be counted holds the job cap: refused when the day cannot fit it, with no model call', async () => {
+  const r = await rig({ env: { AI_DEVICE_DAY_CAP_CENTS: '200' } }); // job cap 300 > 200 left
+  r.mock.count = () => ({ status: 500, body: { type: 'error', error: { type: 'api_error', message: 'x' } } });
+  const pdf = { documents: [{ name: 'a.pdf', mediaType: 'application/pdf', data: Buffer.from('%PDF-1.4 tiny').toString('base64') }], fields: EXTRACT_BODY.fields };
+  const res = await r.call('test-token-0123456789', '/api/extract', pdf);
+  assert.equal(res.status, 429);
+  assert.equal((await res.json()).error, 'daily_limit');
+  assert.equal(r.messages().length, 0);
+  r.close();
+});
+
+test('9e: reserve before 00:00 UTC and settle after: the new day is charged, never negative, with no extra headroom', async () => {
+  const c = clock(Date.UTC(2026, 9, 22, 23, 59, 59));
+  const r = await rig({ env: { AI_DEVICE_DAY_CAP_CENTS: '150' }, deps: { now: c.now } });
+  r.mock.reply = () => { c.t = Date.UTC(2026, 9, 23, 0, 0, 5); return answer(ASSIST_OUT, BIG); }; // midnight passes during the call
+  const t = 'test-token-0123456789';
+  assert.equal((await r.call(t, '/api/assist', ASSIST_BODY)).status, 200);
+  assert.equal((await (await r.call(t, '/api/health')).json()).budget.usedCents, 122, 'the new day carries the real cost');
+  r.mock.reply = () => answer(ASSIST_OUT, BIG);
+  assert.equal((await r.call(t, '/api/assist', ASSIST_BODY)).status, 429, '122 + a 62-cent hold is over 150: a wrongly subtracted hold would let this through');
+  r.close();
+});
+
+test('9f: a call that drops after it was sent is charged its hold; one refused with a status is released', async () => {
+  const r = await rig();
+  const t = 'test-token-0123456789';
+  r.mock.reply = () => ({ drop: true });
+  assert.equal((await r.call(t, '/api/assist', ASSIST_BODY)).status, 500);
+  assert.equal((await (await r.call(t, '/api/health')).json()).budget.usedCents, 62, 'billed or not, the hold counts');
+  r.mock.reply = () => ({ status: 400, body: { type: 'error', error: { type: 'invalid_request_error', message: 'x' } } });
+  await r.call(t, '/api/assist', ASSIST_BODY);
+  assert.equal((await (await r.call(t, '/api/health')).json()).budget.usedCents, 62, 'a 400 gives its hold back');
+  r.close();
+});
+
+test('9g: a reply with a token count missing is charged the hold, not read as zero', async () => {
+  const r = await rig();
+  const t = 'test-token-0123456789';
+  r.mock.reply = () => answer(ASSIST_OUT, { input_tokens: 900 });
+  assert.equal((await r.call(t, '/api/assist', ASSIST_BODY)).status, 200);
+  assert.equal((await (await r.call(t, '/api/health')).json()).budget.usedCents, 62);
+  r.close();
+});
+
+test('9h: the tokens-unavailable marker cannot collide with a label; "legacy" is reserved; labels do not repeat across sources', async () => {
+  const h = await sha('x'); const tok = 'u'.repeat(48);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zl-tok-'));
+  const file = path.join(dir, 'tokens.txt');
+  fs.writeFileSync(file, `unavailable ${await sha(tok)}\n`);
+  let r = await rig({ env: { APP_TOKEN: '', APP_TOKENS_FILE: file } });
+  assert.equal((await r.call(tok, '/api/health')).status, 200, 'a device may be called unavailable');
+  r.close();
+  assert.throws(() => config({ APP_TOKEN_HASHES: `legacy:${h}` }), /reserved/);
+  const { parseTokenLines } = await import('../tokens.mjs');
+  assert.throws(() => parseTokenLines(`legacy ${h}\n`), /reserved/);
+  fs.writeFileSync(file, `dev-a ${await sha(tok)}\n`);
+  r = await rig({ env: { APP_TOKEN: '', APP_TOKENS_FILE: file, APP_TOKEN_HASHES: `dev-a:${h}` } });
+  assert.equal((await r.call(tok, '/api/health')).status, 503, 'a label in both sources fails closed');
+  r.close();
+  const run = spawnSync(process.execPath, [new URL('../index.mjs', import.meta.url).pathname], { env: { PATH: process.env.PATH, APP_TOKENS_FILE: file, APP_TOKEN_HASHES: `dev-a:${h}`, PORT: '18993' }, encoding: 'utf8', timeout: 4000 });
+  assert.equal(run.status, 1);
+  assert.match(run.stderr, /both/);
 });

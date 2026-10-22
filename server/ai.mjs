@@ -159,20 +159,32 @@ export async function meeting(client, { transcript, fields = [] }, budget) {
  * `budget` (optional) is { reserve(inputTokens, maxTokens), settle(usage), release() }:
  * the exact input size is asked of the API first (countTokens takes the same
  * model, system, messages and output_config, but not `fallbacks` or
- * `max_tokens`); if that fails, bytes/3 over-estimates it. The hook may refuse
- * the job before any model call. The real usage goes back to it afterwards.
+ * `max_tokens`); if that fails, bytes/3 over-estimates a text-only request,
+ * but a PDF or image is charged per page, not per byte, so such a request
+ * holds the whole job cap instead. The hook may refuse the job before any model
+ * call. The real usage goes back to it afterwards; a call that fails with an
+ * HTTP status gives its hold back, one that times out or drops (it may have
+ * been billed) is charged the hold.
  */
+const textOnly = (messages) => messages.every((m) => typeof m.content === 'string' || (Array.isArray(m.content) && m.content.every((b) => b.type === 'text' || (b.type === 'document' && b.source?.type === 'text'))));
+
 async function call(client, { system, content, prior = [], schema, maxTokens }, budget) {
   const messages = [...prior, { role: 'user', content }];
   const output_config = { effort: 'high', format: { type: 'json_schema', schema } };
   if (budget) {
-    let inTokens;
+    let inTokens; let wholeJob = false;
     try {
       const c = await client.beta.messages.countTokens({ model: MODEL, betas: [FALLBACK_BETA], output_config, system, messages });
       if (Number.isInteger(c?.input_tokens) && c.input_tokens >= 0) inTokens = c.input_tokens;
-    } catch { /* estimate below */ }
-    if (inTokens === undefined) inTokens = Math.ceil(Buffer.byteLength(JSON.stringify({ system, messages })) / 3);
-    await budget.reserve(inTokens, maxTokens);
+    } catch (e) {
+      // status and error name only: never the request or the reply
+      console.error(`[${new Date().toISOString()}] countTokens failed: ${Number.isInteger(e?.status) ? e.status : 'no status'} ${e?.name || 'Error'}`);
+    }
+    if (inTokens === undefined) {
+      if (textOnly(messages)) inTokens = Math.ceil(Buffer.byteLength(JSON.stringify({ system, messages })) / 3);
+      else { inTokens = 0; wholeJob = true; }
+    }
+    await budget.reserve(inTokens, maxTokens, wholeJob);
   }
   let res;
   try {
@@ -186,7 +198,10 @@ async function call(client, { system, content, prior = [], schema, maxTokens }, 
       system,
       messages,
     });
-  } catch (e) { if (budget) budget.release(); throw e; }
+  } catch (e) {
+    if (budget) { if (Number.isInteger(e?.status) && e.status >= 400) budget.release(); else budget.settle(null); }
+    throw e;
+  }
   if (budget) budget.settle(res.usage);
   if (res.stop_reason === 'refusal') throw new AiError('The model declined this request.', 422, 'refused');
   if (res.stop_reason === 'max_tokens') throw new AiError('The answer was cut off: try fewer or shorter documents.', 502, 'truncated');

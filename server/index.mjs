@@ -27,7 +27,10 @@ import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { extract, assist, meeting, AiError, MODEL } from './ai.mjs';
 import { costCents, ledger, dollars, untilReset } from './budget.mjs';
-import { readTokensFile, parseHashList, matchDevice, hashToken } from './tokens.mjs';
+import { readTokensFile, parseHashList, matchDevice, hashToken, assertDistinct } from './tokens.mjs';
+
+/** Returned by deviceFor when the tokens file cannot be used; a Symbol cannot collide with a device label. */
+const UNAVAILABLE = Symbol('tokens unavailable');
 
 /** A setting that is cents or a count: a whole number, zero or more. Anything else stops the server starting. */
 function whole(env, name, dflt) {
@@ -149,14 +152,16 @@ export function handler(cfg, client, deps = {}) {
     try {
       const stamp = stampOf();
       if (!force && !file.broken && stamp === file.stamp) return;
-      file = { entries: readTokensFile(cfg.tokensFile), stamp, broken: false };
+      const entries = readTokensFile(cfg.tokensFile);
+      assertDistinct(entries, cfg.tokenHashes || []);
+      file = { entries, stamp, broken: false };
     } catch { file = { entries: [], stamp: null, broken: true }; }
   };
   refresh(true);
-  /** The device label for a presented token, null if unknown or withdrawn, or 'unavailable' if the file is broken. */
+  /** The device label for a presented token, null if unknown or withdrawn, or UNAVAILABLE if the file is broken. */
   const deviceFor = (auth) => {
     refresh();
-    if (file.broken) return 'unavailable';
+    if (file.broken) return UNAVAILABLE;
     const entries = [...file.entries, ...(cfg.tokenHashes || []), ...(cfg.token ? [['legacy', hashToken(cfg.token)]] : [])];
     return matchDevice(entries, auth);
   };
@@ -167,8 +172,10 @@ export function handler(cfg, client, deps = {}) {
   const hookFor = (label) => {
     let r = null;
     return {
-      reserve: (inTokens, maxTokens) => { r = hold(label, costCents({ input_tokens: inTokens, output_tokens: maxTokens }, prices())); },
-      settle: (usage) => books.settle(r, usage ? costCents(usage, prices()) : r.worst),
+      // wholeJob: the input size is unknown and not text (a PDF is charged per page), so hold the job cap
+      reserve: (inTokens, maxTokens, wholeJob) => { r = hold(label, wholeJob ? (cfg.jobCents ?? 300) : costCents({ input_tokens: inTokens, output_tokens: maxTokens }, prices())); },
+      // a missing or part-missing count is never read as zero: the hold is charged
+      settle: (usage) => books.settle(r, Number.isInteger(usage?.input_tokens) && Number.isInteger(usage?.output_tokens) ? costCents(usage, prices()) : r.worst),
       release: () => { if (r) books.release(r); },
     };
   };
@@ -182,7 +189,7 @@ export function handler(cfg, client, deps = {}) {
     if (req.method === 'OPTIONS') { res.writeHead(204, cors); res.end(); return; }
     const auth = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     const device = deviceFor(auth);
-    if (device === 'unavailable') { console.error(`[${new Date().toISOString()}] tokens file unreadable or malformed: refusing every request`); send(res, 503, { error: 'tokens_unavailable', message: 'The AI server cannot read its list of access tokens right now: ask whoever runs it.' }, cors); return; }
+    if (device === UNAVAILABLE) { console.error(`[${new Date().toISOString()}] tokens file unreadable or malformed: refusing every request`); send(res, 503, { error: 'tokens_unavailable', message: 'The AI server cannot read its list of access tokens right now: ask whoever runs it.' }, cors); return; }
     if (!device) { send(res, 401, { error: 'unauthorized', message: 'The access token is missing or wrong, or was withdrawn: ask whoever runs your AI server.' }, cors); return; }
     let path;
     try { path = new URL(req.url, 'http://x').pathname; } catch { send(res, 400, { error: 'bad_request', message: 'The request address is not valid.' }, cors); return; }
@@ -201,11 +208,16 @@ export function handler(cfg, client, deps = {}) {
       else if (path === '/api/assist') { needAi(); out = await assist(client, body, hookFor(device)); }
       else if (path === '/api/meeting') { needAi(); out = await meeting(client, body, hookFor(device)); }
       else if (path === '/api/transcribe') {
-        // the cost is known only afterwards: hold one cent now, then settle by the minute
-        const r = cfg.stt ? hold(device, 1) : null;
-        try { out = await transcribe(cfg.stt, body, deps.fetch); } catch (e) { if (r) books.release(r); throw e; }
-        const mins = Number.isFinite(out.duration) && out.duration >= 0 ? Math.max(1, Math.ceil(out.duration / 60)) * (cfg.sttCentsPerMin ?? 2) : (cfg.jobCents ?? 300);
-        books.settle(r, mins);
+        // the cost is known only afterwards, so hold the whole job cap now; the charge, by the minute, never exceeds that hold
+        const cap = cfg.jobCents ?? 300;
+        const r = cfg.stt ? hold(device, cap) : null;
+        try { out = await transcribe(cfg.stt, body, deps.fetch); } catch (e) {
+          // an answer with a status (or a refusal before sending) was not billed; a drop or timeout may have been
+          if (r) { if (Number.isInteger(e?.status) && e.status >= 400) books.release(r); else books.settle(r, cap); }
+          throw e;
+        }
+        const perMin = Number.isFinite(out.duration) && out.duration >= 0 ? Math.max(1, Math.ceil(out.duration / 60)) * (cfg.sttCentsPerMin ?? 2) : cap;
+        books.settle(r, Math.min(perMin, cap));
       }
       else { send(res, 404, { error: 'not_found' }, cors); return; }
       send(res, 200, out, cors);
@@ -231,7 +243,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   try { cfg = config(); } catch (e) { console.error(e.message); process.exit(1); }
   if (cfg.token && cfg.token.length < 16) { console.error('APP_TOKEN must be a long random string (16+ characters).'); process.exit(1); }
   if (!cfg.token && !cfg.tokensFile && !cfg.tokenHashes.length) { console.error('Set APP_TOKENS_FILE (see tokens.mjs), APP_TOKEN_HASHES, or APP_TOKEN to a long random string (16+ characters).'); process.exit(1); }
-  if (cfg.tokensFile) { try { readTokensFile(cfg.tokensFile); } catch (e) { console.error(`APP_TOKENS_FILE: ${e.code === 'ENOENT' ? 'the file does not exist' : e.message}`); process.exit(1); } }
+  if (cfg.tokensFile) { try { assertDistinct(readTokensFile(cfg.tokensFile), cfg.tokenHashes); } catch (e) { console.error(`APP_TOKENS_FILE: ${e.code === 'ENOENT' ? 'the file does not exist' : e.message}`); process.exit(1); } }
   if (cfg.token && (cfg.tokensFile || cfg.tokenHashes.length)) console.warn('APP_TOKEN is still set beside per-device tokens: it keeps working as device "legacy". Unset it once every device has its own token.');
   if (!cfg.origins.length) console.warn('ALLOWED_ORIGINS is empty: browsers on any other site will be refused.');
   // a rejected promise nobody caught logs its name only (never its message) and the server keeps running
