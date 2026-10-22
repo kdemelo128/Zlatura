@@ -213,6 +213,9 @@ try {
   check('the Seen button is 44 pt', (await height(page.locator('#t12-note-seen'))) >= 43.9);
   await page.click('#t12-review');
   await page.waitForSelector('#review-root .review-item');
+  // Review can draw again as the deal's checks settle: wait for the Note item itself, then let the list settle, before counting
+  await page.waitForSelector('#review-root .review-t12note', { timeout: 5000 }).catch(() => {});
+  await settle();
   check('Review shows the Note once', (await page.locator('#review-root .review-t12note').count()) === 1 && (await page.locator('#review-root .review-t12note [data-act=note-seen]').count()) === 1);
   await page.locator('#review-root [data-act=note-seen]').click();
   await settle();
