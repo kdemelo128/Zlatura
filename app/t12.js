@@ -1516,6 +1516,51 @@ export function normRefusal(t, res) {
   return '';
 }
 
+const SIDE_NAME = { income: 'income', expense: 'operating expenses', below: 'below the line' };
+
+/**
+ * The line checks (underwriting.md 3.6), in dataqc.js's shape:
+ *  - `side.<line>` (K13, a warning): a line filed in a category on another side than the part of the statement the
+ *    file prints it in, such as a line under Income filed as an expense. A line under Expenses filed below the line is
+ *    not one: that is how a capital item is classified (PR 2). Lines the file prints under no heading are never flagged.
+ *  - `dupline.<line>` (K28, a note): two or more lines with the same label, the same part of the statement and the same
+ *    months, cent for cent: the same line read twice? Once per group, on its first line.
+ * Lines still to file have no side yet and are left out of both. Neither holds the totals or Use.
+ * @param {any} t
+ * @returns {any[]}
+ */
+export function lineChecks(t) {
+  /** @type {any[]} */
+  const out = [];
+  if (!t || !Array.isArray(t.lines)) return out;
+  const seenFix = [{ id: 'seen', label: 'Seen' }];
+  for (const l of t.lines) {
+    const c = l.category && CATEGORY[l.category];
+    if (!c || !l.section || c.side === l.section || (l.section === 'expense' && c.side === 'below')) continue;
+    out.push({
+      id: `side.${l.id}`, kind: 'side', level: 'warn', amount: Math.abs(l.total), where: l.label,
+      text: `${l.label} is printed under ${SIDE_NAME[l.section]} but filed as ${c.label.toLowerCase()} (${SIDE_NAME[c.side]}): check its category.`,
+      fixes: seenFix,
+    });
+  }
+  const groups = new Map();
+  for (const l of t.lines) {
+    if (!l.category) continue;
+    const k = JSON.stringify([l.key, l.section || '', l.months.map(c100)]);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(l);
+  }
+  for (const ls of groups.values()) {
+    if (ls.length < 2) continue;
+    out.push({
+      id: `dupline.${ls[0].id}`, kind: 'dupline', level: 'info', amount: Math.abs(ls[0].total) * (ls.length - 1), where: ls[0].label,
+      text: `“${ls[0].label}” appears ${ls.length === 2 ? 'twice' : `${ls.length} times`} with the same months (rows ${ls.map((l) => l.r).join(', ')}): the same line read twice, or two real lines? Both count.`,
+      fixes: seenFix,
+    });
+  }
+  return out;
+}
+
 /**
  * The value checks, in dataqc.js's shape (see periodChecks): `spike.<line>.<month>`, `negexp.<line>`, `negmonth.<line>.<month>`,
  * `oneoff.<line>.<month>`, `yoy.lines`, `yoy.cats`, `yoy.noi`, `period.quarters`. Warnings (Review) and notes (the panel); none has `holds`.
@@ -1689,7 +1734,7 @@ export function t12Qc(t) {
   const seen = (t && t.seen) || {};
   const T = statementTotals(t);
   /** @type {any[]} */
-  const checks = [...periodChecks(t), ...valueChecks(t)];
+  const checks = [...periodChecks(t), ...valueChecks(t), ...lineChecks(t)];
   // the file's Total column is the T-12 or, once 12 of its months were chosen, the T-12 plus the prior period
   const adj = t.period && t.period.chosen
     ? { ...t, lines: t.lines.map((l) => (l.prior && l.fileTotal !== null && l.fileTotal !== undefined && Math.abs(l.fileTotal - l.total) > 1 && Math.abs(l.fileTotal - cents(l.total + l.prior.total)) <= 1 ? { ...l, fileTotal: null } : l)) }
