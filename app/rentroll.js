@@ -193,7 +193,7 @@ export function rollFacts(rr) {
     const ip = inPlace(L, asOf);
     const rated = (L.periods || []).filter((p) => ok(p.rate) && dayOf(p.start) !== null);
     const first = rated.length ? rated.map((p) => p.start).sort()[0] : null;
-    return { unit: L.unit || '', tenant: L.vacant ? '' : (L.tenant || ''), sf: pos(L.sf) ? L.sf : null, vacant: !!L.vacant, mtm: !!L.mtm, holdover: /holdover/i.test(L.status || ''),
+    return { unit: L.unit || '', tenant: L.vacant ? '' : (L.tenant || ''), sf: pos(L.sf) ? L.sf : null, vacant: !!L.vacant, mtm: !!L.mtm, holdover: /holdover/i.test(L.status || ''), recovery: (L.recovery && L.recovery.method) || 'none',
       start: L.leaseStart || null, rentStart: L.rentStart || first, end: L.leaseEnd || null, rent: L.vacant ? null : rated.length ? 'set' : 'blank', annual: L.vacant || !rated.length ? null : ip.monthly * 12 };
   });
 }
