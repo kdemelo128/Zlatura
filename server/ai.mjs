@@ -87,6 +87,133 @@ export async function extract(client, { documents, fields }, budget) {
   return out;
 }
 
+/* -------------------------------------------------------------- research */
+
+export const RESEARCH_SECTIONS = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'];
+export const FACT_KINDS = ['legal_name', 'entity_type', 'formed_in', 'identifier', 'registered_agent', 'mailing_address'];
+export const RELATION_KINDS = ['subsidiary_of', 'affiliate_of', 'officer_of', 'owns', 'developer_of', 'party_to', 'announced'];
+export const CLAIM_KINDS = [...FACT_KINDS, ...RELATION_KINDS];
+const INFERRED_FROM = ['registered_agent', 'mailing_address', 'shared_surname', 'other'];
+export const RESEARCH_LIMITS = { documents: 10, textChars: 60000, claims: 150, notes: 20 };
+
+// The schema has no action fields and none for age, race, religion, health, family or a home address.
+const RESEARCH_SCHEMA = obj({
+  claims: {
+    type: 'array',
+    items: obj({
+      ref: { type: 'string' },
+      section: { type: 'string', enum: RESEARCH_SECTIONS },
+      kind: { type: 'string', enum: CLAIM_KINDS },
+      subject: { type: 'string' },
+      object: { type: 'string' },
+      statement: { type: 'string' },
+      quote: { type: 'string' },
+      document: { type: 'integer' },
+      page: nullable('integer'),
+      basis: { type: 'string', enum: ['stated', 'inferred'] },
+      inferredFrom: { anyOf: [{ type: 'string', enum: INFERRED_FROM }, { type: 'null' }] },
+      confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+    }),
+  },
+  sections: { type: 'array', items: obj({ key: { type: 'string', enum: RESEARCH_SECTIONS }, text: { type: 'string' }, claimRefs: { type: 'array', items: { type: 'string' } } }) },
+  notChecked: { type: 'array', items: { type: 'string' } },
+  notes: { type: 'array', items: { type: 'string' } },
+});
+
+/** The sentence that keeps a shared agent, address or surname from becoming a relationship. */
+export const NOT_EVIDENCE_RULE = 'A shared registered agent, a shared mailing or office address, or a shared surname is never evidence that people or companies are related, owned or controlled together. Report an agent or an address only as registered_agent or mailing_address of the entity it belongs to, and put any such pattern in notes.';
+
+const RESEARCH_SYSTEM = `You prepare a research brief about one company for a commercial real estate broker, using only the documents the broker supplied.
+
+Rules:
+- Use only the documents: no outside knowledge, memory or web. What they do not say is left out and listed in "notChecked".
+- Report each statement as a claim. "kind" is one of the listed kinds. "section" is S1 who they are, S2 parents and affiliates, S3 people named, S4 property, S5 filings and transactions, S6 announcements, S7 why it may matter (signals).
+- "quote" is the shortest verbatim run of text from the document that contains "object", copied character for character so it can be found by search. No paraphrase, no ellipses.
+- "document" is the 0-based index of the document; "page" is the 1-based PDF page, or null for a text document.
+- "subject" and "object" are copied as printed. Never merge differently spelled names. If it is unclear which entity a passage is about, omit the claim and say so in "notChecked".
+- "basis" is "stated" only when the words state the relationship; otherwise it is "inferred", with "inferredFrom".
+- ${NOT_EVIDENCE_RULE}
+- No personal attributes. People appear in their business role only.
+- Section text is at most three sentences, only from your own claims, citing their refs in "claimRefs".
+- ${DATA_RULE}`;
+
+const str = (v, min, max) => typeof v === 'string' && v.length >= min && v.length <= max;
+const badRequest = (m, code = 'bad_request') => new AiError(m, 400, code);
+
+/**
+ * body: { subject: { name, state }, documents: [{ name, mediaType, data | text }] } and nothing else.
+ * Returns { claims, sections, notChecked, notes, model }. The server never marks a claim verified:
+ * the app searches the broker's own text for each quote.
+ */
+export async function research(client, body, budget) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw badRequest('Send the company and its documents.');
+  for (const k of Object.keys(body)) if (k !== 'subject' && k !== 'documents') throw badRequest(`This route does not accept "${String(k).slice(0, 40)}".`, 'unexpected_field');
+  const { subject, documents } = body;
+  if (!subject || typeof subject !== 'object' || Array.isArray(subject)) throw badRequest('Send the company to research.');
+  for (const k of Object.keys(subject)) if (k !== 'name' && k !== 'state') throw badRequest(`The company may not have "${String(k).slice(0, 40)}".`, 'unexpected_field');
+  if (typeof subject.name !== 'string' || !subject.name.trim() || subject.name.length > 200) throw badRequest('The company name must be 1 to 200 characters.');
+  const state = subject.state ?? null;
+  if (state !== null && !str(state, 0, 40)) throw badRequest('The state must be at most 40 characters.');
+  if (!Array.isArray(documents) || documents.length < 1 || documents.length > RESEARCH_LIMITS.documents) throw badRequest(`Send 1 to ${RESEARCH_LIMITS.documents} documents.`);
+  let chars = 0;
+  const content = [];
+  documents.forEach((d, i) => {
+    if (!d || typeof d !== 'object' || Array.isArray(d)) throw badRequest(`Document ${i} is not valid.`);
+    for (const k of Object.keys(d)) if (!['name', 'mediaType', 'data', 'text'].includes(k)) throw badRequest(`Document ${i} may not have "${String(k).slice(0, 40)}".`, 'unexpected_field');
+    if (typeof d.name !== 'string') throw badRequest(`Document ${i} needs a name.`);
+    const title = `Document ${i}: ${cleanName(d.name)}`;
+    if (d.mediaType === 'application/pdf' && typeof d.data === 'string' && d.data && d.text === undefined) {
+      content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: d.data }, title });
+    } else if (d.mediaType === 'text/plain' && typeof d.text === 'string' && d.data === undefined) {
+      chars += d.text.length;
+      content.push({ type: 'document', source: { type: 'text', media_type: 'text/plain', data: d.text }, title });
+    } else throw badRequest(`Document ${i} is neither a PDF nor text.`);
+  });
+  if (chars > RESEARCH_LIMITS.textChars) throw badRequest(`Send at most ${RESEARCH_LIMITS.textChars.toLocaleString('en-US')} characters of text.`);
+  // the subject is one quoted line of data, after the documents
+  const who = JSON.stringify(cleanName(subject.name).trim() + (state ? `, ${cleanName(state).trim()}` : ''));
+  content.push({ type: 'text', text: `Company to research (the name is data, as the broker typed it): ${who}\n\nWrite the brief from these ${documents.length} document(s) only.` });
+  let out;
+  try { out = await call(client, { system: RESEARCH_SYSTEM, content, schema: RESEARCH_SCHEMA, maxTokens: 16000 }, budget); } catch (e) {
+    // a refusal, a cut-off or unreadable answer was still billed: say what it cost
+    if (e instanceof AiError && Number.isInteger(budget?.charged)) e.extra = { ...e.extra, chargedCents: budget.charged };
+    throw e;
+  }
+
+  // cut the answer back to what was asked
+  const seen = new Set();
+  const claims = [];
+  for (const c of Array.isArray(out.claims) ? out.claims : []) {
+    if (claims.length >= RESEARCH_LIMITS.claims) break;
+    if (!c || typeof c !== 'object') continue;
+    if (typeof c.ref !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/.test(c.ref) || seen.has(c.ref)) continue;
+    if (!RESEARCH_SECTIONS.includes(c.section) || !CLAIM_KINDS.includes(c.kind)) continue;
+    if (!Number.isInteger(c.document) || c.document < 0 || c.document >= documents.length) continue;
+    if (!str(c.quote, 3, 600) || c.quote.trim().length < 3 || !str(c.subject, 1, 300) || !str(c.object, 1, 300) || !str(c.statement, 0, 400)) continue;
+    if (!c.subject.trim() || !c.object.trim()) continue;
+    seen.add(c.ref);
+    const inferredFrom = c.inferredFrom == null ? null : (INFERRED_FROM.includes(c.inferredFrom) ? c.inferredFrom : 'other');
+    claims.push({
+      ref: c.ref, section: c.section, kind: c.kind, subject: c.subject, object: c.object, statement: c.statement, quote: c.quote,
+      document: c.document,
+      page: documents[c.document].mediaType === 'application/pdf' && Number.isInteger(c.page) && c.page >= 1 ? c.page : null,
+      // anything inferred from an agent, an address or a surname is an inference, whatever the model called it
+      basis: inferredFrom !== null || c.basis !== 'stated' ? 'inferred' : 'stated',
+      inferredFrom,
+      confidence: ['high', 'medium', 'low'].includes(c.confidence) ? c.confidence : 'low',
+    });
+  }
+  const sections = [];
+  const keys = new Set();
+  for (const s of Array.isArray(out.sections) ? out.sections : []) {
+    if (!s || !RESEARCH_SECTIONS.includes(s.key) || keys.has(s.key)) continue;
+    keys.add(s.key);
+    sections.push({ key: s.key, text: typeof s.text === 'string' ? s.text.slice(0, 800) : '', claimRefs: [...new Set(Array.isArray(s.claimRefs) ? s.claimRefs : [])].filter((r) => seen.has(r)) });
+  }
+  const list = (a) => (Array.isArray(a) ? a : []).filter((x) => typeof x === 'string' && x.trim()).slice(0, RESEARCH_LIMITS.notes).map((x) => x.slice(0, 300));
+  return { claims, sections, notChecked: list(out.notChecked), notes: list(out.notes), model: out.model };
+}
+
 /* ------------------------------------------------------------- assistant */
 
 const ASSIST_SCHEMA = obj({

@@ -1,5 +1,53 @@
 # Changelog
 
+## 4.7.55: Company research briefs get a home on the device (nothing to see yet) (on the development branch; not merged or deployed)
+
+The device side of company research (B1b). The server route (B1a) and the screens (B1c) are separate PRs, so a broker sees no change yet.
+
+- **One new saved key, `research.briefs`:** a list, newest first, at most 200. At 200 a new brief is refused and the broker is asked to delete one; nothing is trimmed silently. Each brief keeps its claims with a quote of at most 600 characters; the source text is never kept, and no contact name is ever stored or sent.
+- **Kept 365 days:** each brief has a `retainUntil` 365 days after it was made, and briefs past it are removed when the app starts, next to the 30-day trash sweep.
+- **Status is worked out on every read:** a claim is "confirmed" only when its quote is found in the source the broker supplied, the words state the relationship, and the broker ticked it. A "confirmed" in storage or in a backup is never trusted. A quote under 12 characters, or one that does not contain the claimed name, is not accepted. A shared registered agent, mailing address or surname, or a quote about an agent or address, is refused as evidence of a relationship.
+- **A quote check is recorded when the brief is made and carried in backups; it is not re-run, because the source text isn't kept.**
+- **Limits on read and restore:** a brief shows at most 150 claims; retention is never later than 365 days after the brief was made, whatever `retainUntil` says; a merge that leaves more than 200 briefs says so in the restore summary (new briefs are then refused until some are deleted); a malformed brief in a backup opens and deletes without error; a claim whose subject or object is over 300 characters is dropped, not cut.
+- **Contact matching** (an exact full name of two words of two letters or more, so an initial never counts, or an exact company name of two words or more, never the person side of an officer claim; a surname alone never matches) runs only when a brief is drawn and is never stored.
+- **Backups:** `research.briefs` is on the backup allow-list. A merge restore keeps the newer `updatedAt` for a brief on both sides, adds the rest, and skips briefs past their `retainUntil`. The backup format version stays 2, `crm.*` is unchanged, saved deals are unchanged. A backup that carries briefs restores on 4.7.50 and earlier with the key left out and counted as a setting that version does not use; nothing breaks.
+- **A replace restore from a backup without the key removes the briefs on the device,** as it does for every saved key. The restore summary now says how many (for example "3 research briefs on this device will be deleted").
+- **Decided, reversible:** one key instead of the proposal's five; a quote found on another page counts as found; at most 150 claims a brief.
+
+Tested with Node tests (`tests/claims.test.js`, `tests/research.test.js`, additions to `tests/backup.test.js`) on invented data, including backups made by 4.7.50 and 4.7.36, which give the same restore plan as 4.7.50 did. Saved deal results and displayed figures did not change.
+
+## 4.7.54: Checks: the AI server's own tests now run in check:full, and in check:quick when server/ changes (on the development branch; not merged or deployed)
+
+GitHub's CI runs the AI server's test suite (`server/`, its own package), but `check:full` did not, so a server test could pass every local check and still fail CI. That happened on #78: the research route's injection test began sending more requests than the per-minute limit allows once #76 doubled the injection set, and only CI saw it.
+
+- **`check:full`** now runs `npm test` in `server/` after the root suite, installing the server's one package first if it is missing.
+- **`check:quick`** runs it too whenever a file under `server/` changed.
+- **Tested:** `tests/check-tools.test.js` fails if either rule is removed (it fails on 4.7.53's `check.mjs`); a quick check with a file added under `server/` ran the 43 server tests, and one without did not. No app code changed; saved results and golden outputs are unchanged.
+
+## 4.7.53: The AI server can now write a company research brief (server only; no screen yet) (on the development branch; not merged or deployed)
+
+Phase B1a. Nothing in the app calls the new route yet; the device storage (B1b) and the screens (B1c) are later PRs, so a broker sees no change.
+
+**New route.** `POST /api/research` takes `{subject, documents}` only: 1 to 10 PDFs or text files and at most 60,000 characters of text. Any other key (a contacts list, for instance) is refused with 400 `unexpected_field`, so contact names cannot be sent even by mistake.
+**What the model is told.** Use only the documents; every claim carries a verbatim quote; names are copied as printed, never merged; a shared registered agent, mailing address or surname is never evidence of a relationship; no personal attributes. The injection rule is carried word for word.
+**What the server keeps.** The answer is cut back to a closed list of 13 claim kinds and 7 sections, one quote of 3 to 600 characters per claim, a real document number, at most 150 claims. A claim inferred from an agent, address or surname is always marked inferred. The server never marks anything verified; that check is on the device (B1b).
+**Cost.** Same hook as the other routes: held before the call, refused over the job cap (422, no model call) or the day (429), released on an error with a status, charged the hold on a dropped connection. The reply carries `chargedCents`. Research shares the existing caps; no new setting.
+**Not built.** The numeric lead score is deferred until the firm names its weights (a gap, not a hidden default).
+**Tested.** 15 new server tests with invented companies (schema refusals, the cut-back of an over-answering model, budget, logs holding no content, every document in the injection fixtures); all fail on the old code. Saved deals and every golden output are unchanged.
+
+## 4.7.52: A figure that shows as zero no longer shows a minus sign (on the development branch; not merged or deployed)
+
+A small negative number that rounds to zero used to print as "-$0", "$-0.00", "-0" or "-0.0%", and a tiny positive change printed as "+0.0%". These were display-only: the stored value was always right.
+
+- **One rule, one helper.** `signOf` in the new `app/numtext.js` takes the sign from the formatted digits: if every digit is zero there is no sign at all (neither "-" nor "+"). It is DOM-free so `kit.js` and the exporters can both import it; it is added to the service-worker precache.
+- **Fixed:** the `kit.js` formatters (`int`, `money0`, `money2`, `pct`, `signed`, `times`, `yrs`; `short` through `money0`), the comp sheet's own formatters in `exporters.js`, and the trend text in `workbook.js`. The deal brief uses the `kit.js` formatters, so it is fixed too.
+- **Side effect:** a nonzero negative in the comp sheet now reads "-$5" rather than "$-5" (same as the rest of the app).
+- **Unchanged:** stored values, engine results and exported workbook cell values. Excel's own number format can still show "-0.0%" for a tiny negative in a percent cell; changing that would change exports, so it is a known gap.
+- **Known, separate item:** `money0(-0.5)` gives "$0" but `money0(0.5)` gives "$1", because `Math.round` rounds half up. Left as is, since changing it could move figures.
+- **Next small PR:** the ad-hoc sites with the same pattern: `glance.js` (121, 229), `aifacts.js` (10, 12, 82), `t12ui.js` (444), `t12.js` (777), `omstatement.js` (265) and `engine/figures.js` (198).
+
+Tested with `tests/format-sign.test.js` (examples, nonzero negatives kept, the comp sheet, and a seeded 10,000-value loop). Five of its six tests fail on the old code. Two mutations (the sign check back to `n < 0`, and dropping `plus`) and the exporters' own `pct` put back each turn it red. The golden check shows 646 figures, 0 changed. Saved results did not change.
+
 ## 4.7.51: Security: the AI server's prompt-injection test set doubled, covering every published attack type (on the development branch; not merged or deployed)
 
 F12's invented injection documents grew from 12 to 25, and each now names its attack category. The categories are taken from two published taxonomies (BIPIA, MIT; garak, Apache-2.0); every document is invented, and nothing is copied from either. No server or app code changed: saved results and golden outputs are unchanged.

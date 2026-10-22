@@ -26,7 +26,7 @@
  * a cache of its own, named for its version and kept across app updates: after
  * the first use it works offline too. Before that, offline, it says it needs
  * a connection once. */
-const VERSION = '4.7.51';
+const VERSION = '4.7.55';
 const CACHE = `zlatura-${VERSION}`;
 const ASSETS = [
   './',
@@ -46,6 +46,7 @@ const ASSETS = [
   'app/glance.js',
   'app/exporters.js',
   'app/kit.js',
+  'app/numtext.js',
   'app/om.js',
   'app/omroll.js',
   'app/scale.js',
@@ -92,6 +93,8 @@ const ASSETS = [
   'app/dealcrm.js',
   'app/home.js',
   'app/backup.js',
+  'app/claims.js',
+  'app/research.js',
   'app/brand.js',
   'app/engine/breakeven.js',
   'app/engine/comps.js',
