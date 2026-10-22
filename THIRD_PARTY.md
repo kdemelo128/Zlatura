@@ -144,6 +144,7 @@ SHA-256: upstream `skills/ponytail/SKILL.md` `9badd22a32e19cb884e46dfa8d3aae82bb
 | `fflate` | 0.8.3 | MIT | reads and writes the .xlsx packages in the tests |
 | `@xmldom/xmldom` | 0.9.12 | MIT | stands in for the browser's DOMParser when the template tests run in Node |
 | `axe-core` | 4.10.2 | MPL-2.0 | accessibility checks in the browser flows. Test-only and never shipped; MPL-2.0 needs the owner's approval for anything that ships |
+| `fast-check` | 4.10.2 | MIT | property tests (`tests/properties.test.js`): the money rounding, the text decoder and the CSV and paste readers over generated inputs. Pinned to 4.x because 5.x needs Node 22.12 and the repo declares Node 20 or later. Never imported by `app/`, `server/` or `sw.js` |
 | `typescript` | 6.0.2 | Apache-2.0 | the type check (`types/`) |
 | `playwright` | 1.56.1 | Apache-2.0 | the browser flows: global in the cloud image, `npm install --no-save` in CI |
 

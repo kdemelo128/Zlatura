@@ -17,6 +17,7 @@
     "@xmldom/xmldom": "0.9.12",
     "axe-core": "4.10.2",
     "exceljs": "4.4.0",
+    "fast-check": "4.10.2",
     "fflate": "0.8.3",
     "typescript": "6.0.2"
   },
