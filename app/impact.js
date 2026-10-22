@@ -18,7 +18,7 @@
 import { FIGURES, RULES } from './engine/figures.js';
 import { DEAL_FIELDS, DEAL_INPUTS } from './dealfields.js';
 import { t12ForAnalysis } from './t12.js';
-import { legacyRows, setCurrentRent } from './rentroll.js';
+import { legacyRows, setCurrentRent, rollFacts } from './rentroll.js';
 import { analyze, runScenario, scenarioAnswers } from './deal.js';
 import { rentRollSummary, project } from './lease.js';
 
@@ -104,6 +104,10 @@ function fromEngine(R) {
   if (p === 'today') return [];
   if (p === 'd.rentRoll') return LEASES_IN_ANALYSIS.map((x) => (typeof x === 'string' ? keep(x) : { ...x, when: R.when || x.when }));
   if (p === 'd.rentRollAsOf') return [keep('rr.settings.asOf')];
+  // K33's band: the property type picks it, and its numbers are in Settings
+  if (p === 'd.ptype') return [keep('figures.ptype'), { ...R, path: 'conventions', when: 'the K33 rent per SF band' }];
+  // the rent roll's own leases (rentroll.js rollFacts): each rule names the lease fields it uses, 'asOf' for the as-of date
+  if (p === 'd.rollFacts') return (R.fields || []).flatMap((f) => (f === 'asOf' ? ['rr.settings.asOf'] : [`lease.${f}`])).concat('leases').map((x) => ({ path: x, when: R.when || 'only for a deal with a rent roll' }));
   // the T-12, and the OM's own figures it is compared with (kept as they were before "Use the T-12's figures")
   if (p === 'd.t12') return [keep('t12')];
   // the NOI three ways rules are the only readers of these three, and they compare by the thresholds in Settings (NOI_GAP)
@@ -195,7 +199,7 @@ export const PROJ_LINES = {
   reserves: ['Capital reserves', ['rr.settings.reservesPsf', 'lease.sf', 'leases', 'rr.settings.expenseGrowth', 'rr.settings.years', 'rr.settings.asOf', { path: 'rr.settings.buildingSf', when: 'only when the leases give no SF' }]],
   cashFlow: ['Cash flow before debt service', ['proj.noi', 'proj.ti', 'proj.lc', 'proj.reserves']],
   occupancy: ['Occupancy (projected)', [...ROLL, { path: 'rr.settings.buildingSf', when: 'only when the leases give no SF' }]],
-  notes: ['Notes on the projection’s assumptions', ['lease.unit', 'lease.tenant', 'lease.marketRent', 'lease.status', 'leases', 'rr.settings.marketRent', 'rr.settings.marketGrowth', 'rr.settings.renewal']],
+  notes: ['Notes on the projection’s assumptions', ['lease.unit', 'lease.tenant', 'lease.sf', 'lease.marketRent', 'lease.status', 'leases', 'rr.settings.marketRent', 'rr.settings.marketGrowth', 'rr.settings.renewal']],
 };
 for (const [k, [label, reads]] of Object.entries(PROJ_LINES)) {
   node(`proj.${k}`, { group: 'projection', label, reads: reads.map((p) => (typeof p === 'string' ? { path: p, ...RR } : p)), rr: true });
@@ -444,7 +448,7 @@ export function analysisInput(d, { project = null } = {}) {
   // one source: with a rent roll, the analysis reads its rows from it (not a stored copy that could lag behind),
   // and WALT and its other figures are measured from its own as-of date
   const rr = hasRentRoll(d) ? d.rr : null;
-  const out = { ...d.figures, rentRoll: rr ? legacyRows(rr) : d.rentRoll, loan: d.loan, rentRollAsOf: rr && rr.settings ? rr.settings.asOf : null };
+  const out = { ...d.figures, rentRoll: rr ? legacyRows(rr) : d.rentRoll, loan: d.loan, rentRollAsOf: rr && rr.settings ? rr.settings.asOf : null, ...(rr ? { rollFacts: rollFacts(rr) } : {}) };
   // a deal with a T-12: its totals, and the OM's figures as they were before the T-12's were used; and the
   // rent roll's year 1 NOI when `project` gives it (a projection already worked out; none, and that pair isn't compared)
   const t = t12ForAnalysis(d.t12);
@@ -492,17 +496,18 @@ export function traceAnalysis(d, comps = null, today = new Date()) {
     },
   });
   const pm = new Proxy(m, { get(t, k) { if (typeof k === 'string') note(k); return t[k]; } });
-  const toMap = (s) => new Set([...s].flatMap((p) => fromEngine({ path: p })).map((r) => r.path));
+  // a read the formula declares with more to say (the lease fields a rule uses) is mapped as it was declared
+  const toMap = (s, F) => new Set([...s].flatMap((p) => fromEngine(F.reads.find((r) => r.path === p) || { path: p })).map((r) => r.path));
   for (const F of FIGURES.list) {
     if (F.only && !F.only(x)) continue;
     seen = new Set();
     m[F.id] = F.calc(pm, px);
-    reads.set(figId(F.id), toMap(seen));
+    reads.set(figId(F.id), toMap(seen, F));
   }
   for (const R of RULES.list) {
     seen = new Set();
     R.calc(pm, px, m.checks, m.questions);
-    reads.set(checkId(R.id), toMap(seen));
+    reads.set(checkId(R.id), toMap(seen, R));
   }
   seen = null;
   return { m, reads };
