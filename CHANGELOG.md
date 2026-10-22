@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.7.54: Checks: the AI server's own tests now run in check:full, and in check:quick when server/ changes (on the development branch; not merged or deployed)
+
+GitHub's CI runs the AI server's test suite (`server/`, its own package), but `check:full` did not, so a server test could pass every local check and still fail CI. That happened on #78: the research route's injection test began sending more requests than the per-minute limit allows once #76 doubled the injection set, and only CI saw it.
+
+- **`check:full`** now runs `npm test` in `server/` after the root suite, installing the server's one package first if it is missing.
+- **`check:quick`** runs it too whenever a file under `server/` changed.
+- **Tested:** `tests/check-tools.test.js` fails if either rule is removed (it fails on 4.7.53's `check.mjs`); a quick check with a file added under `server/` ran the 43 server tests, and one without did not. No app code changed; saved results and golden outputs are unchanged.
+
 ## 4.7.53: The AI server can now write a company research brief (server only; no screen yet) (on the development branch; not merged or deployed)
 
 Phase B1a. Nothing in the app calls the new route yet; the device storage (B1b) and the screens (B1c) are later PRs, so a broker sees no change.
