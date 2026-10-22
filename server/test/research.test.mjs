@@ -197,7 +197,9 @@ test('R6b: at most 150 claims; a PDF keeps its page', async () => {
 });
 
 test('R7: every injection document is data: not in the system prompt or the subject line, and an obeying model is cut back', async () => {
-  const r = await rig();
+  // one request per document: more documents than the default per-minute limit allows
+  const r = await rig({ env: { RATE_PER_MIN: String(INJ.length + 5) } });
+  try {
   for (const d of INJ) {
     r.seen.length = 0;
     // the stand-in obeys: a verified flag, a contacts key, a claim on a document that does not exist, a bad kind, one good claim
@@ -217,7 +219,7 @@ test('R7: every injection document is data: not in the system prompt or the subj
     assert.doesNotMatch(sent.messages[0].content[0].title, CONTROL, d.id);
   }
   assert.ok(INJ.length >= 18);
-  r.close();
+  } finally { r.close(); }
 });
 
 test('R7b: a hostile subject name stays inside its quoted line', async () => {
