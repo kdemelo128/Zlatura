@@ -75,13 +75,29 @@ export const money2 = (n) => {
   return `${signOf(n, d)}$${d}`;
 };
 /** @type {(n: AnyPct | null | undefined, d?: number) => string} */
-export const pct = (n, d = 2) => (ok(n) ? signOf(n, fmt(n, d)) + fmt(n, d) + '%' : '—');
+export const pct = (n, d = 2) => {
+  if (!ok(n)) return '—';
+  const s = fmt(n, d);
+  return `${signOf(n, s)}${s}%`;
+};
 /** @type {(n: AnyPct | null | undefined, d?: number) => string} */
-export const signed = (n, d = 1) => (ok(n) ? signOf(n, fmt(n, d), true) + fmt(n, d) + '%' : '—');
+export const signed = (n, d = 1) => {
+  if (!ok(n)) return '—';
+  const s = fmt(n, d);
+  return `${signOf(n, s, true)}${s}%`;
+};
 /** @type {(n: Multiple | null | undefined) => string} */
-export const times = (n) => (ok(n) ? `${signOf(n, fmt(n, 2)) + fmt(n, 2)}x` : '—');
+export const times = (n) => {
+  if (!ok(n)) return '—';
+  const s = fmt(n, 2);
+  return `${signOf(n, s)}${s}x`;
+};
 /** @type {(n: Years | null | undefined) => string} */
-export const yrs = (n) => (ok(n) ? `${signOf(n, fmt(n, 1)) + fmt(n, 1)} yrs` : '—');
+export const yrs = (n) => {
+  if (!ok(n)) return '—';
+  const s = fmt(n, 1);
+  return `${signOf(n, s)}${s} yrs`;
+};
 /**
  * $6.45M, $850K: for tiles where width is tight.
  * @type {(n: AnyUsd | null | undefined) => string}

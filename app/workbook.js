@@ -480,7 +480,7 @@ const TREND_MAX_RATE = 0.10;      // a market rarely moves more than 10% a year 
  *  median, and whether it is reliable enough to adjust by. The rate used is
  *  rounded to the precision written into the cell, so the cached adjustments
  *  downstream agree with Excel to the last digit. */
-function trendRate(sales) {
+export function trendRate(sales) {
   const ys = sales.map(ppsfOf);
   const xs = sales.map((c) => (c.date ? S.serial(new Date(c.date)) : null));
   const n = ys.filter((y, i) => y !== null && xs[i] !== null).length;
