@@ -30,7 +30,7 @@ test('K33 band edges and multifamily band', () => {
 });
 test('C12: duplicate unit IDs flagged once', () => {
   const m = run([lease('101'), lease('101 ', { unit: '101 ' }), lease('x', { unit: '101' }), lease('102'), lease('b1', { unit: '' }), lease('b2', { unit: '' })]);
-  const k = find(m, /more than once/); assert.equal(k.length, 1); assert.match(k[0].text, /101 \(3 times\)/); assert.doesNotMatch(k[0].text, /102/);
+  const k = find(m, /more than once/); assert.equal(k.length, 1); assert.match(k[0].text, /lists a unit more than once: 101 \(3 times\)\. /); assert.doesNotMatch(k[0].text, /102/); // the two blank units are not one unit listed twice
 });
 test('K24/K25/K20/K22 and same lease', () => {
   const m = run([lease('a', { leaseEnd: '2026-03-31', periods: per(30000, 'year', '2022-01-01', '2026-03-31') }), lease('b', { leaseEnd: AS_OF }), lease('c', { leaseEnd: '2026-03-31', mtm: true }),
