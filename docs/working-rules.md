@@ -193,3 +193,20 @@ Run this checklist when `CLAUDE.md` grows past about 150 lines or a session wast
 - No rule appears twice; where two disagree, fix both in the same PR.
 - A rule about one folder or one kind of work goes in a skill or a path-scoped rule, not at the top.
 - Changes to `CLAUDE.md` are the owner's to approve.
+
+## Step, then check (owner, 2026-10-22)
+
+Every plan, design note and builder brief lists its steps as "step → how it is checked" (a test name, a command and
+its expected result, or what to look at), and a step is done only when that check has run and passed. A step with no
+check is either split until it has one or named as not checked, with the reason. This is the "goal-driven" idea from
+karpathy-skills, written in our own words: its text has no licence file, so none of it is copied.
+
+## Machine checks taken from outside ideas (owner, 2026-10-22)
+
+The owner asked for the useful ideas in the evaluated repos to be used, with care on licences. Two are now checks:
+- `tests/tools/settings-scan.mjs` (ruflo's settings risk scan, our own code): `.claude/settings.json`,
+  `.claude/settings.local.json` and `.mcp.json` must not allow every shell command, download and run code, run as
+  root, switch permission checks off, hold a secret, or stop denying `Read(./private/**)`. `npm test` and every
+  `check:quick` run it (`tests/settings-scan.test.js`). A finding is fixed in the settings, never by weakening the scan.
+- `tests/e2e/run.sh` takes a lock (paperclip's per-task claim, our own code), so two sessions or worktrees wait for
+  port 8080 in turn instead of colliding; a lock whose run is gone is taken over (`tests/e2e-lock.test.js`).

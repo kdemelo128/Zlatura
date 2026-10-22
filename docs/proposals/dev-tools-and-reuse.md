@@ -173,3 +173,13 @@ cache line for a baseline session), `/doctor prompt-audit`, and the "Idle compac
 **A4 result.** `docs/security-checklist.md` (34 checks in our words) is added, and is run at the end of each phase.
 
 **A1 ponytail, integrated 2026-10-22 at the owner's request** (4.7.43): the one skill file, text only, pinned at `09c434a`, with a Zlatura section keeping the gates; hooks and the other skills not taken. T1 was not run first; the owner chose to integrate.
+
+**Owner, 2026-10-22: use the useful ideas, with care on licences.** Taken, in our own words or code, with nothing copied:
+B5 ruflo's settings risk scan (`tests/tools/settings-scan.mjs`), D4 paperclip's per-task claim (the `run.sh` lock), A2
+karpathy-skills' "step → check" (`docs/working-rules.md`). Already practised: B1 claude-mem's progressive disclosure (read
+`docs/NOW.md` first, everything else by section with grep). Kept for the build that needs it: D3 substrate's "credentials
+never in the sandbox, a gateway injects them" for the hosting proposal; C4 plausible's on-device, aggregate-only counters
+if usage numbers are ever wanted; A5 diagram-design's self-check (no remote assets, accessible names) if diagrams are
+added. Still not installed or copied, by the owner's two lines: anything with no licence or a copyleft licence (A2's text,
+C4's server, D6, D9), and anything that can send `private/` or session content off the device (B1, B2, B4, B5 as tools).
+
