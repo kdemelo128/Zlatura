@@ -12,12 +12,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fragments, parseFragment, fold } from './changelog.mjs';
+import { escapeRegExp } from './escape.mjs';
 
 const ROOT = path.resolve(new URL('../..', import.meta.url).pathname);
 const next = process.argv[2];
 if (!/^\d+\.\d+\.\d+$/.test(next || '')) { console.error('usage: npm run bump -- <x.y.z>'); process.exit(2); }
 const cur = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
-const esc = cur.replace(/\./g, '\\.');
+const esc = escapeRegExp(cur);
 const edits = [
   ['package.json', new RegExp(`^(  "version": ")${esc}(",)$`, 'm'), 1],
   ['package-lock.json', new RegExp(`^(  "version": ")${esc}(",)$`, 'm'), 1],

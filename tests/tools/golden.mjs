@@ -10,6 +10,7 @@
  * exists (the cents rounding), the "after" side applies it the way the app's
  * migration does. Needs tests/e2e/files/pages.json (made by tests/e2e/run.sh). */
 import fs from 'node:fs';
+import { mdCell } from './escape.mjs';
 
 if (process.argv[2] === '--diff') {
   const a = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
@@ -17,7 +18,7 @@ if (process.argv[2] === '--diff') {
   const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])];
   const rows = keys.filter((k) => a[k] !== b[k]);
   console.log(`| Case and figure | Before | After |\n|---|---|---|`);
-  for (const k of rows) console.log(`| ${k.replace(/\|/g, '\\|')} | ${String(a[k] ?? '(none)').replace(/\|/g, '\\|')} | ${String(b[k] ?? '(none)').replace(/\|/g, '\\|')} |`);
+  for (const k of rows) console.log(`| ${mdCell(k)} | ${mdCell(a[k] ?? '(none)')} | ${mdCell(b[k] ?? '(none)')} |`);
   console.error(`${keys.length} figures compared, ${rows.length} changed`);
   process.exit(0);
 }
