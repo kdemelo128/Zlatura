@@ -1,0 +1,95 @@
+name: Security scan
+
+# Lints the workflows (actionlint, zizmor), looks for committed secrets (gitleaks) and checks both lock files
+# against osv.dev (osv-scanner). Every tool is CI-only, never shipped, downloaded at an exact release version and
+# checked against a SHA-256 taken from that release's published checksums (hard-coded below). No @latest, no
+# curl|sh. zizmor is installed from PyPI with --require-hashes. To bump a tool: new version, new checksum from the
+# release's checksums file, and THIRD_PARTY.md ("CI-only tools"). tests/ci-scanners.test.js guards all of this.
+
+on:
+  push:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  workflow-lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: actionlint 1.7.12 (MIT)
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8 # actionlint_1.7.12_checksums.txt
+        run: |
+          set -euo pipefail
+          f="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$f" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/$f"
+          echo "${ACTIONLINT_SHA256}  $RUNNER_TEMP/$f" | sha256sum -c -
+          mkdir "$RUNNER_TEMP/actionlint"
+          tar -xzf "$RUNNER_TEMP/$f" -C "$RUNNER_TEMP/actionlint" actionlint
+          "$RUNNER_TEMP/actionlint/actionlint" -color
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: zizmor 1.31.1 (MIT)
+        # the wheel's SHA-256 is in .github/zizmor-requirements.txt (from PyPI); --require-hashes refuses anything else
+        run: |
+          pip install --require-hashes -r .github/zizmor-requirements.txt
+          zizmor --no-progress .github/workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  secrets:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: gitleaks 8.30.1 (MIT)
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb # gitleaks_8.30.1_checksums.txt
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          f="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$f" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$f"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/$f" | sha256sum -c -
+          mkdir "$RUNNER_TEMP/gitleaks"
+          tar -xzf "$RUNNER_TEMP/$f" -C "$RUNNER_TEMP/gitleaks" gitleaks
+          # a pull request scans only its own commits; a push scans the whole history
+          if [ "$EVENT" = "pull_request" ]; then
+            "$RUNNER_TEMP/gitleaks/gitleaks" git --redact --no-banner --log-opts="${BASE_SHA}..${HEAD_SHA}" .
+          else
+            "$RUNNER_TEMP/gitleaks/gitleaks" git --redact --no-banner .
+          fi
+
+  dependencies:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: osv-scanner 2.7.0 (Apache-2.0)
+        # online mode: only package names and versions go to api.osv.dev (as npm audit does)
+        env:
+          OSV_VERSION: 2.7.0
+          OSV_SHA256: 160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b # osv-scanner_SHA256SUMS
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/osv-scanner" "https://github.com/google/osv-scanner/releases/download/v${OSV_VERSION}/osv-scanner_linux_amd64"
+          echo "${OSV_SHA256}  $RUNNER_TEMP/osv-scanner" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/osv-scanner"
+          "$RUNNER_TEMP/osv-scanner" scan source -L package-lock.json -L server/package-lock.json

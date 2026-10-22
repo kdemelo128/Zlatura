@@ -148,6 +148,17 @@ SHA-256: upstream `skills/ponytail/SKILL.md` `9badd22a32e19cb884e46dfa8d3aae82bb
 | `typescript` | 6.0.2 | Apache-2.0 | the type check (`types/`) |
 | `playwright` | 1.56.1 | Apache-2.0 | the browser flows: global in the cloud image, `npm install --no-save` in CI |
 
+## CI-only tools (never shipped)
+
+Run by `.github/workflows/security-scan.yml` on every push and pull request (owner approved 2026-10-22). None is part of the app, in `package.json`, or loaded by any page. Each is downloaded at an exact version and checked against the SHA-256 from that release's published checksums file before it runs; `tests/ci-scanners.test.js` fails if a tool, its version pin or its checksum check goes missing. To bump one: new version, new checksum from the same file, and update this table.
+
+| Tool | Version | License | SHA-256 (source of the checksum) | Upstream | Why |
+|---|---|---|---|---|---|
+| actionlint | 1.7.12 | MIT | `8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8` (`actionlint_1.7.12_linux_amd64.tar.gz`, from `actionlint_1.7.12_checksums.txt`) | [rhysd/actionlint](https://github.com/rhysd/actionlint) | lints the workflow files for syntax, expression and shell mistakes |
+| zizmor | 1.31.1 | MIT | `58e878eb2dbd2c6183c105e1ac28c14f7dd1eca44a783f1fe2a69647d012c410` (the `manylinux_2_28_x86_64` wheel, the digest PyPI publishes; installed with `pip --require-hashes` from `.github/zizmor-requirements.txt`) | [zizmorcore/zizmor](https://github.com/zizmorcore/zizmor) | finds workflow-injection and credential-exposure patterns in the workflows |
+| gitleaks | 8.30.1 | MIT | `551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb` (`gitleaks_8.30.1_linux_x64.tar.gz`, from `gitleaks_8.30.1_checksums.txt`) | [gitleaks/gitleaks](https://github.com/gitleaks/gitleaks) | looks for committed secrets in a pull request's commits, or the whole history on a push. The release binary, not the GitHub Action (its action needs a licence key for organisations). Config: `.gitleaks.toml` |
+| osv-scanner | 2.7.0 | Apache-2.0 | `160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b` (`osv-scanner_linux_amd64`, from `osv-scanner_SHA256SUMS`) | [google/osv-scanner](https://github.com/google/osv-scanner) | checks `package-lock.json` and `server/package-lock.json` against osv.dev. Online mode: only package names and versions leave, as with `npm audit` |
+
 ## The optional AI server (`server/`, not part of the offline app)
 
 | Package | Version | License | Why |
