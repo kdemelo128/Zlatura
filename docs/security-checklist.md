@@ -67,7 +67,7 @@ itself is not installed or run. First applied by hand on 2026-10-21 (findings F1
 21. CORS and origin allow-list; no reflected `Origin` with credentials.
 22. Request parsing is inside the error handler; body size, concurrency and time are bounded; errors do not leak
     internals or upstream bodies.
-23. No shell use with input; no fetching of user-supplied URLs (server-side request forgery).
+23. No shell use with input; no fetching of user-supplied URLs; connectors use constant hosts.
 24. Documents and prompts are not logged. Model output is schema-checked, and has no path to actions: no tools, and
     every figure is shown for review with its quote checked against the page.
 25. Startup refuses weak tokens (length and entropy).

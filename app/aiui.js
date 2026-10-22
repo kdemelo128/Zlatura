@@ -76,11 +76,17 @@ export async function openAiSettings(api) {
     await ai.saveSettings({ ...current(), enabled: true });
     try {
       const h = await ai.health();
-      status.textContent = `Connected. Document reading and the assistant: ${h.ai ? `on (${h.model})` : 'off (the server has no API key)'}. Transcription: ${h.transcription ? 'on' : 'off (no speech service set up)'}.`;
+      status.textContent = `Connected. Document reading and the assistant: ${h.ai ? `on (${h.model})` : 'off (the server has no API key)'}. Transcription: ${h.transcription ? 'on' : 'off (no speech service set up)'}.${useToday(h.budget)}`;
     } catch (e) { status.textContent = e.message; }
     await ai.saveSettings(current());
   });
 }
+
+/** Integer cents as dollars, for display only. */
+const cents = (c) => `$${Math.floor(c / 100)}.${String(c % 100).padStart(2, '0')}`;
+/** " Today on this device: $0.42 of $15.00, 12 of 200 requests." from the server's health answer (older servers send none). */
+const useToday = (b) => (b && Number.isInteger(b.usedCents) && Number.isInteger(b.capCents)
+  ? ` Today on this device: ${cents(b.usedCents)} of ${cents(b.capCents)}, ${b.requests} of ${b.requestLimit} requests.` : '');
 
 async function ready(api) {
   const s = await ai.getSettings();
