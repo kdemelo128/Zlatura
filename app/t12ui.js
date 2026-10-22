@@ -18,6 +18,7 @@ import { qcCounts } from './dataqc.js';
 import { remembered, rememberLabel } from './t12labels.js';
 import { NOI_GAP } from './engine/conventions.js';
 import { strictOpen, strictWords } from './review.js';
+import { signOf } from './numtext.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const usd = (x) => (ok(x) ? (x < 0 ? `−${money0(-x)}` : money0(x)) : '—');
@@ -408,6 +409,9 @@ function showQc() {
   box.focus({ preventScroll: true });
 }
 
+/** A gap in dollars with its sign (a true minus), none when it prints as $0. */
+export const gapMoney = (diff) => { const d = money0(Math.abs(diff)); return `${signOf(diff, d, true).replace('-', '−')}${d}`; };
+
 /** The NOI three ways: the OM's, the T-12's and the rent roll's forward-looking year 1, with the gaps. */
 function noiThreeWays(d, T, h) {
   const sec = el('div', 't12-noi');
@@ -441,7 +445,7 @@ function noiThreeWays(d, T, h) {
     if (who !== 'T-12' && ok(v) && ok(T.noi) && !T.unassigned && !openLines(d.t12).length && !partial && !held) {
       const base = Math.max(Math.abs(v), Math.abs(T.noi));
       const pc = base ? (Math.abs(v - T.noi) / base) * 100 : 0;
-      g = `${v >= T.noi ? '+' : '−'}${money0(Math.abs(v - T.noi))} (${pc.toFixed(1)}%)`;
+      g = `${gapMoney(v - T.noi)} (${pc.toFixed(1)}%)`;
       cls = pc > NOI_GAP.warn ? 'warn-text' : pc >= NOI_GAP.agree ? 'info-text' : 'good-text';
       g += pc < NOI_GAP.agree ? ' · agrees' : pc > NOI_GAP.warn ? ' · warning' : ' · noted';
     }

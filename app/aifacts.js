@@ -5,17 +5,19 @@
 
 import { waltMethod } from './engine/walt.js';
 import { ROLL_TOOL } from './dealfields.js';
+import { signOf } from './numtext.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
-const money = (n) => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
-const money2 = (n) => `$${n.toFixed(2)}`;
-const pct = (n, d = 2) => `${n.toFixed(d)}%`;
+// a figure that prints as zero carries no sign (numtext.js)
+const money = (n) => { const d = Math.abs(Math.round(n)).toLocaleString('en-US'); return `${signOf(n, d)}$${d}`; };
+const money2 = (n) => { const d = Math.abs(n).toFixed(2); return `${signOf(n, d)}$${d}`; };
+const pct = (n, d = 2) => { const s = Math.abs(n).toFixed(d); return `${signOf(n, s)}${s}%`; };
 
 function show(kind, v) {
   if (kind === 'money') return money(v);
   if (kind === 'money2') return money2(v);
   if (kind === 'pct') return pct(v);
-  if (kind === 'int') return Math.round(v).toLocaleString('en-US');
+  if (kind === 'int') { const d = Math.abs(Math.round(v)).toLocaleString('en-US'); return signOf(v, d) + d; }
   return String(v);
 }
 
@@ -79,7 +81,7 @@ export function buildFacts({ deal, fields, m = {}, scenario = null, rrSum = null
     add('Sale comps loaded', String(comps.n), 'the Comps tab');
     if (ok(comps.median)) add('Sale comps: median $/SF', money2(comps.median), 'the Comps tab');
     if (ok(comps.medianCap)) add('Sale comps: median cap rate', pct(comps.medianCap), `the Comps tab (${comps.capN} report one)`);
-    if (ok(m.vsMedian)) add('Asking $/SF against the comps’ median', `${m.vsMedian > 0 ? '+' : ''}${m.vsMedian.toFixed(1)}%`, 'calculated');
+    if (ok(m.vsMedian)) { const vd = Math.abs(m.vsMedian).toFixed(1); add('Asking $/SF against the comps’ median', `${signOf(m.vsMedian, vd, true)}${vd}%`, 'calculated'); }
   }
   for (const c of m.checks || []) add('Check', c.text, 'the app’s consistency checks');
   for (const i of issues) add('Reconciliation', i.text, 'rent roll against the OM');

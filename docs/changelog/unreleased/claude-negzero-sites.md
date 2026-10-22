@@ -1,0 +1,8 @@
+# The last figures that could print "-$0" or "+0.0%" now print a plain zero
+
+The 4.7.52 fix covered the shared formatters. Ten more places built their own number text and took the sign from the unrounded value, so a figure under half a dollar (or half a hundredth of a percent) could still print "-$0", "−$0", "-0.00%" or "+0.0%".
+
+- **Fixed (display text only):** the comp Glance's asking premium and its trend line; the assistant's numbered facts (money, whole-dollar, percent, and the comps premium); the NOI-gap column on the T-12 card; the T-12 check texts (`NOI without the one-offs`, the monthly-or-cumulative question and the column sums); the OM statement checks and their fix labels; and the "NOI is negative" check. Each takes its sign from the printed digits through `signOf`, so a figure that prints as zero shows no sign. Nonzero figures read as before.
+- **Also fixed, next to the listed lines:** the assistant's `$/SF` style two-decimal money and whole-number facts, which had the same pattern. The two-decimal money fact now reads "-$5.00" for a negative, not "$-5.00".
+- **Unchanged:** every stored value, engine result, parsed value and exported cell. Saved-deal results (`analyze-golden`) and the 646 displayed figures (`golden.mjs`) are identical.
+- **Tested:** `tests/format-sign-sites.test.js` reaches each site through an exported function (7 tests, all failing on 4.7.52). One mutation per site, putting the old sign back, turns a test red.

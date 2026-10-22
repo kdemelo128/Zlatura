@@ -10,6 +10,7 @@
  * money in dollars, rates as percent numbers, areas in SF, terms in years. */
 
 import { registry } from './graph.js';
+import { signOf } from '../numtext.js';
 import { debtService, sizeLoan } from './debt.js';
 import { walt } from './walt.js';
 import { breakEvenOccupancy } from './breakeven.js';
@@ -195,7 +196,9 @@ rule('noPriceFromLoss', 'No price from a zero or negative NOI', ['d.price', 'd.n
   const noi = ok(d.noi) ? d.noi : null;
   const capStated = pos(d.cap) ? d.cap : null;
   if (!pos(d.price) && noi !== null && capStated && noi <= 0) {
-    C.push({ level: 'warn', text: `The NOI is ${noi === 0 ? 'zero' : 'negative'} (${noi < 0 ? '-' : ''}$${Math.round(Math.abs(noi)).toLocaleString('en-US')}), so no price is worked out from the stated ${pct2(capStated)} cap rate.` });
+    const nd = Math.round(Math.abs(noi)).toLocaleString('en-US');
+    const noiText = `${signOf(noi, nd)}$${nd}`;
+    C.push({ level: 'warn', text: `The NOI is ${noi === 0 ? 'zero' : 'negative'} (${noiText}), so no price is worked out from the stated ${pct2(capStated)} cap rate.` });
   }
 });
 rule('statedCap', 'Stated cap rate against NOI ÷ price', ['capCalc', 'd.cap'], (m, { d }, C, Q) => {

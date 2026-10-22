@@ -36,6 +36,7 @@
 import { pageLines } from './omroll.js';
 import { scaleOf } from './scale.js';
 import { toCents } from './engine/money.js';
+import { signOf } from './numtext.js';
 import { readStatement, normalizeSigns, statementChecks, statementTotals, matchLabel, amountOf, CATEGORY } from './t12.js';
 import { blockingChecks, resolveCheck } from './dataqc.js';
 
@@ -262,7 +263,7 @@ function finishTable(P, cur, page, n, { isStatementRow, asOfYear }) {
 /* ------------------------------------------------------ choosing columns */
 
 const PLACEHOLDER = '(no line items printed)';
-const money = (x) => `${x < 0 ? '−' : ''}$${Math.abs(Math.round(x)).toLocaleString('en-US')}`;
+const money = (x) => { const d = Math.abs(Math.round(x)).toLocaleString('en-US'); return `${signOf(x, d).replace('-', '−')}$${d}`; };
 // money to whole cents with the engine's one rule
 const toc = toCents;
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };

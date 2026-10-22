@@ -12,6 +12,7 @@
 import { toCents } from './engine/money.js';
 import { median } from './engine/comps.js';
 import { conv } from './engine/conventions.js';
+import { signOf } from './numtext.js';
 
 /* ------------------------------------------------------------ categories */
 
@@ -774,7 +775,7 @@ const mkey = (iso) => +iso.slice(0, 4) * 12 + +iso.slice(5) - 1;
 const isoOfKey = (k) => `${Math.floor(k / 12)}-${pad((k % 12) + 1)}`;
 /** "A" for column 0, "M" for 12, "AA" for 26. */
 const colLetter = (c) => { let out = ''; for (let n = c + 1; n > 0; n = Math.floor((n - 1) / 26)) out = String.fromCharCode(65 + ((n - 1) % 26)) + out; return out; };
-const usd0 = (x) => `${x < 0 ? '−' : ''}$${Math.round(Math.abs(x)).toLocaleString('en-US')}`;
+const usd0 = (x) => { const d = Math.round(Math.abs(x)).toLocaleString('en-US'); return `${signOf(x, d).replace('-', '−')}$${d}`; };
 const list = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 /** "Oct 2024 to Dec 2024" per run of consecutive calendar months ("Oct 2024" for a single month), joined with "and". */
 function rangesText(isos) {

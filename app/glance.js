@@ -8,6 +8,7 @@
  * colour alone. */
 import { isPriced } from './engine/comps.js';
 import * as S from './stats.js';
+import { signOf } from './numtext.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const svg = (tag, attrs = {}, text) => {
@@ -118,7 +119,8 @@ export function renderKpis(box, sales, market, subject) {
     market.length ? `${market.length} listing${market.length === 1 ? '' : 's'}${unpriced ? ` · ${unpriced} unpriced` : ''}` : 'no listings');
   if (soldMed && askMed) {
     const prem = askMed / soldMed - 1;
-    kpi('Asking premium', `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`, 'median asking against median sold');
+    const pd = Math.abs(prem * 100).toFixed(1);
+    kpi('Asking premium', `${signOf(prem, pd, true)}${pd}%`, 'median asking against median sold');
   }
   if (sales.length) {
     kpi('Sales in 18 months', String(recent), recent < 5 ? 'thin set: lean on market knowledge' : 'enough to support a value', recent < 5);
@@ -226,7 +228,8 @@ export function renderTime(box, legendBox, sales) {
   lg('dot', 'Sale');
   if (slope !== null) {
     const perYear = slope * 365.25 * 86400000;
-    lg('trend', `Trend ${perYear >= 0 ? '+' : '−'}${money0(Math.abs(perYear))}/SF a year${r2 !== null ? ` · R² ${r2.toFixed(2)}` : ''}`, true);
+    const yd = money0(Math.abs(perYear));
+    lg('trend', `Trend ${signOf(perYear, yd, true).replace('-', '−')}${yd}/SF a year${r2 !== null ? ` · R² ${r2.toFixed(2)}` : ''}`, true);
   }
 
   const W = 480;
