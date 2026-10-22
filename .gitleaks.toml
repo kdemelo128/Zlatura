@@ -1,0 +1,11 @@
+# gitleaks config: the default rules plus one narrow allowlist.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Storage-key names, not secrets: app/ui.js has a localStorage key constant named SKEY, and the t12-multiformat proposal names a key-value store key. Both are flagged by generic-api-key because of the word 'key'. No real credential is in these files; fixtures in the repo are invented."
+targetRules = ["generic-api-key"]
+paths = [
+  '''^app/ui\.js$''',
+  '''^docs/proposals/t12-multiformat\.md$''',
+]
