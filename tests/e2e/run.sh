@@ -8,6 +8,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p files shots
+# the fixture scripts' packages must be the pinned ones (an older Pillow has published security advisories)
+python3 check_requirements.py requirements.txt
 node dump-pages.mjs files/pages.json
 python3 make_pdfs.py files >/dev/null
 python3 make_tpl.py files/acme-template.xlsx >/dev/null
