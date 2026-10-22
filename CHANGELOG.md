@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.7.44: Code scanning: the seven open CodeQL alerts fixed (on the development branch; not merged or deployed)
+
+Fixes for CodeQL alerts 1 to 7 on main. Saved results and golden outputs are unchanged.
+
+- **Alerts 1 to 6 (release tools, tests only):** `tests/tools/changelog.mjs` and `bump-version.mjs` put a version number into a regular expression with only its dots escaped, and `golden.mjs` escaped pipes in a Markdown table without escaping backslashes first. The version is already checked to be digits and dots, so no wrong result was possible, but the escaping was incomplete. One small helper, `tests/tools/escape.mjs` (`escapeRegExp`, `mdCell`), now does both properly, and the three tools use it.
+- **Alert 7 (`app/omstatement.js`):** the sign test for OM figures written with a k or M suffix ("$1.5M", "($250k)") used the character range `[(-–]`, which by accident spans everything from "(" to the en dash, letters and digits included. Its pattern only lets "(", "-", "–" or "$" reach that test, so no figure was read with the wrong sign; the range is now exactly those three characters.
+- **Tested:** `tests/tools-escape.test.js` (the escapes, the changelog fold matching an exact version only, table cells, and k/M figures keeping their sign); the escape tests fail on the previous code, the sign tests are guards. `check:full` passed. Golden: 0 changed.
+- **Dependabot (Pillow, 28 alerts):** nothing to change. `tests/e2e/requirements.txt` already pins Pillow 13.0.0, the version every advisory checked names as the fix, and Dependabot's own update run on main reports "no security update needed as pillow is no longer vulnerable". The alerts are stale and should close on GitHub's next rescan, or can be dismissed as inaccurate.
+
 ## 4.7.42: T-12 checks: a line filed on the wrong side, and the same line read twice (on the development branch; not merged or deployed)
 
 Sixth underwriting PR (U6 of `docs/proposals/underwriting.md`, checks K13 and K28; no owner decision needed). Saved results and golden outputs are unchanged.
