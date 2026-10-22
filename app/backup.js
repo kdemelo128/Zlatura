@@ -23,6 +23,7 @@
  * The encoding and the restore plan are pure (tests/backup.test.js). */
 
 import { FORMATS, PRODUCT, renameKey } from './brand.js';
+import { retentionEnd } from './claims.js';
 import { MIGRATIONS, pending, tooNew, migrateDeal } from './migrate.js';
 
 export const BACKUP_FORMAT = FORMATS.backup.write;
@@ -34,7 +35,7 @@ const LOCAL_MAX = 262144;
 /** The settings key that never travels in a backup. */
 const NEVER = 'ai.settings';
 /** The kv keys the app writes and a backup may carry (tests/backup.test.js checks this list against every kvSet in app/). */
-export const KV_KEYS = ['tpl.library', 'crm.tasks', 'crm.contacts', 'crm.activity', 'crm.stages', 'tools.scenarios', 't12.labels', 'rr.layouts', 'conventions', 'template', 'output', 'backup.last'];
+export const KV_KEYS = ['tpl.library', 'crm.tasks', 'crm.contacts', 'crm.activity', 'crm.stages', 'tools.scenarios', 't12.labels', 'rr.layouts', 'conventions', 'template', 'output', 'backup.last', 'research.briefs'];
 const KV_SET = new Set(KV_KEYS);
 
 /**
@@ -96,6 +97,7 @@ export async function buildBackup({ deals = [], kv = {}, session = null, local =
     format: BACKUP_FORMAT, version: BACKUP_VERSION, app: appVersion, createdAt: new Date().toISOString(),
     counts: {
       deals: deals.length, templates: (kv['tpl.library'] || []).length, tasks: (kv['crm.tasks'] || []).length, contacts: (kv['crm.contacts'] || []).length,
+      ...(Array.isArray(kv['research.briefs']) ? { briefs: kv['research.briefs'].length } : {}),
       ...(history ? { historyEntries: Object.values(history).reduce((a, l) => a + l.length, 0) } : {}),
       ...(snapshots ? { snapshots: Object.values(snapshots).reduce((a, l) => a + l.length, 0) } : {}),
     },
@@ -122,6 +124,13 @@ export function readBackup(text) {
   };
 }
 
+const asArray = (v) => (Array.isArray(v) ? v : []);
+const briefCount = (v) => asArray(v).length;
+/** The briefs in a backup that are still within their retention (a missing retainUntil counts from createdAt). */
+const briefObjects = (v) => asArray(v).filter((b) => b && typeof b === 'object');
+const liveBriefs = (v, now) => briefObjects(v).filter((b) => retentionEnd(b) >= now);
+/** The line saying a restore left more briefs than the app keeps, or ''. */
+const briefLimitLine = (n) => (n > 200 ? `This leaves ${n} research briefs, over the 200 the app keeps: new briefs are refused until some are deleted.` : '');
 const newer = (a, b) => (a.updatedAt || a.createdAt || 0) > (b.updatedAt || b.createdAt || 0);
 /** Lists of records with ids, merged: records only in one side kept; on both, the newer (else the device's). */
 function mergeById(here = [], there = [], { stamp = true } = {}) {
@@ -151,10 +160,11 @@ export const changedSteps = (steps) => steps.filter((x) => x.id !== 'money' || x
 /**
  * What a restore would do, without doing it. current: the device's
  * { deals, kv, session, local }. mode 'merge' (default) or 'replace'.
+ * `now` dates the research briefs: an expired one is not restored.
  * Returns { deals: { put: [], added, updated, kept }, kv: { key: value },
  * session, local, removeDeals: [], summary: [lines] }.
  */
-export function planRestore(backup, current, mode = 'merge') {
+export function planRestore(backup, current, mode = 'merge', now = Date.now()) {
   const summary = [];
   // a plan built from a raw object is cleaned too (readBackup has already done it for a file)
   const cleaned = cleanKv(backup.kv);
@@ -169,9 +179,15 @@ export function planRestore(backup, current, mode = 'merge') {
   if (mode === 'replace') {
     // the AI settings on this device stay exactly as they are: the backup carries none and removeKv never lists them
     const kv = { ...backup.kv };
+    if ('research.briefs' in kv) kv['research.briefs'] = liveBriefs(kv['research.briefs'], now);
     const keepIds = new Set(backup.deals.map((d) => d.id));
     const removeDeals = current.deals.filter((d) => !keepIds.has(d.id)).map((d) => d.id);
     summary.push(`${backup.deals.length} deal${backup.deals.length === 1 ? '' : 's'} restored; ${removeDeals.length} deal${removeDeals.length === 1 ? '' : 's'} on this device not in the backup will be deleted.`);
+    const over = briefLimitLine(briefCount(kv['research.briefs']));
+    if (over) summary.push(over);
+    const lost = briefCount(current.kv['research.briefs']);
+    if (lost && !(kv['research.briefs'] || []).length) summary.push(`${lost} research brief${lost === 1 ? '' : 's'} on this device will be deleted.`);
+    else if (lost) summary.push(`Research briefs on this device are replaced by the ${kv['research.briefs'].length} in the backup.`);
     const hs = historyPlan(backup, keepIds);
     if (hs.line) summary.push(hs.line);
     const up = upgradeLine(backup.deals);
@@ -191,6 +207,12 @@ export function planRestore(backup, current, mode = 'merge') {
   merge('crm.tasks', 'Tasks', { stamp: false });
   merge('crm.contacts', 'Contacts');
   merge('crm.activity', 'Activity entries', { stamp: false });
+  // research briefs: the newer updatedAt wins; a brief past its retainUntil is not brought back
+  if (backup.kv['research.briefs'] !== undefined) {
+    const m = mergeById(briefObjects(current.kv['research.briefs']), liveBriefs(backup.kv['research.briefs'], now));
+    if (m.added || m.updated) { kv['research.briefs'] = m.list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); summary.push(`Research briefs: ${m.added} added${m.updated ? `, ${m.updated} updated` : ''}.`); }
+    const over = briefLimitLine(m.list.length); if (over) summary.push(over);
+  }
   if (kv['crm.activity']) kv['crm.activity'].sort((a, b) => a.at - b.at);
   if (backup.kv['tools.scenarios']) {
     const here = current.kv['tools.scenarios'] || {};
@@ -226,7 +248,7 @@ export function planRestore(backup, current, mode = 'merge') {
   }
   // anything else (settings, layouts) only where the device has none
   for (const [k, v] of Object.entries(backup.kv)) {
-    if (k in kv || ['tpl.library', 'crm.tasks', 'crm.contacts', 'crm.activity', 'tools.scenarios', 't12.labels'].includes(k)) continue;
+    if (k in kv || ['tpl.library', 'crm.tasks', 'crm.contacts', 'crm.activity', 'tools.scenarios', 't12.labels', 'research.briefs'].includes(k)) continue;
     if (!(k in current.kv) || current.kv[k] === null) kv[k] = v;
   }
   const session = current.session ? null : backup.session;
