@@ -7,21 +7,34 @@
 #   tests/e2e/run.sh live-flow  # one, or several: run.sh typing-flow lostedit-flow
 set -euo pipefail
 cd "$(dirname "$0")"
-# one browser run at a time on this machine: another session or worktree using port 8080 is waited for, not
-# collided with (a lock directory holding the owner's PID; the idea is paperclip's per-task claim). A lock whose
-# PID is gone is stale and taken over. E2E_LOCK_WAIT is how many seconds to wait (default 1800).
-LOCK=${E2E_LOCK:-${TMPDIR:-/tmp}/zlatura-e2e-8080.lock}
-waited=0
-until mkdir "$LOCK" 2>/dev/null; do
-  holder=$(cat "$LOCK/pid" 2>/dev/null || true)
-  if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then rm -rf "$LOCK"; continue; fi
-  if [ -z "$holder" ] && [ "$waited" -ge 5 ]; then rm -rf "$LOCK"; continue; fi
-  [ "$waited" = 0 ] && echo "Another browser run (PID ${holder:-starting}) holds port 8080: waiting for it." >&2
-  if [ "$waited" -ge "${E2E_LOCK_WAIT:-1800}" ]; then echo "Still held after ${waited}s: stop PID $holder or run again later." >&2; exit 2; fi
+# up to E2E_SLOTS browser runs at once on this machine (default 8: other sessions or worktrees), each on its own
+# slot of ports, claimed with a lock directory holding the run's PID (the idea is paperclip's per-task claim). Slot 0
+# is the one CI uses and the one older branches lock: port 8080, and 8096-8098 for the flows that serve an old copy.
+# A slot whose run is gone is taken over, and one never given a PID is taken over after a minute. When every slot is
+# busy the run waits for one; E2E_LOCK_WAIT is how many seconds (default 1800).
+LOCKDIR=${E2E_LOCK_DIR:-${TMPDIR:-/tmp}}
+SLOTS=${E2E_SLOTS:-8}
+slotlock() { if [ "$1" = 0 ]; then echo "$LOCKDIR/zlatura-e2e-8080.lock"; else echo "$LOCKDIR/zlatura-e2e-slot$1.lock"; fi; }
+waited=0; SLOT=
+while :; do
+  for n in $(seq 0 $((SLOTS - 1))); do
+    L=$(slotlock "$n")
+    holder=$(cat "$L/pid" 2>/dev/null || true)
+    if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then rm -rf "$L"; fi
+    if [ -d "$L" ] && [ -z "$holder" ] && [ -n "$(find "$L" -maxdepth 0 -mmin +1 2>/dev/null)" ]; then rm -rf "$L"; fi
+    if mkdir "$L" 2>/dev/null; then SLOT=$n; LOCK=$L; break; fi
+  done
+  [ -n "$SLOT" ] && break
+  [ "$waited" = 0 ] && echo "All $SLOTS browser-run slots are busy: waiting for one." >&2
+  if [ "$waited" -ge "${E2E_LOCK_WAIT:-1800}" ]; then echo "Still busy after ${waited}s: stop a run or try again later." >&2; exit 2; fi
   sleep 1; waited=$((waited + 1))
 done
 echo $$ > "$LOCK/pid"
 trap 'rm -rf "$LOCK"' EXIT
+PORT=$((8080 + SLOT))
+if [ "$SLOT" = 0 ]; then SIDE=8096; else SIDE=$((9000 + 10 * SLOT)); fi
+export BASE=${BASE:-http://localhost:$PORT/} MIGRATE_PORT=${MIGRATE_PORT:-$SIDE} RENAME_PORT=${RENAME_PORT:-$((SIDE + 1))} UPGRADE_PORT=${UPGRADE_PORT:-$((SIDE + 2))}
+[ "$SLOT" = 0 ] || echo "Browser runs share this machine: this one uses slot $SLOT (port $PORT)." >&2
 mkdir -p files shots
 # the fixture scripts' packages must be the pinned ones (an older Pillow has published security advisories)
 python3 check_requirements.py requirements.txt
@@ -42,12 +55,12 @@ if command -v ffmpeg >/dev/null; then ffmpeg -loglevel error -y -f lavfi -i "sin
 : > files/empty.m4a
 # the AI flow runs the real server code (server/), which needs its one package
 [ -d ../../server/node_modules/@anthropic-ai/sdk ] || (cd ../../server && npm ci --silent)
-(cd ../.. && exec python3 -m http.server 8080 --bind 127.0.0.1 >/dev/null 2>&1) &
+(cd ../.. && exec python3 -m http.server "$PORT" --bind 127.0.0.1 >/dev/null 2>&1) &
 SERVER=$!
 trap 'kill $SERVER 2>/dev/null || true; rm -rf "$LOCK"' EXIT
 sleep 1
 # another server already on the port would be tested in its place, from wherever it serves
-if ! kill -0 "$SERVER" 2>/dev/null; then echo "Port 8080 is in use: stop whatever holds it and run again." >&2; exit 2; fi
+if ! kill -0 "$SERVER" 2>/dev/null; then echo "Port $PORT is in use: stop whatever holds it and run again." >&2; exit 2; fi
 FLOWS=${*:-"workflows rentroll-flow encoding-flow bigroll-flow template-flow tools-flow ai-flow home-flow shell-flow rename-flow engine-flow history-flow snapshot-flow impact-flow migrate-flow t12-flow t12partial-flow t12read-flow t12sug-flow t12period-flow t12values-flow t12norm-flow strict-flow rollchecks-flow upgrade-flow limits-flow backup-flow a11y-flow live-flow voice-flow final-e2e deal-persistence lostedit-flow deal-isolation comps-reload errors-flow pwa-flow tpl-flow comps-flow deal-export omrr-flow rrscale-flow rrpdf-flow rrstated-flow rrheader-flow omstmt-flow typing-flow mobile-audit perf-flow"}
 # every flow runs even when one fails; any flow that exits with an error
 # (a failed check, no checks, or a crash) is listed and the run fails
