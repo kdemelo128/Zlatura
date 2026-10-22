@@ -176,6 +176,25 @@ const encNote = (await page.locator('#sheet-body .ai-encoding').allTextContents(
 check('and the review says it was read as Windows-1252', /^enc-notes\.txt: Read as Windows-1252 .* Check that these read right: Café, Lumière, O’Brien\.$/.test(encNote), encNote);
 await page.locator('#sheet-foot button', { hasText: 'Discard' }).click();
 await page.waitForTimeout(200);
+// F12: the connection test shows today's use; a daily limit shows the server's own words
+await menu('AI settings');
+await page.waitForSelector('#ai-url');
+await page.click('#sheet-foot button:has-text("Test connection")');
+await page.waitForFunction(() => /Connected|reach|answered/.test(document.querySelector('#ai-status').textContent));
+const useLine = await page.textContent('#ai-status');
+check('test connection shows today’s use on this device', /Today on this device: \$\d+\.\d\d of \$15\.00, \d+ of 200 requests\./.test(useLine), useLine);
+await page.click('#sheet-close');
+const used = (await (await fetch(aiUrl + '/api/health', { headers: { authorization: 'Bearer e2e-token-0123456789abcdef' } })).json()).budget?.requests ?? 0;
+cfg.dailyRequests = used; // the day's requests are now all used
+await menu('Ask about this deal');
+await page.waitForSelector('#ai-question');
+await page.fill('#ai-question', 'And the cap rate?');
+await page.click('#ai-ask');
+await page.waitForFunction(() => /AI requests\./.test(document.querySelector('#sheet-body').innerText), null, { timeout: 30000 });
+const limited = (await page.locator('#sheet-body').innerText()).replace(/\s+/g, ' ');
+check('a daily limit shows the server’s message, not a bare status', new RegExp(`This device has used today's ${used} AI requests\\. It resets at 00:00 UTC, in \\d+ h \\d+ min\\.`).test(limited), limited.slice(-200));
+await page.click('#sheet-close');
+cfg.dailyRequests = 200;
 check('call action items became the deal’s next steps', /Send the T-12 \(Seller\)/.test(await page.textContent('#deal-crm')) && /from call notes/.test(await page.textContent('#deal-crm')));
 const txt = await page.locator('#app').innerText();
 check('no NaN/undefined/Infinity', !/\b(NaN|undefined|Infinity)\b/.test(txt));

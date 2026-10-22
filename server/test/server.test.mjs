@@ -59,7 +59,9 @@ test('refuses a missing or wrong token, and other sites', async () => {
 test('health says what is configured and never the key', async () => {
   const r = await fetch(`${appUrl}/api/health`, { headers: { authorization: 'Bearer test-token-0123456789' } });
   const j = await r.json();
-  assert.deepEqual(j, { ok: true, ai: true, transcription: true, model: 'claude-opus-5-5' });
+  const { budget, ...rest } = j;
+  assert.deepEqual(rest, { ok: true, ai: true, transcription: true, model: 'claude-opus-5-5' });
+  assert.equal(budget.capCents, 1500, 'the caller sees its own day’s budget');
   assert.ok(!JSON.stringify(j).includes('sk-test'));
 });
 
@@ -77,8 +79,9 @@ test('extract: sends the PDF as a document with the schema and fallbacks, and fi
   assert.equal(r.status, 200);
   const j = await r.json();
   assert.deepEqual(j.fields.map((f) => f.key), ['price'], 'unknown keys and documents that do not exist are dropped');
-  const req = seen[0];
-  assert.equal(req.url, '/v1/messages?beta=true');
+  const req = seen.find((x) => x.url === '/v1/messages?beta=true');
+  assert.ok(req, 'the model was called');
+  assert.ok(seen.some((x) => x.url.startsWith('/v1/messages/count_tokens')), 'the input size is asked of the API first');
   assert.equal(req.body.model, 'claude-opus-5-5');
   assert.equal(req.body.fallbacks, 'default');
   assert.match(req.headers['anthropic-beta'], /server-side-fallback-2026-07-01/);

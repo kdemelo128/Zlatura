@@ -32,7 +32,12 @@ async function request(path, body, { timeoutMs = 240000, method = 'POST' } = {})
   } finally { clearTimeout(timer); }
   let j = null;
   try { j = await r.json(); } catch { /* not JSON */ }
-  if (!r.ok) throw new Error((j && j.message) || `The AI server answered ${r.status}.`);
+  if (!r.ok) {
+    // the server's limits come with a code and a reset time; the message is what is shown
+    const err = new Error((j && j.message) || `The AI server answered ${r.status}.`);
+    if (j && j.error) Object.assign(err, { code: j.error, retryAfter: j.retryAfter ?? null, resetAt: j.resetAt ?? null });
+    throw err;
+  }
   return j;
 }
 
