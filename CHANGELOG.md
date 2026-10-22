@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.7.45: Security: the 28 Pillow alerts audited; the browser suite now refuses an unpinned Pillow (on the development branch; not merged or deployed)
+
+Test tooling only. Pillow is not part of the app, the AI server or anything deployed; saved results and golden outputs are unchanged.
+
+- **Root cause of the 28 Dependabot alerts:** 28 Pillow advisories published on 2026-10-20 and 21 (CVE-2026-112390 to 112406 and 112891 to 112902), each affecting versions below 13.0.0 and each fixed in 13.0.0 (checked one by one in the GitLab advisory database). `tests/e2e/requirements.txt` was moved from Pillow 12.3.0 to 13.0.0 by Dependabot's PR #52 on 2026-10-21, CI installs 13.0.0 (seen in the browser job's log), and Dependabot's own update run on main reports "no security update needed as pillow is no longer vulnerable". No further version change is needed; the open alerts have not yet been closed by GitHub.
+- **The gap found, and fixed:** the exact pin protects CI, but `tests/e2e/run.sh` built its fixtures with whatever Pillow a machine already had. This cloud container had Pillow 12.3.0, inside the affected range of all 28 advisories, and every local browser run used it. `tests/e2e/check_requirements.py` now runs first in `run.sh` and stops the suite, naming each package whose installed version differs from its pin and the install command. (The container was upgraded to 13.0.0 with that command.)
+- **Exposure:** none identified. Pillow is used only by `tests/e2e/make_pdfs.py`, which draws invented images from scratch (blank canvases, fixed text, solid colours) and saves them; it never opens or parses an image, PDF or TIFF from outside, and nothing a broker uploads reaches it (the app reads uploads in the browser with pdf.js, ExcelJS and tesseract.js; the AI server is Node).
+- **Tested:** `tests/e2e-requirements.test.js` (a mismatched pin and a missing package stop the check with the install command; the real file pins Pillow 13.0.0 exactly; run.sh runs the check before any fixture) fails on the previous code; 3 mutation checks all caught; `check:full` passed with Pillow 13.0.0.
+
 ## 4.7.43: Ponytail, the "smallest complete change" skill, is integrated as text (on the development branch; not merged or deployed)
 
 Tooling only: no app code, saved deals or golden outputs change. The owner approved ponytail (A1 in `docs/proposals/dev-tools-and-reuse.md`) on 2026-10-21 and asked for it to be integrated on 2026-10-22.
