@@ -14,6 +14,7 @@
  *   node tests/tools/changelog.mjs --check   checks every fragment waiting */
 import fs from 'node:fs';
 import path from 'node:path';
+import { escapeRegExp } from './escape.mjs';
 
 export const DIR = 'docs/changelog/unreleased';
 const HEAD = '# Changelog\n';
@@ -43,7 +44,7 @@ export function parseFragment(text, file = 'the fragment') {
 /** CHANGELOG.md's text with the fragment folded in as version `v`, at the top. */
 export function fold(changelog, v, { title, body }) {
   if (!changelog.startsWith(HEAD)) throw new Error('CHANGELOG.md: does not start with "# Changelog"');
-  if (new RegExp(`^## ${v.replace(/\./g, '\\.')}:`, 'm').test(changelog)) throw new Error(`CHANGELOG.md: already has an entry for ${v}`);
+  if (new RegExp(`^## ${escapeRegExp(v)}:`, 'm').test(changelog)) throw new Error(`CHANGELOG.md: already has an entry for ${v}`);
   return `${HEAD}\n## ${v}: ${title}${SUFFIX}\n\n${body}\n\n${changelog.slice(HEAD.length).replace(/^\n+/, '')}`;
 }
 

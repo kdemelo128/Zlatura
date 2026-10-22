@@ -53,7 +53,7 @@ export function readCell(text) {
   let m = PCT.exec(t);
   if (m) return { value: (/^\(|^[-–]/.test(t) ? -1 : 1) * Number(m[1].replace(/,/g, '') + (m[2] || '')), pct: true, dp: m[2] ? m[2].length - 1 : 0 };
   m = SUFFIX.exec(t);
-  if (m) return { value: (m[1] || /^[(-–]/.test(t) ? -1 : 1) * Number(m[2]) * (/^k$/i.test(m[3]) ? 1e3 : 1e6), dp: 0, suffix: true };
+  if (m) return { value: (m[1] || /^[(\-–]/.test(t) ? -1 : 1) * Number(m[2]) * (/^k$/i.test(m[3]) ? 1e3 : 1e6), dp: 0, suffix: true };
   if (!/\d/.test(t) || /[a-z]/i.test(t)) return null;
   const v = amountOf(t.replace(/^\$\s*\(/, '(').replace(/^([-–])\s*\$/, '-$').replace(/–/g, '-').replace(/\s+/g, ''));
   if (!Number.isFinite(v)) return null;

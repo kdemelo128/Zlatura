@@ -14,7 +14,7 @@ const FRAGMENT = '# an invented release, in plain words\n\n- **One change**, tes
 /** The release files in a throwaway folder, with one changelog fragment waiting (unless `fragment` is null). */
 function copyTree(fragment = FRAGMENT) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zl-bump-'));
-  for (const f of [...FILES, 'CHANGELOG.md', 'tests/tools/bump-version.mjs', 'tests/tools/changelog.mjs']) {
+  for (const f of [...FILES, 'CHANGELOG.md', 'tests/tools/bump-version.mjs', 'tests/tools/changelog.mjs', 'tests/tools/escape.mjs']) {
     fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
     fs.copyFileSync(path.join(ROOT, f), path.join(dir, f));
   }
