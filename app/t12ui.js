@@ -17,6 +17,7 @@ import { qcPanel } from './dataqcui.js';
 import { qcCounts } from './dataqc.js';
 import { remembered, rememberLabel } from './t12labels.js';
 import { NOI_GAP } from './engine/conventions.js';
+import { strictOpen, strictWords } from './review.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const usd = (x) => (ok(x) ? (x < 0 ? `−${money0(-x)}` : money0(x)) : '—');
@@ -244,7 +245,8 @@ function normCard(d, t, h, held) {
 
 /** "Use normalised figures": the existing "Use the T-12's figures" flow with its own confirmation; disabled, with the reason beside it, while it is refused. */
 function useNormButton(sec, h, t, res) {
-  const why = normRefusal(t, res);
+  const so = strictOpen(h.deal);
+  const why = normRefusal(t, res) || (so ? strictWords(so) : '');
   const use = el('button', 'btn btn-sm t12-act', 'Use normalised figures');
   use.type = 'button';
   use.id = 't12-norm-use';
@@ -414,9 +416,11 @@ function noiThreeWays(d, T, h) {
   const rr = h.rrNoi1();
   const partial = d.t12.months.length && d.t12.months.length < 12;
   const held = heldBy(d.t12).length > 0;
+  // strict review: the gap is shown, but not compared while a check is open (underwriting.md 3.4)
+  const strict = !held && strictOpen(d) > 0;
   const rows = [
     ['OM', 'as read or typed', om],
-    ['T-12', held ? 'not compared: a T-12 check is open' : partial ? `${periodText(d.t12)}: not a full year, so not compared` : periodText(d.t12), held || T.unassigned || openLines(d.t12).length ? null : T.noi],
+    ['T-12', held ? 'not compared: a T-12 check is open' : strict ? 'not compared: checks open' : partial ? `${periodText(d.t12)}: not a full year, so not compared` : periodText(d.t12), held || T.unassigned || openLines(d.t12).length ? null : T.noi],
     ['Rent roll, forward-looking year 1', 'a projection, not an actual', rr],
   ];
   const tbl = el('table', 'mini t12-noi-table');
@@ -706,7 +710,8 @@ async function useNormalised(h) {
   const d = h.deal;
   const t = d.t12;
   const res = normalise(t); // worked out again: the card may be old
-  const why = normRefusal(t, res);
+  const so = strictOpen(d);
+  const why = normRefusal(t, res) || (so ? strictWords(so) : '');
   if (why) { toast(`${why} The normalised figures aren’t used.`, openLines(t).length ? { label: 'Review', run: () => h.openReview() } : { label: 'Show', run: () => showQc() }, 9000); return; }
   const vals = /** @type {{ egi: number, opex: number, taxes: number, noi: number }} */ (res.normalised);
   const sets = [['gross', 'Gross income (EGI)', vals.egi], ['opex', 'Operating expenses', vals.opex], ['taxes', 'Real estate taxes', vals.taxes], ['noi', 'NOI, normalised', vals.noi]];
@@ -752,6 +757,9 @@ async function useFigures(h, norm = false) {
     toast(`Held: ${hold.map((c) => c.short || c.text).join('; ')}. Settle ${hold.length === 1 ? 'that check' : `those ${hold.length} checks`} first; the T-12’s figures aren’t used until then.`, { label: 'Show', run: () => showQc() }, 9000);
     return;
   }
+  // strict review: every open check, warnings too, is reviewed first
+  const so = strictOpen(d);
+  if (so) { toast(`${strictWords(so)} The T-12’s figures aren’t used until then.`, { label: 'Review', run: () => h.openReview() }, 9000); return; }
   const n = t.months.length;
   const W = windowOf(t);
   const A = annualized(T, W.n);

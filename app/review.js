@@ -11,6 +11,7 @@ import { openLines, t12OpenChecks, statementNotes } from './t12.js';
 import { toCents } from './engine/money.js';
 import { DEAL_FIELDS } from './dealfields.js';
 import { openChecks as openQc, whereText } from './dataqc.js';
+import { conv } from './engine/conventions.js';
 
 const FIELD_LABEL = Object.fromEntries(DEAL_FIELDS.map((f) => [f.key, f.label]));
 const dealName = (d) => d.name || (d.figures && d.figures.address) || 'Untitled deal';
@@ -74,3 +75,17 @@ export function reviewItems({ deals = [], templates = [] } = {}) {
 
 /** How many items, for the tab's badge. */
 export const reviewCount = (groups) => groups.reduce((s, g) => s + g.items.length, 0);
+
+/**
+ * The strict review setting (Settings → Calculation conventions, `review.strict`; underwriting.md 3.4): 0 unless it
+ * is "every open check" (strict), else how many checks the deal's T-12 and rent roll still have open, warnings as well
+ * as failures. While it is above 0, "Use the T-12's figures", "Use normalised figures" and the rent roll's Use offers
+ * wait. At the default ("failed checks only") it is always 0, so nothing changes.
+ * @param {any} d  the deal
+ */
+export function strictOpen(d) {
+  if (conv('review.strict') !== 'all' || !d) return 0;
+  return (d.t12 ? t12OpenChecks(d.t12).length : 0) + openQc(d.rrQc).filter((c) => c.level === 'warn' || c.level === 'fail').length;
+}
+/** The words for strictOpen's count. */
+export const strictWords = (n) => `${n} check${n === 1 ? '' : 's'} still open: review ${n === 1 ? 'it' : 'them'} first (Settings → Calculation conventions → Before figures can be used: strict).`;

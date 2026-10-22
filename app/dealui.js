@@ -14,6 +14,7 @@
 import { readOm } from './om.js';
 import { waltMethod } from './engine/walt.js';
 import { conv } from './engine/conventions.js';
+import { strictOpen, strictWords } from './review.js';
 import { quantizeDeal } from './engine/money.js';
 import { analyze, runScenario, scenarioAnswers } from './deal.js';
 import { DEAL_SECTIONS } from './dealfields.js';
@@ -470,7 +471,7 @@ async function readOmFile(file) {
 
 /** The broker took a figure the rent roll offered: it becomes the deal's, marked as taken from the rent roll, and History records it. */
 function useFromRoll(key, value, label) {
-  if (!deal) return;
+  if (!deal || strictOpen(deal)) return;
   deal.figures[key] = value;
   deal.sources[key] = { hand: true, tool: ROLL_TOOL };
   touch(deal, { kind: 'tool', label: `${label} from the rent roll` });
@@ -1644,6 +1645,9 @@ function renderRentRoll(m) {
       ob.id = 'deal-rr-offers';
       ob.style.padding = '0 16px 10px';
       ob.appendChild(el('p', 'hint-sm', 'These figures are empty on the deal. The rent roll can supply them; nothing is filled until you tap Use.'));
+      // strict review: the offers wait while the T-12 or the rent roll has an open check
+      const so = strictOpen(deal);
+      if (so) { const p = el('p', 'warn-text rr-offers-strict', strictWords(so)); p.id = 'deal-rr-offers-strict'; ob.appendChild(p); }
       for (const o of offers) {
         const row = el('div', 'rr-offer');
         row.dataset.offer = o.key;
@@ -1651,6 +1655,7 @@ function renderRentRoll(m) {
         row.appendChild(el('span', 'hint-sm', `${o.label}: ${o.text}`));
         const b = button('btn-sm', 'Use', () => useFromRoll(o.key, o.value, o.label));
         b.setAttribute('aria-label', `Use the rent roll’s figure for ${o.label}`);
+        if (so) { b.disabled = true; b.setAttribute('aria-describedby', 'deal-rr-offers-strict'); }
         row.appendChild(b);
         ob.appendChild(row);
       }
