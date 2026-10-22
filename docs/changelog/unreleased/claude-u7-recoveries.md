@@ -8,3 +8,4 @@ A rent roll can carry an other-income line worded as a recovery (for example CAM
 - **K40 wording** in the underwriting proposal and the acceptance matrix now says the deal engine takes management as the statement reports it.
 - **Tested** with invented fixtures: R1-R5 in `tests/roll-checks.test.js`, G1 and a dependency-map case in `tests/impact.test.js`, each with a mutation check.
 - **Saved results:** unchanged (618 saved deal results and 646 displayed figures identical).
+- **Known edge case:** an other-income line named "Utility reimbursement" (or RUBS) fires the warning, because it is a recovery in substance. When the leases' recoverable pool excludes utilities that is a false alarm; the warning says "may" and changes no figure, but under strict review it blocks until reviewed.

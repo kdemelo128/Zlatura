@@ -311,7 +311,7 @@ rule('rollRecoveriesTwice', 'Recoveries on the rent roll that may be counted twi
   const oi = (Array.isArray(d.rollOther) ? d.rollOther : []).filter((o) => pos(o.annual) && matchLabel(o.name, { section: 'income', suggest: false }).category === 'recoveries');
   if (!rec.length || !oi.length) return;
   const o = oi[0];
-  C.push({ level: 'warn', text: `The rent roll's other income “${o.name}” (${usd(o.annual)}) looks like expense recoveries, and ${n(rec.length, 'lease')} already ${rec.length === 1 ? 'recovers' : 'recover'} expenses from the pool: the roll's EGI may count them twice. Remove one of them. No figure has been changed.` });
+  C.push({ level: 'warn', text: `The rent roll's other income “${o.name}” (${usd(o.annual)}) looks like expense recoveries, and ${n(rec.length, 'lease')} already ${rec.length === 1 ? 'recovers' : 'recover'} expenses: the roll's EGI may count them twice. Remove one of them. No figure has been changed.` });
 });
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const h = s.length >> 1; return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2; };
 rule('rollPsfBand', 'Median rent per SF a year outside the usual band (monthly against annual)', [RF('rent', 'sf', 'status', 'asOf'), { path: 'd.ptype', when: 'with the band set in Settings (conventions rr.psf.*)' }], (m, { d }, C) => {
