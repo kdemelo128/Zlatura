@@ -171,3 +171,5 @@ second place for rules. **The sandbox cannot run in this cloud container** (`bwr
 cache line for a baseline session), `/doctor prompt-audit`, and the "Idle compaction" row in `/config`.
 
 **A4 result.** `docs/security-checklist.md` (34 checks in our words) is added, and is run at the end of each phase.
+
+**A1 ponytail, integrated 2026-10-22 at the owner's request** (4.7.43): the one skill file, text only, pinned at `09c434a`, with a Zlatura section keeping the gates; hooks and the other skills not taken. T1 was not run first; the owner chose to integrate.
