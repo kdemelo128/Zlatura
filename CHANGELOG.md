@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.7.42: T-12 checks: a line filed on the wrong side, and the same line read twice (on the development branch; not merged or deployed)
+
+Sixth underwriting PR (U6 of `docs/proposals/underwriting.md`, checks K13 and K28; no owner decision needed). Saved results and golden outputs are unchanged.
+
+- **K13, a warning:** a line filed in a category on another side than the part of the statement the file prints it in, for example a line under Income filed as repairs, or a line printed after the file's NOI filed as an operating expense. It names both sides and waits in the T-12 Data QC panel and Review until you mark it seen or change the category. A capital line under Expenses filed below the line is not flagged (that is how a capital item is classified), and lines printed under no heading are never flagged.
+- **K28, a note:** two or more lines with the same label, the same part of the statement and the same months to the cent ("appears twice with the same months (rows 4, 5): the same line read twice, or two real lines? Both count."). Nothing is dropped; both lines still count.
+- Neither check holds the totals or "Use". Statements saved by earlier versions get them too.
+- **Support-code check:** K13 and K28 are the support code's checks, adopted through the proposal's mapping; nothing quoted.
+- **Tested:** 5 Node tests (all fail on the previous code), 5 mutation checks all caught. `check:full` passed. Golden: 0 changed. Not tested: Safari; no new browser flow (the checks use the existing panel and Review, which the existing flows cover).
+
 ## 4.7.41: Rent roll checks: missing SF, missing rent, missing start, ended leases, later rent starts, duplicate units, the same lease twice, and a rent-per-SF band (on the development branch; not merged or deployed)
 
 Fifth underwriting PR (U5 of `docs/proposals/underwriting.md`, checks K20 to K22, K24, K25, K27, K33 and "same lease across suites"). The owner approved the design on 2026-10-22. **No saved result or displayed figure changes** (both golden checks: 0 changed).
