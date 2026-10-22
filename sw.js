@@ -92,6 +92,8 @@ const ASSETS = [
   'app/dealcrm.js',
   'app/home.js',
   'app/backup.js',
+  'app/claims.js',
+  'app/research.js',
   'app/brand.js',
   'app/engine/breakeven.js',
   'app/engine/comps.js',
