@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.7.41: Rent roll checks: missing SF, missing rent, missing start, ended leases, later rent starts, duplicate units, the same lease twice, and a rent-per-SF band (on the development branch; not merged or deployed)
+
+Fifth underwriting PR (U5 of `docs/proposals/underwriting.md`, checks K20 to K22, K24, K25, K27, K33 and "same lease across suites"). The owner approved the design on 2026-10-22. **No saved result or displayed figure changes** (both golden checks: 0 changed).
+
+- **Eight new checks in "What doesn't add up"** for any deal with a rent roll:
+  - Checks (warnings, counted in the Deal tab badge): an occupied suite with no SF; a tenant with no rent ("counts as vacant until a rent is entered", it is never read as $0); a lease already ended at the rent roll's as-of date (holdover and month-to-month leases are not flagged); a unit number listed more than once.
+  - Notes: a lease with no start date; a rent that starts after the as-of date; the same tenant and end date on several suites (one lease split across suites?); the median rent per SF a year outside a band (an annual rent typed in the monthly box, or the reverse, shows up here).
+- **The band is four settings** in Settings → Calculation conventions (commercial $3 to $200 a year, multifamily $3 to $80, the multifamily band when the property type says multifamily, apartment or residential). A bad number, or a low above its high, is refused and the old value kept. The order message for these pairs, and for the NOI pair, now names the right setting.
+- **How it is built:** a per-lease fact list (`rollFacts`) is worked out from the rent roll at analysis time and never stored: no data-format change, no migration. Every rule declares exactly what it reads, so the Impact view says which lease fields and settings move each check.
+- **Unchanged on purpose (owner decision):** a tenant with a blank rent still counts as vacant in occupancy, leased SF and average rent; the check says so. Counting it as occupied would change saved results and is a separate later choice. The checks are not in the Review Queue or the strict review setting (they have no stored "reviewed" mark).
+- **Also fixed:** the projection's notes did not declare that they read a lease's SF, which the new messy test roll exposed.
+- **Support-code check:** checks K20 to K22, K24, K25, K27 and K33 are the support code's, adopted through the proposal's mapping; nothing from it is quoted.
+- **Not done / gaps:** a $0 rent is not flagged; blank rent stays vacant (above); not tested in Safari.
+- **Tested:** 9 new Node tests (8 fail on the previous code, the ninth is a guard) and a new messy-roll Impact case on which every rule fires; 12 mutation checks all caught; browser flow `rollchecks-flow` (33 checks, phone and desktop, axe light and dark, a rent typed in clears its check in 75 ms against the 150 ms budget); the four band boxes typed character by character. `check:full` passed. Golden: 0 changed in both checks.
+
 ## 4.7.40: WALT by total area: a third weighting where vacant space counts at 0 years (on the development branch; not merged or deployed)
 
 Fourth underwriting PR (U4 of `docs/proposals/underwriting.md` section 3.5; a reversible setting, approved with the proposal on 2026-10-17). The default stays "by income", so nothing changes unless you pick it; saved deals and golden outputs are unchanged.
