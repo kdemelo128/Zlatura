@@ -20,14 +20,15 @@ const FIELDS = [{ key: 'price', label: 'Asking price', kind: 'money' }, { key: '
 const CONTROL = new RegExp('[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]');
 const field = (key, document) => ({ key, value: '$1', document, page: null, quote: 'x', basis: 'stated', period: null, confidence: 'high', note: null });
 
-test('9: all three system prompts carry the data-not-instructions rule', async () => {
+test('9: all four system prompts carry the data-not-instructions rule', async () => {
   const r = await rig();
-  r.mock.reply = (b) => answer(/report figures exactly/.test(b.system) ? { fields: [], conflicts: [], notes: [] } : /answer a commercial/.test(b.system) ? { answer: 'ok', citations: [], unknown: [] } : { summary: '', decisions: [], actionItems: [], dealFacts: [], questions: [] });
+  r.mock.reply = (b) => answer(/report figures exactly/.test(b.system) ? { fields: [], conflicts: [], notes: [] } : /research brief/.test(b.system) ? { claims: [], sections: [], notChecked: [], notes: [] } : /answer a commercial/.test(b.system) ? { answer: 'ok', citations: [], unknown: [] } : { summary: '', decisions: [], actionItems: [], dealFacts: [], questions: [] });
   await r.call(T, '/api/extract', EXTRACT_BODY);
   await r.call(T, '/api/assist', ASSIST_BODY);
   await r.call(T, '/api/meeting', MEETING_BODY);
+  await r.call(T, '/api/research', { subject: { name: 'Example Holdings LLC', state: null }, documents: [{ name: 'a.txt', mediaType: 'text/plain', text: 'Example Holdings LLC' }] });
   const sent = r.messages();
-  assert.equal(sent.length, 3);
+  assert.equal(sent.length, 4);
   for (const m of sent) assert.match(m.body.system, RULE, m.body.system.slice(0, 40));
   r.close();
 });
