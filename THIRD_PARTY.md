@@ -124,6 +124,18 @@ owner's OK.
    disagree.
 6. Run `npm audit` and report the result.
 
+## Claude Code skills (developer tooling, never shipped)
+
+Text that guides the coding assistant in this repository. Nothing here is loaded by the app, runs code, or reaches the network.
+
+| Path | Source | Commit | License | Why | Upstream |
+|---|---|---|---|---|---|
+| `.claude/skills/ponytail/SKILL.md` | [ponytail](https://github.com/DietrichGebert/ponytail) (`skills/ponytail/SKILL.md`) | `09c434ab73ca43761c5d8b0c5d341926c2fba710` | MIT (`.claude/skills/ponytail/LICENSE`, the upstream file) | the smallest complete change, with the owner's gates kept (approved 2026-10-21, A1 in `docs/proposals/dev-tools-and-reuse.md`; integrated at the owner's request 2026-10-22) | edited: the upstream text unchanged, one section "In this repository" added at the end |
+
+Only the one skill file is taken, as text. Not taken: its hooks (SessionStart, mode tracker, subagent and statusline scripts), the band UI, and the other five skills (`ponytail-review`, `-audit`, `-debt`, `-gain`, `-help`). The upstream text is the first 3,496 bytes of the file; `tests/ponytail-skill.test.js` checks that they are unchanged.
+
+SHA-256: upstream `skills/ponytail/SKILL.md` `9badd22a32e19cb884e46dfa8d3aae82bb81dfa5484105b8b4f0262df823a509`; `LICENSE` `fb1bc6909ac3ef82d5c22106e32ef682b0cff66788fa915fb9b53b15c9d2f3ab`.
+
 ## Used only by the tests (npm devDependencies, never shipped)
 
 | Package | Version | License | Why |

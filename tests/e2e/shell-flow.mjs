@@ -9,6 +9,8 @@ const R = []; const check = (n, c, d = '') => R.push([c ? 'PASS' : 'FAIL', n, d]
 // ------------------------------------------------------------- desktop
 const { browser, page, errors } = await phone({ viewport: { width: 1360, height: 900 }, isMobile: false, hasTouch: false, userAgent: undefined, deviceScaleFactor: 1 });
 await page.goto(BASE, { waitUntil: 'load' });
+// the page title is set before the app's modules have drawn Home: wait for the view itself (up to 5 s), then check it
+await page.waitForSelector('#view-home', { state: 'visible', timeout: 5000 }).catch(() => {});
 check('the app opens on Home', await page.isVisible('#view-home') && (await page.title()) === 'Home · Zlatura', await page.title());
 for (const [v, title] of [['deal', 'Deals'], ['comps', 'Comps'], ['tools', 'Tools'], ['settings', 'Settings'], ['home', 'Home']]) {
   await page.click(`.sidebar .tab[data-view="${v}"]`);
