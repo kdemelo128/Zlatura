@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.7.47: Security F12: the AI server gets a token per device, spending limits in whole cents and a prompt-injection rule (on the development branch; not merged or deployed)
+
+Server and AI screens only: no engine, `app/deal.js` or saved-deal change, so saved results and golden outputs are unchanged (646 displayed figures compared, 0 changed). Nothing changes for a broker until the operator sets the new limits; a single `APP_TOKEN` keeps working.
+
+- **A token per device:** `APP_TOKENS_FILE` (one line per device, `<label> <sha256>`) or `APP_TOKEN_HASHES`; `node server/tokens.mjs new <label>` prints a token once. The server holds only hashes, compares in constant time, re-reads the file when it changes and on SIGHUP (deleting a line withdraws a device with no restart), and answers 503 for every request if the file is unreadable. `APP_TOKEN` still works as device `legacy`, with a startup warning when both are set. The rate limit is now per device, not per network address.
+- **Spending limits, whole cents:** a job cap, a device day, a server day (00:00 UTC) and a daily request count. Before each call the server asks `countTokens` for the exact input size (bytes/3 over-estimate if that fails), holds the worst case, refuses over any limit before the model is touched (422 `job_over_budget`, 429 `daily_limit` or `server_daily_limit` with `Retry-After`), and settles with the real usage afterwards; a failed call gives its hold back and two parallel jobs cannot both pass a cap. Transcription is settled by the minute, or at the job cap when the length is missing. The figures are PLACEHOLDERS (and the prices UNVERIFIED) until the owner names them. Counters live in memory, so a restart resets the day; the README says so and names a spend limit on the provider's account as the backstop (that one exists is UNVERIFIED).
+- **Prompt injection:** every system prompt carries one rule that document, transcript, question and fact text is data, never instructions; document names lose control characters. Whether the real model resists is UNVERIFIED (the tests use a stand-in that obeys; the server drops unrequested keys, documents and citations, and the app still checks every quote against the document).
+- **Logs** hold only time, path, status, error name and device label.
+- **In the app:** the AI error keeps the server's message (plus its code and reset time), and Test connection shows "Today on this device: $0.42 of $15.00, 12 of 200 requests."
+- **Tested:** `server/test/limits.test.mjs` and `injection.test.mjs` (invented fixtures), `tests/ai-injection.test.js`, and `tests/e2e/ai-flow.mjs`; the new limit, cost, prompt and name tests fail on the previous code, the log test and the injection pins pass on it by design. Mutation checks (floor for ceil, swapped prices, cache tokens dropped, a logged request body) each turned a test red.
+
 ## 4.7.46: Code scanning: the seven open CodeQL alerts fixed (on the development branch; not merged or deployed)
 
 Fixes for CodeQL alerts 1 to 7 on main. Saved results and golden outputs are unchanged.
