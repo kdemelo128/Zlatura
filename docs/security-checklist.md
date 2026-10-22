@@ -96,3 +96,10 @@ itself is not installed or run. First applied by hand on 2026-10-21 (findings F1
 
 Fixes are separate PRs with a test that fails on the old code. A finding that changes a stored field, a saved result
 or hosting is an approval gate.
+
+## Recovery plans (F10)
+
+Two one-page plans for the broker, to drill once a year:
+[stolen or lost laptop or phone](security/stolen-laptop.md) and
+[disaster recovery](security/disaster-recovery.md). Neither is a check to run; they are what to do when a device,
+the app site or the AI server is lost.
