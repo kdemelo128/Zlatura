@@ -235,7 +235,7 @@ not applicable, with the reason.
 | K36 | Tax against assessed value × rate | N: no assessed value or tax rate is kept; the rule `assessment` asks the question |
 | K37 | Recoveries counted twice (the T-12's and the roll's) | A: the design note comes first (Part 21.2; the acceptance matrix records double counting as only partly checked). §4 U7 |
 | K38, K39 | Negative month; one-time spike | C by 2a PR 3 (approved) |
-| K40 | Management fee % used against the statement's | N: the app does not price management as a % of EGI (to confirm in the U7 note) |
+| K40 | Management fee % used against the statement's | N: the deal engine takes management as the statement reports it; only the Tools NOI bridge uses a % of EGI, a typed what-if that is never compared with a statement |
 | K41–K45, K48, K49, K59 | Spreadsheet formula integrity | N: one engine, no spreadsheet copy of the math |
 | K46, K47 | EGI and NOI identities | C: the engine (`figures.js`) and its tests |
 | K50 | Capacity of 20-unit tabs | N: no fixed capacity |
