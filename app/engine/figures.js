@@ -14,6 +14,7 @@ import { debtService, sizeLoan } from './debt.js';
 import { walt } from './walt.js';
 import { breakEvenOccupancy } from './breakeven.js';
 import { NOI_GAP, conv } from './conventions.js';
+import { matchLabel } from '../t12.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const pos = (x) => ok(x) && x > 0;
@@ -302,6 +303,15 @@ rule('rollSameLease', 'The same lease across suites', [RF('tenant', 'leaseEnd', 
   for (const r of occ(d)) { const t = String(r.tenant || '').trim().toLowerCase(); if (t && r.end) g.set(`${t}|${r.end.slice(0, 10)}`, [...(g.get(`${t}|${r.end.slice(0, 10)}`) || []), r]); }
   const many = [...g.values()].filter((x) => new Set(x.map((r) => String(r.unit).trim().toLowerCase())).size > 1);
   for (const x of many.slice(0, 5)) C.push({ level: 'info', text: `${x[0].tenant} has ${x.length} suites ending on the same day (${x.map((r) => r.unit).join(', ')}): if it is one lease, tenant concentration counts it as ${x.length} tenants.` });
+});
+// K37: the roll's EGI takes leases' recoveries (lease.js) and its other income; an other-income line worded as a recovery
+// beside leases that already recover expenses may count them twice. Wording is the T-12's own (t12.js matchLabel).
+rule('rollRecoveriesTwice', 'Recoveries on the rent roll that may be counted twice', [RF('recovery', 'status'), { path: 'd.rollOther', when: 'only for a deal with a rent roll' }], (m, { d }, C) => {
+  const rec = occ(d).filter((r) => r.recovery && r.recovery !== 'none');
+  const oi = (Array.isArray(d.rollOther) ? d.rollOther : []).filter((o) => pos(o.annual) && matchLabel(o.name, { section: 'income', suggest: false }).category === 'recoveries');
+  if (!rec.length || !oi.length) return;
+  const o = oi[0];
+  C.push({ level: 'warn', text: `The rent roll's other income “${o.name}” (${usd(o.annual)}) looks like expense recoveries, and ${n(rec.length, 'lease')} already ${rec.length === 1 ? 'recovers' : 'recover'} expenses from the pool: the roll's EGI may count them twice. Remove one of them. No figure has been changed.` });
 });
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const h = s.length >> 1; return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2; };
 rule('rollPsfBand', 'Median rent per SF a year outside the usual band (monthly against annual)', [RF('rent', 'sf', 'status', 'asOf'), { path: 'd.ptype', when: 'with the band set in Settings (conventions rr.psf.*)' }], (m, { d }, C) => {

@@ -108,6 +108,8 @@ function fromEngine(R) {
   if (p === 'd.ptype') return [keep('figures.ptype'), { ...R, path: 'conventions', when: 'the K33 rent per SF band' }];
   // the rent roll's own leases (rentroll.js rollFacts): each rule names the lease fields it uses, 'asOf' for the as-of date
   if (p === 'd.rollFacts') return (R.fields || []).flatMap((f) => (f === 'asOf' ? ['rr.settings.asOf'] : [`lease.${f}`])).concat('leases').map((x) => ({ path: x, when: R.when || 'only for a deal with a rent roll' }));
+  // the roll's other income lines (name and amount a year), read by the recoveries-twice check
+  if (p === 'd.rollOther') return [keep('rr.settings.otherIncome'), keep('leases')].map((x) => (typeof x === 'string' ? { path: x, when: R.when } : { ...x, when: R.when }));
   // the T-12, and the OM's own figures it is compared with (kept as they were before "Use the T-12's figures")
   if (p === 'd.t12') return [keep('t12')];
   // the NOI three ways rules are the only readers of these three, and they compare by the thresholds in Settings (NOI_GAP)
@@ -448,7 +450,7 @@ export function analysisInput(d, { project = null } = {}) {
   // one source: with a rent roll, the analysis reads its rows from it (not a stored copy that could lag behind),
   // and WALT and its other figures are measured from its own as-of date
   const rr = hasRentRoll(d) ? d.rr : null;
-  const out = { ...d.figures, rentRoll: rr ? legacyRows(rr) : d.rentRoll, loan: d.loan, rentRollAsOf: rr && rr.settings ? rr.settings.asOf : null, ...(rr ? { rollFacts: rollFacts(rr) } : {}) };
+  const out = { ...d.figures, rentRoll: rr ? legacyRows(rr) : d.rentRoll, loan: d.loan, rentRollAsOf: rr && rr.settings ? rr.settings.asOf : null, ...(rr ? { rollFacts: rollFacts(rr), rollOther: ((rr.settings || {}).otherIncome || []).map((o) => ({ name: o.name || '', annual: o.annual })) } : {}) };
   // a deal with a T-12: its totals, and the OM's figures as they were before the T-12's were used; and the
   // rent roll's year 1 NOI when `project` gives it (a projection already worked out; none, and that pair isn't compared)
   const t = t12ForAnalysis(d.t12);
