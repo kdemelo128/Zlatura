@@ -34,7 +34,9 @@ test('9: all four system prompts carry the data-not-instructions rule', async ()
 });
 
 test('10: injected text never reaches the system prompt, and an obeying model is cut back to what was asked', async () => {
-  const r = await rig();
+  // one request per document: more documents than the default per-minute limit allows
+  const r = await rig({ env: { RATE_PER_MIN: String(DOCS.length + 5) } });
+  try {
   for (const d of DOCS) {
     r.seen.length = 0;
     // the stand-in "obeys" the injection: an unrequested key, a document that does not exist, one good field
@@ -53,7 +55,7 @@ test('10: injected text never reaches the system prompt, and an obeying model is
     assert.doesNotMatch(doc.title, CONTROL, `${d.id}: no control characters in the title`);
     assert.ok(doc.title.length <= 'Document 0: '.length + 200);
   }
-  r.close();
+  } finally { r.close(); }
 });
 
 test('10b: control characters are stripped from document names', async () => {
@@ -134,4 +136,14 @@ test('11b: when counting tokens fails, the log holds only its status and error n
   } finally { Object.assign(console, keep); }
   assert.ok(out.some((l) => /countTokens failed: 500 \w+/.test(l)), out.join('\n'));
   for (const l of out) assert.ok(!l.includes(CANARY), l);
+});
+
+test('10e: the invented set covers every attack category, each document once, each with its own marker', () => {
+  // categories drawn from published prompt-injection taxonomies (BIPIA, garak); every document is invented
+  const CATEGORIES = ['direct', 'figure-tampering', 'citation-forgery', 'prompt-leak', 'role-spoofing', 'output-format', 'name-field', 'obfuscation', 'social', 'hidden-in-structure', 'exfiltration'];
+  assert.deepEqual([...new Set(DOCS.map((d) => d.category))].sort(), [...CATEGORIES].sort());
+  assert.equal(new Set(DOCS.map((d) => d.id)).size, DOCS.length, 'ids are unique');
+  const markers = DOCS.map((d) => (d.text.match(/INJ-\d\d/) || d.name.match(/INJ-\d\d/) || [null])[0]).filter(Boolean);
+  assert.equal(new Set(markers).size, markers.length, 'markers are unique');
+  assert.ok(DOCS.length >= 25);
 });
