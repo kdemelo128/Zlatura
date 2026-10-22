@@ -7,6 +7,21 @@
 #   tests/e2e/run.sh live-flow  # one, or several: run.sh typing-flow lostedit-flow
 set -euo pipefail
 cd "$(dirname "$0")"
+# one browser run at a time on this machine: another session or worktree using port 8080 is waited for, not
+# collided with (a lock directory holding the owner's PID; the idea is paperclip's per-task claim). A lock whose
+# PID is gone is stale and taken over. E2E_LOCK_WAIT is how many seconds to wait (default 1800).
+LOCK=${E2E_LOCK:-${TMPDIR:-/tmp}/zlatura-e2e-8080.lock}
+waited=0
+until mkdir "$LOCK" 2>/dev/null; do
+  holder=$(cat "$LOCK/pid" 2>/dev/null || true)
+  if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then rm -rf "$LOCK"; continue; fi
+  if [ -z "$holder" ] && [ "$waited" -ge 5 ]; then rm -rf "$LOCK"; continue; fi
+  [ "$waited" = 0 ] && echo "Another browser run (PID ${holder:-starting}) holds port 8080: waiting for it." >&2
+  if [ "$waited" -ge "${E2E_LOCK_WAIT:-1800}" ]; then echo "Still held after ${waited}s: stop PID $holder or run again later." >&2; exit 2; fi
+  sleep 1; waited=$((waited + 1))
+done
+echo $$ > "$LOCK/pid"
+trap 'rm -rf "$LOCK"' EXIT
 mkdir -p files shots
 # the fixture scripts' packages must be the pinned ones (an older Pillow has published security advisories)
 python3 check_requirements.py requirements.txt
@@ -29,7 +44,7 @@ if command -v ffmpeg >/dev/null; then ffmpeg -loglevel error -y -f lavfi -i "sin
 [ -d ../../server/node_modules/@anthropic-ai/sdk ] || (cd ../../server && npm ci --silent)
 (cd ../.. && exec python3 -m http.server 8080 --bind 127.0.0.1 >/dev/null 2>&1) &
 SERVER=$!
-trap 'kill $SERVER 2>/dev/null || true' EXIT
+trap 'kill $SERVER 2>/dev/null || true; rm -rf "$LOCK"' EXIT
 sleep 1
 # another server already on the port would be tested in its place, from wherever it serves
 if ! kill -0 "$SERVER" 2>/dev/null; then echo "Port 8080 is in use: stop whatever holds it and run again." >&2; exit 2; fi

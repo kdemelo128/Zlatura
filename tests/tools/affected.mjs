@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /** Tests that look at the whole repository, not at one module: a new or renamed app file breaks them without naming them. */
-export const ALWAYS = ['tests/analyze-golden.test.js', 'tests/repo.test.js'];
+export const ALWAYS = ['tests/analyze-golden.test.js', 'tests/repo.test.js', 'tests/settings-scan.test.js'];
 
 /** Unit tests a change can affect: changed tests, and tests that name a changed app or server module. */
 export function affectedTests(changed, ROOT) {
