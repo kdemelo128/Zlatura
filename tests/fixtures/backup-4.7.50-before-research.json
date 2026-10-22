@@ -1,0 +1,148 @@
+{
+ "format": "zlatura-backup",
+ "version": 2,
+ "app": "4.7.50",
+ "createdAt": "2026-10-22T19:07:59.056Z",
+ "counts": {
+  "deals": 2,
+  "templates": 0,
+  "tasks": 2,
+  "contacts": 3
+ },
+ "deals": [
+  {
+   "id": "d4750a",
+   "name": "Invented Plaza (fictional)",
+   "createdAt": 1792203277340,
+   "updatedAt": 1792203290000,
+   "source": null,
+   "readAt": null,
+   "pages": 0,
+   "figures": {
+    "address": "Invented Plaza (fictional)",
+    "price": 2400000,
+    "noi": 144000
+   },
+   "sources": {},
+   "rentRoll": [],
+   "unpriced": false,
+   "loan": {
+    "ltv": 65,
+    "rate": 6.75,
+    "amort": 30,
+    "io": false,
+    "closing": 2,
+    "minDscr": 1.25,
+    "minDy": 8
+   },
+   "qDone": {},
+   "myQuestions": [],
+   "live": {},
+   "scenarios": [],
+   "targets": {
+    "cap": null,
+    "irr": 15,
+    "value": null
+   },
+   "visit": {
+    "at": null,
+    "items": {},
+    "notes": "",
+    "photos": [],
+    "audio": []
+   },
+   "moneyVersion": 1,
+   "schema": 4
+  },
+  {
+   "id": "d4750b",
+   "name": "Invented Court (fictional)",
+   "createdAt": 1792203277340,
+   "updatedAt": 1792203291000,
+   "source": null,
+   "readAt": null,
+   "pages": 0,
+   "figures": {
+    "address": "Invented Court (fictional)",
+    "price": 2400000,
+    "noi": 144000
+   },
+   "sources": {},
+   "rentRoll": [],
+   "unpriced": false,
+   "loan": {
+    "ltv": 65,
+    "rate": 6.75,
+    "amort": 30,
+    "io": false,
+    "closing": 2,
+    "minDscr": 1.25,
+    "minDy": 8
+   },
+   "qDone": {},
+   "myQuestions": [],
+   "live": {},
+   "scenarios": [],
+   "targets": {
+    "cap": null,
+    "irr": 15,
+    "value": null
+   },
+   "visit": {
+    "at": null,
+    "items": {},
+    "notes": "",
+    "photos": [],
+    "audio": []
+   },
+   "moneyVersion": 1,
+   "schema": 4
+  }
+ ],
+ "kv": {
+  "crm.contacts": [
+   {
+    "id": "c1",
+    "name": "Jane Example",
+    "company": "Example Holdings LLC",
+    "updatedAt": 1792203280000
+   },
+   {
+    "id": "c2",
+    "name": "Sam Sample",
+    "company": "Sample Partners",
+    "updatedAt": 1792203280000
+   },
+   {
+    "id": "c3",
+    "name": "Pat Invented",
+    "company": "",
+    "updatedAt": 1792203280000
+   }
+  ],
+  "crm.tasks": [
+   {
+    "id": "t1",
+    "text": "Call Jane Example",
+    "done": false
+   },
+   {
+    "id": "t2",
+    "text": "Send comps",
+    "done": true
+   }
+  ],
+  "crm.activity": [
+   {
+    "id": "a1",
+    "at": 1792203285000,
+    "text": "Spoke with Sam Sample"
+   }
+  ],
+  "crm.stages": {
+   "d4750a": "Underwriting"
+  }
+ },
+ "session": null,
+ "local": {}
+}

@@ -40,6 +40,7 @@ import { crossChecks } from './reconcile.js';
 import { STAGE_LABEL, stageOf } from './pipeline.js';
 import { renderDealCrm } from './dealcrm.js';
 import * as crm from './crm.js';
+import { sweepResearch } from './research.js';
 import {
   $, el, svg, IN_ARTIFACT, XLSX, printed, parseNum, parsePct, int, dec, money0, money2, pct, signed, times, yrs, short, niceDate,
   localDate, toast, actionSheet, getPdfjs, getXlsx, deliver, deliveryError, shareText, idle, pdfProblem,
@@ -2721,6 +2722,8 @@ export function initDeal(compsApi) {
   document.addEventListener('change', (e) => { const t = e.target; if (t && committed.has(t)) committed.set(t, valueOf(t)); }, true);
   document.addEventListener('keydown', undoKeys);
   // the trash's 30 days; sizes counted once if the record is missing; within the space allowed
+  // research briefs kept past their 365 days
+  sweepResearch().catch(() => {});
   store.sweepTrash().then(() => store.budget()).then(() => store.keepWithinBudget()).catch(() => {});
   render();
   let cur = null;

@@ -324,6 +324,7 @@ the baseline; 32 flows are listed at 4.7.2).
 | Offers and Bid Leveler | Not implemented | |
 | Communications: meetings and transcripts linked to deals and contacts; contact import | Partially implemented | Added 4.7.2 (17.4). Voice notes and their transcripts are on the deal, and action items become its next steps (stand-in services only); no calendar events or contact import. |
 | Calendar, email, CRM, e-signature integrations | Not implemented | |
+| Company research brief from the broker's own documents (relationship intelligence, Phase B1) | Partially implemented | Added 4.7.55 (`docs/proposals/continuous-ai-relationship-intelligence.md`). The AI server's `POST /api/research` (B1a, #78) and the device model (B1b: one kv key `research.briefs`, 365-day retention, carried by backups) are built and tested with invented fixtures; there is no screen yet (B1c). A claim is confirmed only when its quote verifies against the source, the document states it and the broker ticks it; a registered agent, mailing address or shared surname is refused as proof. The quote check is recorded when the brief is made and is not re-run (the source text is not kept). Contact matching is on the device only, never stored, never surname-only. Not verified: the real model's answers and cost per brief (no live call made). Gaps: the numeric lead score (waits for the firm's weights); re-checking quotes when a source is re-attached. |
 
 ## Part 18. Due diligence and closing
 
