@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.7.48: Workflow: a scan of the project's own Claude settings, a lock so browser runs don't collide, and a "step, then check" rule (on the development branch; not merged or deployed)
+
+The owner asked for the useful ideas in the evaluated tool repos to be used, with care on licences. Nothing was installed or copied; each idea is our own code or wording.
+
+- **Settings risk scan (ruflo's idea):** `tests/tools/settings-scan.mjs` fails if `.claude/settings.json`, `.claude/settings.local.json` or `.mcp.json` allows every shell command, downloads and runs code, runs as root, deletes recursively, switches permission checks off, holds a secret, or stops denying `Read(./private/**)`. It runs in `npm test` and every `check:quick`.
+- **One browser run at a time (paperclip's idea):** `tests/e2e/run.sh` takes a lock before it uses port 8080, so a second session or worktree waits its turn instead of failing with "port in use"; a lock left by a run that is gone is taken over; `E2E_LOCK_WAIT` sets how long to wait (default 30 minutes).
+- **Step, then check (karpathy-skills' idea, in our words):** every plan and brief lists each step with how it is checked; `docs/working-rules.md`. `docs/proposals/dev-tools-and-reuse.md` section 10 records what was taken from each repo and what still is not, and why.
+- **Tested:** `tests/settings-scan.test.js` (the repo's own settings pass; each risky grant is caught) and `tests/e2e-lock.test.js` (a free lock is taken, a live one waited for then refused, a stale one taken over); both fail on 4.7.46, and three mutations of the scan (no `private/` rule, no `sudo` rule, `Bash(:*)` not caught) each turn a test red. No app code changed; saved results and golden outputs are unchanged.
+- **GitHub tools scan:** `docs/proposals/github-tools-scan.md`: 24 more open-source candidates across eight areas (licence, offline use, network, security, verdict), and the top five to integrate first.
+
 ## 4.7.47: Security F12: the AI server gets a token per device, spending limits in whole cents and a prompt-injection rule (on the development branch; not merged or deployed)
 
 Server and AI screens only: no engine, `app/deal.js` or saved-deal change, so saved results and golden outputs are unchanged (646 displayed figures compared, 0 changed). Nothing changes for a broker until the operator sets the new limits; a single `APP_TOKEN` keeps working.
