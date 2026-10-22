@@ -23,6 +23,7 @@
  * The encoding and the restore plan are pure (tests/backup.test.js). */
 
 import { FORMATS, PRODUCT, renameKey } from './brand.js';
+import { retentionEnd } from './claims.js';
 import { MIGRATIONS, pending, tooNew, migrateDeal } from './migrate.js';
 
 export const BACKUP_FORMAT = FORMATS.backup.write;
@@ -126,7 +127,10 @@ export function readBackup(text) {
 const asArray = (v) => (Array.isArray(v) ? v : []);
 const briefCount = (v) => asArray(v).length;
 /** The briefs in a backup that are still within their retention (a missing retainUntil counts from createdAt). */
-const liveBriefs = (v, now) => asArray(v).filter((b) => b && typeof b === 'object' && (Number.isFinite(b.retainUntil) ? b.retainUntil : (b.createdAt || 0) + 365 * 86400000) >= now);
+const briefObjects = (v) => asArray(v).filter((b) => b && typeof b === 'object');
+const liveBriefs = (v, now) => briefObjects(v).filter((b) => retentionEnd(b) >= now);
+/** The line saying a restore left more briefs than the app keeps, or ''. */
+const briefLimitLine = (n) => (n > 200 ? `This leaves ${n} research briefs, over the 200 the app keeps: new briefs are refused until some are deleted.` : '');
 const newer = (a, b) => (a.updatedAt || a.createdAt || 0) > (b.updatedAt || b.createdAt || 0);
 /** Lists of records with ids, merged: records only in one side kept; on both, the newer (else the device's). */
 function mergeById(here = [], there = [], { stamp = true } = {}) {
@@ -179,6 +183,8 @@ export function planRestore(backup, current, mode = 'merge', now = Date.now()) {
     const keepIds = new Set(backup.deals.map((d) => d.id));
     const removeDeals = current.deals.filter((d) => !keepIds.has(d.id)).map((d) => d.id);
     summary.push(`${backup.deals.length} deal${backup.deals.length === 1 ? '' : 's'} restored; ${removeDeals.length} deal${removeDeals.length === 1 ? '' : 's'} on this device not in the backup will be deleted.`);
+    const over = briefLimitLine(briefCount(kv['research.briefs']));
+    if (over) summary.push(over);
     const lost = briefCount(current.kv['research.briefs']);
     if (lost && !(kv['research.briefs'] || []).length) summary.push(`${lost} research brief${lost === 1 ? '' : 's'} on this device will be deleted.`);
     else if (lost) summary.push(`Research briefs on this device are replaced by the ${kv['research.briefs'].length} in the backup.`);
@@ -203,8 +209,9 @@ export function planRestore(backup, current, mode = 'merge', now = Date.now()) {
   merge('crm.activity', 'Activity entries', { stamp: false });
   // research briefs: the newer updatedAt wins; a brief past its retainUntil is not brought back
   if (backup.kv['research.briefs'] !== undefined) {
-    const m = mergeById(asArray(current.kv['research.briefs']), liveBriefs(backup.kv['research.briefs'], now));
+    const m = mergeById(briefObjects(current.kv['research.briefs']), liveBriefs(backup.kv['research.briefs'], now));
     if (m.added || m.updated) { kv['research.briefs'] = m.list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); summary.push(`Research briefs: ${m.added} added${m.updated ? `, ${m.updated} updated` : ''}.`); }
+    const over = briefLimitLine(m.list.length); if (over) summary.push(over);
   }
   if (kv['crm.activity']) kv['crm.activity'].sort((a, b) => a.at - b.at);
   if (backup.kv['tools.scenarios']) {

@@ -23,6 +23,15 @@ export const MAX_QUOTE = 600;
 export const AGENT_OR_ADDRESS = /registered agent|agent for service|statutory agent|\bc\/o\b|care of|mailing address|p\.?\s?o\.?\s?box/i;
 const WEAK_BASIS = ['registered_agent', 'mailing_address', 'shared_surname'];
 
+/** The longest a brief is kept, in days, and the most claims one brief shows. */
+export const KEEP_DAYS = 365;
+export const MAX_CLAIMS = 150;
+/** A brief's last day: retainUntil, but never later than 365 days after it was made (a tampered date can't keep it longer). */
+export function retentionEnd(b) {
+  const cap = (Number.isFinite(b && b.createdAt) ? b.createdAt : 0) + KEEP_DAYS * 86400000;
+  return Number.isFinite(b && b.retainUntil) ? Math.min(b.retainUntil, cap) : cap;
+}
+
 export const isRelationship = (c) => RELATIONSHIP_KINDS.includes(c && c.kind);
 
 /**
@@ -124,7 +133,11 @@ export function matchContacts(claims, contacts, subject) {
   for (const k of contacts || []) {
     if (!k || k.id === undefined) continue;
     const name = norm(k.name); const company = norm(k.company);
-    const person = name.split(' ').filter(Boolean).length >= 2;
+    // a person: two or more words of two letters or more ("J. Smith" and a surname alone never match)
+    const words = name.split(' ').filter(Boolean);
+    const person = words.length >= 2 && words.every((w) => [...w].length >= 2);
+    // a company: a name of two or more words ("Smith" alone is a surname by the back door)
+    const firm = company.split(' ').filter(Boolean).length >= 2;
     if (company && subj && company === subj) out.push({ claimId: null, contactId: k.id, why: 'works at the company this brief is about' });
     for (const c of claims || []) {
       if (c.status === 'refused' || refusal(c)) continue;
@@ -132,7 +145,7 @@ export function matchContacts(claims, contacts, subject) {
         const p = norm(party);
         if (!p) continue;
         if (person && p === name) { out.push({ claimId: c.id, contactId: k.id, why: `same full name as the ${role} of a claim (“${party}”)` }); break; }
-        if (company && p === company) { out.push({ claimId: c.id, contactId: k.id, why: `same company name as the ${role} of a claim (“${party}”)` }); break; }
+        if (firm && p === company && !(c.kind === 'officer_of' && role === 'subject')) { out.push({ claimId: c.id, contactId: k.id, why: `same company name as the ${role} of a claim (“${party}”)` }); break; }
       }
     }
   }

@@ -3,7 +3,7 @@
  * and an activity entry, with no research briefs. Also writes
  * tests/fixtures/restore-plans-c57ff27.json: what that version's planRestore gave
  * for this backup and for backup-4.7.36-before-underwriting.json, on two devices
- * (empty, and one holding newer copies), so a later version can be held to
+ * in merge and replace mode (empty, and one holding newer copies), so a later version can be held to
  * the same plan. Every name and figure is made up.
  *
  *   node tests/tools/make-backup-4.7.50.mjs
@@ -37,7 +37,7 @@ const b = await buildBackup({
   },
   appVersion: '4.7.50',
 });
-fs.writeFileSync(`${ROOT}tests/fixtures/backup-4.7.50-before-research.json`, `${JSON.stringify(b, null, 1)}\n`);
+if (!fs.existsSync(`${ROOT}tests/fixtures/backup-4.7.50-before-research.json`)) fs.writeFileSync(`${ROOT}tests/fixtures/backup-4.7.50-before-research.json`, `${JSON.stringify(b, null, 1)}\n`);
 
 const devices = {
   empty: { deals: [], kv: {}, session: null, local: {} },
@@ -47,8 +47,10 @@ const plans = {};
 for (const f of ['backup-4.7.50-before-research.json', 'backup-4.7.36-before-underwriting.json']) {
   plans[f] = {};
   for (const [dn, dev] of Object.entries(devices)) {
-    const p = planRestore(readBackup(fs.readFileSync(`${ROOT}tests/fixtures/${f}`, 'utf8')), structuredClone(dev), 'merge');
-    plans[f][dn] = { put: p.deals.put, kv: p.kv, local: p.local };
+    const bk = () => readBackup(fs.readFileSync(`${ROOT}tests/fixtures/${f}`, 'utf8'));
+    const p = planRestore(bk(), structuredClone(dev), 'merge');
+    const r = planRestore(bk(), structuredClone(dev), 'replace');
+    plans[f][dn] = { put: p.deals.put, kv: p.kv, local: p.local, replace: { put: r.deals.put, kv: r.kv, removeDeals: r.removeDeals, removeKv: r.removeKv, local: r.local, session: r.session } };
   }
 }
 fs.writeFileSync(`${ROOT}tests/fixtures/restore-plans-c57ff27.json`, `${JSON.stringify({ devices, plans }, null, 1)}\n`);

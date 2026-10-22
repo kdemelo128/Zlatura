@@ -267,10 +267,50 @@ for (const [file, label] of [['backup-4.7.50-before-research.json', '4.7.50'], [
       const withBriefs = { ...dev, kv: { ...dev.kv, 'research.briefs': [brief('rbdevice')] } };
       for (const device of [dev, withBriefs]) {
         const p = planRestore(backup, structuredClone(device), 'merge', NOW);
-        assert.deepEqual(JSON.parse(JSON.stringify({ put: p.deals.put, kv: p.kv, local: p.local })), snap.plans[file][dn], dn);
+        assert.deepEqual(JSON.parse(JSON.stringify({ put: p.deals.put, kv: p.kv, local: p.local })), (({ put, kv, local }) => ({ put, kv, local }))(snap.plans[file][dn]), dn);
         assert.ok(!('research.briefs' in p.kv), 'no briefs in the plan');
         assert.deepEqual(p.removeKv, [], 'merge removes nothing');
       }
+    }
+  });
+}
+
+test('B1b: a tampered retainUntil of 9e15 is not restored past 365 days, in merge or replace', () => {
+  const tampered = brief('t', { createdAt: NOW - 400 * DAYMS, retainUntil: 9e15 });
+  const backup = { deals: [], local: {}, session: null, kv: { 'research.briefs': [tampered, brief('ok')] } };
+  for (const mode of ['merge', 'replace']) assert.deepEqual(planRestore(backup, EMPTY, mode, NOW).kv['research.briefs'].map((x) => x.id), ['ok'], mode);
+});
+
+test('B1b: a malformed brief in a backup restores, then reads with zero counts', async () => {
+  const { readBrief } = await import('../app/research.js');
+  const bad = [brief('m1', { claims: 'x' }), brief('m2', { claims: [null] }), brief('m3', { sections: [null], claims: [] }), 'junk', null];
+  const p = planRestore({ deals: [], local: {}, session: null, kv: { 'research.briefs': bad } }, { ...EMPTY, kv: { 'research.briefs': [null, brief('d')] } }, 'merge', NOW);
+  const list = p.kv['research.briefs'];
+  assert.deepEqual(list.map((x) => x.id).sort(), ['d', 'm1', 'm2', 'm3']);
+  for (const b of list) assert.deepEqual(readBrief(b, NOW).counts, { confirmed: 0, hypothesis: 0, refused: 0 });
+});
+
+test('B1b: a merge that leaves more than 200 briefs says new briefs are refused until some are deleted', () => {
+  const many = (p, n) => Array.from({ length: n }, (_, i) => brief(`${p}${i}`));
+  const p = planRestore({ deals: [], local: {}, session: null, kv: { 'research.briefs': many('b', 120) } }, { ...EMPTY, kv: { 'research.briefs': many('d', 100) } }, 'merge', NOW);
+  assert.equal(p.kv['research.briefs'].length, 220);
+  assert.match(p.summary.join(' '), /220 research briefs, over the 200 the app keeps: new briefs are refused until some are deleted/);
+  const ok = planRestore({ deals: [], local: {}, session: null, kv: { 'research.briefs': many('b', 100) } }, { ...EMPTY, kv: { 'research.briefs': many('d', 100) } }, 'merge', NOW);
+  assert.ok(!/over the 200/.test(ok.summary.join(' ')));
+  assert.match(planRestore({ deals: [], local: {}, session: null, kv: { 'research.briefs': many('b', 201) } }, EMPTY, 'replace', NOW).summary.join(' '), /201 research briefs, over the 200/);
+});
+
+for (const file of ['backup-4.7.50-before-research.json', 'backup-4.7.36-before-underwriting.json']) {
+  test(`B1b: a replace restore of ${file} gives the same plan as 4.7.50 (c57ff27)`, () => {
+    const snap = JSON.parse(fs.readFileSync(new URL('./fixtures/restore-plans-c57ff27.json', import.meta.url), 'utf8'));
+    const backup = readBackup(fs.readFileSync(new URL(`./fixtures/${file}`, import.meta.url), 'utf8'));
+    for (const [dn, dev] of Object.entries(snap.devices)) {
+      const p = planRestore(backup, structuredClone(dev), 'replace', NOW);
+      assert.deepEqual(JSON.parse(JSON.stringify({ put: p.deals.put, kv: p.kv, removeDeals: p.removeDeals, removeKv: p.removeKv, local: p.local, session: p.session })), snap.plans[file][dn].replace, dn);
+      // with briefs on the device the only difference is that they would be removed, and the summary says how many
+      const q = planRestore(backup, { ...structuredClone(dev), kv: { ...dev.kv, 'research.briefs': [brief('a'), brief('b')] } }, 'replace', NOW);
+      assert.deepEqual(q.removeKv.filter((k) => !p.removeKv.includes(k)), ['research.briefs']);
+      assert.match(q.summary.join(' '), /2 research briefs on this device will be deleted/);
     }
   });
 }

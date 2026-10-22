@@ -2,7 +2,7 @@
  * its quote is found in the supplied source, the words state it, and the broker ticked it. All names are invented. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkClaim, statusOf, readClaim, refusal, tickable, tick, dedupe, matchContacts, isRelationship } from '../app/claims.js';
+import { retentionEnd, checkClaim, statusOf, readClaim, refusal, tickable, tick, dedupe, matchContacts, isRelationship } from '../app/claims.js';
 
 const PAGES = ['Example Holdings LLC is a Delaware limited liability company.', 'Example Holdings LLC is a wholly owned subsidiary of Sample Parent Inc., as stated in the filing.\nThe registered agent for Example Holdings LLC is Agent Services Co.'];
 const base = (o = {}) => ({
@@ -130,4 +130,23 @@ test('contacts: an exact full name or exact company matches; a surname alone nev
   assert.deepEqual(s, [{ claimId: null, contactId: 'c4', why: 'works at the company this brief is about' }]);
   // a refused claim is never a basis for a match
   assert.deepEqual(matchContacts([readClaim(checked({ inferredFrom: 'shared_surname', subject: 'Jane Example', basis: 'inferred' }))], [contacts[0]], { name: 'X' }), []);
+});
+
+test('contacts: an initial is not a word, and a single-word company never matches', () => {
+  const c = [readClaim(checked({ kind: 'officer_of', subject: 'J Smith', object: 'Smith', quote: 'J Smith is an officer of Smith, as stated here' }))];
+  assert.deepEqual(matchContacts(c, [{ id: 'a', name: 'J. Smith', company: '' }, { id: 'b', name: 'Bo', company: 'Smith' }], { name: 'Elsewhere Inc' }), [], 'J. Smith / J Smith and a one-word company are not matches');
+  // two real words still match, with two letters each
+  assert.equal(matchContacts([readClaim(checked({ kind: 'officer_of', subject: 'Jo Li', object: 'Example Holdings LLC' }))], [{ id: 'a', name: 'Jo Li', company: '' }], { name: 'X Inc' }).length, 1);
+});
+
+test('contacts: the person side of officer_of is never matched as a company', () => {
+  const c = [readClaim(checked({ kind: 'officer_of', subject: 'Jane Example', object: 'Example Holdings LLC' }))];
+  assert.deepEqual(matchContacts(c, [{ id: 'k', name: 'Kim Other', company: 'Jane Example' }], { name: 'X Inc' }), []);
+  assert.equal(matchContacts(c, [{ id: 'k', name: 'Kim Other', company: 'Example Holdings LLC' }], { name: 'X Inc' }).length, 1, 'the company side still matches');
+});
+
+test('retention end is never later than 365 days after creation', () => {
+  assert.equal(retentionEnd({ createdAt: 1000, retainUntil: 9e15 }), 1000 + 365 * 86400000);
+  assert.equal(retentionEnd({ createdAt: 1000, retainUntil: 5000 }), 5000);
+  assert.equal(retentionEnd({ createdAt: 1000 }), 1000 + 365 * 86400000);
 });

@@ -10,11 +10,11 @@
  * argument (default: the app's kv store). */
 
 import * as store from './store.js';
-import { KINDS, MAX_QUOTE, checkClaim, dedupe, readClaim, isVerified, tick } from './claims.js';
+import { KINDS, MAX_QUOTE, MAX_CLAIMS, KEEP_DAYS, retentionEnd, checkClaim, dedupe, readClaim, isVerified, tick } from './claims.js';
 
 export const KEY = 'research.briefs';
 export const MAX_BRIEFS = 200;
-export const KEEP_DAYS = 365;
+export { KEEP_DAYS };
 /** A brief still "sending" after this long has probably lost its answer. */
 export const STALE_MS = 10 * 60000;
 const DAY = 86400000;
@@ -64,10 +64,10 @@ export function receive(brief, out, texts, now = Date.now()) {
     const sec = FROM_SERVER.has(r && r.section) ? r.section : null;
     const doc = r && Number.isInteger(r.document) ? r.document : -1;
     const quote = r ? String(r.quote ?? '') : '';
-    if (!sec || !KINDS.includes(r.kind) || doc < 0 || doc >= brief.sources.length || !String(r.subject ?? '').trim() || !String(r.object ?? '').trim() || quote.length < 3 || quote.length > MAX_QUOTE) { dropped += 1; continue; }
+    if (!sec || !KINDS.includes(r.kind) || doc < 0 || doc >= brief.sources.length || !String(r.subject ?? '').trim() || !String(r.object ?? '').trim() || String(r.subject).length > 300 || String(r.object).length > 300 || quote.length < 3 || quote.length > MAX_QUOTE) { dropped += 1; continue; }
     n += 1;
     const c = {
-      id: `${brief.id}:${n}`, section: sec, kind: r.kind, subject: str(r.subject, 300), object: str(r.object, 300), statement: str(r.statement, 400),
+      id: `${brief.id}:${n}`, section: sec, kind: r.kind, subject: String(r.subject), object: String(r.object), statement: str(r.statement, 400),
       quote, document: doc, page: Number.isInteger(r.page) && r.page >= 1 ? r.page : null,
       basis: r.basis === 'stated' ? 'stated' : 'inferred', inferredFrom: INFERRED_FROM.has(r.inferredFrom) ? r.inferredFrom : null,
       confidence: CONFIDENCE.has(r.confidence) ? r.confidence : 'low', also: [], ticked: false, tickedAt: null,
@@ -101,18 +101,19 @@ export const fail = (brief, message, now = Date.now()) => ({ ...brief, status: '
 export function readBrief(brief, now = Date.now()) {
   let b = brief;
   if (b.status === 'sending' && now - (b.createdAt || 0) > STALE_MS) b = { ...b, status: 'failed', error: 'No answer came back. The server may have charged for this request.' };
-  const claims = (b.claims || []).map(readClaim);
+  const claims = asList(b.claims).slice(0, MAX_CLAIMS).map(readClaim);
   const refused = new Set(claims.filter((c) => c.status === 'refused').map((c) => c.id));
-  const sections = (b.sections || []).map((s) => (s.key === 'S9' ? { ...s, claimIds: [...refused] } : { ...s, claimIds: (s.claimIds || []).filter((id) => !refused.has(id)) }));
+  const sections = asList(b.sections).map((s) => (s.key === 'S9' ? { ...s, claimIds: [...refused] } : { ...s, claimIds: (Array.isArray(s.claimIds) ? s.claimIds : []).filter((id) => !refused.has(id)) }));
   const count = (st) => claims.filter((c) => c.status === st).length;
   return { ...b, claims, sections, counts: { confirmed: count('confirmed'), hypothesis: count('hypothesis'), refused: count('refused') } };
 }
 
 /** The brief with one claim ticked or unticked (throws for a claim that can't be ticked). */
 export function tickClaim(brief, claimId, on, now = Date.now()) {
-  const c = brief.claims.find((x) => x.id === claimId);
+  const all = asList(brief.claims);
+  const c = all.find((x) => x.id === claimId);
   if (!c) throw new Error('No such claim.');
-  return { ...brief, claims: brief.claims.map((x) => (x === c ? tick(c, on, now) : x)), updatedAt: now };
+  return { ...brief, claims: all.map((x) => (x === c ? tick(c, on, now) : x)), updatedAt: now };
 }
 
 /* ---------------------------------------------------------------- storage */
@@ -138,9 +139,9 @@ export async function deleteBrief(id, s) {
   return list;
 }
 
-/** A brief's last day: retainUntil, or 365 days after it was made if that is missing. */
-export const expiry = (b) => (Number.isFinite(b && b.retainUntil) ? b.retainUntil : (b && b.createdAt || 0) + KEEP_DAYS * DAY);
-export const expired = (b, now) => expiry(b) < now;
+/** A brief's last day (claims.js retentionEnd: retainUntil, never later than 365 days after it was made). */
+export const expiry = retentionEnd;
+export const expired = (b, now) => retentionEnd(b) < now;
 
 /** Removes the briefs kept past their 365 days; returns how many. Runs on launch beside sweepTrash. */
 export async function sweepResearch(now = Date.now(), s) {

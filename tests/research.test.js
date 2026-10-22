@@ -119,3 +119,37 @@ test('200 briefs: a new one is refused, not trimmed; an existing one can still b
   await saveBrief(newBrief({ name: 'One more' }, SRC, 999), s);
   assert.equal((await loadBriefs(s))[0].subject.name, 'One more', 'newest first');
 });
+
+test('a malformed brief (restored from a backup) reads with zero counts and can still be ticked or deleted', async () => {
+  for (const bad of [{ claims: 'x' }, { claims: [null] }, { claims: [1, 'a'], sections: [null] }, { sections: 'x' }, { claims: [{ id: 'q' }], sections: [{ key: 'S2', claimIds: 'x' }] }]) {
+    const b = { ...newBrief({ name: 'X' }, SRC, 1), ...bad };
+    const r = readBrief(b, 2);
+    assert.deepEqual(r.counts, bad.claims && bad.claims[0] && bad.claims[0].id ? { confirmed: 0, hypothesis: 1, refused: 0 } : { confirmed: 0, hypothesis: 0, refused: 0 }, JSON.stringify(bad));
+    assert.throws(() => tickClaim(b, 'nope', true), /No such claim/);
+  }
+  const s = mem(); const b = { ...newBrief({ name: 'X' }, SRC, 1), claims: 'x' };
+  await saveBrief(b, s); await deleteBrief(b.id, s);
+  assert.deepEqual(await loadBriefs(s), []);
+});
+
+test('a brief reads at most 150 claims', () => {
+  const claims = Array.from({ length: 160 }, (_, i) => ({ ...claim(), id: `c${i}`, check: { status: 'not-found', page: null, note: '' } }));
+  assert.equal(readBrief({ ...newBrief({ name: 'X' }, SRC, 1), claims }, 2).claims.length, 150);
+});
+
+test('a claim whose subject or object is over 300 characters is dropped, not cut', () => {
+  const long = 'Example Holdings LLC '.repeat(20);
+  const b = made([claim(), claim({ ref: 'c2', subject: long }), claim({ ref: 'c3', object: long })]);
+  assert.equal(b.claims.length, 1);
+  assert.ok(b.claims.every((c) => c.subject.length <= 300 && c.object.length <= 300));
+  assert.ok(b.notChecked.some((n) => /2 claims were left out/.test(n)));
+  assert.equal(made([claim({ subject: 'S'.repeat(300) })]).claims.length, 1, '300 itself is kept');
+});
+
+test('a tampered retainUntil of 9e15 does not keep a brief past 365 days', async () => {
+  const s = mem();
+  const b = { ...newBrief({ name: 'X' }, SRC, 10_000), retainUntil: 9e15 };
+  await saveBrief(b, s);
+  assert.equal(await sweepResearch(10_000 + 364 * DAY, s), 0);
+  assert.equal(await sweepResearch(10_000 + 366 * DAY, s), 1);
+});
