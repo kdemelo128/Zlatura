@@ -25,16 +25,12 @@ Last updated: 4.7.48; tool ideas and GitHub tools scan (PR opening); F12, AI ser
 
 ## Now
 
-- **Current step:** the property-manager profile (4.7.24, PR opening); the rent roll PDF upload (#45) and the `impact-flow` fix (#44) are merged; 1a, 1b + 1c, the gate fix and the proposal are merged (#41, #43, #42, #40). Then the comparison, then F6/F7. F2 (4.7.15, merged #33): every file read as text goes
-  through `app/textfile.js`, so a Windows-1252 CSV keeps its accents and
-  curly quotes and the app says how it read the file. F1 (4.7.14, one
-  rounding rule) is merged (#32), and so are changelog fragments (4.7.13,
-  #31), and so are the
-  4.7.12 proposals (#30, approved), the CI subset (#29), the partial-year
-  T-12 fix (#28), project settings (#27), the efficiency setup (#26), the
-  lost-edit fix (#25) and item 1 (#23, #24). Gate 2 passed: both Part 2
-  proposals approved by the owner 2026-10-15. Bugs C, A and B are merged
-  (4.7.3–4.7.5).
+- **Current step (4.7.48):** the tool ideas and GitHub tools scan (PR opening), then the owner-approved tool
+  integrations one PR at a time: the CI security scanners (actionlint, zizmor, gitleaks, osv-scanner), fast-check
+  property tests (test-only), and a wider in-house prompt-injection set for the AI server. Then Phase B1 of the
+  relationship-intelligence proposal (#69, decisions #71), then U7. F12, the AI server limits, is merged (#72,
+  4.7.47). The master plan (`ZLATURA_MASTER_PROMPT_v2.md`) stays in force; the history of earlier steps is in
+  `CHANGELOG.md` and the "Last updated" line above.
 - **Lost edit (since 4.7.3), fixed in 4.7.7:** `app/focuskeep.js` held the
   whole change handler, the save included, until Tab's focus landed, so
   leaving the deal or closing the app in that beat lost the edit. Now the
