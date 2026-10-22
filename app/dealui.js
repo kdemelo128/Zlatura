@@ -29,7 +29,7 @@ import { legacyRows, omRollRecord, applyHeldRows, addOcrRows, ocrReading, rollOf
 import { qcPanel } from './dataqcui.js';
 import { omReadRecord, applyOmFix, heldFields, basisText } from './omstatement.js';
 import { resolveCheck, blockingChecks, qcCounts } from './dataqc.js';
-import { readScannedPage, ocrSupported } from './ocr.js';
+import { readScannedPage, readPhotoText, ocrSupported } from './ocr.js';
 import { pending as stepsDue, applyStep } from './migrate.js';
 import { renderRentRollWorkspace } from './rentrollui.js';
 import { redrawKeepingFocus } from './focuskeep.js';
@@ -2157,6 +2157,13 @@ function renderPhotos(into = null) {
       toast('Photo deleted.', { label: 'Undo', run: () => { d.visit.photos = keep; touch(d); if (deal === d) renderPhotos(); } });
     });
     d.appendChild(x);
+    const rd = el('button', 'photo-read', 'Aa');
+    rd.type = 'button';
+    rd.setAttribute('aria-label', 'Read the text in this photo');
+    rd.title = 'Read the text in this photo (signs, names, addresses)';
+    if (!ocrSupported()) rd.disabled = true;
+    rd.addEventListener('click', () => showPhotoText(p));
+    d.appendChild(rd);
     ph.appendChild(d);
   }
   const add = el('label', 'photo-add');
@@ -2165,6 +2172,68 @@ function renderPhotos(into = null) {
   add.title = 'Add photos';
   add.setAttribute('aria-label', 'Add site photos');
   ph.appendChild(add);
+}
+
+/**
+ * The text in one photo, read on the device when the broker taps. It is shown, not kept: closing the sheet
+ * discards it. A line goes onto the deal only when tapped, one at a time, with an undo.
+ */
+async function showPhotoText(photo) {
+  const d = deal;
+  const body = api.sheetOpen({ eyebrow: 'Read from the photo', title: 'Text in this photo', sub: 'Read on this device by OCR. It can be wrong: check each line against the photo.' });
+  const status = el('p', 'hint-sm', 'Starting…');
+  status.id = 'photo-text-status';
+  body.appendChild(status);
+  let lines;
+  try {
+    lines = await readPhotoText(photo.blob, { onProgress: (t) => { status.textContent = t; } });
+  } catch (err) {
+    status.textContent = `The text couldn’t be read: ${err && err.message ? err.message : err}`;
+    return;
+  }
+  status.textContent = lines.length ? 'Nothing is put on the deal until you tap a button below.' : 'No text found in this photo.';
+  const list = el('div', 'list');
+  list.id = 'photo-text-lines';
+  list.style.cssText = 'background:var(--surface-2);border-radius:13px';
+  for (const l of lines) {
+    const row = el('div', 'li photo-line');
+    row.style.cssText = 'flex-wrap:wrap;gap:6px';
+    const m = el('div', 'li-main');
+    m.appendChild(el('div', 'li-title', l.text));
+    m.appendChild(el('div', 'li-sub', `Read from the photo · confidence ${l.conf}%${l.kind === 'phone' ? ' · looks like a phone number' : l.kind === 'address' ? ' · looks like an address' : ''}`));
+    row.appendChild(m);
+    row.appendChild(button('btn-sm btn-gray', 'Copy', async () => {
+      const { copyText } = await import('./kit.js');
+      toast((await copyText(l.text)) ? 'Copied.' : 'The browser blocked copying here.');
+    }));
+    row.appendChild(button('btn-sm btn-gray', 'Use as address', () => useOnDeal(d, 'address', l.text)));
+    row.appendChild(button('btn-sm btn-gray', 'Use as deal name', () => useOnDeal(d, 'name', l.text)));
+    list.appendChild(row);
+  }
+  if (lines.length) body.appendChild(list);
+}
+
+/** Put one photo line on the deal's address or name, on the broker's tap, with an undo. */
+function useOnDeal(d, what, value) {
+  api.sheetClose(); // the sheet would sit over the toast, and the Undo in it
+  const was = { addr: d.figures.address, src: d.sources.address ? { ...d.sources.address } : undefined, name: d.name };
+  if (what === 'address') {
+    d.figures.address = value;
+    d.sources.address = { ...(d.sources.address || {}), hand: true }; // a typed value's tag; the name is left as it is
+  } else {
+    d.name = value;
+  }
+  touch(d, { label: what === 'address' ? 'Address from a photo' : 'Name from a photo' });
+  if (deal === d) render();
+  toast(what === 'address' ? 'Address set from the photo.' : 'Deal name set from the photo.', {
+    label: 'Undo', run: () => {
+      if (was.addr === undefined) delete d.figures.address; else d.figures.address = was.addr;
+      if (was.src) d.sources.address = was.src; else delete d.sources.address;
+      d.name = was.name;
+      touch(d, { label: 'Undid the photo text' });
+      if (deal === d) render();
+    },
+  });
 }
 
 /** A phone photo is 3-12 MB; 1600 pixels on the long side is plenty for a brief, at a tenth of the size. */
