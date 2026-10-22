@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.7.40: WALT by total area: a third weighting where vacant space counts at 0 years (on the development branch; not merged or deployed)
+
+Fourth underwriting PR (U4 of `docs/proposals/underwriting.md` section 3.5; a reversible setting, approved with the proposal on 2026-10-17). The default stays "by income", so nothing changes unless you pick it; saved deals and golden outputs are unchanged.
+
+- **Settings → Calculation conventions → WALT weighting** gains *By total area (vacant at 0 years)*: Σ(SF × years left) over dated occupied leases, divided by their SF plus the vacant SF. A half-empty building's WALT is pulled down by its empty space, which "by area" (occupied SF only) does not show.
+- **Month-to-month and undated leases** follow the existing setting exactly: when they are left out, their SF is out of the denominator too, so nothing counts twice. With no dated occupied space there is no WALT, never 0 years from the vacant space alone.
+- **Labels:** every WALT that says how it was worked out now says "by total area, vacant at 0 years" when that is the headline; the Rent roll tab shows the by-income figure beside it.
+- **Tested:** `tests/walt-gla.test.js` (B05 and C11b worked by hand: by income 5, by area 6, by total area 3 years; a month-to-month lease left out or at 0 years; undated and no-rent leases; the no-occupied-space case; the setting and the label), failing on the previous code; 3 mutation checks all caught. `check:full` passed. Golden: 0 changed.
+- **Support-code check:** the proposal's mapping row "WALT by total GLA"; nothing quoted.
+
 ## 4.7.39: A strict review setting: figures wait until every open check is reviewed (off by default) (on the development branch; not merged or deployed)
 
 Third underwriting PR (U3 of `docs/proposals/underwriting.md` section 3.4; owner decision 8, approved 2026-10-17: off by default). At the default nothing changes; saved deals and golden outputs are unchanged.
