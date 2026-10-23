@@ -617,3 +617,22 @@ being tested.
 - **Reader test:** answered by the designer from this document alone,
   because no fresh agent could be started. The answers are in the PR
   report.
+
+## Owner decisions (2026-10-23)
+
+**Approved by the owner: all twelve decisions in section 12 as recommended** ("all approved continue"). In short:
+1. Quick underwritings in their own kv record (`uw.scratch`), never a hidden deal.
+2. One set record with two kinds, Portfolio (side by side and combined) and Comparison (side by side only).
+3. Precedence: a per-deal override in the set, then the set's shared value, then the deal's own What-if, then the engine default.
+4. Shared exit cap as a fixed % or a spread in points, labelled, one at a time.
+5. Partial totals shown grey with "3 of 4 deals" and the missing deal named.
+6. Combined IRR with every deal closing on the same day for now; dated closings are extra E10.
+7. Navigation as recommended: in Classic, Settings moves to a gear in the top bar; in the new look the phone bar is Home, Deals, Underwrite, Comps, More, with Tools under More.
+8. Save as a deal deletes the quick underwriting and re-points its links, with a toast Undo.
+9. Caps: 100 quick underwritings, 50 sets, 25 deals a set; kept until deleted; carried by backups.
+10. No backup version bump; an older app drops the two keys and says so.
+11. DSCR and debt yield over financed deals only, labelled; LTV over all deals.
+12. Extras E1 to E5 approved now; E6 to E10 decided later; E7 (1031) needs its own yes, because it changes financial meaning.
+
+Build order: W1 (the tab and quick underwriting), W2 (sets, side by side), W3 (combined), W4 (shared assumptions), then E1 to E5. One PR each.
+
