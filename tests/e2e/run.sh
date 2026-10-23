@@ -10,10 +10,12 @@ cd "$(dirname "$0")"
 # up to E2E_SLOTS browser runs at once on this machine (default 8: other sessions or worktrees), each on its own
 # slot of ports, claimed with a lock directory holding the run's PID (the idea is paperclip's per-task claim). Slot 0
 # is the one CI uses and the one older branches lock: port 8080, and 8096-8098 for the flows that serve an old copy.
-# A slot whose run is gone is taken over, and one never given a PID is taken over after a minute. When every slot is
+# A slot whose run is gone is taken over, and one never given a PID is taken over after a minute; a slot whose
+# port is already served (a server started by hand, with no lock) is skipped. When every slot is
 # busy the run waits for one; E2E_LOCK_WAIT is how many seconds (default 1800).
 LOCKDIR=${E2E_LOCK_DIR:-${TMPDIR:-/tmp}}
 SLOTS=${E2E_SLOTS:-8}
+PORT_BASE=${E2E_PORT_BASE:-8080}
 slotlock() { if [ "$1" = 0 ]; then echo "$LOCKDIR/zlatura-e2e-8080.lock"; else echo "$LOCKDIR/zlatura-e2e-slot$1.lock"; fi; }
 waited=0; SLOT=
 while :; do
@@ -22,7 +24,11 @@ while :; do
     holder=$(cat "$L/pid" 2>/dev/null || true)
     if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then rm -rf "$L"; fi
     if [ -d "$L" ] && [ -z "$holder" ] && [ -n "$(find "$L" -maxdepth 0 -mmin +1 2>/dev/null)" ]; then rm -rf "$L"; fi
-    if mkdir "$L" 2>/dev/null; then SLOT=$n; LOCK=$L; break; fi
+    if mkdir "$L" 2>/dev/null; then
+      # a server someone started by hand can hold the port without the lock: then this slot is not free either
+      if (exec 3<>"/dev/tcp/127.0.0.1/$((PORT_BASE + n))") 2>/dev/null; then rmdir "$L"; continue; fi
+      SLOT=$n; LOCK=$L; break
+    fi
   done
   [ -n "$SLOT" ] && break
   [ "$waited" = 0 ] && echo "All $SLOTS browser-run slots are busy: waiting for one." >&2
@@ -31,8 +37,8 @@ while :; do
 done
 echo $$ > "$LOCK/pid"
 trap 'rm -rf "$LOCK"' EXIT
-PORT=$((8080 + SLOT))
-if [ "$SLOT" = 0 ]; then SIDE=8096; else SIDE=$((9000 + 10 * SLOT)); fi
+PORT=$((PORT_BASE + SLOT))
+if [ "$SLOT" = 0 ]; then SIDE=$((PORT_BASE + 16)); else SIDE=$((9000 + 10 * SLOT)); fi
 export BASE=${BASE:-http://localhost:$PORT/} MIGRATE_PORT=${MIGRATE_PORT:-$SIDE} RENAME_PORT=${RENAME_PORT:-$((SIDE + 1))} UPGRADE_PORT=${UPGRADE_PORT:-$((SIDE + 2))}
 # LibreOffice (recalc.py, lo_values.py) gets the slot's own socket ports and, beyond slot 0, its own user profile:
 # two LibreOffice instances on one profile or one port lock each other up
