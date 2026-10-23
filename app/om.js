@@ -481,6 +481,8 @@ function candidates(pages, { layouts = null, asOfYear = new Date().getFullYear()
   const fromTable = new Map();
   const checks = [];
   const read = [];
+  // each column's lines, in memory only (omReadRecord keeps tables and checks): the T-12 to pro forma bridge reads them (bridge.js)
+  const columns = [];
   for (const t of tables) {
     inferUnits(t, { bsf: hint.bsf ? hint.bsf.value : null, units: hint.units ? hint.units.value : null });
     const picks = pickColumns(t);
@@ -496,6 +498,7 @@ function candidates(pages, { layouts = null, asOfYear = new Date().getFullYear()
     }
     const { checks: cs, perCol } = tableChecks(t, { picks, rowsOf });
     checks.push(...cs);
+    for (const [k, r] of Object.entries(perCol)) columns.push({ table: t.id, idx: +k, label: columnName(t, +k, picks), page: t.page, scale: t.scale || 1, noi: r.noi, noiPrinted: r.noiPrinted, lines: r.lines });
     const usable = t.columns.filter((c) => !['pct', 'psf', 'unit'].includes(c.kind));
     const { pageBonus, finBonus } = bonus[t.page - 1];
     for (const r of t.rows) {
@@ -537,7 +540,7 @@ function candidates(pages, { layouts = null, asOfYear = new Date().getFullYear()
       inplace: picks.inplace, pf: picks.pf });
   }
   const all = out.flatMap((c) => (c.slot ? fromTable.get(c.slot) || [] : [c]));
-  return { cands: all, statement: { tables: read, checks } };
+  return { cands: all, statement: { tables: read, checks, columns } };
 }
 
 /** The best value for each field, with the runners-up; a figure from a statement keeps its row, column and cell. */
@@ -653,7 +656,7 @@ export { rentRoll, headerColumns, mergeHeader } from './omroll.js';
  * and which are to come (projected); today by default. `scanned` lists the
  * pages with no text layer: a photo, or a scan whose figures can't be read
  * without OCR. `statement` holds the statement tables as read and their
- * checks (omstatement.js), in the Data QC shape.
+ * checks (omstatement.js), in the Data QC shape, and `columns`: each column's lines, in memory only.
  */
 export function readOm(pages, { layouts = null, asOf = null } = {}) {
   const text = pages.join('\n');

@@ -377,6 +377,38 @@ function columnStatement(t, k, scale, roles) {
 const sideOf = (l) => CATEGORY[l.category].side;
 
 /**
+ * One column's lines as the checks and the T-12 bridge (bridge.js) read them: the statement shape (columnStatement),
+ * signed as the analysis is (normalizeSigns), and a section printed with fewer than three lines that don't add up
+ * (a summary, not every line) replaced by its printed subtotal, `how: 'stated'. Null when the column can't be read.
+ * `st0` is the statement before signs and replacement (it holds the NOI as printed); `pre` its lines before the
+ * replacement; `partial` lists the replaced sections. One copy of this, for tableChecks and the bridge.
+ * @param {any} t
+ * @param {number} k
+ * @param {{ subtotal: Set<number>, opex: Set<number> }} roles
+ */
+export function columnLines(t, k, roles) {
+  const tol = tolerance(t.scale || 1);
+  const st0 = columnStatement(t, k, t.scale || 1, roles);
+  if (!st0) return null;
+  const st = normalizeSigns(st0);
+  const pre = st.lines;
+  const partial = [];
+  for (const [key, side, word] of [['egi', 'income', 'income'], ['opex', 'expense', 'expense']]) {
+    const s = st.stated[key];
+    if (!s) continue;
+    const ls = st.lines.filter((l) => sideOf(l) === side);
+    const sum = toc(ls.reduce((a, l) => a + l.total, 0));
+    if (!ls.length || (ls.length < 3 && Math.abs(Math.abs(sum) - Math.abs(s.value)) > tol(s.value, ls.length))) {
+      if (ls.length) partial.push({ key, n: ls.length, sum, value: s.value, word });
+      st.lines = st.lines.filter((l) => sideOf(l) !== side);
+      st.lines.push({ id: `S${key}`, r: s.r, label: s.label, key: s.label.toLowerCase(), section: side, months: [], total: key === 'opex' ? Math.abs(s.value) : s.value, fileTotal: null, category: side === 'income' ? 'otherIncome' : 'otherOpex', how: 'stated' });
+      delete st.stated[key];
+    }
+  }
+  return { st0, st, partial, pre };
+}
+
+/**
  * The checks on one table, in the Data QC shape (dataqc.js), and where each
  * figure the deal could take sits. `rowsFor(field)` gives the table's rows
  * for a field (om.js matches the labels).
@@ -433,28 +465,16 @@ export function tableChecks(t, { picks, rowsOf }) {
     if (EXCLUDED.has(c.kind)) continue;
     const k = c.idx;
     const name = columnName(t, k, picks);
-    const st0 = columnStatement(t, k, scale, roles);
-    if (!st0) continue;
-    const st = normalizeSigns(st0);
+    const cl = columnLines(t, k, roles);
+    if (!cl) continue;
+    const { st0, st, pre } = cl;
     const lev = used(k) ? 'fail' : 'warn';
-    const res = { ran: 0, failed: [], egi: null, opex: null, noi: null, taxes: null };
-    const income = st.lines.filter((l) => sideOf(l) === 'income');
-    const expense = st.lines.filter((l) => sideOf(l) === 'expense');
+    const res = { ran: 0, failed: [], egi: null, opex: null, noi: null, taxes: null, lines: [], noiPrinted: !!st0.stated.noi };
+    const income = pre.filter((l) => sideOf(l) === 'income');
+    const expense = pre.filter((l) => sideOf(l) === 'expense');
     const egiRow = rowOf('gross'); const opexRow = rowOf('opex'); const noiRow = rowOf('noi'); const taxRow = rowOf('taxes');
     // a section printed with fewer than three lines that don't add up is a summary, not every line: its subtotal is used
-    const sumOf = (ls) => toc(ls.reduce((s, l) => s + l.total, 0));
-    const partial = [];
-    for (const [key, ls, side, word, row] of [['egi', income, 'income', 'income', egiRow], ['opex', expense, 'expense', 'expense', opexRow]]) {
-      const s = st.stated[key];
-      if (!s) continue;
-      const sum = sumOf(ls);
-      if (!ls.length || (ls.length < 3 && Math.abs(Math.abs(sum) - Math.abs(s.value)) > tol(s.value, ls.length))) {
-        if (ls.length) partial.push({ key, n: ls.length, sum, value: s.value, word, row });
-        st.lines = st.lines.filter((l) => sideOf(l) !== side);
-        st.lines.push({ id: `S${key}`, r: s.r, label: s.label, key: s.label.toLowerCase(), section: side, months: [], total: key === 'opex' ? Math.abs(s.value) : s.value, fileTotal: null, category: side === 'income' ? 'otherIncome' : 'otherOpex', how: 'stated' });
-        delete st.stated[key];
-      }
-    }
+    const partial = cl.partial.map((p) => ({ ...p, row: p.key === 'egi' ? egiRow : opexRow }));
     for (const p of partial) checks.push({ id: id(k, `partial.${p.key}`), kind: 'partial', level: 'info', amount: 0, ...where(p.row, k),
       text: `${name}: only ${p.n} ${p.word} line${p.n === 1 ? ' is' : 's are'} printed above ${p.key === 'egi' ? 'EGI' : 'total expenses'} (adding up to ${money(p.sum)} of ${money(p.value)}), so ${p.key === 'egi' ? 'EGI' : 'total expenses'} ${p.key === 'egi' ? 'is' : 'are'} taken as printed.` });
     const hasIncome = st.lines.some((l) => sideOf(l) === 'income');
@@ -533,6 +553,11 @@ export function tableChecks(t, { picks, rowsOf }) {
       if (res.taxes !== null && opexV !== null) bits.push('taxes are within total expenses');
       checks.push({ id: id(k, 'pass'), kind: 'pass', level: 'pass', amount: 0, ...where(noiRow || egiRow || opexRow, k), text: `${name}: ${bits.join('; ') || 'its figures are in order'}, as printed.` });
     }
+    // the lines as the T-12 bridge reads them (whole cents; kept in memory with the read, never saved on the deal)
+    res.lines = st.lines.map((l) => {
+      const row = t.rows.find((y) => y.line === l.r - 2);
+      return { label: l.label, category: l.category, how: l.how || null, c: Math.round(toc(l.total) * 100), line: l.r - 1, cell: row && row.cells[k] ? row.cells[k].text : null };
+    });
     perCol[k] = res;
   }
   // growth from one column to the next: a note for income or expenses, a warning for NOI; never blocking

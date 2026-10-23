@@ -1178,8 +1178,8 @@ export function windowOf(t) {
  * as stored (signed by normalizeSigns); blank months are 0 and left out of a typical month. Not run while a
  * period check holds the totals (a month counted twice would make spikes). Design: docs/proposals/t12-multiformat.md §4-5. */
 
-const c100 = (x) => Math.round(cents(x) * 100);
-const fromC = (c) => cents(c / 100);
+export const c100 = (x) => Math.round(cents(x) * 100);
+export const fromC = (c) => cents(c / 100);
 /** Dollars, with cents only where there are some: "$3,000", "$499.99". */
 const usdx = (x) => (c100(x) % 100 === 0 ? usd0(x) : `${x < 0 ? '−' : ''}$${Math.abs(x).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 const sideOfLine = (l) => (l.category && CATEGORY[l.category] ? CATEGORY[l.category].side : l.section);
@@ -1505,15 +1505,25 @@ export function normSource(res) {
  */
 export function normRefusal(t, res) {
   if (res.held) return `Held: ${heldWords(t, res)}.`;
-  const open = openLines(t).length;
-  if (open || res.reported.unassigned) return `File the ${open} line${open === 1 ? '' : 's'} still waiting in Review first: the totals aren’t complete.`;
+  const open = openWords(t, res);
+  if (open) return open;
   const hold = useHeldBy(t);
   if (hold.length) return `Held: ${hold.map((c) => c.short || c.text).join('; ')}. Settle ${hold.length === 1 ? 'that check' : `those ${hold.length} checks`} first.`;
   if (!res.steps.length) return 'Every line counts as reported, so there is nothing normalised yet. Choose how a line counts first.';
   // a partial statement's as-reported lines are those months, not a year's: they never reach the deal's annual figures
+  return partialWords(t, res);
+}
+
+/** Lines still waiting in Review (or unfiled amounts), in words, or '': the totals aren't complete. */
+export function openWords(t, res) {
+  const open = openLines(t).length;
+  return open || res.reported.unassigned ? `File the ${open} line${open === 1 ? '' : 's'} still waiting in Review first: the totals aren’t complete.` : '';
+}
+
+/** U2's guard in words: the NOI lines of a partial year still as reported (those months, not a year's), or ''. */
+export function partialWords(t, res) {
   const mixed = partialAsReported(t, res);
-  if (mixed.length) return `${mixed.length} line${mixed.length === 1 ? ' is' : 's are'} still as reported over ${t.months.length} month${t.months.length === 1 ? '' : 's'}, not a year’s (${mixed.slice(0, 3).map((x) => x.label || x.id).join(', ')}${mixed.length > 3 ? ', …' : ''}). Choose Annualise, Typical month × 12 or Exclude for ${mixed.length === 1 ? 'it' : 'each'} before using the normalised figures as the deal’s.`;
-  return '';
+  return mixed.length ? `${mixed.length} line${mixed.length === 1 ? ' is' : 's are'} still as reported over ${t.months.length} month${t.months.length === 1 ? '' : 's'}, not a year’s (${mixed.slice(0, 3).map((x) => x.label || x.id).join(', ')}${mixed.length > 3 ? ', …' : ''}). Choose Annualise, Typical month × 12 or Exclude for ${mixed.length === 1 ? 'it' : 'each'} before using the normalised figures as the deal’s.` : '';
 }
 
 const SIDE_NAME = { income: 'income', expense: 'operating expenses', below: 'below the line' };

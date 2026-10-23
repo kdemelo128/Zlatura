@@ -177,7 +177,7 @@ the baseline; 32 flows are listed at 4.7.2).
 | Monte Carlo | Not implemented | |
 | "Why did this number change?" waterfall | Not implemented | |
 | NOI bridge tool (potential rent down to NOI) and the rent roll's NOI bridge | Implemented and verified | Tool and rent roll NOI bridge. Relabelled in 4.7.2 (was "NOI bridge"): this is not the brief's 7.9 bridge, which is the next row. |
-| NOI bridge (7.9): T-12 NOI to broker pro forma NOI to platform stabilized NOI, line by line (the "pro forma against T-12 bridge") | Partially implemented | Added 4.7.2 (7.9; 6.3). The OM's NOI against the T-12's, with the largest part of the gap named (4.7.0). No line-by-line bridge, no platform stabilized NOI, no waterfall. |
+| NOI bridge (7.9): T-12 NOI to broker pro forma NOI to platform stabilized NOI, line by line (the "pro forma against T-12 bridge") | Partially implemented | Added 4.7.2 (7.9; 6.3). The OM's NOI against the T-12's, with the largest part of the gap named (4.7.0). The line-by-line logic (`app/bridge.js`: a step per category, in whole cents, tested on invented statements) is built but has no screen yet (7.9 PR B1; the screen is B2), so there is no line-by-line bridge a broker can see, no platform stabilized NOI, no waterfall. |
 | Value bridge (7.9): broker price to independently modelled value | Not implemented | Added 4.7.2 (7.9). |
 
 ## Part 8. Firm templates and Mapping Studio
