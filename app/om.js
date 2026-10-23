@@ -498,7 +498,7 @@ function candidates(pages, { layouts = null, asOfYear = new Date().getFullYear()
     }
     const { checks: cs, perCol } = tableChecks(t, { picks, rowsOf });
     checks.push(...cs);
-    for (const [k, r] of Object.entries(perCol)) columns.push({ table: t.id, idx: +k, label: columnName(t, +k, picks), page: t.page, scale: t.scale || 1, noi: r.noi, noiPrinted: r.noiPrinted, lines: r.lines });
+    for (const [k, r] of Object.entries(perCol)) columns.push({ table: t.id, idx: +k, label: columnName(t, +k, picks), page: t.page, scale: t.scale || 1, noi: r.noi, noiPrinted: r.noiPrinted, noiCell: r.noiCell, lines: r.lines });
     const usable = t.columns.filter((c) => !['pct', 'psf', 'unit'].includes(c.kind));
     const { pageBonus, finBonus } = bonus[t.page - 1];
     for (const r of t.rows) {

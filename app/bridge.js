@@ -14,7 +14,7 @@
  * `columnLines`, read in memory). No second copy of the money math: c100 and
  * fromC are t12.js's. Design: docs/proposals/ (7.9 design note). */
 
-import { CATEGORIES, CATEGORY, c100, fromC, heldWords, openWords, partialWords, residueWords } from './t12.js';
+import { CATEGORIES, CATEGORY, c100, fromC, usdx, heldWords, openWords, partialWords, residueWords } from './t12.js';
 
 /**
  * Where the bridge ends when the deal's pro forma NOI is not the OM's printed one (an edit, or another column chosen
@@ -23,13 +23,17 @@ import { CATEGORIES, CATEGORY, c100, fromC, heldWords, openWords, partialWords, 
  */
 export const BRIDGE_ENDS_AT = 'printed';
 
-const money = (c) => `${c < 0 ? '−' : ''}$${(Math.abs(c) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (c) => usdx(fromC(c));
+
+/** Whether the deal's pro forma NOI was read from a table's column (pick() in dealui.js drops the column, keeps the table). */
+const fromTable = (src) => !!(src && src.table && src.col);
 
 /** Why a column is not the one the deal's pro forma NOI was read from, or ''. A re-read PDF must match the one read. */
 function columnRefusal(col, src) {
   if (col.table !== src.table) return `This PDF’s statement table (${col.table}) is not the one the pro forma NOI was read from (${src.table}).`;
   if (col.label !== src.col) return `This PDF’s column “${col.label}” is not the one the pro forma NOI was read from (“${src.col}”).`;
-  if (col.noiPrinted && Number.isFinite(src.orig) && c100(col.noi) !== c100(src.orig)) return `This PDF prints a pro forma NOI of ${money(c100(col.noi))}, not the ${money(c100(src.orig))} that was read.`;
+  // by the cell as printed: a Data QC fix changes the deal's figure and `orig`, never the cell
+  if (col.noiCell && src.cell && col.noiCell !== src.cell) return `This PDF prints the pro forma NOI as “${col.noiCell}”, not the “${src.cell}” that was read.`;
   return '';
 }
 
@@ -40,7 +44,7 @@ function columnRefusal(col, src) {
  */
 export function pfColumn(columns, deal) {
   const src = deal && deal.sources && deal.sources.noi_pf;
-  if (!src || !src.table) return { col: null, why: '' };
+  if (!fromTable(src)) return { col: null, why: '' };
   const col = (columns || []).find((c) => c.table === src.table && c.label === src.col);
   if (!col) return { col: null, why: `This PDF has no column “${src.col}” on statement table ${src.table}, the one the pro forma NOI was read from.` };
   const why = columnRefusal(col, src);
@@ -81,7 +85,7 @@ export function pfBridge(t, res, col, deal, { endsAt = BRIDGE_ENDS_AT } = {}) {
   const start = { label: res.steps.length ? `T-12 NOI, normalised (a year${res.n < 12 ? `, from ${res.n} month${res.n === 1 ? '' : 's'}` : ''})` : `T-12 NOI (as reported, ${t.months.length} months)`, c: S, amount: fromC(S) };
   const out = (rows, endC, endLabel, notes = []) => ({ held: false, words: '', rows: rows.map((r) => ({ ...r, amount: fromC(r.c) })), start: { ...start, amount: fromC(S) }, end: { label: endLabel, c: endC, amount: fromC(endC) }, notes, below });
 
-  if (!src.table) {
+  if (!fromTable(src)) {
     // not read from a table: the whole difference, in one row
     return out([{ key: 'whole', tag: 'whole', label: 'Not broken down', c: dealC - S, words: 'The pro forma NOI was not read from a statement table, so there are no lines to compare.', lines: { t12: [], pf: [] } }], dealC, 'Pro forma NOI (the deal’s)');
   }
@@ -108,7 +112,8 @@ export function pfBridge(t, res, col, deal, { endsAt = BRIDGE_ENDS_AT } = {}) {
   const pBy = {};
   const loose = [];
   const pfLine = (l) => ({ label: l.label, c: l.c, how: l.how, page: col.page, line: l.line, cell: l.cell, scale: col.scale });
-  for (const l of col.lines) {
+  // a blank pro forma cell is no line (blank is not zero); a printed $0.00 or a dash is
+  for (const l of col.lines.filter((x) => x.cell !== null)) {
     const cat = CATEGORY[l.category];
     if (!cat) continue;
     if (cat.side === 'below') { below.pf.push(pfLine(l)); continue; }

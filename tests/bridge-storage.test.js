@@ -11,7 +11,7 @@ import { t12Rows, omPage, omUnmatchedRows } from './fixtures/bridge-fixtures.js'
 test('the deal keeps the same omRead keys, a table is a row count, and the bridge writes nothing to the deal', async () => {
   const om = readOm([omPage(omUnmatchedRows())], { asOf: '2026-10-14' });
   const f = om.fields.noi_pf;
-  const deal = { figures: { noi_pf: f.value }, sources: { noi_pf: { table: f.table, col: f.col, orig: f.value } } };
+  const deal = { figures: { noi_pf: f.value }, sources: { noi_pf: { table: f.table, col: f.col, cell: f.cell, orig: f.value } } };
   const { omRead } = omReadRecord(om, { figures: deal.figures, sources: deal.sources, file: 'invented.pdf', at: 1 });
   assert.deepEqual(Object.keys(omRead), ['v', 'at', 'file', 'tables', 'checks', 'blocked', 'held', 'applied', 'seen']);
   assert.deepEqual(Object.keys(omRead.tables[0]), ['id', 'page', 'title', 'scale', 'scaleText', 'lines', 'rows', 'columns', 'inplace', 'pf']);

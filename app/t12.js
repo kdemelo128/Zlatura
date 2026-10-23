@@ -1181,7 +1181,7 @@ export function windowOf(t) {
 export const c100 = (x) => Math.round(cents(x) * 100);
 export const fromC = (c) => cents(c / 100);
 /** Dollars, with cents only where there are some: "$3,000", "$499.99". */
-const usdx = (x) => (c100(x) % 100 === 0 ? usd0(x) : `${x < 0 ? '−' : ''}$${Math.abs(x).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+export const usdx = (x) => (c100(x) % 100 === 0 ? usd0(x) : `${x < 0 ? '−' : ''}$${Math.abs(x).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 const sideOfLine = (l) => (l.category && CATEGORY[l.category] ? CATEGORY[l.category].side : l.section);
 /** 'income' or 'expense' for a line that is in NOI's reach (filed or not), else null (below the line). */
 const noiSide = (l) => { const s = sideOfLine(l); return s === 'income' || s === 'expense' ? s : null; };

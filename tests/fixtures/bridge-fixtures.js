@@ -9,7 +9,7 @@
  *                                                              Utilities 400.40                4,804.80
  *   EGI 124,203.12; expenses 42,110.88; NOI 82,092.24.
  *
- * The OM's Pro Forma column (it prints no parking line; its Actual column has the T-12's EGI and NOI):
+ * The OM's Pro Forma column (it prints no parking line, and a Payroll line with a blank Pro Forma cell; its Actual column has the T-12's EGI and NOI):
  *   Gross Potential Rent 126,000.00; Vacancy & Credit Loss (6,300.00); Other Income 1,500.50; EGI 121,200.50
  *   Real Estate Taxes 19,000.00; Insurance 3,700.08; Repairs & Maintenance 6,500.00; Utilities 4,900.40;
  *   Total Operating Expenses 34,100.48; NOI 87,100.02.
@@ -57,6 +57,7 @@ export const omRows = () => [
   ['Insurance', '$3,700.08', '$3,700.08'],
   ['Repairs & Maintenance', '$6,006.00', '$6,500.00'],
   ['Utilities', '$4,804.80', '$4,900.40'],
+  ['Payroll', '$9,600.00'],                      // printed in the Actual column only: the Pro Forma cell is blank
   ['Total Operating Expenses', '$42,110.88', '$34,100.48'],
   ['Net Operating Income', '$82,092.24', '$87,100.02'],
 ];

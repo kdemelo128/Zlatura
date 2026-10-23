@@ -36,7 +36,7 @@
 import { pageLines } from './omroll.js';
 import { scaleOf } from './scale.js';
 import { toCents } from './engine/money.js';
-import { readStatement, normalizeSigns, statementChecks, statementTotals, matchLabel, amountOf, CATEGORY } from './t12.js';
+import { readStatement, normalizeSigns, statementChecks, statementTotals, matchLabel, amountOf, CATEGORY, c100 } from './t12.js';
 import { blockingChecks, resolveCheck } from './dataqc.js';
 
 /* ------------------------------------------------------------- the cells */
@@ -469,7 +469,7 @@ export function tableChecks(t, { picks, rowsOf }) {
     if (!cl) continue;
     const { st0, st, pre } = cl;
     const lev = used(k) ? 'fail' : 'warn';
-    const res = { ran: 0, failed: [], egi: null, opex: null, noi: null, taxes: null, lines: [], noiPrinted: !!st0.stated.noi };
+    const res = { ran: 0, failed: [], egi: null, opex: null, noi: null, taxes: null, lines: [], noiPrinted: !!st0.stated.noi, noiCell: null };
     const income = pre.filter((l) => sideOf(l) === 'income');
     const expense = pre.filter((l) => sideOf(l) === 'expense');
     const egiRow = rowOf('gross'); const opexRow = rowOf('opex'); const noiRow = rowOf('noi'); const taxRow = rowOf('taxes');
@@ -553,10 +553,12 @@ export function tableChecks(t, { picks, rowsOf }) {
       if (res.taxes !== null && opexV !== null) bits.push('taxes are within total expenses');
       checks.push({ id: id(k, 'pass'), kind: 'pass', level: 'pass', amount: 0, ...where(noiRow || egiRow || opexRow, k), text: `${name}: ${bits.join('; ') || 'its figures are in order'}, as printed.` });
     }
+    // the NOI cell as printed: a Data QC fix changes the deal's figure, never this, so the bridge finds its column by it
+    res.noiCell = cellOf(noiRow, k) ? cellOf(noiRow, k).text : null;
     // the lines as the T-12 bridge reads them (whole cents; kept in memory with the read, never saved on the deal)
     res.lines = st.lines.map((l) => {
       const row = t.rows.find((y) => y.line === l.r - 2);
-      return { label: l.label, category: l.category, how: l.how || null, c: Math.round(toc(l.total) * 100), line: l.r - 1, cell: row && row.cells[k] ? row.cells[k].text : null };
+      return { label: l.label, category: l.category, how: l.how || null, c: c100(l.total), line: l.r - 1, cell: row && row.cells[k] ? row.cells[k].text : null };
     });
     perCol[k] = res;
   }

@@ -8,6 +8,7 @@ import fc from 'fast-check';
 import { importStatement, normalise, setMethod, setWindow } from '../app/t12.js';
 import { readOm } from '../app/om.js';
 import { pfBridge, pfColumn, BRIDGE_ENDS_AT } from '../app/bridge.js';
+import { omReadRecord, applyOmFix } from '../app/omstatement.js';
 import { uRows } from './fixtures/t12-normalise-fixtures.js';
 import { t12Rows, omPage, omRows, omBRows, omThousandsRows, omStatedRows, omUnmatchedRows } from './fixtures/bridge-fixtures.js';
 
@@ -19,7 +20,7 @@ const methods = (t, by) => { for (const [label, m] of Object.entries(by)) setMet
 const omOf = (rows, opts = {}) => readOm([omPage(rows, opts)], { asOf: '2026-10-14' });
 function dealOf(om) {
   const f = om.fields.noi_pf;
-  return { figures: { noi_pf: f.value }, sources: { noi_pf: { table: f.table, col: f.col, orig: f.value } } };
+  return { figures: { noi_pf: f.value }, sources: { noi_pf: { table: f.table, col: f.col, cell: f.cell, orig: f.value } } };
 }
 /** The bridge of a T-12 to an OM's pro forma column. */
 function bridge(t, om, deal = dealOf(om), opts) {
@@ -199,7 +200,7 @@ test('a PDF that is not the one read is refused, with the reason', () => {
   const other = omOf(omRows().map((r) => (r[0] === 'Net Operating Income' ? [r[0], r[1], '$87,300.02'] : r[0] === 'Effective Gross Income' ? [r[0], r[1], '$121,400.50'] : r)));
   const a = pfColumn(other.statement.columns, deal);
   assert.equal(a.col, null);
-  assert.match(a.why, /prints a pro forma NOI of \$87,300\.02, not the \$87,100\.02 that was read/);
+  assert.match(a.why, /prints the pro forma NOI as “\$87,300\.02”, not the “\$87,100\.02” that was read/);
   // pfBridge refuses it too, if it is given the column anyway
   const given = pfBridge(t, normalise(t), other.statement.columns.find((c) => c.label === 'Pro Forma'), deal);
   assert.equal(given.held, true);
@@ -213,4 +214,57 @@ test('a PDF that is not the one read is refused, with the reason', () => {
   const none = pfBridge(t, normalise(t), null, deal);
   assert.equal(none.held, true);
   assert.equal(none.needsPdf, true);
+});
+
+/* ------------------------------------------- the deal's figure after Data QC or a pick */
+
+test('after a Data QC fix changes the pro forma NOI, the right PDF is still found and the bridge ends at the printed NOI', () => {
+  // NOI printed 88,200.02; EGI less expenses (and the lines) give 87,100.02
+  const om = omOf(omRows().map((r) => (r[0] === 'Net Operating Income' ? [r[0], r[1], '$88,200.02'] : r)));
+  const f = om.fields.noi_pf;
+  const figures = { noi_pf: f.value };
+  const sources = { noi_pf: { table: f.table, col: f.col, cell: f.cell, orig: f.value } };
+  const { omRead, figures: fig, sources: src } = omReadRecord(om, { figures, sources, file: 'invented.pdf', at: 1 });
+  const deal = { figures: fig, sources: src, omRead };
+  assert.ok(!('noi_pf' in deal.figures), 'held back by the failed check');
+  const ck = omRead.checks.find((c) => c.level === 'fail' && (c.fixes || []).some((x) => x.id === 'subtotals'));
+  assert.ok(ck, 'a failed NOI check offers "Use the subtotals"');
+  applyOmFix(deal, ck.id, 'subtotals');
+  assert.equal(deal.figures.noi_pf, 87100.02, 'the fix changed the deal’s figure');
+  assert.equal(deal.sources.noi_pf.orig, 87100.02, 'and orig with it');
+  const t = imp(t12Rows());
+  const found = pfColumn(om.statement.columns, deal);
+  assert.ok(found.col, found.why);
+  const b = pfBridge(t, normalise(t), found.col, deal);
+  assert.equal(b.held, false);
+  assert.equal(b.end.c, 8820002, 'ends at the OM’s printed NOI');
+  assert.equal(total(b), 8820002);
+  assert.equal(byKey(b).printed.c, 110000, 'the printed NOI is 1,100.00 above its lines');
+  assert.deepEqual(b.notes.map((n) => [n.kind, n.c]), [['dealNoi', 8710002]]);
+});
+
+test('a pro forma NOI picked from another reading (no column, table kept) is "Not broken down", not stuck asking for the PDF', () => {
+  const t = imp(t12Rows());
+  const deal = { figures: { noi_pf: 90000 }, sources: { noi_pf: { table: 'p1.1', page: 3, line: 'NOI   90,000', orig: 90000 } } };
+  assert.deepEqual(pfColumn(omOf(omRows()).statement.columns, deal), { col: null, why: '' });
+  const b = pfBridge(t, normalise(t), null, deal);
+  assert.equal(b.held, false);
+  assert.ok(!b.needsPdf);
+  assert.deepEqual(b.rows.map((r) => [r.label, r.c]), [['Not broken down', 9000000 - 8209224]]);
+});
+
+/* ------------------------------------------------------------ blank is not zero */
+
+test('a pro forma cell left blank is no OM line: Payroll printed only in the Actual column is only in the T-12', () => {
+  const t = imp(t12Rows());
+  const om = omOf(omRows());
+  const col = pfColumn(om.statement.columns, dealOf(om)).col;
+  const payroll = col.lines.find((l) => l.label === 'Payroll');
+  assert.equal(payroll && payroll.cell, null, 'read with no cell in the Pro Forma column');
+  const b = bridge(t, om);
+  assert.equal(byKey(b).payroll.tag, 't12Only');
+  assert.deepEqual(byKey(b).payroll.lines.pf, []);
+  // a printed $0.00 is a line: both sides
+  const z = omOf(omRows().map((r) => (r[0] === 'Payroll' ? [r[0], r[1], '$0.00'] : r)));
+  assert.equal(byKey(bridge(t, z)).payroll.tag, 'both');
 });
