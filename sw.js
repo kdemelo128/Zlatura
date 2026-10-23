@@ -88,6 +88,7 @@ const ASSETS = [
   'app/ai.js',
   'app/aifacts.js',
   'app/aiui.js',
+  'app/researchui.js',
   'app/pipeline.js',
   'app/crm.js',
   'app/dealcrm.js',

@@ -12,6 +12,7 @@ import { toCents } from './engine/money.js';
 import { DEAL_FIELDS } from './dealfields.js';
 import { openChecks as openQc, whereText } from './dataqc.js';
 import { conv } from './engine/conventions.js';
+import { tickable, retentionEnd, MAX_CLAIMS } from './claims.js';
 
 const FIELD_LABEL = Object.fromEntries(DEAL_FIELDS.map((f) => [f.key, f.label]));
 const dealName = (d) => d.name || (d.figures && d.figures.address) || 'Untitled deal';
@@ -20,7 +21,8 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.abs(v) : 
 /**
  * Every item, grouped: [{ group: 'deal'|'template', id, name, items: [...] }],
  * each group's items with the most money at stake first, groups by the same.
- * Items: { kind: 't12line'|'t12check'|'t12note'|'ai'|'rrcheck'|'omcheck'|'tpl', id, amount, ... }.
+ * Items: { kind: 't12line'|'t12check'|'t12note'|'ai'|'rrcheck'|'omcheck'|'tpl'|'research', id, amount, ... }.
+ * A 'research' item is a company brief with claims the broker can still tick (group 'research', one item per brief).
  * A 't12check' is a T-12 check (t12.js t12Qc) with its level, where it points and its fixes.
  * An 'rrcheck' is a Data QC check on an OM's rent roll (dataqc.js) that
  * failed or found the OM disagreeing with itself: with its page, row and cell.
@@ -28,7 +30,7 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.abs(v) : 
  * with the fixes it offers (keep as printed, the subtotals, the sum of the
  * lines, another column).
  */
-export function reviewItems({ deals = [], templates = [] } = {}) {
+export function reviewItems({ deals = [], templates = [], briefs = [], now = Date.now() } = {}) {
   const groups = [];
   for (const d of deals) {
     if (!d) continue;
@@ -69,8 +71,15 @@ export function reviewItems({ deals = [], templates = [] } = {}) {
       .map(({ c, i }) => ({ kind: 'tpl', id: `tpl:${i}`, cell: i, sheet: c.sheet, ref: c.cell, field: c.field, label: FIELD_LABEL[c.field] || c.field, why: c.why || '', amount: 0 }));
     if (items.length) groups.push({ group: 'template', id: t.id, name: t.name || 'Untitled template', items });
   }
+  // a research brief with claims waiting for the broker's tick: one item per brief
+  for (const b of briefs) {
+    if (!b || b.status !== 'ready' || !Array.isArray(b.claims) || retentionEnd(b) < now) continue;
+    const n = b.claims.slice(0, MAX_CLAIMS).filter((c) => c && c.ticked !== true && tickable(c)).length;
+    if (n) groups.push({ group: 'research', id: b.id, name: `Research: ${(b.subject && b.subject.name) || 'a company'}`, items: [{ kind: 'research', id: `research:${b.id}`, briefId: b.id, count: n, amount: 0 }] });
+  }
   const atStake = (g) => g.items.reduce((s, x) => s + x.amount, 0);
-  return groups.sort((a, b) => (a.group === b.group ? atStake(b) - atStake(a) : a.group === 'deal' ? -1 : 1));
+  const rank = { deal: 0, template: 1, research: 2 };
+  return groups.sort((a, b) => (a.group === b.group ? atStake(b) - atStake(a) : rank[a.group] - rank[b.group]));
 }
 
 /** How many items, for the tab's badge. */

@@ -5,6 +5,7 @@ import * as crm from './crm.js';
 import { STAGE_LABEL, stageChoices, stageOf, taskBuckets, CONTACT_ROLES, KEY_DATE_LABELS, isoDay } from './pipeline.js';
 import { el, svg, toast, niceDate } from './kit.js';
 import { dateInput } from './dateinput.js';
+import { startResearch } from './researchui.js';
 
 /**
  * box: the card; d: the open deal; touch(): save it. Draws, then redraws
@@ -256,6 +257,14 @@ export function editContact(api, c = {}, deals = []) {
   const email = field('email', 'Email', 'email');
   const notes = field('notes', 'Notes', 'textarea', true);
   body.appendChild(form);
+  // research the company from the sources the broker supplies: only the company name goes in, never this contact's name
+  const rs = el('button', 'btn btn-gray btn-sm', 'Research company');
+  rs.type = 'button';
+  rs.id = 'contact-research';
+  rs.hidden = !company.value.trim();
+  company.addEventListener('input', () => { rs.hidden = !company.value.trim(); });
+  rs.addEventListener('click', () => startResearch({ company: company.value.trim() }));
+  body.appendChild(rs);
   const linked = new Set(c.dealIds || []);
   if (deals.length) {
     const sec = el('section');
