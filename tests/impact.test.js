@@ -203,6 +203,24 @@ test('the messy roll: every rent roll check fires, and what its lease fields mov
   for (const id of MESSY_RULES) assert.ok(seenMoving.has(`check.${id}`), `check.${id} moved by something`);
 });
 
+// the roll's recoveries-twice check (K37): a CAM-worded other income line beside leases that recover expenses. One deal has
+// no lease recovering (so putting a method on one makes it fire); the other has only the last lease recovering (so removing it,
+// making it vacant or changing the other income line stops it).
+const camDeal = (only) => { const d = messyDeal(); d.rr = richRentRoll(); for (const L of d.rr.leases) if (!only || L.id !== only) delete L.recovery; d.rr.settings.otherIncome = [{ name: 'CAM reimbursements', annual: 50000 }]; d.figures.ptype = 'Retail'; return d; };
+test('the recoveries-twice check: what changes it is on the map', async () => {
+  const missing = [];
+  for (const deal of [camDeal(null), camDeal('g')]) {
+    for (const ch of changesFor(deal, { leases: 7 })) {
+      if (!/^(lease\.(recovery|status)|leases|rr\.settings\.otherIncome)$/.test(ch.input)) continue;
+      const r = await tryChange(deal, ch, {});
+      for (const k of r.missing) missing.push(`changing ${ch.label} moved ${k}, but the map doesn't say so`);
+      for (const k of r.moved) { if (!seenMoving.has(k)) seenMoving.set(k, new Set()); seenMoving.get(k).add(ch.input); }
+    }
+  }
+  assert.deepEqual([...new Set(missing)], []);
+  assert.match(traceAnalysis(analysisInput(camDeal('g'))).m.checks.map((c) => c.text).join('|'), /may count them twice/);
+});
+
 // a T-12 (invented): each line the same every month, so its NOI is easy to see; far enough from the OM's and the rent roll's to warn
 const T12_ROWS = [['Line', ...['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m) => `${m} 2025`), 'Total'],
   ['Base Rent', 60000], ['Expense Recoveries', 9000], ['Real Estate Taxes', 9000], ['Insurance', 2000], ['Repairs & Maintenance', 4000], ['Utilities', 3000]]
@@ -220,6 +238,33 @@ test('a deal with a T-12: its lines, the OM’s figures and the rent roll move o
   }
   assert.deepEqual([...new Set(missing)], []);
   for (const id of ['check.noiOmT12', 'check.noiT12RentRoll', 'check.noiOmRentRoll']) assert.ok((seenMoving.get(id) || new Set()).has('t12'), `${id} moved by the T-12`);
+});
+
+/* G1 (U7, K37): the T-12's recoveries and the rent roll's projected recoveries never both reach NOI. The deal's NOI is one
+ * source at a time; only the operating expenses pass from the T-12 to the roll. A pin on a property, so it passes on old code. */
+import { statementTotals } from '../app/t12.js';
+test('G1: the T-12 and the rent roll are separate sources of NOI; their recoveries are never added together', () => {
+  const rowsWith = (cam) => T12_ROWS.map((r, i) => (r.cells[0] === 'Expense Recoveries' ? { r: r.r, cells: ['CAM recoveries', ...Array(12).fill(cam / 12), cam] } : r));
+  const dealWith = (cam, share) => {
+    const t12 = importStatement(rowsWith(cam), { file: 'invented.xlsx' });
+    const T = statementTotals(t12);
+    const rr = { settings: { asOf: '2026-06-30', years: 5, opex: 100000, expenseGrowth: 0, buildingSf: 10000 }, leases: [
+      { id: 'a', unit: '100', tenant: 'Pro Rata Co', sf: 5000, leaseStart: '2024-01-01', leaseEnd: '2034-12-31', periods: [{ start: '2024-01-01', end: '2034-12-31', rate: 30, unit: 'psf_year', source: 'documented' }], abatements: [], custom: {}, recovery: { method: 'prorata', share } }] };
+    // "Use the T-12's figures": gross, opex, taxes and NOI come from the statement alone
+    return { T, d: { name: 'G1', figures: { price: 9e6, noi: T.noi, gross: T.egi, opex: T.opex, taxes: T.taxes, bsf: 10000 }, loan: { ltv: 65, rate: 6.75, amort: 30, closing: 2 }, rr, live: {}, scenarios: [], targets: {}, t12 } };
+  };
+  const noiOf = (d, basis) => { const inp = analysisInput(d); const y1 = project(d.rr).annual[0].noi; return runScenario(inp, analyze(inp, null), { noiBasis: basis }, { noiSeries: [y1, y1, y1, y1, y1, y1] }).inputs.noi; };
+  const A = dealWith(40000, 50); const y1 = project(A.d.rr).annual[0];
+  assert.equal(analyze(analysisInput(A.d), null).noi, A.T.egi - A.T.opex);
+  assert.equal(noiOf(A.d, 'rentroll'), y1.noi);
+  assert.equal(Math.round(y1.recoveries), 50000); // 100,000 x 50 %: the roll's own, nothing from the T-12
+  const B = dealWith(55000, 50); // the T-12's recovery line changed: the roll's NOI is the same, the T-12's own moves
+  assert.equal(noiOf(B.d, 'rentroll'), y1.noi);
+  assert.notEqual(B.T.noi, A.T.noi);
+  const C = dealWith(40000, 20); // the lease's share changed: the OM-basis (T-12) NOI is the same, the roll's moves
+  assert.equal(noiOf(C.d, 'om'), noiOf(A.d, 'om'));
+  assert.equal(analyze(analysisInput(C.d), null).noi, A.T.egi - A.T.opex);
+  assert.notEqual(noiOf(C.d, 'rentroll'), y1.noi);
 });
 
 // a nine-month T-12 put onto the deal as it stood, as "Use the T-12's figures" did before 4.7.10 (invented)
@@ -253,7 +298,7 @@ test('each formula’s declared reads are each read on some deal, and each input
   const more = [{ d: { price: 9e6, noi: 6e5, bsf: 32000, rentRoll: [{ sf: 1000, annual: 50000, end: '2030-01-01T00:00:00.000Z' }], rentRollAsOf: rr.settings.asOf } },
     { d: analysisInput(t12Deal(), { project: (r, o) => projectionSummary(project(r, o)) }) },
     { d: analysisInput(partialDeal()) },
-    { d: analysisInput(messyDeal()) }, { d: analysisInput(messyDeal(null)) }]; // the second has no as-of date: the rules read today
+    { d: analysisInput(messyDeal()) }, { d: analysisInput(messyDeal(null)) }, { d: analysisInput(camDeal('g')) }]; // the second has no as-of date: the rules read today
   for (const c of [...ALL, ...more]) for (const [id, s] of traceAnalysis(c.d, c.comps || null).reads) { if (!traced.has(id)) traced.set(id, new Set()); for (const p of s) traced.get(id).add(p); }
   const unread = [];
   const unmoved = [];
