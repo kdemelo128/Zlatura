@@ -3,7 +3,7 @@
 
 import * as crm from './crm.js';
 import { STAGE_LABEL, stageChoices, stageOf, taskBuckets, CONTACT_ROLES, KEY_DATE_LABELS, isoDay } from './pipeline.js';
-import { el, svg, toast, niceDate } from './kit.js';
+import { el, svg, toast, niceDate, actionSheet } from './kit.js';
 import { dateInput } from './dateinput.js';
 import { startResearch } from './researchui.js';
 
@@ -263,9 +263,29 @@ export function editContact(api, c = {}, deals = []) {
   rs.id = 'contact-research';
   rs.hidden = !company.value.trim();
   company.addEventListener('input', () => { rs.hidden = !company.value.trim(); });
-  rs.addEventListener('click', () => startResearch({ company: company.value.trim() }));
   body.appendChild(rs);
   const linked = new Set(c.dealIds || []);
+  const record = () => ({ ...c, name: name.value, company: company.value, role: role.value, phone: phone.value.trim(), email: email.value.trim(), notes: notes.value, dealIds: [...linked] });
+  const dirty = () => {
+    const r = record();
+    return ['name', 'company', 'phone', 'email', 'notes'].some((k) => (r[k] || '') !== (c[k] || '')) || r.role !== (c.role || 'Other')
+      || r.dealIds.length !== (c.dealIds || []).length || r.dealIds.some((x) => !(c.dealIds || []).includes(x));
+  };
+  // research replaces this sheet: edits not yet saved are saved first, or kept out on purpose, never dropped silently
+  rs.addEventListener('click', async () => {
+    const co = company.value.trim();
+    if (dirty()) {
+      const v = await actionSheet('You have unsaved changes to this contact', [
+        { label: 'Save, then research', sub: 'The contact is saved first.', value: 'save', primary: true },
+        { label: 'Research without saving', sub: 'The changes you made here are discarded.', value: 'skip' },
+      ]);
+      if (!v) return;
+      if (v === 'save') {
+        try { await crm.saveContact(record()); toast('Contact saved.'); } catch (e) { toast(e.message); return; }
+      }
+    }
+    startResearch({ company: co });
+  });
   if (deals.length) {
     const sec = el('section');
     sec.appendChild(el('h3', null, 'Deals'));
@@ -282,7 +302,7 @@ export function editContact(api, c = {}, deals = []) {
   }
   save.addEventListener('click', async () => {
     try {
-      const rec = await crm.saveContact({ ...c, name: name.value, company: company.value, role: role.value, phone: phone.value.trim(), email: email.value.trim(), notes: notes.value, dealIds: [...linked] });
+      const rec = await crm.saveContact(record());
       api.sheetClose();
       toast(`${rec.name} saved.`);
     } catch (e) { toast(e.message); }

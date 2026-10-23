@@ -12,7 +12,7 @@ import { createRequire } from 'module';
 import { phone, BASE, SHOTS, finish } from './lib.mjs';
 const AXE = createRequire(import.meta.url).resolve('axe-core/axe.min.js');
 const F = new URL('./files/', import.meta.url).pathname;
-const R = []; const check = (n, c, d = '') => R.push([c ? 'PASS' : 'FAIL', n, d]);
+const R = []; const check = (n, c, d = '') => { R.push([c ? 'PASS' : 'FAIL', n, d]); if (process.env.E2E_LIVE) console.log(c ? 'PASS' : 'FAIL', '|', n); };
 const AI = 'http://127.0.0.1:9';
 const COMPANY = 'Harbor Example Holdings LLC';
 const LINES = [
@@ -132,7 +132,7 @@ async function scenario(label, opts) {
   await page.click('#rs-go');
   await page.waitForSelector('dialog.action-sheet');
   const confirmText = (await page.textContent('dialog.action-sheet')).replace(/\s+/g, ' ');
-  check(L('the send is confirmed first: host, source count and "Contact names on this device are not sent"'), /Send 2 sources to 127\.0\.0\.1:9\?/.test(confirmText) && /Contact names on this device are not sent/.test(confirmText) && bodies.length === 0, confirmText);
+  check(L('the send is confirmed first: host, source count and "Contact names on this device are not sent"'), /Send 2 sources to 127\.0\.0\.1:9\?/.test(confirmText) && /the 2 files and pasted texts, in full/.test(confirmText) && /Contact names on this device are not sent/.test(confirmText) && bodies.length === 0, confirmText);
   await page.locator('dialog.action-sheet .action-item', { hasText: 'Send and research' }).click();
   await page.waitForSelector('details[data-section="S10"]', { timeout: 20000 });
   const sent = JSON.parse(bodies[0]);
@@ -183,10 +183,14 @@ async function scenario(label, opts) {
   await page.waitForFunction(() => document.querySelector('.rs-claim[data-status="confirmed"]'));
   const saved = (await kv('research.briefs'))[0].claims.find((c) => c.statement === 'Harbor is a subsidiary of Northwind');
   check(L('a tick confirms a found, stated claim and is saved at once'), saved.ticked === true && typeof saved.tickedAt === 'number' && /Confirmed/.test(await row('Harbor is a subsidiary of Northwind').innerText()) && /ticked by you/.test(await row('Harbor is a subsidiary of Northwind').innerText()));
+  const focusedClaim = () => page.evaluate(() => { const a = document.activeElement; return a && a.type === 'checkbox' && a.closest('.rs-claim') ? a.closest('.rs-claim').innerText : null; });
+  check(L('after a tick the ticked checkbox still has focus'), /Harbor is a subsidiary of Northwind/.test((await focusedClaim()) || ''), String(await focusedClaim()));
+  check(L('the tick is announced in a live region that was already on the page'), /Confirmed: Harbor is a subsidiary of Northwind/.test(await page.locator('#sheet-body [role=status]').textContent()) && (await page.locator('#sheet-body [role=status]').getAttribute('aria-live')) === 'polite');
   check(L('the counts follow'), /1 confirmed4 hypotheses1 refused/.test((await page.textContent('#rs-counts')).replace(/\s+/g, '')) || /1 confirmed/.test(await page.textContent('#rs-counts')));
   check(L('a tick comes with an Undo'), await page.locator('#sheet-body .undo-bar button:has-text("Undo")').isVisible());
   await page.click('#sheet-body .undo-bar button:has-text("Undo")');
   await page.waitForFunction(() => !document.querySelector('.rs-claim[data-status="confirmed"]'));
+  check(L('after Undo the checkbox has focus again'), /Harbor is a subsidiary of Northwind/.test((await focusedClaim()) || ''), String(await focusedClaim()));
   check(L('Undo unticks it, saved at once'), (await kv('research.briefs'))[0].claims.every((c) => c.ticked === false));
   await row('Harbor is a subsidiary of Northwind').locator('input').check();
   await page.waitForFunction(() => document.querySelector('.rs-claim[data-status="confirmed"]'));
@@ -246,6 +250,36 @@ async function scenario(label, opts) {
   await palette('Research briefs');
   await page.waitForSelector('.review-item[data-brief]');
   check(L('failed briefs are listed as Failed with the message'), (await page.locator('.review-item[data-brief]:has-text("Failed")').count()) === 2 && /more than the 300 cent limit/.test(await page.textContent('#sheet-body')));
+  // delete from the list: focus goes to Undo, the deletion is announced, Undo puts the row back and focuses it
+  const rows = await page.locator('.review-item[data-brief]').count();
+  await page.locator('.review-item[data-brief]:has-text("Failed")').first().locator('button:has-text("Delete")').click();
+  await page.waitForFunction((n) => document.querySelectorAll('.review-item[data-brief]').length === n - 1, rows);
+  check(L('after Delete in the list the Undo button has focus'), await page.evaluate(() => document.activeElement.textContent === 'Undo' && !!document.activeElement.closest('.undo-bar')));
+  check(L('the deletion is announced'), /deleted\./.test(await page.locator('#sheet-body [role=status]').textContent()));
+  await page.keyboard.press('Enter');
+  await page.waitForFunction((n) => document.querySelectorAll('.review-item[data-brief]').length === n, rows);
+  check(L('Undo in the list brings the brief back'), (await kv('research.briefs')).length === rows);
+  await page.click('#sheet-close');
+
+  // ---- unsaved contact edits are not dropped by "Research company"
+  await palette('Morgan Placeholder');
+  await page.waitForSelector('#contact-research');
+  const before2 = await key('crm.contacts');
+  await page.fill('#contact-notes', 'Met at the invented conference');
+  await page.click('#contact-research');
+  await page.waitForSelector('dialog.action-sheet');
+  check(L('with unsaved edits the sheet asks first'), /unsaved changes/.test(await page.textContent('dialog.action-sheet')) && (await key('crm.contacts')) === before2);
+  await page.locator('dialog.action-sheet .action-item', { hasText: 'Research without saving' }).click();
+  await page.waitForSelector('#rs-company');
+  check(L('"Research without saving" leaves the contact as it was'), (await key('crm.contacts')) === before2 && (await page.inputValue('#rs-company')) === 'Unrelated Example Partners');
+  await page.click('#sheet-close');
+  await palette('Morgan Placeholder');
+  await page.waitForSelector('#contact-research');
+  await page.fill('#contact-notes', 'Met at the invented conference');
+  await page.click('#contact-research');
+  await page.locator('dialog.action-sheet .action-item', { hasText: 'Save, then research' }).click();
+  await page.waitForSelector('#rs-company');
+  check(L('"Save, then research" saves the edit first'), (await kv('crm.contacts')).some((k) => k.name === 'Morgan Placeholder' && k.notes === 'Met at the invented conference'));
   await page.click('#sheet-close');
 
   // ---- 150 claims: a tick stays quick

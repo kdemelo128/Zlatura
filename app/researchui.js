@@ -107,7 +107,7 @@ export async function startResearch(pre = {}) {
     const text = paste.value;
     if (!text.trim()) return;
     const n = sources.filter((x) => x.kind === 'pasted').length + 1;
-    if (add({ name: `Pasted text ${n}`, kind: 'pasted', pages: null, chars: text.length, sha256: await sha256(new TextEncoder().encode(text)), scanned: false, texts: [text], bytes: text.length, doc: { name: `Pasted text ${n}`, mediaType: 'text/plain', text } })) { paste.value = ''; paste.hidden = true; pasteAdd.hidden = true; }
+    if (add({ name: `Pasted text ${n}`, kind: 'pasted', pages: null, chars: text.length, sha256: await sha256(new TextEncoder().encode(text)), scanned: false, texts: [text], bytes: new TextEncoder().encode(text).length, doc: { name: `Pasted text ${n}`, mediaType: 'text/plain', text } })) { paste.value = ''; paste.hidden = true; pasteAdd.hidden = true; }
   });
   pasteAdd.id = 'rs-paste-add'; pasteAdd.hidden = true;
   const pasteBtn = btn('btn-gray', 'Paste text', () => { paste.hidden = false; pasteAdd.hidden = false; paste.focus(); });
@@ -118,7 +118,7 @@ export async function startResearch(pre = {}) {
   body.appendChild(sec);
   const chk = el('label', 'chk');
   chk.append(entitled, document.createTextNode(' I’m entitled to use these sources'));
-  body.append(chk, el('p', 'hint-sm', 'A source is sent to your firm’s AI server and on to Anthropic’s API. Contact names on this device are not sent.'));
+  body.append(chk, el('p', 'hint-sm', 'A source is sent in full (a PDF as the whole file) to your firm’s AI server and on to Anthropic’s API. Contact names on this device are not sent.'));
   company.addEventListener('input', check);
   entitled.addEventListener('change', check);
   draw();
@@ -126,7 +126,7 @@ export async function startResearch(pre = {}) {
     const subject = { name: company.value.trim(), state: state.value.trim() || null };
     const n = sources.length;
     const v = await actionSheet(`Send ${plural(n, 'source', 'sources')} to ${host(s)}?`, [
-      { label: 'Send and research', sub: `The company name${subject.state ? ', the state' : ''} and the text of the ${plural(n, 'source', 'sources')} go to your firm’s AI server and on to Anthropic’s API. Nothing is fetched from the web. Contact names on this device are not sent.`, value: 'yes', primary: true },
+      { label: 'Send and research', sub: `The company name${subject.state ? ', the state' : ''} and ${n === 1 ? 'the 1 file or pasted text' : `the ${n} files and pasted texts`}, in full, go to your firm’s AI server and on to Anthropic’s API. Nothing is fetched from the web. Contact names on this device are not sent.`, value: 'yes', primary: true },
     ]);
     if (v !== 'yes') return;
     let brief = newBrief(subject, sources);
@@ -158,22 +158,35 @@ export async function startResearch(pre = {}) {
 
 /* ---------------------------------------------------------------- list */
 
-/** A line inside the open sheet with an Undo button: a toast sits behind a modal sheet, out of reach. */
-function undoBar(text, undo) {
-  const bar = el('div', 'undo-bar');
-  bar.setAttribute('role', 'status');
-  bar.appendChild(el('span', null, text));
-  bar.appendChild(btn('btn-sm btn-gray', 'Undo', undo));
-  return bar;
+/**
+ * One announcement slot per sheet, kept outside the part that is redrawn so a screen reader hears each change
+ * (a live region only speaks when its text changes in place) and focus is not lost: the text is set on the
+ * same node, with an Undo button beside it. A toast sits behind a modal sheet, out of reach, hence this.
+ */
+function announcer() {
+  const wrap = el('div');
+  const say = el('span', 'undo-text');
+  say.setAttribute('role', 'status');
+  say.setAttribute('aria-live', 'polite');
+  say.setAttribute('aria-atomic', 'true');
+  const undo = btn('btn-sm btn-gray', 'Undo');
+  undo.hidden = true;
+  let fn = null;
+  undo.addEventListener('click', () => { const f = fn; fn = null; undo.hidden = true; if (f) f(); });
+  wrap.append(say, undo);
+  return {
+    el: wrap, undo,
+    /** Says `text`; with `onUndo` the Undo button shows. */
+    tell(text, onUndo = null) { fn = onUndo; undo.hidden = !onUndo; wrap.className = 'undo-bar'; say.textContent = text; },
+  };
 }
 
 export async function openBriefs() {
-  let notice = null;
+  const note = announcer();
   const render = async () => {
     const briefs = (await loadBriefs()).map((b) => readBrief(b)).sort((a, b) => b.createdAt - a.createdAt);
-    body.textContent = '';
-    if (notice) body.appendChild(notice);
-    if (!briefs.length) body.appendChild(el('p', 'hint', 'No research briefs yet. Start one with “Research a company”.'));
+    content.textContent = '';
+    if (!briefs.length) content.appendChild(el('p', 'hint', 'No research briefs yet. Start one with “Research a company”.'));
     const ul = el('ul', 'review-list');
     for (const b of briefs) {
       const li = el('li', 'review-item');
@@ -194,18 +207,28 @@ export async function openBriefs() {
       open.setAttribute('aria-label', `Open the brief on ${b.subject.name}`);
       const del = btn('btn-sm btn-gray', 'Delete', async () => {
         const gone = await removeBrief(b.id);
-        if (gone) notice = undoBar(`Brief on ${gone.subject.name} deleted.`, async () => { await saveBrief(gone).catch((e) => toast(e.message)); changed(); notice = null; render(); });
-        render();
+        if (!gone) return;
+        note.tell(`Brief on ${gone.subject.name} deleted.`, async () => {
+          await saveBrief(gone).catch((e) => toast(e.message));
+          changed();
+          note.tell(`Brief on ${gone.subject.name} restored.`);
+          await render();
+          content.querySelector(`[data-brief="${gone.id}"] .btn-primary`)?.focus();
+        });
+        await render();
+        note.undo.focus(); // the row that held focus is gone
       });
       del.setAttribute('aria-label', `Delete the brief on ${b.subject.name}`);
       acts.append(open, del);
       li.append(text, acts);
       ul.appendChild(li);
     }
-    body.appendChild(ul);
-    body.appendChild(el('p', 'hint-sm', 'Backups made earlier keep their own copy of a brief you delete here.'));
+    content.appendChild(ul);
+    content.appendChild(el('p', 'hint-sm', 'Backups made earlier keep their own copy of a brief you delete here.'));
   };
   const body = api.sheetOpen({ eyebrow: 'Research', title: 'Research briefs', sub: 'Kept on this device for 365 days, then removed.', foot: [btn('', 'Research a company', () => startResearch())] });
+  const content = el('div');
+  body.append(note.el, content);
   await render();
 }
 
@@ -256,21 +279,23 @@ export async function openBrief(id) {
   if (!raw) { toast('That brief is no longer on this device.'); return; }
   const contacts = await listContacts().catch(() => []);
   const open = new Set();
-  let notice = null; // the last tick, with its Undo
-  // load the stored brief fresh, change it, save it, draw it: so Undo never overwrites a later tick
-  const mutate = async (fn) => {
+  const note = announcer();
+  // load the stored brief fresh, change it, save it, say it, draw it once, and put focus back on the claim's checkbox
+  // (the redraw replaces it): so Undo never overwrites a later tick
+  const mutate = async (fn, claimId, say, onUndo) => {
     const cur = (await loadBriefs()).find((x) => x.id === id);
     if (!cur) throw new Error('This brief is no longer on this device.');
     raw = fn(cur);
     await saveBrief(raw);
     changed();
+    note.tell(say, onUndo);
     render();
+    content.querySelector(`[data-claim="${claimId}"] input`)?.focus();
   };
   const onTick = async (c, on) => {
-    try { await mutate((cur) => tickClaim(cur, c.id, on)); } catch (e) { toast(e.message); render(); return; }
     const what = c.statement || `${c.subject}: ${c.object}`;
-    notice = undoBar(on ? `Confirmed: ${what}` : `Unticked: ${what}`, () => { notice = null; mutate((cur) => tickClaim(cur, c.id, !on)).catch((e) => toast(e.message)); });
-    render();
+    const flip = (to, say, onUndo) => mutate((cur) => tickClaim(cur, c.id, to), c.id, say, onUndo);
+    try { await flip(on, on ? `Confirmed: ${what}` : `Unticked: ${what}`, () => flip(!on, `Undone: ${what}`).catch((e) => toast(e.message))); } catch (e) { toast(e.message); render(); }
   };
   const del = btn('btn-gray', 'Delete brief', async () => {
     const gone = await removeBrief(id);
@@ -279,24 +304,25 @@ export async function openBrief(id) {
   });
   const all = btn('btn-gray', 'All briefs', () => openBriefs());
   const body = api.sheetOpen({ eyebrow: 'Research', title: raw.subject.name, sub: '', foot: [del, all] });
+  const content = el('div');
+  body.append(note.el, content);
   const render = () => {
     const top = body.scrollTop;
     const b = readBrief(raw);
     const byId = new Map(b.claims.map((c) => [c.id, c]));
     document.getElementById('sheet-sub').textContent = `${b.subject.state ? `${b.subject.state} · ` : ''}${niceDate(b.createdAt)}`;
-    body.textContent = '';
-    if (notice) body.appendChild(notice);
+    content.textContent = '';
     if (b.status !== 'ready') {
-      body.appendChild(el('p', `hint${b.status === 'failed' ? ' warn-text' : ''}`, b.status === 'failed' ? (b.error || 'The research failed.') : 'Still waiting for the answer.'));
+      content.appendChild(el('p', `hint${b.status === 'failed' ? ' warn-text' : ''}`, b.status === 'failed' ? (b.error || 'The research failed.') : 'Still waiting for the answer.'));
     }
     const meta = el('p', 'hint-sm', `${b.model ? `Model ${b.model} · ` : ''}${Number.isInteger(b.chargedCents) ? `Cost of this brief: ${cents(b.chargedCents)}` : 'Cost not reported'} · Kept on this device until ${niceDate(expiry(b))}.`);
     meta.id = 'rs-meta';
-    body.appendChild(meta);
+    content.appendChild(meta);
     if (b.status === 'ready') {
       const tags = el('div', 'ai-tags');
       tags.id = 'rs-counts';
       tags.append(el('span', 'chip chip-good', `${b.counts.confirmed} confirmed`), el('span', 'chip chip-warn', plural(b.counts.hypothesis, 'hypothesis', 'hypotheses')), el('span', 'chip chip-bad', `${b.counts.refused} refused`));
-      body.append(tags, el('p', 'hint-sm', 'Confirmed means the quoted words were found in a source you supplied when the answer arrived, they state the point outright, and you ticked it. Nothing is looked up again.'));
+      content.append(tags, el('p', 'hint-sm', 'Confirmed means the quoted words were found in a source you supplied when the answer arrived, they state the point outright, and you ticked it. Nothing is looked up again.'));
     }
     const srcs = el('section');
     srcs.appendChild(el('h3', null, 'Sources'));
@@ -307,7 +333,7 @@ export async function openBrief(id) {
       ul.appendChild(li);
     }
     srcs.appendChild(ul);
-    body.appendChild(srcs);
+    content.appendChild(srcs);
     const matches = matchContacts(b.claims, contacts, b.subject);
     const cMap = new Map(contacts.map((k) => [k.id, k]));
     for (const sec of b.sections) {
@@ -352,7 +378,7 @@ export async function openBrief(id) {
         if (!claims.length) panel.appendChild(el('p', 'hint-sm', sec.key === 'S9' ? 'Nothing was refused.' : 'Nothing here.'));
       }
       d.appendChild(panel);
-      body.appendChild(d);
+      content.appendChild(d);
     }
     body.scrollTop = top;
   };
