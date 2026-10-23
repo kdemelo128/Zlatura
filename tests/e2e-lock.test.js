@@ -13,7 +13,7 @@ const sh = fs.readFileSync(new URL('./e2e/run.sh', import.meta.url), 'utf8');
 const block = sh.slice(sh.indexOf('LOCKDIR='), sh.indexOf('[ "$SLOT" = 0 ] || echo'));
 // each test run gets its own port base, so the tests never depend on what this machine is already serving
 const B = 20000 + Math.floor(Math.random() * 400) * 100;
-const run = (env) => spawnSync('bash', ['-c', `set -euo pipefail\n${block}\necho "GOT $SLOT $PORT $BASE $MIGRATE_PORT $RENAME_PORT $UPGRADE_PORT"; echo "LO $LO_PORT_RECALC $LO_PORT_VALUES \${LO_PROFILE:-default}"`], { env: { ...process.env, BASE: '', MIGRATE_PORT: '', RENAME_PORT: '', UPGRADE_PORT: '', E2E_PORT_BASE: String(B), ...env }, encoding: 'utf8' });
+const run = (env) => spawnSync('bash', ['-c', `set -euo pipefail\n${block}\necho "GOT $SLOT $PORT $BASE $MIGRATE_PORT $RENAME_PORT $UPGRADE_PORT"; echo "LO $LO_PORT_RECALC $LO_PORT_VALUES \${LO_PROFILE:-default}"`], { env: { ...process.env, BASE: '', MIGRATE_PORT: '', RENAME_PORT: '', UPGRADE_PORT: '', E2E_PORT_BASE: String(B), E2E_SLOTS: '8', ...env }, encoding: 'utf8' });
 const dirs = [];
 const tmp = () => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'zl-slot-')); dirs.push(d); return d; };
 const hold = (dir, name, pid) => { fs.mkdirSync(path.join(dir, name)); fs.writeFileSync(path.join(dir, name, 'pid'), String(pid)); };
@@ -26,6 +26,7 @@ test('run.sh claims a slot before anything else, serves on its port, and lets th
   assert.ok(sh.indexOf('LOCKDIR=') < sh.indexOf('check_requirements.py'), 'the claim comes first');
   assert.match(sh, /http\.server "\$PORT"/);
   assert.match(sh, /PORT_BASE=\$\{E2E_PORT_BASE:-8080\}/, 'CI and a plain run still start at 8080');
+  assert.match(sh, /SLOTS=\$\{E2E_SLOTS:-\$\(\( cpus \/ 2/, 'by default no more runs than half the CPUs, so perf budgets stay meaningful');
   assert.match(sh, /trap 'kill \$SERVER[^']*rm -rf "\$LOCK"' EXIT/);
 });
 

@@ -7,14 +7,16 @@
 #   tests/e2e/run.sh live-flow  # one, or several: run.sh typing-flow lostedit-flow
 set -euo pipefail
 cd "$(dirname "$0")"
-# up to E2E_SLOTS browser runs at once on this machine (default 8: other sessions or worktrees), each on its own
+# up to E2E_SLOTS browser runs at once on this machine (other sessions or worktrees), each on its own
 # slot of ports, claimed with a lock directory holding the run's PID (the idea is paperclip's per-task claim). Slot 0
 # is the one CI uses and the one older branches lock: port 8080, and 8096-8098 for the flows that serve an old copy.
 # A slot whose run is gone is taken over, and one never given a PID is taken over after a minute; a slot whose
 # port is already served (a server started by hand, with no lock) is skipped. When every slot is
 # busy the run waits for one; E2E_LOCK_WAIT is how many seconds (default 1800).
 LOCKDIR=${E2E_LOCK_DIR:-${TMPDIR:-/tmp}}
-SLOTS=${E2E_SLOTS:-8}
+# at most half the CPUs' worth of runs at once: the flows hold perf budgets (150 ms an edit), and those only mean
+# something on a machine that isn't oversubscribed. E2E_SLOTS overrides it.
+cpus=$(nproc 2>/dev/null || echo 2); SLOTS=${E2E_SLOTS:-$(( cpus / 2 > 1 ? cpus / 2 : 1 ))}
 PORT_BASE=${E2E_PORT_BASE:-8080}
 slotlock() { if [ "$1" = 0 ]; then echo "$LOCKDIR/zlatura-e2e-8080.lock"; else echo "$LOCKDIR/zlatura-e2e-slot$1.lock"; fi; }
 waited=0; SLOT=
