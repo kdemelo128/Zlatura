@@ -71,3 +71,33 @@ test('K33 low edge and even-count median; K24 as-of source; same unit twice is K
   assert.equal(find(run([lease('a', { periods: per(30000, 'year', AS_OF) })]), /paying rent after/).length, 0);
   assert.equal(find(run([lease('a', { status: 'Holdover', leaseEnd: '2026-03-31' })]), /ended before/).length, 0);
 });
+/* K37 / U7: an other-income line worded as a recovery beside leases that already recover expenses (R1-R5). Invented roll:
+ * Suite 100 (5,000 SF) pays 50 % of a $100,000 pool = $50,000 a year; Suite 200 is gross; the roll's other income adds its own line. */
+import { project } from '../app/lease.js';
+const rrWith = (oi, rec = { method: 'prorata', share: 50 }, over = {}) => ({ settings: { asOf: AS_OF, years: 3, opex: 100000, expenseGrowth: 0, buildingSf: 10000, otherIncome: oi },
+  leases: [lease('100', { sf: 5000, recovery: rec, ...over }), lease('200', { sf: 5000, recovery: { method: 'none' } })] });
+// the control: the same roll with the firing combination, so a "does not warn" case also proves the rule exists
+const control = () => assert.equal(twice(rrWith([{ name: 'CAM reimbursements', annual: 50000 }])).length, 1, 'the control roll warns');
+const twice = (rr) => find(analyze(analysisInput({ figures: { price: 1e6, noi: 60000 }, rr }), null, TODAY), /may count them twice/);
+test('R1: "CAM reimbursements" as other income beside a pro-rata lease warns once, and the EGI really holds both', () => {
+  const rr = rrWith([{ name: 'CAM reimbursements', annual: 50000 }]);
+  const y = project(rr).annual[0]; assert.equal(Math.round(y.recoveries), 50000); assert.equal(Math.round(y.other), 50000);
+  const k = twice(rr);
+  assert.equal(k.length, 1); assert.equal(k[0].level, 'warn'); assert.match(k[0].text, /“CAM reimbursements” \(\$50,000\)/); assert.match(k[0].text, /1 lease already recovers/);
+  assert.equal(R.rollFacts(rr)[0].recovery, 'prorata'); assert.equal(R.rollFacts(rr)[1].recovery, 'none');
+});
+test('R2: other income that is not worded as a recovery ("Parking") does not warn', () => { control(); assert.equal(twice(rrWith([{ name: 'Parking', annual: 50000 }])).length, 0); });
+test('R3: "CAM" other income with every lease on none does not warn (billed charges modelled this way)', () => {
+  control();
+  const rr = rrWith([{ name: 'CAM reimbursements', annual: 50000 }], { method: 'none' }); assert.equal(twice(rr).length, 0);
+  assert.equal(twice({ ...rr, leases: rr.leases.map((L) => ({ ...L, recovery: undefined })) }).length, 0); // no recovery set at all
+});
+test('R4: the only lease with a recovery method is vacant: no warning', () => { control(); assert.equal(twice(rrWith([{ name: 'CAM reimbursements', annual: 50000 }], undefined, { vacant: true, tenant: '' })).length, 0); });
+test('R5: "CAM" other income at $0 or blank does not warn; nothing is counted', () => {
+  control();
+  for (const annual of [0, null, undefined, '']) assert.equal(twice(rrWith([{ name: 'CAM reimbursements', annual }])).length, 0, String(annual));
+});
+test('U7: the warning changes no figure', () => {
+  const a = rrWith([{ name: 'CAM reimbursements', annual: 50000 }]); const b = rrWith([{ name: 'Parking', annual: 50000 }]);
+  assert.deepEqual(project(a).annual.map((y) => y.noi), project(b).annual.map((y) => y.noi));
+});
