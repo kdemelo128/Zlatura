@@ -15,6 +15,7 @@ import { walt } from './walt.js';
 import { breakEvenOccupancy } from './breakeven.js';
 import { NOI_GAP, conv } from './conventions.js';
 import { matchLabel } from '../t12.js';
+import { isoDay } from '../pipeline.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const pos = (x) => ok(x) && x > 0;
@@ -78,7 +79,9 @@ export function yearsLeft(text, today = new Date()) {
   const s = String(text);
   const y = /(\d+(?:\.\d+)?)\s*(?:years?|yrs?)/i.exec(s);
   if (y) return Number(y[1]);
-  const d = Date.parse(s.replace(/(\d)(st|nd|rd|th)\b/, '$1'));
+  let d = Date.parse(s.replace(/(\d)(st|nd|rd|th)\b/, '$1'));
+  // a printed date is a calendar day: read it as that day's UTC midnight (as om.js parseDate does), whatever the device's zone
+  if (Number.isFinite(d) && !/^\d{4}-\d{2}-\d{2}$/.test(s.trim())) { const x = new Date(d); d = Date.UTC(x.getFullYear(), x.getMonth(), x.getDate()); }
   if (Number.isFinite(d)) return Math.max(0, (d - today.getTime()) / YEAR);
   return null;
 }
@@ -266,7 +269,7 @@ rule('undatedLeases', 'Leases with no expiration date', ['leases'], (m, i, C, Q)
 const RF = (...fields) => ({ path: 'd.rollFacts', fields });
 const AS_OF = ['d.rentRollAsOf', { path: 'today', when: 'only when the rent roll has no as-of date' }];
 const occ = (d) => (Array.isArray(d.rollFacts) ? d.rollFacts.filter((r) => !r.vacant) : []);
-const rollDay = (d, today) => { const a = d.rentRollAsOf; return a ? String(a).slice(0, 10) : today.toISOString().slice(0, 10); };
+const rollDay = (d, today) => { const a = d.rentRollAsOf; return a ? String(a).slice(0, 10) : isoDay(today); };
 const who = (r) => `${r.unit || '(no unit)'}${r.tenant ? ` (${r.tenant})` : ''}`;
 const list = (rs) => `${rs.slice(0, 5).map(who).join(', ')}${rs.length > 5 ? ` and ${rs.length - 5} more` : ''}`;
 const n = (k, w) => `${k} ${w}${k === 1 ? '' : 's'}`;

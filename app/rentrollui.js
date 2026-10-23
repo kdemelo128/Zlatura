@@ -25,6 +25,7 @@ import { readScannedPage, ocrSupported } from './ocr.js';
 import { kvGet, kvSet } from './store.js';
 import { projectionNow, projectionLater } from './projector.js';
 import { LEASE_FIELDS } from './impact.js';
+import { cell as csvCell } from './exporters.js';
 import { affectsButton } from './impactui.js';
 import { dateInput } from './dateinput.js';
 import { redrawKeepingFocus } from './focuskeep.js';
@@ -774,11 +775,6 @@ async function moreMenu(deal, rr, changed) {
   }
 }
 
-function csvCell(v) {
-  let s = v === null || v === undefined ? '' : String(v);
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
 async function exportCsv(deal, rr) {
   const c = gridContext(rr);
   const cols = visibleColumns(rr.columns);
@@ -1126,7 +1122,7 @@ export function rowsToLeases(rr, table, mapping) {
     const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(s);
     if (m) { const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]); const iso = `${y}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`; return dayOf(iso) !== null ? iso : null; }
     const t = Date.parse(s);
-    return Number.isFinite(t) ? new Date(t).toISOString().slice(0, 10) : null;
+    return Number.isFinite(t) ? localDate(new Date(t)) : null;
   };
   const leases = []; let skipped = 0;
   for (const row of table.rows) {

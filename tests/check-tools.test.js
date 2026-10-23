@@ -98,6 +98,9 @@ test('check:quick and check:full exist, run every gate and fail the command on a
   assert.equal(pkg.scripts['check:full'], 'node tests/tools/check.mjs full');
   const src = fs.readFileSync(path.join(ROOT, 'tests/tools/check.mjs'), 'utf8');
   assert.match(src, /step\('unit tests \(all\)', 'npm', \['test'\]\)/);
+  // the Node suite again under Los Angeles and Kiritimati: in full, and in CI's test job right after npm test
+  assert.match(src, /step\('unit tests in other time zones', 'npm', \['run', 'test:tz'\]\)/);
+  assert.match(fs.readFileSync(path.join(ROOT, '.github/workflows/test.yml'), 'utf8'), /- run: npm test\n      - run: npm run test:tz\n/);
   assert.match(src, /step\('type check', 'npx', \['tsc', '-p', 'types\/tsconfig\.json'\]\)/);
   assert.match(src, /golden\(\);/);
   assert.match(src, /if \(mode === 'full'\) step\(.*'bash', \['tests\/e2e\/run\.sh'\]\)/);

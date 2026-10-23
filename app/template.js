@@ -945,14 +945,15 @@ function renameSheet(pkg, from, to) {
 const AUDIT = 'Zlatura Audit';
 /** The audit sheet's name before the rename: refilling such a workbook replaces it. */
 const OLD_AUDIT = 'Comp Loader Audit';
-const esc = (s) => String(s).replace(XML_BAD, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// cut before escaping: cutting after could split an entity such as &amp; and break the XML
+const esc = (s) => String(s).replace(XML_BAD, '').slice(0, 32000).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 /** A sheet listing every cell written and where its value came from; refilling replaces it. */
 function addAuditSheet(pkg, log, auditTitle) {
   const cell = (r, c, v) => {
     if (v === null || v === undefined || v === '') return '';
     if (typeof v === 'number' && Number.isFinite(v)) return `<c r="${colName(c)}${r}"><v>${v}</v></c>`;
     const t = v instanceof Date ? v.toISOString().slice(0, 10) : String(v);
-    return `<c r="${colName(c)}${r}" t="inlineStr"><is><t xml:space="preserve">${esc(t).slice(0, 32000)}</t></is></c>`;
+    return `<c r="${colName(c)}${r}" t="inlineStr"><is><t xml:space="preserve">${esc(t)}</t></is></c>`;
   };
   const rows = [
     [`Filled by Zlatura on ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC${auditTitle ? ` · ${auditTitle}` : ''}`],
