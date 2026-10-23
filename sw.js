@@ -71,6 +71,7 @@ const ASSETS = [
   'app/t12.js',
   'app/t12ui.js',
   'app/t12labels.js',
+  'app/feeui.js',
   'app/review.js',
   'app/reviewui.js',
   'app/projector.js',
