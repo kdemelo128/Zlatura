@@ -33,8 +33,8 @@ export function ocrSupported() {
 }
 
 /* The one Tesseract run both readers share: words with their boxes, and the lines they sit on. */
-async function recognizeCanvas(canvas, onProgress, params) {
-  onProgress('Loading the scanned-page reader (about 7 MB, the first time)…');
+async function recognizeCanvas(canvas, onProgress, params, { label = 'scanned-page reader' } = {}) {
+  onProgress(`Loading the ${label} (about 7 MB, the first time)…`);
   const { default: Tesseract } = await import(LIB);
   const base = new URL('../vendor/ocr/', import.meta.url).href;
   const worker = await Tesseract.createWorker('eng', 1, {
@@ -105,7 +105,7 @@ export async function readPhotoText(blob, { onProgress = (/** @type {string} */ 
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(bmp, 0, 0);
   bmp.close && bmp.close();
-  const { lines } = await recognizeCanvas(canvas, onProgress, { tessedit_pageseg_mode: '11', user_defined_dpi: '300' }); // sparse text: signs are scattered words
+  const { lines } = await recognizeCanvas(canvas, onProgress, { tessedit_pageseg_mode: '11', user_defined_dpi: '300' }, { label: 'text reader' }); // sparse text: signs are scattered words
   return signLines(lines);
 }
 

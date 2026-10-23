@@ -34,7 +34,7 @@ await page.waitForSelector('#photo-text-lines .photo-line', { timeout: 120000 })
 const shown = (await page.locator('#photo-text-lines').innerText()).replace(/\s+/g, ' ');
 check('the sign’s text is shown', /555-0100/.test(shown) && /LEASE/i.test(shown), shown);
 check('labelled as read from the photo, with a confidence', /Read from the photo · confidence \d+%/.test(shown), shown);
-check('the phone line is marked', /555-0100[^]*looks like a phone number/.test(shown) || /looks like a phone number/.test(shown), shown);
+check('the phone line is marked', /looks like a phone number/.test(shown), shown);
 check('the OCR files came from this site only', requests.filter((u) => /vendor\/ocr\//.test(u)).length >= 3 && requests.filter((u) => /vendor\/ocr\//.test(u)).every((u) => u.startsWith(BASE)));
 await page.waitForTimeout(500);
 const d1 = (await deals())[0];
@@ -43,23 +43,45 @@ await page.screenshot({ path: `${SHOTS}photoocr.png` });
 
 const line = page.locator('#photo-text-lines .photo-line', { hasText: 'Example' });
 check('the street line is found', (await line.count()) === 1, shown);
-await line.locator('button', { hasText: 'Use as address' }).click();
-await page.waitForTimeout(600);
+const readAgain = async () => { await page.locator('.photo-read').click(); await page.waitForSelector('#photo-text-lines .photo-line', { timeout: 120000 }); };
+const use = async (text, what) => { await page.locator('#photo-text-lines .photo-line', { hasText: text }).first().locator('button', { hasText: what }).click(); await page.waitForTimeout(600); };
+const undo = async () => { await page.locator('.toast button', { hasText: 'Undo' }).click(); await page.waitForTimeout(600); };
+check('the status line is a live region', (await page.locator('#photo-text-status[role="status"]').count()) === 1);
+await use('Example', 'Use as address');
 const d2 = (await deals())[0];
-check('Use as address sets the address and not the name', /Example/.test(d2.address || '') && d2.name === stored0.name, JSON.stringify(d2));
+check('Use as address sets the address; a deal with no name is named by it', d2.address === '100 Example Street' && d2.name === d2.address, JSON.stringify(d2));
+check('focus is back on the photo’s button', await page.evaluate(() => document.activeElement && document.activeElement.classList.contains('photo-read')));
 check('the sheet closed, so the toast’s Undo can be reached', (await page.locator('#sheet[open]').count()) === 0);
 check('a toast offers Undo', await page.locator('.toast button', { hasText: 'Undo' }).count() === 1);
-await page.locator('.toast button', { hasText: 'Undo' }).click();
-await page.waitForTimeout(600);
+// a deal whose name equals its address is renamed with it (the rule for a typed address)
+await readAgain();
+await use('LEASE', 'Use as address');
 const d3 = (await deals())[0];
-check('Undo puts the address back', d3.address === stored0.address && d3.name === stored0.name, JSON.stringify(d3));
-await page.locator('.photo-read').click();
-await page.waitForSelector('#photo-text-lines .photo-line', { timeout: 120000 });
-await page.locator('#photo-text-lines .photo-line', { hasText: 'LEASE' }).first().locator('button', { hasText: 'Use as deal name' }).click();
-await page.waitForTimeout(600);
+check('a name that equalled the address follows the new address', d3.address === 'FOR LEASE' && d3.name === 'FOR LEASE', JSON.stringify(d3));
+await undo();
+const d3u = (await deals())[0];
+check('Undo puts the earlier address and name back', d3u.address === '100 Example Street' && d3u.name === '100 Example Street', JSON.stringify(d3u));
+await readAgain();
+await use('555-0100', 'Use as deal name');
 const d4 = (await deals())[0];
-check('Use as deal name sets the name and not the address', /LEASE/i.test(d4.name || '') && d4.address === stored0.address, JSON.stringify(d4));
-check('no new kind of data on the deal', d4.keys === stored0.keys, d4.keys);
+check('Use as deal name sets the name and not the address', d4.name === '555-0100' && d4.address === '100 Example Street', JSON.stringify(d4));
+await undo();
+const d5 = (await deals())[0];
+check('Undo puts the name back', d5.name === '100 Example Street' && d5.address === '100 Example Street', JSON.stringify(d5));
+
+// a read still running when its sheet is closed must not write into the next sheet
+await page.locator('.photo-read').click();
+await page.waitForSelector('#photo-text-status');
+await page.keyboard.press('Escape');
+await page.waitForFunction(() => !document.querySelector('#sheet[open]'));
+await page.click('button[aria-label="More deal actions"]');
+await page.locator('.action-sheet .action-item', { hasText: 'History' }).click();
+await page.waitForSelector('#sheet[open]');
+await page.waitForTimeout(15000);
+check('the next sheet is the History sheet, with no photo lines in it', (await page.locator('#sheet[open] #sheet-title').innerText()) === 'History' && (await page.locator('.photo-line').count()) === 0 && (await page.locator('#photo-text-status').count()) === 0);
+const d6 = (await deals())[0];
+check('and the deal is unchanged', d6.name === d5.name && d6.address === d5.address && d6.keys === stored0.keys, JSON.stringify(d6));
+check('no new kind of data on the deal', d6.keys === stored0.keys, d4.keys);
 check('no request to another site', requests.every((u) => u.startsWith(BASE) || u.startsWith('data:') || u.startsWith('blob:')), requests.filter((u) => !u.startsWith(BASE)).join(' '));
 
 for (const r of R) console.log(r.join(' | '));
