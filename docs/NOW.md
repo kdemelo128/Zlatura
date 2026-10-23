@@ -90,7 +90,22 @@ section with grep, never in full.
     (13.1); and "Export everything" (item 10 above; schema and retention
     decision first);
   - usage rules and model routing are in `CLAUDE.md`; `/clear` after each
-    merged PR.
+    merged PR;
+  - owner decisions A1-A8 (2026-10-23, all as recommended):
+    A1 "Export everything" publishes a versioned JSON Schema of the data
+    format (versioned with `migrate.js`), and the zip holds only originals
+    already on the device; A2 an accepted failed check on a PDF import is
+    kept on the import's history entry (one silent migration step); A3 the
+    broker's actions on 6.3 red-flag findings, "dismiss with reason"
+    included, are stored per deal as `deal.findings`, keyed by rule id;
+    A4 golden rows that are only added can be approved from a before/after
+    table, and any changed figure still stops the PR; A5 the F8 trash does
+    not travel with backups; A6 the confidential tag (19.2) is one boolean
+    per deal that blocks every AI call for it and marks its exports, built
+    after B1c; A7 the UI revamp foundation starts after the bridge, the Back
+    button and the fee, trash and password group; A8 Bid Leveler's stored
+    offer shape goes through a short designer note, built after the fee
+    record.
 - **Open validation:** F2 has only been tested on invented files. Real old
   CSVs still need running through `node tests/tools/rr-local.mjs` and
   `node tests/tools/t12-local.mjs` (files in `private/`; report counts only).
