@@ -88,9 +88,6 @@ for (const [k, l] of LIVE_KEYS) input(`live.${k}`, `What-if: ${l}`);
 /** Inputs that no calculation, export or document reads: shown on the deal screen and given to the assistant only. */
 export const NOT_CALCULATED = {
   'figures.cap_pf': 'shown on the deal screen only',
-  'figures.renovated': 'shown on the deal screen only',
-  'figures.stories': 'shown on the deal screen only',
-  'figures.parking': 'shown on the deal screen only',
   'figures.options': 'shown on the deal screen only',
 };
 
@@ -336,6 +333,12 @@ node('summary', {
     'fig.price', 'unpriced', 'fig.ppsf', 'fig.cap', 'fig.noi', 'fig.derived.noi', 'figures.occ', 'fig.leases', 'conventions', 'figures.tenant',
     'loan.ltv', 'loan.rate', 'loan.io', 'loan.amort', 'fig.dscr', 'fig.cashOnCash', 'comps', 'fig.vsWeighted'],
 });
+node('listing', {
+  group: 'document', file: 'Listing copy', label: 'The listing blocks (headline, descriptions, highlights, facts)',
+  reads: ['figures.address', 'figures.city', 'figures.state', 'figures.zip', 'name', 'example', 'figures.ptype', 'figures.bsf', 'figures.lot_sf', 'figures.units', 'figures.year',
+    'figures.renovated', 'figures.stories', 'figures.zoning', 'figures.parking', 'figures.lease_type', 'figures.term_left', 'figures.increases',
+    'fig.price', 'fig.derived.price', 'fig.ppsf', 'fig.cap', 'fig.noi', 'fig.derived.noi', 'fig.occ', 'fig.leases', 'conventions'],
+});
 
 /**
  * The files and printouts that carry deal data, by the name a deliver() or
@@ -349,6 +352,7 @@ export const DELIVERABLES = {
   'template-fill': ['A firm template, filled', () => [...NODES.keys()].filter((k) => k.startsWith('field.'))],
   'deal-brief': ['Deal brief (printed or PDF)', () => [...NODES.keys()].filter((k) => k.startsWith('brief.'))],
   summary: ['Copy summary', () => ['summary']],
+  'listing-copy': ['Listing copy (.txt)', () => ['listing']],
 };
 
 /* ----------------------------------------------------- building the graph */

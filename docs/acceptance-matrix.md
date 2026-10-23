@@ -265,7 +265,8 @@ the baseline; 32 flows are listed at 4.7.2).
 | Feature | Status | Notes |
 |---|---|---|
 | One-page deal brief | Implemented and verified | |
-| OM, BOV, fact sheet, pitch deck, emails, listing copy | Not implemented | |
+| OM, BOV, fact sheet, pitch deck, emails | Not implemented | |
+| Listing copy for marketplaces (13.1) | Tested with synthetic fixtures only | Deal menu, Listing copy: headline, short and long description, highlights and facts as plain text, each with a character count against a default limit (starting points, not any marketplace's published limits), Copy, and Save as .txt. Built only from the deal's figures; a missing figure is left out; the tenant is not named. Unit tests and a Chromium flow with axe on invented deals. Not done: limits are not editable in the app (a stored setting needs approval); no confidential flag exists yet (B6), so nothing is blocked or warned for it; marketplace-specific limits and the Evidence Panel (13.3) are not built. |
 | Firm branding | Not implemented | |
 | Evidence Panel, Claim Checker | Not implemented | |
 | AI-written text marked as draft; placeholders that block export | Not implemented | Added 4.7.2 (13.3). |

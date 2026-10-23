@@ -23,6 +23,7 @@ import { openImpact, affectsButton } from './impactui.js';
 import * as store from './store.js';
 import { undoState, inverseOf, mediaRefs, withBytes, applyChanges, placeOf, snapshotData, restoreInto, diffDeal, SNAPSHOTS } from './history.js';
 import { renderDealBrief, dealSummaryText, placeLine } from './brief.js';
+import { openListingCopy } from './listingui.js';
 import { project, rentRollSummary } from './lease.js';
 import { projectionNow, projectionLater, projectionSync, projectionError } from './projector.js';
 import { legacyRows, omRollRecord, applyHeldRows, addOcrRows, ocrReading, rollOffers, withoutRollFigures, ROLL_TOOL } from './rentroll.js';
@@ -2389,6 +2390,7 @@ function printBrief() {
 async function dealMenu() {
   const v = await actionSheet(deal.name || 'Deal', [
     { label: 'Copy summary', sub: 'five lines for a text or an email', value: 'copy', icon: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/>' },
+    { label: 'Listing copy…', sub: 'headline, descriptions and facts for a marketplace; copy or save as .txt', value: 'listing', icon: '<path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>' },
     ...(IN_ARTIFACT ? [] : [{ label: 'Deal brief', sub: 'print or save as PDF, with photos', value: 'brief', icon: '<path d="M7 9V3h10v6M7 17H5a2 2 0 01-2-2v-4a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2h-2M7 14h10v7H7z"/>' }]),
     { label: 'Fill my Excel template…', sub: 'your firm’s underwriting or rent roll workbook', value: 'template', icon: '<path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/>' },
     { label: 'Use as the comps subject', value: 'subject', icon: '<path d="M5 12h14M13 6l6 6-6 6"/>' },
@@ -2408,7 +2410,8 @@ async function dealMenu() {
     const { m, comps } = metrics();
     const { copyText } = await import('./kit.js');
     toast((await copyText(dealSummaryText(deal, m, comps))) ? 'Summary copied.' : 'The browser blocked copying here.');
-  } else if (v === 'brief') printBrief();
+  } else if (v === 'listing') openListingCopy({ sheetOpen: api.sheetOpen, deal, m: metrics().m, base: fileBase() });
+  else if (v === 'brief') printBrief();
   else if (v === 'subject') useAsSubject();
   else if (v === 'history') openHistory();
   else if (v === 'template') openTemplates();
