@@ -43,6 +43,7 @@ import { initCommand } from './command.js';
 import { initTheme } from './theme.js';
 import { initShortcuts } from './shortcuts.js';
 import { initReview } from './reviewui.js';
+import { initResearch } from './researchui.js';
 
 window.__zlaturaReady = true;
 
@@ -1493,6 +1494,7 @@ initCommand(compsApi);
 initTheme();
 initShortcuts(compsApi);
 initReview();
+initResearch(compsApi);
 
 restoreSubject();
 renderAll();

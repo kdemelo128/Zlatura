@@ -73,7 +73,7 @@ trap 'kill $SERVER 2>/dev/null || true; rm -rf "$LOCK"' EXIT
 sleep 1
 # another server already on the port would be tested in its place, from wherever it serves
 if ! kill -0 "$SERVER" 2>/dev/null; then echo "Port $PORT is in use: stop whatever holds it and run again." >&2; exit 2; fi
-FLOWS=${*:-"workflows rentroll-flow encoding-flow bigroll-flow template-flow tools-flow ai-flow home-flow shell-flow rename-flow engine-flow history-flow snapshot-flow impact-flow migrate-flow t12-flow t12partial-flow t12read-flow t12sug-flow t12period-flow t12values-flow t12norm-flow strict-flow rollchecks-flow upgrade-flow limits-flow backup-flow a11y-flow live-flow voice-flow final-e2e deal-persistence lostedit-flow deal-isolation comps-reload errors-flow pwa-flow tpl-flow comps-flow deal-export omrr-flow rrscale-flow rrpdf-flow rrstated-flow rrheader-flow omstmt-flow typing-flow hostile-flow mobile-audit perf-flow"}
+FLOWS=${*:-"workflows rentroll-flow encoding-flow bigroll-flow template-flow tools-flow ai-flow research-flow home-flow shell-flow rename-flow engine-flow history-flow snapshot-flow impact-flow migrate-flow t12-flow t12partial-flow t12read-flow t12sug-flow t12period-flow t12values-flow t12norm-flow strict-flow rollchecks-flow upgrade-flow limits-flow backup-flow a11y-flow live-flow voice-flow final-e2e deal-persistence lostedit-flow deal-isolation comps-reload errors-flow pwa-flow tpl-flow comps-flow deal-export omrr-flow rrscale-flow rrpdf-flow rrstated-flow rrheader-flow omstmt-flow typing-flow hostile-flow mobile-audit perf-flow"}
 # every flow runs even when one fails; any flow that exits with an error
 # (a failed check, no checks, or a crash) is listed and the run fails
 FAILED=()
