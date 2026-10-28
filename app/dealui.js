@@ -23,7 +23,8 @@ import { openImpact, affectsButton } from './impactui.js';
 import * as store from './store.js';
 import { undoState, inverseOf, mediaRefs, withBytes, applyChanges, placeOf, snapshotData, restoreInto, diffDeal, SNAPSHOTS } from './history.js';
 import { renderDealBrief, dealSummaryText, placeLine } from './brief.js';
-import { project, rentRollSummary } from './lease.js';
+import { project, rentRollSummary, dealSchedules, leaseName } from './lease.js';
+import { scheduleCells, scheduleTsv } from './rentschedule.js';
 import { projectionNow, projectionLater, projectionSync, projectionError } from './projector.js';
 import { legacyRows, omRollRecord, applyHeldRows, addOcrRows, ocrReading, rollOffers, withoutRollFigures, ROLL_TOOL } from './rentroll.js';
 import { qcPanel } from './dataqcui.js';
@@ -745,6 +746,9 @@ function renderDeal(r) {
   const rr = el('section', 'card');
   rr.id = 'deal-rr';
   rail.appendChild(rr);
+  const rs = el('section', 'card');
+  rs.id = 'deal-rentsched';
+  rail.appendChild(rs);
   const qs = el('section', 'card');
   qs.id = 'deal-q';
   rail.appendChild(qs);
@@ -1008,6 +1012,7 @@ function renderDerived() {
   }
 
   renderRentRoll(m);
+  renderRentSchedule(m);
   renderQuestions(m);
   renderScenario(m);
 }
@@ -1708,6 +1713,61 @@ function renderRentRoll(m) {
   const b = button('btn-sm', n ? 'Open the rent roll' : 'Start a rent roll', () => showPane('rentroll'));
   b.style.margin = '0 16px 16px';
   box.appendChild(b);
+}
+
+/** The net lease rent schedule: each stated rent period, its yearly rent and rent over the asking price. */
+function renderRentSchedule(m) {
+  const box = $('deal-rentsched');
+  if (!box) return;
+  box.textContent = '';
+  const list = dealSchedules(deal, m.price);
+  box.hidden = !list.length;
+  if (!list.length) return;
+  const bad = list.some(({ S }) => S.errors.length);
+  const h = el('div', 'card-head');
+  h.appendChild(el('h2', null, 'Rent schedule'));
+  const cp = button('btn-sm', 'Copy rent schedule', () => copyRentSchedule(m));
+  cp.id = 'deal-rentsched-copy';
+  cp.disabled = bad;
+  h.appendChild(cp);
+  box.appendChild(h);
+  for (const { L, S } of list) {
+    if (list.length > 1) { const t = el('h3', 'hint-sm', leaseName(L)); t.style.padding = '0 16px'; box.appendChild(t); }
+    if (S.errors.length) {
+      const p = el('p', 'warn-text', `This lease has ${S.errors.length} problem${S.errors.length === 1 ? '' : 's'} in its rent periods. Fix them in the rent roll before using this schedule.`);
+      p.style.padding = '0 16px 10px';
+      box.appendChild(p);
+      continue;
+    }
+    const { head, rows } = scheduleCells(S);
+    const t = el('table', 'mini');
+    t.appendChild(el('caption', 'sr-only', `Rent schedule${list.length > 1 ? `: ${leaseName(L)}` : ''}`));
+    const hr = el('tr');
+    for (const x of head) { const th = el('th', null, x); th.scope = 'col'; hr.appendChild(th); }
+    t.appendChild(hr);
+    rows.forEach((r, i) => {
+      const tr = el('tr', S.rows[i].kind === 'projected' ? 'hl-warn' : null);
+      r.forEach((x, j) => {
+        const c = el(j === 0 ? 'th' : 'td', null, x);
+        if (j === 0) c.scope = 'row';
+        tr.appendChild(c);
+      });
+      t.appendChild(tr);
+    });
+    const wrap = el('div', 'scroll');
+    wrap.appendChild(t);
+    box.appendChild(wrap);
+    const ul = el('ul', 'rr-checks');
+    for (const n of S.notes) ul.appendChild(el('li', 'hint-sm', n));
+    box.appendChild(ul);
+  }
+}
+
+async function copyRentSchedule(m) {
+  const list = dealSchedules(deal, m ? m.price : metrics().m.price);
+  if (!list.length || list.some(({ S }) => S.errors.length)) { toast('This rent schedule has problems to fix in the rent roll first.'); return; }
+  const { copyText } = await import('./kit.js');
+  toast((await copyText(scheduleTsv(list))) ? 'Rent schedule copied.' : 'The browser blocked copying here.');
 }
 
 /* ------------------------------------------------------------ Data QC */
@@ -2470,6 +2530,7 @@ async function dealMenu() {
   const v = await actionSheet(deal.name || 'Deal', [
     { label: 'Copy summary', sub: 'five lines for a text or an email', value: 'copy', icon: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/>' },
     ...(IN_ARTIFACT ? [] : [{ label: 'Deal brief', sub: 'print or save as PDF, with photos', value: 'brief', icon: '<path d="M7 9V3h10v6M7 17H5a2 2 0 01-2-2v-4a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2h-2M7 14h10v7H7z"/>' }]),
+    ...(dealSchedules(deal, null).length ? [{ label: 'Copy rent schedule', sub: 'tab-separated, for a spreadsheet', value: 'rentsched', icon: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M9 5v14"/>' }] : []),
     { label: 'Fill my Excel template…', sub: 'your firm’s underwriting or rent roll workbook', value: 'template', icon: '<path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/>' },
     { label: 'Use as the comps subject', value: 'subject', icon: '<path d="M5 12h14M13 6l6 6-6 6"/>' },
     { label: 'History…', sub: 'every change to this deal; undo to any step', value: 'history', icon: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>' },
@@ -2488,7 +2549,8 @@ async function dealMenu() {
     const { m, comps } = metrics();
     const { copyText } = await import('./kit.js');
     toast((await copyText(dealSummaryText(deal, m, comps))) ? 'Summary copied.' : 'The browser blocked copying here.');
-  } else if (v === 'brief') printBrief();
+  } else if (v === 'rentsched') copyRentSchedule(null);
+  else if (v === 'brief') printBrief();
   else if (v === 'subject') useAsSubject();
   else if (v === 'history') openHistory();
   else if (v === 'template') openTemplates();

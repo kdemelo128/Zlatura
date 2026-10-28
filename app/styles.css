@@ -520,6 +520,8 @@ td.act .chips { justify-content: flex-end; margin-right: 4px; }
 .mini tr.hl td { background: var(--teal-soft); font-weight: 650; }
 .mini tr:last-child td { border-bottom: 0; }
 .mini tr.hl-warn td { background: var(--warn-soft); }
+.mini th[scope=row] { font: inherit; letter-spacing: 0; text-transform: none; color: inherit; text-align: left; white-space: nowrap; padding: 9px var(--s5) 9px var(--s5); border-bottom: 1px solid var(--line); }
+.mini tr.hl-warn th[scope=row] { background: var(--warn-soft); }
 .mini.proj td, .mini.proj th { white-space: nowrap; }
 .mini.proj tr.strong td { font-weight: 650; border-top: 1px solid var(--line-strong); }
 .mini.proj td:first-child, .mini.proj th:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); box-shadow: 1px 0 0 var(--line); }
