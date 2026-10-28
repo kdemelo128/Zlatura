@@ -21,17 +21,19 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.56; underwriting U7, recoveries counted twice (PR opening); Phase B1b, research briefs on the device (#80, merged); check:full runs the AI server tests (#79, merged); Phase B1a, the research route (#78, merged); the -$0 display fix (#77, merged); AI server injection set (#76, merged); fast-check property tests (#75, merged); CI security scanners (#74, merged); tool ideas and GitHub tools scan (#73, merged); F12, AI server limits (#72, merged); CodeQL alert fixes (4.7.46, #70, merged); Pillow audit (#68, merged); ponytail skill (#67, merged); underwriting U6, T-12 line checks (#66, merged); underwriting U5, rent roll checks (#65, merged); underwriting U4, WALT by total area (#64, merged); underwriting U3, strict review (#63, merged); underwriting U2, normalised NOI on screen (#62, merged); underwriting U1, normalise() (#61, merged); T-12 PR 3b, value flags and run rate (#60, merged); T-12 PR 3a, periods and the Data QC panel (#59, merged); T-12 PR 2, suggestions (#58, merged); A3 skills and glossary (#57, merged); git guardrail hook (#56, merged); security fixes F1 to F3 (#55, merged); T-12 PR 1b, the paste box (#54, merged); T-12 PR 1, the reading foundation (#53, merged); security checklist and tools decisions (#51, merged); support-code rule (PR opening); underwriting proposal (#48), roll comparison (#47), property-manager profile (#46), rent roll PDF upload (#45), `impact-flow` fix (#44) merged (2026-10-17).
+Last updated: 4.7.58; Phase B1c, the research screens (PR opening); browser runs on eight port slots (#82, merged); counts recounted (the directive row had 18 of its 40 items; F12 and the Data QC panel ticked); underwriting U7, recoveries counted twice (#81, merged); Phase B1b, research briefs on the device (#80, merged); check:full runs the AI server tests (#79, merged); Phase B1a, the research route (#78, merged); the -$0 display fix (#77, merged); AI server injection set (#76, merged); fast-check property tests (#75, merged); CI security scanners (#74, merged); tool ideas and GitHub tools scan (#73, merged); F12, AI server limits (#72, merged); CodeQL alert fixes (4.7.46, #70, merged); Pillow audit (#68, merged); ponytail skill (#67, merged); underwriting U6, T-12 line checks (#66, merged); underwriting U5, rent roll checks (#65, merged); underwriting U4, WALT by total area (#64, merged); underwriting U3, strict review (#63, merged); underwriting U2, normalised NOI on screen (#62, merged); underwriting U1, normalise() (#61, merged); T-12 PR 3b, value flags and run rate (#60, merged); T-12 PR 3a, periods and the Data QC panel (#59, merged); T-12 PR 2, suggestions (#58, merged); A3 skills and glossary (#57, merged); git guardrail hook (#56, merged); security fixes F1 to F3 (#55, merged); T-12 PR 1b, the paste box (#54, merged); T-12 PR 1, the reading foundation (#53, merged); security checklist and tools decisions (#51, merged); support-code rule (PR opening); underwriting proposal (#48), roll comparison (#47), property-manager profile (#46), rent roll PDF upload (#45), `impact-flow` fix (#44) merged (2026-10-17).
 
 ## Now
 
-- **Current step (4.7.56):** underwriting U7 (K37): a warning when a rent roll's other-income line worded as a
-  recovery sits beside leases that already recover expenses; no number changes (PR opening). Phase B1b (#80), the
-  check:full server step (#79), B1a (#78), the "-$0" fix (#77), the injection set (#76), property tests (#75), CI
-  scanners (#74), tool ideas (#73) and F12 (#72) are merged. Next, one PR at a time: B1c (the research screens;
-  building) and the remaining "-$0" sites (building). U8 stays deferred. The master plan
-  (`ZLATURA_MASTER_PROMPT_v2.md`) stays in force; the history of earlier steps is in `CHANGELOG.md` and the "Last
-  updated" line above.
+- **Current step (4.7.58):** Phase B1c, the research screens: start a company brief from a contact or the command
+  menu, read its ten sections, tick only the claims whose quote checks out, and see unticked claims in Review (PR
+  opening). Port slots (#82), U7 (#81), B1b (#80) and earlier are merged. Built and reviewed, waiting their turn: L5
+  (photo text by OCR), the bridge logic (7.9 B1), the remaining "-$0" sites and the rent roll CSV separators fix. In
+  flight: the hostile-text pack and timezones (F6/F7), the deal fee record (5.1), the Back button (F3), listing copy
+  (13.1) and the Underwrite tab (W1). Next: OM red flags 6.3.5/6.3.7/6.3.8, Recently deleted (F8), the backup
+  password (F9, two owner questions), the football field (7.3) and the strict CSP (F4). The master plan
+  (`ZLATURA_MASTER_PROMPT_v2.md`) stays in force; the history of earlier
+  steps is in `CHANGELOG.md` and the "Last updated" line above.
 - **Lost edit (since 4.7.3), fixed in 4.7.7:** `app/focuskeep.js` held the
   whole change handler, the save included, until Tab's focus landed, so
   leaving the deal or closing the app in that beat lost the edit. Now the
@@ -101,7 +103,7 @@ Last updated: 4.7.56; underwriting U7, recoveries counted twice (PR opening); Ph
 
 | Group | Done | Partial | In progress | Not started | Blocked | Items |
 |---|---|---|---|---|---|---|
-| The owner's directive | 9 | 1 | 0 | 8 | 0 | 18 |
+| The owner's directive | 22 | 2 | 0 | 16 | 0 | 40 |
 | Rules and process (Parts 0, 1.3, 22, 23, 24) | 19 | 7 | 1 | 0 | 0 | 27 |
 | The 15 pillars (Part 2) | 1 | 8 | 0 | 6 | 0 | 15 |
 | Phase 0: audit and baseline | 9 | 0 | 0 | 0 | 0 | 9 |
@@ -114,7 +116,7 @@ Last updated: 4.7.56; underwriting U7, recoveries counted twice (PR opening); Ph
 | Phase 7: workspaces and integrations | 1 | 4 | 0 | 9 | 0 | 14 |
 | Phase 8: final audit | 1 | 2 | 0 | 7 | 1 | 11 |
 | Real-world validation | 0 | 0 | 0 | 0 | 5 | 5 |
-| **All** | **102** | **122** | **1** | **141** | **8** | **374** |
+| **All** | **115** | **122** | **1** | **150** | **8** | **396** |
 
 The pillars are counted on their own as well as through the items of the
 phases that build them.
@@ -195,7 +197,7 @@ Behind the "New look" toggle, after 2b.
 - [ ] Feature map, and a test that no feature is lost
 
 ### Other standing instructions
-- [ ] Data QC panel (not designed yet)
+- [x] Data QC panel (4.7.35, #59: T-12 and rent roll checks in one panel)
 - [x] Character-by-character typing tests for every input type:
   `typing-flow` (4.7.3) types every date field and the number, percent and
   currency fields key by key, and checks Tab after a redraw. New input types
@@ -227,8 +229,8 @@ in the order of the build order above:
   warning (approved)
 - [ ] F10 stolen-laptop and disaster-recovery plans, one page each
 - [ ] F11 split `dealui.js` (2,701 lines), inside the UI revamp
-- [ ] F12 AI server limits before any deployment: spend cap, a token per
-  device, prompt-injection tests
+- [x] F12 AI server limits before any deployment: spend cap, a token per
+  device, prompt-injection tests (4.7.47, #72; injection set doubled 4.7.51, #76)
 - [ ] Phase 7 prerequisites: an independent code review; the accounts,
   domain and repo in the company's name (owner, 2026-10-15; no action now)
 - [ ] Before Phase 7, from day one: tenant isolation, object-level checks,

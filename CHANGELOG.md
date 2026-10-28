@@ -1,5 +1,30 @@
 # Changelog
 
+## 4.7.58: Company research briefs now have screens: start one, read it, tick the claims that check out (on the development branch; not merged or deployed)
+
+The AI server route (B1a) and the device model (B1b) had no screen. This adds them, on a phone first.
+
+- **Start a brief** from the command palette ("Research a company", "Research briefs"), from a contact's sheet ("Research company", which fills in only the company name, never the contact's name), or open one from Review. Sources are PDFs you upload or text you paste; nothing is fetched from the web. A required tick says you are entitled to use the sources, and the send is confirmed first, naming the server, saying the files and pasted text go in full (a PDF as the whole file), and that contact names are not sent.
+- **The brief** has ten collapsible sections. Each claim says what it is in words: **Confirmed** (found in your source when checked, stated outright, and ticked by you), **Hypothesis: not confirmed** (with its reason) or **Refused as proof** (with its reason: a shared registered agent, mailing address or surname). Only a found, stated claim can be ticked; a tick saves at once and has an Undo. A scanned source says its quotes can't be checked. The cost the server charged is shown.
+- **Possible links to your contacts** shows "This may be your contact X" with "Not saved to the contact". Nothing is written to contacts or to any CRM record.
+- **Errors** (a daily or job limit, a refusal) show the server's own message. A failed brief stays in the list as Failed.
+- **Delete a brief** with Undo. **Review** gets one item for each brief that still has claims waiting for your tick.
+- Focus stays on the claim you ticked, and each tick or delete is announced to screen readers. "Research company" on a contact with unsaved edits asks whether to save them first.
+- Text from the model or a source is always drawn as text, never as markup.
+
+Tested with invented companies and a stubbed server answer: a new browser flow (`tests/e2e/research-flow.mjs`) at phone and desktop size covers starting from a contact and the palette, the request holding only the company and the documents, the status words, the tick gate, undo, a refused claim, a contact match with nothing written, a 429 and a 422 message, axe, and a tick under 150 ms with 150 claims; `tests/research-review.test.js` covers the Review item. No real model was called, so the quality of real briefs and their cost are not verified. Saved deals, the engine and golden outputs are unchanged.
+
+## 4.7.57: Checks: up to eight browser-suite runs at once on one machine, each on its own ports (on the development branch; not merged or deployed)
+
+With builder agents now working in parallel worktrees (owner, 2026-10-22), every browser run still queued for port 8080: a full suite takes about half an hour, so a third or fourth run waited an hour before it started.
+
+- **Slots:** `tests/e2e/run.sh` now claims the first free slot of ports instead of one fixed lock. Slot 0 is what CI and older branches use, unchanged: port 8080, and 8096 to 8098 for the flows that serve an old copy (migrate, rename, upgrade). Slot n uses port 8080+n and 9000+10n to 9002+10n. Up to `E2E_SLOTS` runs go at once, by default half the machine's CPUs (at least one): the flows hold a 150 ms-an-edit perf budget, and on a 4-CPU machine with six agents and several suites running, a run measured 195 ms, which says nothing about the code; when all are busy a run waits, as before (`E2E_LOCK_WAIT`, default 1800 seconds).
+- **Safe takeover:** a slot whose run has gone is taken over; one never given a PID is taken over after a minute; a slot whose port is already served without a lock (a server someone started by hand) is skipped, where it used to fail the run with "Port 8080 is in use". `E2E_PORT_BASE` (default 8080) moves the whole range, which the tests use so they never depend on what the machine is serving. Slot 0 keeps the old lock's name, so a run from an older branch and a new one never both use 8080.
+- **A `BASE` given by the caller** (an old-code run) is kept.
+- **LibreOffice per slot:** the workbook recalculation (`recalc.py`, and `lo_values.py`) now takes its socket port from the slot (2002 and 2003 on slot 0, as before; 2002+10n and 2003+10n on slot n) and, beyond slot 0, its own LibreOffice user profile. Two LibreOffice instances on one port or profile locked each other up: a parallel run hung for over 20 minutes in the recalculation. Each recalculation now also has a 5-minute timeout, so a hung LibreOffice fails the run instead of stopping it.
+- **A time-of-day test bug fixed (from F12, 4.7.47):** `ai-flow`'s daily-limit check expected "resets … in 6 h 12 min", but within the last hour before 00:00 UTC the server rightly says "in 31 min" (`server/budget.mjs` `untilReset`), so the check failed if the suite ran then. It now accepts both forms.
+- **Tested:** `tests/e2e-lock.test.js` (a free machine gets slot 0 and the CI ports; with slot 0 held a run takes slot 1 at once with its own ports; every slot busy waits then stops; a stale slot is taken over; a caller's BASE is kept). All six fail on 4.7.56. A real run of `home-flow` took slot 1 (port 8081) while another agent's run held slot 0, and passed. No app code changed.
+
 ## 4.7.56: A warning when the rent roll may count expense recoveries twice (on the development branch; not merged or deployed)
 
 A rent roll can carry an other-income line worded as a recovery (for example CAM reimbursements) while its leases also recover expenses from the operating-expense pool. Both reach the roll's projected income, so the roll's NOI would count them twice.
