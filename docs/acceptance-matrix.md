@@ -370,7 +370,7 @@ the baseline; 32 flows are listed at 4.7.2).
 | Feature | Status | Notes |
 |---|---|---|
 | Known-answer tests for material formulas | Partially implemented | Many, with hand-worked values; some expected values come from the code. Detail in baseline report §5. |
-| Property-based tests for invariants | Not implemented | |
+| Property-based tests for invariants | Tested with synthetic fixtures only | 4.7.50 (#75): fast-check 4.10.2 (test-only) checks money rounding (`roundTo`, `toCents`, `toRate`), the text decoder and the CSV readers against what their own comments promise; each property turns red on a deliberate mutation. Engine-wide invariants (NOI = EGI − expenses for every deal shape) are not yet covered. |
 | Differential tests native vs template recalculation | Partially implemented | LibreOffice recalculation compares stored values with recomputed ones (0 mismatches on 9 workbooks). |
 | Golden-file tests for exports | Partially implemented | Exports are checked cell by cell in flows, not against golden files. |
 | Mutation tests | Partially implemented | Corrected in 4.7.2 (was Not implemented). Deliberate breaks are run by hand on each PR and recorded in the CHANGELOG (4.4.0: nine; 4.7.0: eight, all caught); `tests/types/mistakes.js` checks 24 deliberate unit mix-ups in every `npm test`. No mutation-testing tool. |
