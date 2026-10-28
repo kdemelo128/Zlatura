@@ -326,8 +326,8 @@ export function editContact(api, c = {}, deals = []) {
 
 /* ------------------------------------------------------ calendar file */
 
-const NAME_KEY = 'zlatura.ics.v1';
-const showNameKept = () => { try { return localStorage.getItem(NAME_KEY) !== 'hidden'; } catch { return true; } };
+const NAME_SLOT = 'zlatura.ics.v1';
+const showNameKept = () => { try { return localStorage.getItem(NAME_SLOT) !== 'hidden'; } catch { return true; } };
 
 /** The sheet that turns a deal's open key dates (or just one, `only`) and task due dates into a calendar file. */
 function calendarSheet(d, tasks, only = null) {
@@ -358,7 +358,7 @@ function calendarSheet(d, tasks, only = null) {
   const after = el('p', 'task-meta');
   after.setAttribute('role', 'status');
   go.addEventListener('click', async () => {
-    try { localStorage.setItem(NAME_KEY, nm.checked ? 'shown' : 'hidden'); } catch { /* fine */ }
+    try { localStorage.setItem(NAME_SLOT, nm.checked ? 'shown' : 'hidden'); } catch { /* fine */ }
     const keep = new Set(checks.filter(([c]) => c.checked).map(([, k]) => k));
     const out = dealEvents(d, tasks, { showName: nm.checked }).events.filter((e) => keep.has(e.key));
     if (x && x.checked) out.push(...exchangeEvents(d, closing, { showName: nm.checked }));
