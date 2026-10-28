@@ -2,7 +2,7 @@
  * opens a search over the deals, contacts and tools on this device and the
  * actions the app really has. Every result does what it says. */
 
-import { el, svg, toast, short, pct } from './kit.js';
+import { el, svg, toast, short, pct, openSheet } from './kit.js';
 import { listAllDeals, showDeal, startDealByHand, openTemplates, impactCommands } from './dealui.js';
 import { listContacts } from './crm.js';
 import { toolIndex, openToolById } from './toolsui.js';
@@ -172,7 +172,7 @@ export async function openCommand() {
   dlg.addEventListener('close', () => dlg.remove());
   const ready = sources().then((x) => { items = x; }, () => {}).then(() => { loaded = true; if (dlg && dlg.open) draw(); });
   draw();
-  dlg.showModal();
+  openSheet(dlg);
   input.focus();
   await ready;
 }

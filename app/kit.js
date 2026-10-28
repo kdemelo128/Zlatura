@@ -140,13 +140,40 @@ export function toast(msg, action = null, ms = 4200) {
 
 /* -------------------------------------------------------------- sheets */
 
+/* An open sheet owns one history entry, so the phone's Back closes it instead
+ * of leaving the screen behind it (see ui.js, which routes the rest of Back). */
+const openSheets = [];   // sheets holding an entry, innermost last
+let ownBacks = 0;        // popstates we caused ourselves, by closing a sheet with its own button
+/** Give up a closed sheet's entry (once). */
+function release(dlg) {
+  const i = openSheets.indexOf(dlg);
+  if (i < 0) return;   // already released, or closed by Back, which has given up the entry itself
+  openSheets.splice(i, 1);
+  // a screen opened right after the close has already taken the entry over (ui.js showView): nothing left to give up
+  if (history.state?.sheet) { ownBacks += 1; history.back(); }
+}
+function holdEntry(dlg) {
+  if (openSheets.includes(dlg)) return;
+  try { history.pushState({ z: 1, sheet: true }, ''); } catch { return; } // a sandboxed preview can refuse
+  openSheets.push(dlg);
+  dlg.addEventListener('close', () => release(dlg), { once: true });   // Esc closes a sheet without closeSheet
+}
+/** Back was pressed: closes the innermost sheet and returns true, or false when none is open. */
+export function backClosesSheet() {
+  if (ownBacks) { ownBacks -= 1; return true; }
+  const dlg = openSheets.pop();
+  if (dlg) closeSheet(dlg);
+  return !!dlg;
+}
+
 /** Open a <dialog> as a sheet: from the bottom on a phone, centred on a desk. */
 export function openSheet(dlg) {
-  if (typeof dlg.showModal === 'function') { if (!dlg.open) dlg.showModal(); } else dlg.setAttribute('open', '');
+  if (typeof dlg.showModal === 'function') { if (!dlg.open) { dlg.showModal(); holdEntry(dlg); } } else dlg.setAttribute('open', '');
   const body = dlg.querySelector('.sheet-body');
   if (body) body.scrollTop = 0;
 }
 export function closeSheet(dlg) {
+  release(dlg);   // at once, so a screen opened straight after finds the history settled
   if (typeof dlg.close === 'function' && dlg.open) dlg.close(); else dlg.removeAttribute('open');
 }
 /** Tapping the dimmed backdrop closes a sheet. */
