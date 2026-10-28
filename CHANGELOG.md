@@ -1,5 +1,29 @@
 # Changelog
 
+## 4.7.59: Read the text in a site photo (a sign, a name, an address) on your device (on the development branch; not merged or deployed)
+
+A site photo can carry the property's address, a business name or a "for lease" phone number. Each photo on the Site visit tab now has a "Read the text in this photo" button (Aa).
+
+- **On request, on the device.** The OCR the app already ships (Tesseract, loaded only on that tap, from this site) reads the photo. No image leaves the device; no request goes to another site.
+- **Shown, not kept.** The lines found appear in a sheet marked "Read from the photo", each with its confidence and a note where it looks like a phone number or a street address. Closing the sheet discards them. Nothing new is saved.
+- **Used only on your tap.** Each line has Copy, "Use as address" and "Use as deal name". One line, one field, with Undo. Nothing is applied automatically.
+- **No faces.** Nothing looks for people or faces; a test fails if face-detection code or a model appears in `app/` or `vendor/`.
+- **Tested** with invented signs only: `photo-text.test.js` (line tidying, tagging, the no-face check) and `photoocr-flow` (a sign drawn on a canvas, read in Chromium, used and undone). Not tried on a real photo, an iPhone or Safari. Money, the engine and saved results are unchanged (golden 646 figures, 0 changed).
+
+## 4.7.58: Company research briefs now have screens: start one, read it, tick the claims that check out (on the development branch; not merged or deployed)
+
+The AI server route (B1a) and the device model (B1b) had no screen. This adds them, on a phone first.
+
+- **Start a brief** from the command palette ("Research a company", "Research briefs"), from a contact's sheet ("Research company", which fills in only the company name, never the contact's name), or open one from Review. Sources are PDFs you upload or text you paste; nothing is fetched from the web. A required tick says you are entitled to use the sources, and the send is confirmed first, naming the server, saying the files and pasted text go in full (a PDF as the whole file), and that contact names are not sent.
+- **The brief** has ten collapsible sections. Each claim says what it is in words: **Confirmed** (found in your source when checked, stated outright, and ticked by you), **Hypothesis: not confirmed** (with its reason) or **Refused as proof** (with its reason: a shared registered agent, mailing address or surname). Only a found, stated claim can be ticked; a tick saves at once and has an Undo. A scanned source says its quotes can't be checked. The cost the server charged is shown.
+- **Possible links to your contacts** shows "This may be your contact X" with "Not saved to the contact". Nothing is written to contacts or to any CRM record.
+- **Errors** (a daily or job limit, a refusal) show the server's own message. A failed brief stays in the list as Failed.
+- **Delete a brief** with Undo. **Review** gets one item for each brief that still has claims waiting for your tick.
+- Focus stays on the claim you ticked, and each tick or delete is announced to screen readers. "Research company" on a contact with unsaved edits asks whether to save them first.
+- Text from the model or a source is always drawn as text, never as markup.
+
+Tested with invented companies and a stubbed server answer: a new browser flow (`tests/e2e/research-flow.mjs`) at phone and desktop size covers starting from a contact and the palette, the request holding only the company and the documents, the status words, the tick gate, undo, a refused claim, a contact match with nothing written, a 429 and a 422 message, axe, and a tick under 150 ms with 150 claims; `tests/research-review.test.js` covers the Review item. No real model was called, so the quality of real briefs and their cost are not verified. Saved deals, the engine and golden outputs are unchanged.
+
 ## 4.7.57: Checks: up to eight browser-suite runs at once on one machine, each on its own ports (on the development branch; not merged or deployed)
 
 With builder agents now working in parallel worktrees (owner, 2026-10-22), every browser run still queued for port 8080: a full suite takes about half an hour, so a third or fourth run waited an hour before it started.
