@@ -1007,6 +1007,10 @@ dialog.cmdk[open] { animation: pop var(--d2) var(--ease); }
 .rows-edit input { width: 100%; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-sm); padding: 7px 8px; font-size: var(--t-14); min-width: 0; color: var(--ink); }
 
 /* ===================================================================== AI */
+.undo-bar { display: flex; align-items: center; gap: var(--s3); justify-content: space-between; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-md); padding: 8px 12px; margin-bottom: 10px; font-size: var(--t-14); overflow-wrap: anywhere; }
+.undo-text { flex: 1 1 auto; min-width: 0; }
+.rs-sec { border: 1px solid var(--line); border-radius: var(--r-md); margin: 8px 0; }
+.rs-text { font-size: var(--t-14); line-height: 1.55; margin: 4px 0 8px; overflow-wrap: anywhere; }
 .ai-rows { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .ai-row { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 14px; }
 .ai-row-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; cursor: pointer; }

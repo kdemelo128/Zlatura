@@ -90,7 +90,7 @@ export function receive(brief, out, texts, now = Date.now()) {
   const list = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string').slice(0, 20).map((x) => str(x, 300)) : []);
   return {
     ...brief, status: 'ready', error: null, claims, sections, notes: list(out && out.notes), notChecked: [...list(out && out.notChecked), ...gaps],
-    model: str(out && out.model, 100), chargedCents: out && Number.isInteger(out.chargedCents) ? out.chargedCents : null, updatedAt: now,
+    model: str(out && out.model, 100), chargedCents: out && Number.isInteger(out.chargedCents) && out.chargedCents >= 0 ? out.chargedCents : null, updatedAt: now,
   };
 }
 
