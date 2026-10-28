@@ -264,6 +264,7 @@ export async function prepareForRestore() {
 /** A blank deal to type figures into (the command menu's "New deal by hand"). */
 export function startDealByHand() { flushDeal(); deal = newDeal(); try { localStorage.setItem(CUR_KEY, deal.id); } catch { /* fine */ } render(); touch(); }
 export async function showDeal(id) { await openDeal(id); api.showView('deal'); }
+export { openDeal }; // the Back button reopens a deal without a view change of its own (ui.js route)
 export const currentDealId = () => (deal ? deal.id : null);
 export const currentDealName = () => (deal && hasFigures() ? (deal.name || deal.figures.address || 'Untitled deal') : null);
 const hasFigures = () => deal && Object.values(deal.figures).some((v) => v !== null && v !== undefined && v !== '');
