@@ -322,7 +322,7 @@ import { feesCsv } from '../app/exporters.js';
 
 test('a deal’s fee record rides along in a backup: it comes back as it went in, and the backup version stays 2', async () => {
   const fee = { price: 6450000, flatPct: 3, tiers: [], coBrokerPct: 50, referralPct: 0, housePct: 40, invoiced: { amount: 193500, on: '2026-03-01', ref: 'INV-1' }, paid: [{ amount: 100000, on: '2026-04-01', ref: '' }] };
-  const b = await buildBackup({ deals: [deal('d1', 5, { fee, schema: 5 })], appVersion: '4.7.57' });
+  const b = await buildBackup({ deals: [deal('d1', 5, { fee, schema: 5 })], appVersion: '4.7.58' });
   assert.equal(b.version, 2);
   const back = readBackup(JSON.stringify(b));
   assert.deepEqual(back.deals[0].fee, fee);
@@ -331,7 +331,7 @@ test('a deal’s fee record rides along in a backup: it comes back as it went in
 
 test('a fee record that was edited by hand or damaged is read without an error, and shown blank, never as 0', async () => {
   const hostile = [{ paid: 'x', invoiced: { amount: 100 } }, { paid: [null, 'x', { amount: 'a', on: 7 }], tiers: 'x', price: 'x', invoiced: 'x' }, { tiers: [null, 5, { upTo: 'x', pct: {} }], price: 1e6, flatPct: '3' }];
-  const b = await buildBackup({ deals: hostile.map((fee, i) => deal(`h${i}`, 5, { fee, schema: 5 })), appVersion: '4.7.57' });
+  const b = await buildBackup({ deals: hostile.map((fee, i) => deal(`h${i}`, 5, { fee, schema: 5 })), appVersion: '4.7.58' });
   const back = readBackup(JSON.stringify(b));
   const plan = planRestore(back, { deals: [], kv: {}, session: null, local: {} });
   assert.equal(plan.deals.put.length, 3);
