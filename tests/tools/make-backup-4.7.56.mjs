@@ -1,7 +1,7 @@
 /* Make tests/fixtures/backup-4.7.56-before-fee-record.json with the real 4.7.56
  * code, taken from git (2ac22a1): two invented deals saved at schema 4, one with
  * a rent roll of two leases and a saved scenario, one with an empty rent roll.
- * 4.7.58 adds schema step 5 ("fee-record") for deal.fee; the step must leave
+ * 4.7.59 adds schema step 5 ("fee-record") for deal.fee; the step must leave
  * these deals exactly as saved, apart from the version field. Every name and
  * figure is made up.
  *

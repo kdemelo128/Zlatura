@@ -111,7 +111,7 @@ try {
   const after = await dump(fresh);
   check('the upgrade adds the history, snapshot and trash stores', ['history', 'snapshots', 'trash'].every((s) => after.stores.includes(s)), after.stores.join(', '));
   // 4.7.4's migration step "rr-qc" adds to a deal whose rent roll came from an OM, when it is opened: a Data QC record
-  // marked "read before Data QC", and schema 3 (saved, so its updatedAt moves). 4.7.23's step "rr-pdf-source" then only sets schema 4 on every deal, and 4.7.58’s “fee-record” schema 5 (no history entry, no new date).
+  // marked "read before Data QC", and schema 3 (saved, so its updatedAt moves). 4.7.23's step "rr-pdf-source" then only sets schema 4 on every deal, and 4.7.59’s “fee-record” schema 5 (no history entry, no new date).
   // Both are set apart and checked on their own, nothing else may change.
   const stepped = new Set(Object.entries(after.deals || {}).filter(([, d]) => d.rrQc && d.rrQc.legacy).map(([k]) => k));
   const noQc = (deals) => Object.fromEntries(Object.entries(deals || {}).map(([k, d]) => { const { rrQc, ...x } = d; return [k, stepped.has(k) ? { ...x, schema: 0, updatedAt: 0 } : { ...d, schema: 0 }]; }));
