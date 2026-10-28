@@ -9,6 +9,8 @@ export const el = (tag, cls, text) => {
   const n = document.createElement(tag);
   if (cls) n.className = cls;
   if (text !== undefined && text !== null) n.textContent = text;
+  // typed text and the list titles that show it (names, tenants) set their own direction: Arabic or Hebrew reads right to left
+  if (tag === 'input' || tag === 'textarea' || (cls && /(^|\s)li-title(\s|$)/.test(cls))) n.dir = 'auto';
   // a sideways-scrolling table must be reachable from the keyboard (WCAG 2.1.1)
   if (tag === 'div' && cls && /(^|\s)scroll(\s|$)/.test(cls)) n.tabIndex = 0;
   return n;
@@ -113,6 +115,8 @@ export const short = (n) => {
 };
 
 export const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+/** A calendar day held as UTC midnight (the 1031 deadlines), shown as that day in any zone. */
+export const niceDay = (d) => new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
 export const niceDate = (d) => (d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—');
 
 /* --------------------------------------------------------------- toast */

@@ -11,6 +11,8 @@
  *                         branch is current with main with no conflict
  *                         markers (tests/tools/sync-main.mjs --check)
  *
+ * check:full also runs the Node suite under America/Los_Angeles and Pacific/Kiritimati (npm run test:tz).
+ *
  * Every step runs even when one fails; any failure makes the command exit 1.
  * The golden check compares every displayed figure with the base branch
  * (BASE_REF, default origin/main) and fails on any change, unless the owner
@@ -80,6 +82,8 @@ if (mode === 'quick') {
   step('unit tests (affected)', 'node', ['--test', ...tests]);
 } else {
   step('unit tests (all)', 'npm', ['test']);
+  // the same suite again with the device clock in Los Angeles and in Kiritimati (UTC+14): a date that moves with the zone fails
+  step('unit tests in other time zones', 'npm', ['run', 'test:tz']);
 }
 // the AI server's own suite (server/, its own package): CI's test job runs it, so full always does too, and quick
 // does whenever a server/ file changed; its one package is installed first if missing

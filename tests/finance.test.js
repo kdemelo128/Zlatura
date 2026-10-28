@@ -155,7 +155,7 @@ test('WALT and rollover from a rent roll', () => {
 
 test('the lease clock runs from the expiration date, not the OM\'s printed term', () => {
   const m = analyze({ price: 3280000, noi: 172200, lease_exp: 'January 31, 2036', term_left: '12.0 Years', loan: LOAN }, null, TODAY);
-  close(m.termLeft, (Date.parse('January 31, 2036') - TODAY.getTime()) / (365.25 * 86400000), 1e-9);
+  close(m.termLeft, (Date.UTC(2036, 0, 31) - TODAY.getTime()) / (365.25 * 86400000), 1e-9);
   assert.equal(yearsLeft('9.3 Years'), 9.3);
 });
 

@@ -29,7 +29,7 @@ import { legacyRows, omRollRecord, applyHeldRows, addOcrRows, ocrReading, rollOf
 import { qcPanel } from './dataqcui.js';
 import { omReadRecord, applyOmFix, heldFields, basisText } from './omstatement.js';
 import { resolveCheck, blockingChecks, qcCounts } from './dataqc.js';
-import { readScannedPage, ocrSupported } from './ocr.js';
+import { readScannedPage, readPhotoText, ocrSupported } from './ocr.js';
 import { pending as stepsDue, applyStep } from './migrate.js';
 import { renderRentRollWorkspace } from './rentrollui.js';
 import { redrawKeepingFocus } from './focuskeep.js';
@@ -663,6 +663,7 @@ function renderDeal(r) {
   if (deal.visit.at) eb.appendChild(el('span', 'chip chip-teal', `Visited ${niceDate(deal.visit.at)}`));
   t.appendChild(eb);
   const name = el('h1', null, title);
+  name.dir = 'auto';
   try { name.contentEditable = 'plaintext-only'; } catch { name.contentEditable = 'true'; }
   name.spellcheck = false;
   name.title = 'Tap to rename';
@@ -685,6 +686,7 @@ function renderDeal(r) {
   tabs.setAttribute('aria-label', 'Deal sections');
   // when the header scrolls away, the tab bar carries the deal's name
   const wsName = el('span', 'ws-name', title);
+  wsName.dir = 'auto';
   wsName.setAttribute('aria-hidden', 'true');
   tabs.appendChild(wsName);
   if ('IntersectionObserver' in window) {
@@ -2163,6 +2165,14 @@ function renderPhotos(into = null) {
       toast('Photo deleted.', { label: 'Undo', run: () => { d.visit.photos = keep; touch(d); if (deal === d) renderPhotos(); } });
     });
     d.appendChild(x);
+    const rd = el('button', 'photo-read', 'Aa');
+    rd.type = 'button';
+    rd.id = `photo-read-${p.id}`;
+    rd.setAttribute('aria-label', 'Read the text in this photo');
+    rd.title = 'Read the text in this photo (signs, names, addresses)';
+    if (!ocrSupported()) { rd.disabled = true; rd.title = 'This browser can’t read text in photos (it needs WebAssembly SIMD: Safari 16.4 or later, or a current Chrome, Edge or Firefox).'; }
+    rd.addEventListener('click', () => showPhotoText(p));
+    d.appendChild(rd);
     ph.appendChild(d);
   }
   const add = el('label', 'photo-add');
@@ -2171,6 +2181,70 @@ function renderPhotos(into = null) {
   add.title = 'Add photos';
   add.setAttribute('aria-label', 'Add site photos');
   ph.appendChild(add);
+}
+
+/**
+ * The text in one photo, read on the device when the broker taps. It is shown, not kept: closing the sheet
+ * discards it. A line goes onto the deal only when tapped, one at a time, with an undo.
+ */
+async function showPhotoText(photo) {
+  const d = deal;
+  const body = api.sheetOpen({ eyebrow: 'Read from the photo', title: 'Text in this photo', sub: 'Read on this device by OCR. It can be wrong: check each line against the photo.' });
+  const status = el('p', 'hint-sm', 'Starting…');
+  status.id = 'photo-text-status';
+  status.setAttribute('role', 'status');
+  body.appendChild(status);
+  // the sheet body is shared: a read that ends after this sheet closed or was replaced must write nothing
+  let lines;
+  try {
+    lines = await readPhotoText(photo.blob, { onProgress: (t) => { if (status.isConnected) status.textContent = t; } });
+  } catch (err) {
+    if (!status.isConnected) return;
+    status.textContent = `The text couldn’t be read: ${err && err.message ? err.message : err}`;
+    return;
+  }
+  if (!status.isConnected) return;
+  status.textContent = lines.length ? 'Nothing is put on the deal until you tap a button below.' : 'No text found in this photo.';
+  const list = el('div', 'list');
+  list.id = 'photo-text-lines';
+  list.style.cssText = 'background:var(--surface-2);border-radius:13px';
+  for (const l of lines) {
+    const row = el('div', 'li photo-line');
+    row.style.cssText = 'flex-wrap:wrap;gap:6px';
+    const m = el('div', 'li-main');
+    m.appendChild(el('div', 'li-title', l.text));
+    m.appendChild(el('div', 'li-sub', `Read from the photo · confidence ${l.conf}%${l.kind === 'phone' ? ' · looks like a phone number' : l.kind === 'address' ? ' · looks like an address' : ''}`));
+    row.appendChild(m);
+    row.appendChild(button('btn-sm btn-gray', 'Copy', async () => {
+      const { copyText } = await import('./kit.js');
+      toast((await copyText(l.text)) ? 'Copied.' : 'The browser blocked copying here.');
+    }));
+    row.appendChild(button('btn-sm btn-gray', 'Use as address', () => useOnDeal(d, photo, 'address', l.text)));
+    row.appendChild(button('btn-sm btn-gray', 'Use as deal name', () => useOnDeal(d, photo, 'name', l.text)));
+    list.appendChild(row);
+  }
+  if (lines.length) body.appendChild(list);
+}
+
+/** Put one photo line on the deal's address or name, on the broker's tap, with an undo. Only on the deal the sheet was opened for. */
+function useOnDeal(d, photo, what, value) {
+  api.sheetClose(); // the sheet would sit over the toast, and the Undo in it
+  if (!deal || deal.id !== d.id) { toast('That photo belongs to a deal that is no longer open: nothing was changed.'); return; }
+  const was = { addr: d.figures.address, src: d.sources.address ? { ...d.sources.address } : undefined, name: d.name };
+  if (what === 'address') setFigure('address', value, false); // the name follows an address it matched, and the source is marked typed
+  else d.name = value;
+  touch(d, { label: what === 'address' ? 'Address from a photo' : 'Name from a photo' });
+  render();
+  $(`photo-read-${photo.id}`)?.focus(); // the redraw dropped focus: back to this photo's button
+  toast(what === 'address' ? 'Address set from the photo.' : 'Deal name set from the photo.', {
+    label: 'Undo', run: () => {
+      if (was.addr === undefined) delete d.figures.address; else d.figures.address = was.addr;
+      if (was.src) d.sources.address = was.src; else delete d.sources.address;
+      d.name = was.name;
+      touch(d, { label: 'Undid the photo text' });
+      if (deal === d) render();
+    },
+  });
 }
 
 /** A phone photo is 3-12 MB; 1600 pixels on the long side is plenty for a brief, at a tenth of the size. */

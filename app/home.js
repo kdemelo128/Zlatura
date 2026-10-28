@@ -237,7 +237,7 @@ function pipelineCard(p) {
       const card = el('div', 'pipe-card');
       const open = el('button', 'pipe-open');
       open.type = 'button';
-      open.appendChild(el('b', null, d.name || d.figures.address || 'Untitled deal'));
+      const nm = el('b', null, d.name || d.figures.address || 'Untitled deal'); nm.dir = 'auto'; open.appendChild(nm);
       const cap = capOf(d);
       open.appendChild(el('span', null, [ok(d.figures.price) ? short(d.figures.price) : 'unpriced', ok(cap) ? `${pct(cap, 2)} cap` : null, d.figures.ptype || null].filter(Boolean).join(' · ')));
       open.appendChild(el('span', 'pipe-when', `updated ${ago(d.updatedAt || d.createdAt)}`));
