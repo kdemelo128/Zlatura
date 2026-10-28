@@ -15,6 +15,8 @@ import { resolveCheck, resolveLabel } from './dataqc.js';
 import { lineWithCell } from './dataqcui.js';
 import { applyOmFix } from './omstatement.js';
 import { applyHeldRows, addOcrRows } from './rentroll.js';
+import { loadBriefs } from './research.js';
+import { openBrief } from './researchui.js';
 
 let visible = false;
 let drawing = 0;
@@ -22,8 +24,8 @@ const $ = (id) => document.getElementById(id);
 const usd = (x) => (typeof x === 'number' && Number.isFinite(x) ? (x < 0 ? `−${money0(-x)}` : money0(x)) : String(x ?? ''));
 
 async function gather() {
-  const [deals, templates] = await Promise.all([listAllDeals(), listTemplates()]);
-  return reviewItems({ deals, templates });
+  const [deals, templates, briefs] = await Promise.all([listAllDeals(), listTemplates(), loadBriefs().catch(() => [])]);
+  return reviewItems({ deals, templates, briefs });
 }
 
 /** The tab: shown only with something waiting, with how many. */
@@ -63,10 +65,10 @@ function groupCard(g) {
   c.dataset.group = `${g.group}:${g.id}`;
   const h = el('div', 'card-head');
   h.appendChild(el('h2', null, g.name));
-  h.appendChild(el('span', 'count', `${g.group === 'deal' ? 'Deal' : 'Firm template'} · ${g.items.length} item${g.items.length === 1 ? '' : 's'}`));
-  const open = el('button', 'btn btn-sm btn-gray', g.group === 'deal' ? 'Open the deal' : 'Open the templates');
+  h.appendChild(el('span', 'count', `${g.group === 'deal' ? 'Deal' : g.group === 'research' ? 'Research brief' : 'Firm template'} · ${g.items.length} item${g.items.length === 1 ? '' : 's'}`));
+  const open = el('button', 'btn btn-sm btn-gray', g.group === 'deal' ? 'Open the deal' : g.group === 'research' ? 'Open the brief' : 'Open the templates');
   open.type = 'button';
-  open.addEventListener('click', () => (g.group === 'deal' ? showDeal(g.id) : openTemplates()));
+  open.addEventListener('click', () => (g.group === 'deal' ? showDeal(g.id) : g.group === 'research' ? openBrief(g.id) : openTemplates()));
   h.appendChild(open);
   c.appendChild(h);
   // two or more remembered labels waiting on one deal can be confirmed together, after seeing them listed
@@ -199,6 +201,9 @@ function itemRow(g, it) {
       await updateDeal(g.id, (d) => { const f = d.ai && d.ai.extractions[it.ext] && d.ai.extractions[it.ext].fields[it.field]; if (!f) return false; f.dismissed = true; return true; }, { kind: 'edit', label: `AI reading of ${it.label.toLowerCase()} dismissed` });
       changed('Dismissed.');
     });
+  } else if (it.kind === 'research') {
+    text.append(el('b', null, `${it.count} claim${it.count === 1 ? '' : 's'} to tick`), el('span', 'sub', ' found in your source when checked and stated outright; none is confirmed until you tick it'));
+    btn('Open the brief', 'btn-primary', () => openBrief(it.briefId));
   } else if (it.kind === 'tpl') {
     text.append(el('b', null, `Template cell ${it.sheet}!${it.ref} → ${it.label}`), el('span', 'sub', ` mapped with low confidence${it.why ? `: ${it.why}` : ''}`));
     btn('It’s right', 'btn-gray', async () => {
