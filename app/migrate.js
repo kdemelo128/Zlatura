@@ -123,7 +123,7 @@ export const MIGRATIONS = [
     id: 'fee-record',
     field: 'schema',
     to: 5,
-    since: '4.7.59',
+    since: '4.7.61',
     does: 'A deal can carry a fee record (the fee terms, the invoice and the payments). Nothing already stored changes: this marks the deal as written by a version that knows the fee record, so an older app refuses its backup instead of dropping the fee.',
     brief: 'ready for the fee record',
     silent: true,
