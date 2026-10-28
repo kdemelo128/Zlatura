@@ -13,6 +13,7 @@ import { netEffectiveRent } from './engine/leasing.js';
 import { monthlyPayment, amortMonths } from './engine/debt.js';
 import { breakEvenOccupancy } from './engine/breakeven.js';
 import { isPriced, median } from './engine/comps.js';
+import { toCents } from './engine/money.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const pos = (x) => ok(x) && x > 0;
@@ -253,6 +254,31 @@ export function commission({ price, flatPct, tiers = [], coBrokerPct = 0, houseP
   const referral = ours * nz(referralPct) / 100;
   const house = (ours - referral) * nz(housePct) / 100;
   return { total, effectivePct: (total / price) * 100, lines, coBroker: coop, listingSide: ours, referral, house, agent: ours - referral - house };
+}
+
+/**
+ * A deal's fee record (deal.fee) read as figures: the expected fee from
+ * commission() with the splits left null unless all three shares were entered
+ * (a blank share is not 0), what was invoiced, paid and is still owed. Money is
+ * whole cents; a field that is missing or in a shape it doesn't know is null.
+ */
+export function feeSummary(fee) {
+  const f = fee && typeof fee === 'object' ? fee : {};
+  const tiers = Array.isArray(f.tiers) ? f.tiers.filter((t) => t && typeof t === 'object') : [];
+  // a price with no rate typed is not a fee of $0
+  // commission() skips a tier with no rate, so the next tier's rate would quietly cover its band: no fee until the rate is typed
+  const gap = ok(f.flatPct) ? -1 : tiers.findIndex((t) => ok(t.upTo) && !ok(t.pct));
+  const r = gap < 0 && (ok(f.flatPct) || tiers.some((t) => ok(t.pct))) ? commission({ price: f.price, flatPct: f.flatPct, tiers, coBrokerPct: f.coBrokerPct, referralPct: f.referralPct, housePct: f.housePct }) : null;
+  const split = ok(f.coBrokerPct) && ok(f.referralPct) && ok(f.housePct);
+  const expected = r && (split ? r : { ...r, coBroker: null, listingSide: null, referral: null, house: null, agent: null });
+  const invoiced = f.invoiced && ok(f.invoiced.amount) ? toCents(f.invoiced.amount) : null;
+  // payments are only added up when every one has an amount: an unreadable one is not a payment of 0
+  const payments = Array.isArray(f.paid) && f.paid.every((p) => p && ok(p.amount)) ? f.paid : null;
+  const paidToDate = payments && toCents(payments.reduce((a, p) => a + toCents(p.amount), 0));
+  const days = payments ? payments.map((p) => p.on).filter((d) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort() : [];
+  // || 0: a balance of exactly nothing is 0, never -0
+  const outstanding = invoiced !== null && paidToDate !== null ? toCents(invoiced - paidToDate) || 0 : null;
+  return { expected, tierGap: gap < 0 ? null : gap + 1, invoiced, paidToDate, lastPaid: days.length ? days[days.length - 1] : null, outstanding };
 }
 
 /* --------------------------------------------------------------- leasing */

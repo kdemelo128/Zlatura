@@ -58,6 +58,7 @@ input('targets', 'What-if targets (cap rate, IRR, value)');
 input('conventions', 'Calculation conventions (Settings)');
 input('preparedBy', 'Prepared by (Settings)');
 input('example', 'Fictional sample (an example deal)');
+input('fee', 'The fee record (fee terms, invoice and payments)');
 input('t12', 'The T-12 operating statement (its lines, their categories, its months)');
 
 /** Lease fields, as a person edits them. `status` covers vacant and month to month; `rent` the rent periods. */
@@ -258,6 +259,7 @@ export const FIELD_READS = {
   loan: ['fig.loan'], debtService: ['fig.debtService'], dscr: ['fig.dscr'], debtYield: ['fig.debtYield'], equity: ['fig.equity'], cashOnCash: ['fig.cashOnCash'],
   rrRent: ['rr.annualRent'], rrOcc: ['rr.occupancy'], walt: ['rr.walt', 'conventions'], rrNoi1: ['proj.noi', 'rr.settings.opex'],
   exitCap: ['scenario'], hold: ['scenario'], leveredIrr: ['scenario'], unleveredIrr: ['scenario'], multiple: ['scenario'],
+  feeGross: ['fee'], feeInvoiced: ['fee'], feePaid: ['fee'],
   dealName: ['name', 'figures.address'], preparedBy: ['preparedBy'], today: [],
 };
 for (const F of DEAL_FIELDS) {
@@ -305,6 +307,7 @@ export const RR_SHEETS = {
   'Cash Flow': [...Object.keys(PROJ_LINES).map((k) => `proj.${k}`), 'rr.settings.asOf', 'rr.settings.marketRent', 'rr.settings.marketUnit', 'rr.settings.marketGrowth', 'rr.settings.renewal', 'rr.settings.opex', 'rr.settings.expenseGrowth', 'rr.settings.generalVacancy'],
 };
 for (const [s, reads] of Object.entries(RR_SHEETS)) node(`xlsx.rr.${s}`, { group: 'export', file: 'Rent roll workbook, and the deal workbook', sheet: s, label: s, reads: reads.map((p) => (typeof p === 'string' ? { path: p, ...RR } : p)), rr: true });
+node('csv.fees', { group: 'export', file: 'Fees CSV', label: 'One row per deal with a fee record', reads: ['fee', 'name', 'figures.address'] });
 node('csv.rr', { group: 'export', file: 'Rent roll CSV', label: 'The grid as shown', rr: true, reads: [...LEASE_FIELDS.map(([k]) => `lease.${k}`), 'leases', 'rr.settings.asOf', 'rr.settings.marketRent', 'rr.settings.marketUnit', 'rr.totalSf'] });
 
 /* -------------------------------------------------------------- documents */
@@ -346,6 +349,7 @@ export const DELIVERABLES = {
   'deal-workbook': ['Deal workbook (Excel)', () => [...NODES.keys()].filter((k) => k.startsWith('xlsx.'))],
   'rr-workbook': ['Rent roll workbook (Excel)', () => [...NODES.keys()].filter((k) => k.startsWith('xlsx.rr.'))],
   'rr-csv': ['Rent roll CSV', () => ['csv.rr']],
+  'fees-csv': ['Fees CSV', () => ['csv.fees']],
   'template-fill': ['A firm template, filled', () => [...NODES.keys()].filter((k) => k.startsWith('field.'))],
   'deal-brief': ['Deal brief (printed or PDF)', () => [...NODES.keys()].filter((k) => k.startsWith('brief.'))],
   summary: ['Copy summary', () => ['summary']],
@@ -434,6 +438,7 @@ export function inputOfPath(steps) {
   }
   if (a === 'rentRoll') return { input: 'rentRoll' };
   if (a === 't12') return { input: 't12' };
+  if (a === 'fee') return { input: 'fee' };
   if (a === 'scenarios') return { input: 'scenarios' };
   if (a === 'targets') return { input: 'targets' };
   if (a === 'visit') return { input: 'visit' };

@@ -628,6 +628,17 @@ td.act .chips { justify-content: flex-end; margin-right: 4px; }
 button.src { position: relative; }
 button.src::after { content: ""; position: absolute; inset: -11px -6px; }
 .card > .btn-plain.btn-sm { max-width: calc(100% - 20px); white-space: normal; text-align: left; margin: 2px 14px 8px; }
+/* the Fee card (feeui.js) */
+.fee-card > .btn, .fee-card > .hint { margin: 4px 14px 10px; }
+.fee-card .fee-pays, .fee-sum { padding: 0 var(--s5); }
+.fee-sum { padding-bottom: 8px; }
+.fee-line { display: flex; align-items: baseline; gap: 12px; padding: 3px 0; font-size: var(--t-14); color: var(--muted); font-variant-numeric: tabular-nums; }
+.fee-line small { flex: 1 1 auto; color: var(--faint); font-size: var(--t-12); }
+.fee-line span { flex: 0 0 auto; }
+.fee-line:not(:has(small)) span { flex: 1 1 auto; }
+.fee-line b { color: var(--ink); font-weight: 600; }
+.fee-line.strong b { font-weight: 700; }
+.fee-pay input.text { flex: 1 1 8em; }
 .src.ai { background: var(--teal-soft); color: var(--teal); }
 .src.ai.unchecked { background: var(--warn-soft); color: var(--warn); }
 .src.high { background: var(--good-soft); color: var(--good); } .src.high i { background: var(--good); }

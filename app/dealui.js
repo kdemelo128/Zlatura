@@ -34,6 +34,7 @@ import { pending as stepsDue, applyStep } from './migrate.js';
 import { renderRentRollWorkspace } from './rentrollui.js';
 import { redrawKeepingFocus } from './focuskeep.js';
 import { renderT12Card } from './t12ui.js';
+import { renderFeeCard } from './feeui.js';
 import { openLibrary } from './libraryui.js';
 import { openAiSettings, readWithAi, openAssistant, transcribeNote, openTranscript } from './aiui.js';
 import { crossChecks } from './reconcile.js';
@@ -663,6 +664,7 @@ function renderDeal(r) {
   if (deal.visit.at) eb.appendChild(el('span', 'chip chip-teal', `Visited ${niceDate(deal.visit.at)}`));
   t.appendChild(eb);
   const name = el('h1', null, title);
+  name.dir = 'auto';
   try { name.contentEditable = 'plaintext-only'; } catch { name.contentEditable = 'true'; }
   name.spellcheck = false;
   name.title = 'Tap to rename';
@@ -685,6 +687,7 @@ function renderDeal(r) {
   tabs.setAttribute('aria-label', 'Deal sections');
   // when the header scrolls away, the tab bar carries the deal's name
   const wsName = el('span', 'ws-name', title);
+  wsName.dir = 'auto';
   wsName.setAttribute('aria-hidden', 'true');
   tabs.appendChild(wsName);
   if ('IntersectionObserver' in window) {
@@ -737,6 +740,9 @@ function renderDeal(r) {
   const ladder = el('section', 'card');
   ladder.id = 'deal-ladder';
   main.appendChild(ladder);
+  const fee = el('section', 'card fee-card');
+  fee.id = 'deal-fee';
+  main.appendChild(fee);
   const rr = el('section', 'card');
   rr.id = 'deal-rr';
   rail.appendChild(rr);
@@ -761,6 +767,8 @@ function renderDeal(r) {
   stack.appendChild(bottom);
   r.appendChild(stack);
   renderDerived();
+  // drawn once here, not with the figures: a redraw while typing would take the keyboard away
+  renderFeeCard(fee, { deal, touch: (meta) => touch(d0, meta) });
   showPane(pane, { focus: false });
 }
 

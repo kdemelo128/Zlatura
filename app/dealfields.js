@@ -8,6 +8,7 @@
  * roll, or a scenario assumption. */
 
 import { waltMethod } from './engine/walt.js';
+import { feeSummary } from './calc.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 
@@ -107,6 +108,10 @@ export const DEAL_FIELDS = [
   calc('leveredIrr', 'Levered IRR', 'pct', /^levered irr$|^irr \(levered\)$/, ({ scenario }) => scenario && scenario.returns && scenario.returns.leveredIrr, 'calculated from the scenario'),
   calc('unleveredIrr', 'Unlevered IRR', 'pct', /^unlevered irr$|^irr \(unlevered\)$/, ({ scenario }) => scenario && scenario.returns && scenario.returns.unleveredIrr, 'calculated from the scenario'),
   calc('multiple', 'Equity multiple', 'dec', /^equity multiple$|^moic$/, ({ scenario }) => scenario && scenario.returns && scenario.returns.leveredMultiple, 'calculated from the scenario'),
+  // the fee record (deal.fee): blank when the deal has none
+  calc('feeGross', 'Expected fee', 'money', /^(gross|expected|total|brokerage|listing) (fee|commission)$|^(fee|commission) (gross|expected)$/, ({ deal }) => deal.fee && ((feeSummary(deal.fee).expected || {}).total ?? null), 'the deal’s fee record: the fee terms applied to the fee price'),
+  calc('feeInvoiced', 'Fee invoiced', 'money', /^(fee|commission) invoiced$|^invoiced (fee|commission|amount)$/, ({ deal }) => deal.fee && feeSummary(deal.fee).invoiced, 'the deal’s fee record: the invoice'),
+  calc('feePaid', 'Fee paid to date', 'money', /^(fee|commission) (paid|received)( to date)?$|^(fee|commission) payments$/, ({ deal }) => deal.fee && feeSummary(deal.fee).paidToDate, 'the deal’s fee record: the payments'),
   {
     key: 'dealName', label: 'Deal name', type: 'text', group: 'Deal', re: /^(deal|property|project) name$|^property$|^deal$/, exact: /^(deal|property) name$/,
     get: ({ deal }) => ({ value: deal.name || deal.figures.address || null, source: 'the deal' }),
