@@ -14,7 +14,7 @@ import { normalizeValue, verifyQuote, reconcile, sameValue } from './reconcile.j
 import { el, toast, actionSheet, getPdfjs, money0, money2, pct, int, niceDate, copyText } from './kit.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
-const MAX_SEND = 28 * 1024 * 1024;   // the server accepts 40 MB of JSON; base64 adds a third
+export const MAX_SEND = 28 * 1024 * 1024;   // the server accepts 40 MB of JSON; base64 adds a third
 
 const show = (kind, v) => {
   if (v === null || v === undefined || v === '') return '—';
@@ -24,7 +24,7 @@ const show = (kind, v) => {
   if (kind === 'int') return int(v);
   return String(v);
 };
-const STATUS = {
+export const STATUS = {
   verified: ['Passage checked', 'chip-good'],
   'other-page': ['Found on another page', 'chip-accent'],
   'value-not-in-quote': ['Figure not in the passage', 'chip-warn'],
@@ -83,23 +83,23 @@ export async function openAiSettings(api) {
 }
 
 /** Integer cents as dollars, for display only. */
-const cents = (c) => `$${Math.floor(c / 100)}.${String(c % 100).padStart(2, '0')}`;
+export const cents = (c) => `$${Math.floor(c / 100)}.${String(c % 100).padStart(2, '0')}`;
 /** " Today on this device: $0.42 of $15.00, 12 of 200 requests." from the server's health answer (older servers send none). */
 const useToday = (b) => (b && Number.isInteger(b.usedCents) && Number.isInteger(b.capCents)
   ? ` Today on this device: ${cents(b.usedCents)} of ${cents(b.capCents)}, ${b.requests} of ${b.requestLimit} requests.` : '');
 
-async function ready(api) {
+export async function ready(api) {
   const s = await ai.getSettings();
   if (ai.isReady(s)) return s;
   const v = await actionSheet('AI is off', [{ label: 'AI settings…', sub: 'Your firm’s AI server address and access token', value: 'go', primary: true }]);
   if (v === 'go') openAiSettings(api);
   return null;
 }
-const host = (s) => { try { return new URL(s.url).host; } catch { return s.url; } };
+export const host = (s) => { try { return new URL(s.url).host; } catch { return s.url; } };
 
 /* ------------------------------------------------------ reading documents */
 
-async function pdfText(api, bytes) {
+export async function pdfText(api, bytes) {
   const pdfjs = await getPdfjs();
   return api.pdfPages(pdfjs, bytes.slice(0));
 }

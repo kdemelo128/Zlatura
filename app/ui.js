@@ -27,7 +27,7 @@ import { zoningLookup, zoningInfo } from './zoning.js';
 import { sampleSet } from './sample.js';
 import * as store from './store.js';
 import { renderKpis, renderRank, renderTime } from './glance.js';
-import { VERSION, compsCsv, renderCompSheet, fullAddress } from './exporters.js';
+import { VERSION, compsCsv, tsvCell, renderCompSheet, fullAddress } from './exporters.js';
 import { compBasis } from './deal.js';
 import { dateInput } from './dateinput.js';
 import {
@@ -44,6 +44,7 @@ import { initCommand } from './command.js';
 import { initTheme } from './theme.js';
 import { initShortcuts } from './shortcuts.js';
 import { initReview } from './reviewui.js';
+import { initResearch } from './researchui.js';
 
 window.__zlaturaReady = true;
 
@@ -1062,11 +1063,6 @@ async function exportWorkbook({ share = false } = {}) {
 
 /** A plain-text table, for pasting the comp set straight into an email or a sheet. */
 function copyTable() {
-  // a cell that starts with = + - or @ would run as a formula when pasted into a spreadsheet
-  const safe = (v) => {
-    const s = String(v ?? '');
-    return /^[=+\-@]/.test(s) ? `'${s}` : s;
-  };
   const lines = [];
   const block = (title, comps, kind) => {
     const live = comps.filter(included);
@@ -1075,7 +1071,7 @@ function copyTable() {
     lines.push(['#', 'Property', kind === 'sale' ? 'Sale date' : 'DOM', 'Price', 'Building SF', '$/SF', 'Cap'].join('\t'));
     live.forEach((c, i) => {
       lines.push([
-        i + 1, safe(c.name),
+        i + 1, tsvCell(c.name),
         kind === 'sale' ? mdy(c.date) : (c.dom ?? ''),
         c.price ? `$${int(c.price)}` : 'undisclosed',
         int(c.bsf), ppsf(c) ? money2(ppsf(c)) : '', c.cap ? pct(c.cap) : '',
@@ -1500,6 +1496,7 @@ initCommand(compsApi);
 initTheme();
 initShortcuts(compsApi);
 initReview();
+initResearch(compsApi);
 
 restoreSubject();
 renderAll();

@@ -14,7 +14,7 @@ import { dealForTools, applyFromTools } from './dealui.js';
 import { kvGet, kvSet, logRounding, MONEY_VERSION } from './store.js';
 import { quantizeToolInput, quantizeToolValues } from './engine/money.js';
 import {
-  $, el, svg, parseNum, parsePct, int, money0, money2, pct, signed, times, yrs, niceDate, toast, copyText, actionSheet, getXlsx, deliver, printed, XLSX, localDate,
+  $, el, svg, parseNum, parsePct, int, money0, money2, pct, signed, times, yrs, niceDate, niceDay, toast, copyText, actionSheet, getXlsx, deliver, printed, XLSX, localDate,
 } from './kit.js';
 
 let api = null;
@@ -117,8 +117,8 @@ const TOOLS = [
       if (!r) return [['Enter the closing date', '—']];
       const left = (d) => (d > 0 ? `${d} days left` : d === 0 ? 'today' : `${-d} days ago`);
       return [
-        ['Identify replacement property by', niceDate(r.identify), true, left(r.identifyLeft)],
-        ['Close on it by', niceDate(r.close), true, `${left(r.closeLeft)}, or the tax return's due date if earlier`],
+        ['Identify replacement property by', niceDay(r.identify), true, left(r.identifyLeft)],
+        ['Close on it by', niceDay(r.close), true, `${left(r.closeLeft)}, or the tax return's due date if earlier`],
       ];
     },
     note: 'Day counts are calendar days from the closing, weekends and holidays included. Confirm with the qualified intermediary and a tax adviser.',

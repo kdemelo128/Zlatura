@@ -9,6 +9,7 @@ import { toolIndex, openToolById } from './toolsui.js';
 import { editContact } from './dealcrm.js';
 import { makeBackup } from './backupui.js';
 import { openAiSettings } from './aiui.js';
+import { startResearch, openBriefs } from './researchui.js';
 import { editStages } from './home.js';
 import { setTheme } from './theme.js';
 import { STAGE_LABEL, stageOf } from './pipeline.js';
@@ -72,6 +73,8 @@ async function sources() {
     act('Template library', 'Your firm’s Excel workbooks, mapped to deal fields', () => openTemplates(), 'excel xlsx'),
     act('Edit pipeline stages', 'Rename or hide stages', () => editStages(), 'pipeline'),
     act('AI settings', 'Your firm’s AI server address and access token', () => openAiSettings(api), 'assistant'),
+    act('Research a company', 'From sources you paste or upload; nothing is fetched from the web', () => startResearch(), 'brief ai parent affiliate sources'),
+    act('Research briefs', 'The company briefs kept on this device', () => openBriefs(), 'research company ai'),
     act('Keyboard shortcuts', 'Every key the app answers to (or press ?)', () => openShortcuts(api), 'keys keyboard help hotkeys ?'),
   );
   // the open deal: what each of its inputs affects (the dependency map)

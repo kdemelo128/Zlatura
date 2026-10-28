@@ -21,18 +21,19 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.57; browser runs on eight port slots (PR opening); counts recounted (the directive row had 18 of its 40 items; F12 and the Data QC panel ticked); underwriting U7, recoveries counted twice (#81, merged); Phase B1b, research briefs on the device (#80, merged); check:full runs the AI server tests (#79, merged); Phase B1a, the research route (#78, merged); the -$0 display fix (#77, merged); AI server injection set (#76, merged); fast-check property tests (#75, merged); CI security scanners (#74, merged); tool ideas and GitHub tools scan (#73, merged); F12, AI server limits (#72, merged); CodeQL alert fixes (4.7.46, #70, merged); Pillow audit (#68, merged); ponytail skill (#67, merged); underwriting U6, T-12 line checks (#66, merged); underwriting U5, rent roll checks (#65, merged); underwriting U4, WALT by total area (#64, merged); underwriting U3, strict review (#63, merged); underwriting U2, normalised NOI on screen (#62, merged); underwriting U1, normalise() (#61, merged); T-12 PR 3b, value flags and run rate (#60, merged); T-12 PR 3a, periods and the Data QC panel (#59, merged); T-12 PR 2, suggestions (#58, merged); A3 skills and glossary (#57, merged); git guardrail hook (#56, merged); security fixes F1 to F3 (#55, merged); T-12 PR 1b, the paste box (#54, merged); T-12 PR 1, the reading foundation (#53, merged); security checklist and tools decisions (#51, merged); support-code rule (PR opening); underwriting proposal (#48), roll comparison (#47), property-manager profile (#46), rent roll PDF upload (#45), `impact-flow` fix (#44) merged (2026-10-17).
+Last updated: 4.7.60; F6/F7, hostile text and time zones (PR opening); L5, text in a site photo (#84, merged); Phase B1c, the research screens (#83, merged); browser runs on eight port slots (#82, merged); counts recounted (the directive row had 18 of its 40 items; F12 and the Data QC panel ticked); underwriting U7, recoveries counted twice (#81, merged); Phase B1b, research briefs on the device (#80, merged); check:full runs the AI server tests (#79, merged); Phase B1a, the research route (#78, merged); the -$0 display fix (#77, merged); AI server injection set (#76, merged); fast-check property tests (#75, merged); CI security scanners (#74, merged); tool ideas and GitHub tools scan (#73, merged); F12, AI server limits (#72, merged); CodeQL alert fixes (4.7.46, #70, merged); Pillow audit (#68, merged); ponytail skill (#67, merged); underwriting U6, T-12 line checks (#66, merged); underwriting U5, rent roll checks (#65, merged); underwriting U4, WALT by total area (#64, merged); underwriting U3, strict review (#63, merged); underwriting U2, normalised NOI on screen (#62, merged); underwriting U1, normalise() (#61, merged); T-12 PR 3b, value flags and run rate (#60, merged); T-12 PR 3a, periods and the Data QC panel (#59, merged); T-12 PR 2, suggestions (#58, merged); A3 skills and glossary (#57, merged); git guardrail hook (#56, merged); security fixes F1 to F3 (#55, merged); T-12 PR 1b, the paste box (#54, merged); T-12 PR 1, the reading foundation (#53, merged); security checklist and tools decisions (#51, merged); support-code rule (PR opening); underwriting proposal (#48), roll comparison (#47), property-manager profile (#46), rent roll PDF upload (#45), `impact-flow` fix (#44) merged (2026-10-17).
 
 ## Now
 
-- **Current step (4.7.57):** browser-suite runs now claim one of eight port slots, so parallel builder worktrees
-  run at once instead of queueing for port 8080 (PR opening). U7 (#81), B1b (#80), the check:full server step (#79),
-  B1a (#78) and earlier are merged. In flight, built in parallel: the remaining "-$0" sites (ready), B1c (the research
-  screens), L5 (photo text by OCR), the rent roll CSV separators fix, the skills and parallel-agents workflow PR and
-  the relationship-intelligence section 11b. Next from the startable list (`docs/NOW.md`): the T-12 to pro forma
-  bridge (7.9), OM red flags 6.3.5/6.3.7/6.3.8, the football field (7.3), the Back button (F3), the deal fee record
-  (5.1), listing copy (13.1), the hostile-text pack and timezones (F6/F7), Recently deleted (F8), the backup password
-  (F9) and the strict CSP (F4). The master plan (`ZLATURA_MASTER_PROMPT_v2.md`) stays in force; the history of earlier
+- **Current step (4.7.60):** F6/F7: the hostile-text pack and the time-zone fixes. Dates no longer move with the
+  device's time zone (190 of 618 saved results failed under Los Angeles and Kiritimati time before; now identical in
+  all three zones), copy-table and CSV exports guard formulas, long template text no longer breaks the XML, and a
+  `test:tz` check runs the suite under two zones (PR opening). L5 (#84), B1c (#83), port slots (#82) and earlier are
+  merged. Built and reviewed, waiting their turn: the deal fee record (5.1, 4.7.61, data format 5), the bridge logic
+  (7.9 B1), the "-$0" sites and the CSV separators fix. In flight: the Back button (F3), listing copy (13.1), the
+  Underwrite tab (W1) and R1 (stale cached results). Next: the confidential tag, OM red flags, F8 then F9, the UW
+  Filler PRs R2-R7, the football field (7.3), the strict CSP (F4), then the security triage. The master plan
+  (`ZLATURA_MASTER_PROMPT_v2.md`) stays in force; the history of earlier
   steps is in `CHANGELOG.md` and the "Last updated" line above.
 - **Lost edit (since 4.7.3), fixed in 4.7.7:** `app/focuskeep.js` held the
   whole change handler, the save included, until Tab's focus landed, so

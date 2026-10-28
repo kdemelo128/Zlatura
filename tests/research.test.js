@@ -34,6 +34,7 @@ test('receive checks each claim against the source, corrects the page and keeps 
 test('chargedCents stays null when not reported, never 0', () => {
   assert.equal(made([claim()], { chargedCents: undefined }).chargedCents, null);
   assert.equal(made([claim()], { chargedCents: 'x' }).chargedCents, null);
+  assert.equal(made([claim()], { chargedCents: -5 }).chargedCents, null, 'a negative charge is not a charge');
 });
 
 test('an injected claim whose quote is not in the source is a hypothesis; a scan is unchecked', () => {

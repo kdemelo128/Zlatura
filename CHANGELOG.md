@@ -1,5 +1,44 @@
 # Changelog
 
+## 4.7.60: Hostile text and time zones: names and notes come back exactly, no export runs as a formula, dates show the same day in every zone (on the development branch; not merged or deployed)
+
+A security pass over text a person types or pastes, and over every date the app works out from the device's clock. Nothing stored is rewritten and there is no migration; the CSV date fix changes only future imports.
+
+- **Copy comp table:** a property name such as `Acme<tab>=1+1` pasted `=1+1` into its own cell, because tabs inside a name were kept and the formula guard did not cover tabs or returns. Tabs and line breaks in a name now become spaces, then the guard runs (`tsvCell` in `exporters.js`).
+- **Rent roll CSV:** a negative number was written as the text `'-1200`, and a lone carriage return split a row. It now uses the comps CSV's one cell writer (`cell` in `exporters.js`): numbers stay numbers, text that starts like a formula is guarded, line breaks stay inside quotes.
+- **Rent roll CSV date:** `May 31, 2027` was stored as 05-30 east of UTC. It is now read as the calendar day typed.
+- **1031 exchange clock:** the deadline for a Mar 1 closing (Apr 15) showed as Apr 14 in US zones. The dates are shown as the calendar day they are (`niceDay` in `kit.js`).
+- **Lease years left (`termLeft`):** a printed date such as "January 31, 2036" was read in the device's time zone, so the figure moved with the zone: 190 of the 618 saved results failed under Los Angeles or Kiritimati. It is read as that day's UTC midnight, as the OM reader does. "Today" in the rent roll checks was the UTC date; at 8:30 pm in Los Angeles it named tomorrow. It is the device's calendar day now.
+- **Filled-template audit sheet:** a text of more than 32,000 characters was escaped and then cut, which could split `&amp;` and break the sheet's XML. It is cut first, then escaped.
+- **Text direction:** every text input and textarea, and the deal and tenant names in lists, set `dir="auto"`, so Arabic or Hebrew reads right to left.
+- **Tested** with an invented pack (`tests/fixtures/hostile.js`: apostrophes, emoji, Arabic, a direction mark, markup, formula starts, 40,000 characters with an `&` at 31,998, control characters): `tests/hostile-tz.test.js`, a new `npm run test:tz` (the Node suite under America/Los_Angeles and Pacific/Kiritimati, in `check:full` and in CI after `npm test`), and `tests/e2e/hostile-flow.mjs` (typed key by key into a comp, a tenant, the deal name and a site-visit note; kept through a reload and a backup restored into a fresh profile; both CSVs, the copy table, both workbooks, the filled templates, the printed pages, the PDF and the AI request body read back; no dialog or script; run with Los Angeles and London clocks). Each fix fails on the old code and has a mutation check.
+- **Saved results:** unchanged in every zone (618 saved deal results and 646 displayed figures identical; the 190 differences under Los Angeles and Kiritimati on 4.7.56 are gone).
+- **Not tested:** Excel's 32,767-character cell limit and its 2,079-character hyperlink limit (the comps workbook writes a 40,000-character map link for a 40,000-character name), and Safari's `dir="auto"` (WebKit is not installed here).
+
+## 4.7.59: Read the text in a site photo (a sign, a name, an address) on your device (on the development branch; not merged or deployed)
+
+A site photo can carry the property's address, a business name or a "for lease" phone number. Each photo on the Site visit tab now has a "Read the text in this photo" button (Aa).
+
+- **On request, on the device.** The OCR the app already ships (Tesseract, loaded only on that tap, from this site) reads the photo. No image leaves the device; no request goes to another site.
+- **Shown, not kept.** The lines found appear in a sheet marked "Read from the photo", each with its confidence and a note where it looks like a phone number or a street address. Closing the sheet discards them. Nothing new is saved.
+- **Used only on your tap.** Each line has Copy, "Use as address" and "Use as deal name". One line, one field, with Undo. Nothing is applied automatically.
+- **No faces.** Nothing looks for people or faces; a test fails if face-detection code or a model appears in `app/` or `vendor/`.
+- **Tested** with invented signs only: `photo-text.test.js` (line tidying, tagging, the no-face check) and `photoocr-flow` (a sign drawn on a canvas, read in Chromium, used and undone). Not tried on a real photo, an iPhone or Safari. Money, the engine and saved results are unchanged (golden 646 figures, 0 changed).
+
+## 4.7.58: Company research briefs now have screens: start one, read it, tick the claims that check out (on the development branch; not merged or deployed)
+
+The AI server route (B1a) and the device model (B1b) had no screen. This adds them, on a phone first.
+
+- **Start a brief** from the command palette ("Research a company", "Research briefs"), from a contact's sheet ("Research company", which fills in only the company name, never the contact's name), or open one from Review. Sources are PDFs you upload or text you paste; nothing is fetched from the web. A required tick says you are entitled to use the sources, and the send is confirmed first, naming the server, saying the files and pasted text go in full (a PDF as the whole file), and that contact names are not sent.
+- **The brief** has ten collapsible sections. Each claim says what it is in words: **Confirmed** (found in your source when checked, stated outright, and ticked by you), **Hypothesis: not confirmed** (with its reason) or **Refused as proof** (with its reason: a shared registered agent, mailing address or surname). Only a found, stated claim can be ticked; a tick saves at once and has an Undo. A scanned source says its quotes can't be checked. The cost the server charged is shown.
+- **Possible links to your contacts** shows "This may be your contact X" with "Not saved to the contact". Nothing is written to contacts or to any CRM record.
+- **Errors** (a daily or job limit, a refusal) show the server's own message. A failed brief stays in the list as Failed.
+- **Delete a brief** with Undo. **Review** gets one item for each brief that still has claims waiting for your tick.
+- Focus stays on the claim you ticked, and each tick or delete is announced to screen readers. "Research company" on a contact with unsaved edits asks whether to save them first.
+- Text from the model or a source is always drawn as text, never as markup.
+
+Tested with invented companies and a stubbed server answer: a new browser flow (`tests/e2e/research-flow.mjs`) at phone and desktop size covers starting from a contact and the palette, the request holding only the company and the documents, the status words, the tick gate, undo, a refused claim, a contact match with nothing written, a 429 and a 422 message, axe, and a tick under 150 ms with 150 claims; `tests/research-review.test.js` covers the Review item. No real model was called, so the quality of real briefs and their cost are not verified. Saved deals, the engine and golden outputs are unchanged.
+
 ## 4.7.57: Checks: up to eight browser-suite runs at once on one machine, each on its own ports (on the development branch; not merged or deployed)
 
 With builder agents now working in parallel worktrees (owner, 2026-10-22), every browser run still queued for port 8080: a full suite takes about half an hour, so a third or fourth run waited an hour before it started.
