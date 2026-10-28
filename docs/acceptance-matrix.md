@@ -192,7 +192,7 @@ the baseline; 32 flows are listed at 4.7.2).
 | Mapping suggestions with confidence | Implemented, not fully tested | Signals: named ranges and labels. No number-format, formula-role or prior-mapping signals. |
 | Input vs output cell detection | Partially implemented | Formula cells are flagged and not overwritten; outputs are not read back. |
 | Dry run cell-by-cell preview | Implemented and verified | |
-| Safe fill preserving formulas, formats, merges, names, VBA | Implemented and verified | Recalculated in LibreOffice; VBA kept byte for byte. Not opened in Microsoft Excel. |
+| Safe fill preserving formulas, formats, merges, names, VBA | Implemented and verified | Recalculated in LibreOffice; VBA kept byte for byte. Formulas that read filled cells lose their stored result, so a preview never shows the blank template's figure (`tplstale.test.js`, `tplstale-flow`). Not opened in Microsoft Excel. |
 | Audit sheet | Implemented and verified | |
 | Recalculation verification and read-back reconciliation | Partially implemented | LibreOffice recalculation in the test suite only; not in the product. |
 | Fill result reported as filled, structurally valid, or recalculated and reconciled | Not implemented | Added 4.7.2 (8.4). |

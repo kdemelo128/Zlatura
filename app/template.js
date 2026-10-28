@@ -448,6 +448,7 @@ export function fillTemplate(fflate, bytes, plan, { sales, market }, xml) {
   const pkg = new Package(fflate, bytes, xml);
   const styles = new Styles(pkg);
   const report = { written: 0, formulasKept: 0, sheets: [] };
+  const blocks = []; // what was written, for the formulas that read it
 
   for (const sh of plan.sheets) {
     if (sh.role !== 'sale' && sh.role !== 'market') continue;
@@ -492,6 +493,8 @@ export function fillTemplate(fflate, bytes, plan, { sales, market }, xml) {
       }
     });
     const last = first + comps.length - 1;
+    const lastOld = Math.max(0, ...kids(data, 'row').map((x) => Number(x.getAttribute('r'))));
+    for (const col of mapped) blocks.push({ sheet: sh.name, col, row: first, col2: col, row2: Math.max(last, lastOld) });
     report.written += comps.length;
     report.sheets.push({ name: sh.name, role: sh.role, rows: comps.length, from: first, to: last });
 
@@ -507,6 +510,7 @@ export function fillTemplate(fflate, bytes, plan, { sales, market }, xml) {
     pkg.dirty(sh.path);
   }
 
+  dropStaleCaches(pkg, sheetsOf(pkg), blocks);
   // formulas that read the new values recalculate when the file opens; the
   // calculation chain is a cache Excel rebuilds, and a stale one triggers a repair
   const wbDoc = pkg.doc('xl/workbook.xml');
@@ -599,7 +603,7 @@ function allFormulas(pkg, sheets) {
     for (const f of doc.getElementsByTagNameNS(MAIN, 'f')) {
       const t = f.textContent || '';
       const at = splitRef((f.parentNode && /** @type {Element} */ (f.parentNode).getAttribute('r')) || '');
-      if (t) out.push({ sheet: s.name, text: t, col: at ? at.col : null, row: at ? at.row : null });
+      if (t) out.push({ sheet: s.name, text: t, col: at ? at.col : null, row: at ? at.row : null, el: f });
     }
   }
   const wb = pkg.doc('xl/workbook.xml');
@@ -623,7 +627,8 @@ function refsOf(f) {
   }
   return out;
 }
-const covers = (refs, sheet, col, row) => refs.some((r) => r.sheet === sheet && col >= r.c1 && col <= r.c2 && row >= r.r1 && row <= r.r2);
+/** Whether any ref overlaps the cell (or, with col2/row2, the block of cells). */
+const covers = (refs, sheet, col, row, col2 = col, row2 = row) => refs.some((r) => r.sheet === sheet && col2 >= r.c1 && col <= r.c2 && row2 >= r.r1 && row <= r.r2);
 /** How many formulas (and named ranges) read a cell, directly or through a range. */
 export function dependents(formulas, sheet, col, row) {
   let n = 0;
@@ -642,21 +647,22 @@ export function dependents(formulas, sheet, col, row) {
  * no text of their own, are counted through the formula they copy, as the
  * direct count always has. Returns { direct, all, names, byCell, capped }:
  * `byCell` the named ranges holding each cell, in order; `all` stops at
- * `cap` formulas.
+ * `cap` formulas, and `list` holds them. A cell may carry col2/row2 to stand
+ * for a block.
  */
 export function reach(formulas, cells, { cap = 5000 } = {}) {
   const parsed = formulas.map((f) => ({ f, refs: refsOf(f) }));
   const plain = parsed.filter((x) => !x.f.name);
-  const namesOf = (sheet, col, row) => parsed.filter((x) => x.f.name && covers(x.refs, sheet, col, row)).map((x) => x.f.name);
+  const namesOf = (sheet, col, row, c2, r2) => parsed.filter((x) => x.f.name && covers(x.refs, sheet, col, row, c2, r2)).map((x) => x.f.name);
   const usesName = (f, names) => names.some((n) => new RegExp(`(^|[^\\w.!'])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w.(!])`, 'i').test(f.text.replace(/"(?:[^"]|"")*"/g, '')));
-  const readersOf = (sheet, col, row) => {
-    const names = namesOf(sheet, col, row);
-    return { names, list: plain.filter((x) => covers(x.refs, sheet, col, row) || (names.length && usesName(x.f, names))) };
+  const readersOf = (sheet, col, row, c2, r2) => {
+    const names = namesOf(sheet, col, row, c2, r2);
+    return { names, list: plain.filter((x) => covers(x.refs, sheet, col, row, c2, r2) || (names.length && usesName(x.f, names))) };
   };
   const direct = new Set();
   const names = new Set();
   const byCell = cells.map((c) => {
-    const r = readersOf(c.sheet, c.col, c.row);
+    const r = readersOf(c.sheet, c.col, c.row, c.col2, c.row2);
     for (const x of r.list) direct.add(x);
     for (const n of r.names) names.add(n);
     return r.names;
@@ -673,7 +679,7 @@ export function reach(formulas, cells, { cap = 5000 } = {}) {
       all.add(y); queue.push(y);
     }
   }
-  return { direct: direct.size, all: all.size, names: [...names], byCell, capped };
+  return { direct: direct.size, all: all.size, names: [...names], byCell, capped, list: [...all].map((x) => x.f) };
 }
 
 /** reach() for cells of a workbook's bytes: [{ sheet, cell }]. */
@@ -715,7 +721,7 @@ export function inspectWorkbook(fflate, bytes, xml, { rows = 80, cols = 20 } = {
           const text = cellText(c, sst);
           const sIdx = c.getAttribute('s') !== null ? Number(c.getAttribute('s')) : 0;
           if (!text && !f) continue;
-          cells.push({ ref: ref(p.col, p.row), col: p.col, row: p.row, text, formula: f ? (f.textContent || (f.getAttribute('t') === 'shared' ? '(shared formula)' : '(formula)')) : null, kind: styles.kind(sIdx), type: c.getAttribute('t') || 'n' });
+          cells.push({ ref: ref(p.col, p.row), col: p.col, row: p.row, text, formula: f ? (f.textContent || (f.getAttribute('t') === 'shared' ? '(shared formula)' : '(formula)')) : null, pending: !!f && !kid(c, 'v'), kind: styles.kind(sIdx), type: c.getAttribute('t') || 'n' });
           maxRow = Math.max(maxRow, p.row); maxCol = Math.max(maxCol, p.col);
         }
       }
@@ -846,6 +852,7 @@ export function fillCells(fflate, bytes, { cellMap = [], values = {}, tables = [
   };
   const report = { written: 0, skipped: preview.filter((p) => p.action === 'skip').length, preview, tables: [] };
   const log = [];
+  const blocks = []; // what was written, for the formulas that read it
   for (const p of preview) {
     if (p.action !== 'write') continue;
     const s = sheets.find((x) => x.name === p.sheet);
@@ -857,6 +864,7 @@ export function fillCells(fflate, bytes, { cellMap = [], values = {}, tables = [
     setValue(doc, cell, p.type || 'text', p.type === 'date' && !(p.next instanceof Date) ? new Date(p.next) : p.next, styles, 0);
     growDimension(doc, q.col, q.row);
     pkg.dirty(s.path);
+    blocks.push({ sheet: s.name, col: q.col, row: q.row });
     report.written += 1;
     log.push([p.sheet, p.cell, p.label || p.field, p.next, p.source, p.feeds]);
   }
@@ -893,9 +901,12 @@ export function fillCells(fflate, bytes, { cellMap = [], values = {}, tables = [
       stretchTables(pkg, s.path, t.headerRow, first + t.rows.length - 1);
     }
     pkg.dirty(s.path);
+    const lastRow = Math.max(first + t.rows.length - 1, t.clear !== false ? Math.max(0, ...kids(data, 'row').map((x) => Number(x.getAttribute('r')))) : 0);
+    for (const col of mapped) blocks.push({ sheet: s.name, col, row: first, col2: col, row2: lastRow });
     report.tables.push({ sheet: t.sheet, rows: t.rows.length, from: first, to: first + t.rows.length - 1, formulasKept: kept });
     log.push([t.sheet, `${colName(Math.min(...cols.map((c) => c.col)))}${first}:${colName(Math.max(...cols.map((c) => c.col)))}${first + Math.max(0, t.rows.length - 1)}`, `table of ${t.rows.length} rows`, '', t.source || '', '']);
   }
+  dropStaleCaches(pkg, sheets, blocks);
   recalcOnOpen(pkg);
   const { features } = workbookFeatures(pkg);
   if (audit && !features.workbookProtected) addAuditSheet(pkg, log, auditTitle);
@@ -908,6 +919,37 @@ function growDimension(doc, col, row) {
   const [a, b] = (dim.getAttribute('ref') || 'A1').split(':');
   const end = splitRef(b || a) || { col: 1, row: 1 };
   dim.setAttribute('ref', `${splitRef(a) ? a : 'A1'}:${colName(Math.max(end.col, col))}${Math.max(end.row, row)}`);
+}
+
+/**
+ * Drop the cached result of every formula that reads a cell just written, or
+ * reads a formula that does: the file is opened by previews (Outlook, Quick
+ * Look) that show cached values and never recalculate, and the blank
+ * template's figures would sit beside the new ones. A formula that reads
+ * nothing written keeps its value. `blocks`: [{ sheet, col, row, col2, row2 }].
+ * A shared-formula copy holds no text of its own, so it goes with the formula
+ * it copies; a copy that reads written cells while its first cell does not
+ * keeps its value (Excel and LibreOffice still recalculate it on open).
+ */
+function dropStaleCaches(pkg, sheets, blocks) {
+  const { list } = reach(allFormulas(pkg, sheets), blocks, { cap: Infinity });
+  const shared = new Set();
+  const drop = (c, sheet) => {
+    const v = kid(c, 'v');
+    if (v) c.removeChild(v);
+    if (/^(str|e|b)$/.test(c.getAttribute('t') || '')) c.removeAttribute('t');
+    pkg.dirty(sheets.find((x) => x.name === sheet).path);
+  };
+  for (const f of list) {
+    if (!f.el || !f.el.parentNode) continue;
+    drop(f.el.parentNode, f.sheet);
+    if (f.el.getAttribute('t') === 'shared') shared.add(`${f.sheet}\u0000${f.el.getAttribute('si')}`);
+  }
+  for (const s of sheets) {
+    for (const f of pkg.doc(s.path).getElementsByTagNameNS(MAIN, 'f')) {
+      if (f.getAttribute('t') === 'shared' && shared.has(`${s.name}\u0000${f.getAttribute('si')}`) && f.parentNode) drop(f.parentNode, s.name);
+    }
+  }
 }
 
 function recalcOnOpen(pkg) {

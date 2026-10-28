@@ -271,6 +271,9 @@ async function mapSheet(t, { first = false } = {}) {
   draw();
 }
 
+/** Said of a formula with no stored result: never shown as 0 or blank. */
+const CALC_IN_EXCEL = ' (no figure stored; calculated when opened in Excel)';
+
 /** The sheet as a small spreadsheet: mapped cells marked, formulas in grey, tap to map. */
 function sheetGrid(s, t, redraw) {
   const wrap = el('div', 'scroll tpl-grid-wrap');
@@ -295,12 +298,12 @@ function sheetGrid(s, t, redraw) {
       const td = el('td');
       const b = el('button', `tpl-cell${cell && cell.formula ? ' f' : ''}${m ? ' mapped' : ''}`);
       b.type = 'button';
-      const shown = m ? (DEAL_FIELD[m.field] ? DEAL_FIELD[m.field].label : m.field) : cell ? (cell.text || (cell.formula ? 'ƒ' : '')) : '';
+      const shown = m ? (DEAL_FIELD[m.field] ? DEAL_FIELD[m.field].label : m.field) : cell ? (cell.text || (cell.formula ? (cell.pending ? 'ƒ calc in Excel' : 'ƒ') : '')) : '';
       b.textContent = shown.length > 18 ? `${shown.slice(0, 17)}…` : shown;
-      b.title = `${ref}${cell && cell.formula ? `: =${cell.formula}` : cell && cell.text ? `: ${cell.text}` : ''}`;
-      b.setAttribute('aria-label', `${ref}${m ? `, mapped to ${shown}` : cell && cell.formula ? ', formula' : cell && cell.text ? `, ${cell.text}` : ', empty'}`);
+      b.title = `${ref}${cell && cell.formula ? `: =${cell.formula}${cell.pending ? CALC_IN_EXCEL : ''}` : cell && cell.text ? `: ${cell.text}` : ''}`;
+      b.setAttribute('aria-label', `${ref}${m ? `, mapped to ${shown}` : cell && cell.formula ? `, formula${cell.pending ? CALC_IN_EXCEL : ''}` : cell && cell.text ? `, ${cell.text}` : ', empty'}`);
       b.addEventListener('click', async () => {
-        if (cell && cell.formula && !m) { toast(`${ref} holds a formula (=${cell.formula}). Formulas are never overwritten; map the input cell it reads instead.`, null, 7000); return; }
+        if (cell && cell.formula && !m) { toast(`${ref} holds a formula (=${cell.formula}). Formulas are never overwritten; map the input cell it reads instead.${cell.pending ? ' It has no stored figure; it is calculated when opened in Excel.' : ''}`, null, 7000); return; }
         const items = [];
         if (m) items.push({ label: 'Leave this cell alone', value: '__none', danger: true }, '-');
         for (const g of FIELD_GROUPS) {
