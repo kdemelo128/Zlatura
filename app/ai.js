@@ -45,6 +45,8 @@ export const health = () => request('/api/health', null, { method: 'GET', timeou
 export const extract = (documents, fields) => request('/api/extract', { documents, fields });
 export const assist = (question, facts, history) => request('/api/assist', { question, facts, history }, { timeoutMs: 120000 });
 export const transcribe = (audio) => request('/api/transcribe', audio, { timeoutMs: 600000 });
+/** body: research.js requestBody(): the subject and the documents, nothing else. */
+export const research = (body) => request('/api/research', body);
 export const meeting = (transcript, fields) => request('/api/meeting', { transcript, fields });
 
 /** Bytes to base64 without blowing the stack on large files. */
