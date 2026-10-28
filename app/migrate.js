@@ -121,6 +121,23 @@ export const MIGRATIONS = [
   },
 ];
 
+/**
+ * Steps for records kept in kv (not deals), each { key, to, since, up(record) }: the record's own `v` rises to
+ * `to`. None yet: every kv record starts at v 1 (uw.scratch). A later change of shape becomes a step here,
+ * with an old-backup fixture, as the deal steps above have.
+ * @type {{ key: string, to: number, since: string, up: (rec: any) => void }[]}
+ */
+export const KV_MIGRATIONS = [];
+/** The newest `v` this code writes for a kv key (1 when it has no steps). */
+export const kvVersion = (key) => KV_MIGRATIONS.filter((s) => s.key === key).reduce((v, s) => Math.max(v, s.to), 1);
+/** A kv record saved by a newer version: kept as it is, not shown, never rewritten (tooNew, for one record). */
+export const kvTooNew = (key, rec) => !!rec && Number.isFinite(rec.v) && rec.v > kvVersion(key);
+/** Bring a kv record up to date, in place. */
+export function migrateKvRecord(key, rec) {
+  for (const s of KV_MIGRATIONS) if (s.key === key && (rec.v || 1) < s.to) { s.up(rec); rec.v = s.to; }
+  return rec;
+}
+
 /** The newest value of each version field this code writes. */
 export const LATEST = /** @type {Record<Step['field'], number>} */ (MIGRATIONS.reduce((o, s) => ({ ...o, [s.field]: Math.max(o[s.field] || 0, s.to) }), {}));
 export const SCHEMA = LATEST.schema;

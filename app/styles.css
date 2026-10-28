@@ -190,6 +190,8 @@ input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; poin
 .appbar .cmd-trigger { width: 40px; justify-content: center; padding: 0; }
 .appbar .cmd-trigger .cmd-label, .appbar .cmd-trigger kbd { display: none; }
 .theme-btn { width: 40px; height: 36px; }
+.appbar-gear { flex: none; width: 40px; height: 36px; display: grid; place-items: center; border: 0; border-radius: var(--r-md); background: none; color: var(--faint); cursor: pointer; }
+.appbar-gear:hover, .appbar-gear[aria-current="page"] { background: var(--fill); color: var(--ink); }
 
 main { max-width: 1320px; margin: 0 auto; padding: 0 var(--gutter) calc(var(--tab-h) + 32px + env(safe-area-inset-bottom, 0px)); }
 .view { animation: fade var(--d2) var(--ease); }
@@ -530,7 +532,7 @@ td.act .chips { justify-content: flex-end; margin-right: 4px; }
 .mini.scn td.scn-diff { color: var(--teal); font-weight: 700; }
 /* a two-column comparison reads across: keep each label near its figures on wide screens */
 #scn-out, #scn-answers { max-width: 760px; }
-.results input.scn-target { width: 4.2em; margin: 0 2px 0 6px; padding: 3px 6px; border: 1px solid var(--line-strong); border-radius: var(--r-xs); background: var(--surface); color: var(--ink); font: inherit; text-align: right; }
+.results input.scn-target, .results input.uw-target { width: 4.2em; margin: 0 2px 0 6px; padding: 3px 6px; border: 1px solid var(--line-strong); border-radius: var(--r-xs); background: var(--surface); color: var(--ink); font: inherit; text-align: right; }
 .bar-cell { width: 30%; min-width: 60px; }
 .bar { display: block; height: 6px; border-radius: 3px; background: var(--teal); }
 

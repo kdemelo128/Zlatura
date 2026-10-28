@@ -12,7 +12,7 @@ await page.goto(BASE, { waitUntil: 'load' });
 // the page title is set before the app's modules have drawn Home: wait for the view itself (up to 5 s), then check it
 await page.waitForSelector('#view-home', { state: 'visible', timeout: 5000 }).catch(() => {});
 check('the app opens on Home', await page.isVisible('#view-home') && (await page.title()) === 'Home · Zlatura', await page.title());
-for (const [v, title] of [['deal', 'Deals'], ['comps', 'Comps'], ['tools', 'Tools'], ['settings', 'Settings'], ['home', 'Home']]) {
+for (const [v, title] of [['deal', 'Deals'], ['underwrite', 'Underwrite'], ['comps', 'Comps'], ['tools', 'Tools'], ['settings', 'Settings'], ['home', 'Home']]) {
   await page.click(`.sidebar .tab[data-view="${v}"]`);
   await page.waitForTimeout(150);
   check(`sidebar: ${title} opens its screen and is marked current`, await page.isVisible(`#view-${v}`) && (await page.getAttribute(`.sidebar .tab[data-view="${v}"]`, 'aria-current')) === 'page' && (await page.title()).startsWith(title));
@@ -167,11 +167,17 @@ await browser.close();
 // ---------------------------------------------------------------- phone
 const P = await phone();
 await P.page.goto(BASE, { waitUntil: 'load' });
-for (const v of ['deal', 'comps', 'tools', 'settings', 'home']) {
+for (const v of ['deal', 'underwrite', 'comps', 'tools', 'home']) {
   await P.page.click(`.tabbar .tab[data-view="${v}"]`);
   await P.page.waitForTimeout(150);
   check(`phone tab bar: ${v}`, await P.page.isVisible(`#view-${v}`) && (await P.page.getAttribute(`.tabbar .tab[data-view="${v}"]`, 'aria-current')) === 'page');
 }
+// Settings moved off the phone bar to a gear in the top bar (Underwriting workspace decision 7)
+check('phone: the tab bar no longer holds Settings', (await P.page.locator('.tabbar .tab[data-view="settings"]').count()) === 0);
+await P.page.click('.appbar [data-view="settings"]');
+await P.page.waitForSelector('#view-settings #settings-data');
+check('phone: the top-bar gear opens Settings and is marked current', await P.page.isVisible('#view-settings') && (await P.page.getAttribute('.appbar [data-view="settings"]', 'aria-current')) === 'page');
+await P.page.click('.tabbar .tab[data-view="home"]');
 await P.page.click('.appbar [data-cmd]');
 check('phone: the search button opens the command menu', await P.page.waitForSelector('dialog.cmdk[open]', { timeout: 3000 }).then(() => true, () => false));
 await P.page.keyboard.press('Escape');

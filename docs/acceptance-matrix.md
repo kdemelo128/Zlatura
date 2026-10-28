@@ -78,7 +78,7 @@ the baseline; 32 flows are listed at 4.7.2).
 
 | Feature | Status | Notes |
 |---|---|---|
-| Primary workspaces | Partially implemented | 5 of 12: Home, Deals (the deal workspace), Comps, Tools, Settings. Underwriting, rent roll, what-if and site visit are tabs inside a deal. The others are not built; per the brief they stay out of navigation until they work. |
+| Primary workspaces | Partially implemented | 6 of 12: Home, Deals (the deal workspace), Underwrite (quick underwriting with no deal; sets and combined figures are later PRs, `docs/proposals/underwriting-workspace.md`), Comps, Tools, Settings. Rent roll, what-if and site visit are tabs inside a deal. The others are not built; per the brief they stay out of navigation until they work. Underwrite tested in Chromium at phone and desktop sizes only (`underwrite-flow`); not in Safari or on a real phone. |
 | Command palette (Cmd/Ctrl+K) | Implemented and verified | `shell-flow`: deals, contacts, tools, screens and actions from the keyboard. Documents, notes and comps are not indexed. |
 | Global search across documents, tasks, notes, comps | Partially implemented | Deals, contacts and tools only. |
 | Deal switcher, recently opened, breadcrumbs | Partially implemented | Deals list, "Continue working" on Home, "All deals" back link. No breadcrumbs. |
