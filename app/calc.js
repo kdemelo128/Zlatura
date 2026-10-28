@@ -266,7 +266,9 @@ export function feeSummary(fee) {
   const f = fee && typeof fee === 'object' ? fee : {};
   const tiers = Array.isArray(f.tiers) ? f.tiers.filter((t) => t && typeof t === 'object') : [];
   // a price with no rate typed is not a fee of $0
-  const r = ok(f.flatPct) || tiers.some((t) => ok(t.pct)) ? commission({ price: f.price, flatPct: f.flatPct, tiers, coBrokerPct: f.coBrokerPct, referralPct: f.referralPct, housePct: f.housePct }) : null;
+  // commission() skips a tier with no rate, so the next tier's rate would quietly cover its band: no fee until the rate is typed
+  const gap = ok(f.flatPct) ? -1 : tiers.findIndex((t) => ok(t.upTo) && !ok(t.pct));
+  const r = gap < 0 && (ok(f.flatPct) || tiers.some((t) => ok(t.pct))) ? commission({ price: f.price, flatPct: f.flatPct, tiers, coBrokerPct: f.coBrokerPct, referralPct: f.referralPct, housePct: f.housePct }) : null;
   const split = ok(f.coBrokerPct) && ok(f.referralPct) && ok(f.housePct);
   const expected = r && (split ? r : { ...r, coBroker: null, listingSide: null, referral: null, house: null, agent: null });
   const invoiced = f.invoiced && ok(f.invoiced.amount) ? toCents(f.invoiced.amount) : null;
@@ -276,7 +278,7 @@ export function feeSummary(fee) {
   const days = payments ? payments.map((p) => p.on).filter((d) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort() : [];
   // || 0: a balance of exactly nothing is 0, never -0
   const outstanding = invoiced !== null && paidToDate !== null ? toCents(invoiced - paidToDate) || 0 : null;
-  return { expected, invoiced, paidToDate, lastPaid: days.length ? days[days.length - 1] : null, outstanding };
+  return { expected, tierGap: gap < 0 ? null : gap + 1, invoiced, paidToDate, lastPaid: days.length ? days[days.length - 1] : null, outstanding };
 }
 
 /* --------------------------------------------------------------- leasing */

@@ -192,6 +192,15 @@ test('feeSummary: tiers are worked in bands, and a flat rate wins when both are 
   assert.equal(feeSummary({ price: 6e6, tiers: [{ upTo: 1e6, pct: 6 }] }).expected.lines.at(-1).note, 'no rate for this part of the price');
 });
 
+test('feeSummary: a tier with a limit but no rate gives no fee, not the next tier’s rate over its band', () => {
+  const tiers = [{ upTo: 1e6, pct: null }, { upTo: 5e6, pct: 4 }, { upTo: null, pct: 2 }];
+  const s = feeSummary({ price: 6e6, tiers });
+  assert.equal(s.expected, null, 'was 220,000: the first $1M charged at 4%');
+  assert.equal(s.tierGap, 1);
+  assert.equal(feeSummary({ price: 6e6, flatPct: 3, tiers }).expected.total, 180000, 'a flat rate does not use the tiers');
+  assert.equal(feeSummary({ price: 6e6, tiers: [{ upTo: null, pct: 2 }] }).expected.total, 120000, 'a top tier has no limit and needs none');
+});
+
 test('feeSummary: a share that was not entered is not 0, and an entered 0 is', () => {
   const base = { price: 1e6, flatPct: 5, coBrokerPct: 50, housePct: 40 };
   const blank = feeSummary({ ...base, referralPct: null }).expected;

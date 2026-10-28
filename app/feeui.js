@@ -52,12 +52,14 @@ export function renderFeeCard(box, h) {
     expectedBox.textContent = '';
     const E = S.expected;
     if (!ok(f.price) || f.price <= 0) expectedBox.appendChild(el('p', 'hint-sm', 'The expected fee stays blank until there is a fee price: it is never guessed.'));
+    else if (S.tierGap) expectedBox.appendChild(el('p', 'warn-text hint-sm', `Tier ${S.tierGap} has a limit but no rate`));
     else if (!E) expectedBox.appendChild(el('p', 'hint-sm', 'Enter a flat rate, or a rate for at least one tier, to see the expected fee.'));
     else {
       line(expectedBox, 'Expected fee', money2(E.total), true, `${pct(E.effectivePct, 2)} of the fee price`);
       if (E.lines.some((l) => l.note)) expectedBox.appendChild(el('p', 'warn-text hint-sm', 'Part of the price has no rate: add a top tier.'));
       if (E.coBroker === null) expectedBox.appendChild(el('p', 'hint-sm', 'Enter all three shares (0 counts as entered) to see the split.'));
       else {
+        if (f.housePct > 100 || f.coBrokerPct > 100 || f.referralPct > 100) expectedBox.appendChild(el('p', 'warn-text hint-sm', 'A share is over 100%: the agent amount goes negative.'));
         for (const [k, v] of /** @type {[string, number][]} */ ([['Co-operating broker', E.coBroker], ['Our side', E.listingSide], ['Referral', E.referral], ['House', E.house]])) line(expectedBox, k, money2(v));
         line(expectedBox, 'Agent', money2(E.agent), true);
       }
