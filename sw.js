@@ -91,6 +91,7 @@ const ASSETS = [
   'app/aiui.js',
   'app/researchui.js',
   'app/pipeline.js',
+  'app/ics.js',
   'app/crm.js',
   'app/dealcrm.js',
   'app/home.js',

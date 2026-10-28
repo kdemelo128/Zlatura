@@ -240,9 +240,9 @@ export const idle = (fn) => (window.requestIdleCallback ? window.requestIdleCall
 export const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent)
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 export const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-export const canShareFiles = () => {
+export const canShareFiles = (type = XLSX, name = 'x.xlsx') => {
   try {
-    return !IN_ARTIFACT && !!navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.xlsx', { type: XLSX })] });
+    return !IN_ARTIFACT && !!navigator.canShare && navigator.canShare({ files: [new File(['x'], name, { type })] });
   } catch { return false; }
 };
 
@@ -267,7 +267,7 @@ async function handOver(filename, bytes, type, { share = false } = {}) {
     const downloads = await window.claude.use('downloads').catch(() => null);
     if (downloads) { await downloads.save({ filename, data: blob }); return 'done'; }
   }
-  if ((share || (isIOS() && isStandalone())) && canShareFiles()) {
+  if ((share || (isIOS() && isStandalone())) && canShareFiles(type, filename)) {
     const file = new File([blob], filename, { type });
     try {
       await navigator.share({ files: [file], title: filename });

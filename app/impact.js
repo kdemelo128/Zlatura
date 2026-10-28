@@ -48,6 +48,8 @@ for (const [k, l] of [['ltv', 'Loan to value'], ['rate', 'Interest rate'], ['amo
 input('comps', 'The sale comps');
 input('rentRoll', 'The OM’s rent roll table (a deal with no rent roll of its own)');
 input('name', 'Deal name');
+input('keyDates', 'Key dates');
+input('tasks', 'Task due dates');
 input('unpriced', 'Unpriced (no asking price)');
 input('sources', 'Where each figure came from');
 input('source', 'The file the deal was read from');
@@ -308,6 +310,7 @@ export const RR_SHEETS = {
 };
 for (const [s, reads] of Object.entries(RR_SHEETS)) node(`xlsx.rr.${s}`, { group: 'export', file: 'Rent roll workbook, and the deal workbook', sheet: s, label: s, reads: reads.map((p) => (typeof p === 'string' ? { path: p, ...RR } : p)), rr: true });
 node('csv.fees', { group: 'export', file: 'Fees CSV', label: 'One row per deal with a fee record', reads: ['fee', 'name', 'figures.address'] });
+node('ics', { group: 'export', file: 'Key dates calendar file', label: 'Key dates and task due dates', reads: ['name', 'keyDates', 'tasks'] });
 node('csv.rr', { group: 'export', file: 'Rent roll CSV', label: 'The grid as shown', rr: true, reads: [...LEASE_FIELDS.map(([k]) => `lease.${k}`), 'leases', 'rr.settings.asOf', 'rr.settings.marketRent', 'rr.settings.marketUnit', 'rr.totalSf'] });
 
 /* -------------------------------------------------------------- documents */
@@ -352,6 +355,7 @@ export const DELIVERABLES = {
   'fees-csv': ['Fees CSV', () => ['csv.fees']],
   'template-fill': ['A firm template, filled', () => [...NODES.keys()].filter((k) => k.startsWith('field.'))],
   'deal-brief': ['Deal brief (printed or PDF)', () => [...NODES.keys()].filter((k) => k.startsWith('brief.'))],
+  calendar: ['Key dates calendar file (.ics)', () => ['ics']],
   summary: ['Copy summary', () => ['summary']],
 };
 

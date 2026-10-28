@@ -3,7 +3,9 @@
 
 import * as crm from './crm.js';
 import { STAGE_LABEL, stageChoices, stageOf, taskBuckets, CONTACT_ROLES, KEY_DATE_LABELS, isoDay } from './pipeline.js';
-import { el, svg, toast, niceDate, actionSheet } from './kit.js';
+import { el, svg, toast, niceDate, actionSheet, openSheet, closeSheet, backdropCloses, deliver, deliveryError, isIOS, isStandalone } from './kit.js';
+import { icsFor, dealEvents, closingOf, exchangeEvents } from './ics.js';
+import { VERSION } from './exporters.js';
 import { dateInput } from './dateinput.js';
 import { startResearch } from './researchui.js';
 
@@ -71,7 +73,13 @@ export async function renderDealCrm(box, d, { touch, api }) {
   // key dates: the deal's own milestones and deadlines
   const kd = el('div', 'crm-sec');
   const dates = (d.keyDates || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
-  kd.appendChild(el('h3', null, `Key dates${dates.length ? ` (${dates.length})` : ''}`));
+  const kh = el('div', 'card-head');
+  kh.appendChild(el('h3', null, `Key dates${dates.length ? ` (${dates.length})` : ''}`));
+  const cal = el('button', 'btn btn-sm btn-gray', 'Add to calendar…');
+  cal.type = 'button';
+  cal.addEventListener('click', () => calendarSheet(d, tasks));
+  kh.appendChild(cal);
+  kd.appendChild(kh);
   const today = isoDay();
   for (const k of dates) {
     const row = el('div', `task-row${k.done ? ' done' : ''}${!k.done && k.date < today ? ' overdue' : ''}`);
@@ -83,6 +91,11 @@ export async function renderDealCrm(box, d, { touch, api }) {
     const main = el('div', 'task-main');
     main.appendChild(el('span', 'task-title', k.label));
     main.appendChild(el('span', 'task-meta', `${niceDate(`${k.date}T12:00:00`)}${!k.done && k.date < today ? ' · past' : ''}`));
+    const ad = el('button', 'iconbtn');
+    ad.type = 'button';
+    ad.innerHTML = svg('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>', 14);
+    ad.setAttribute('aria-label', `Add to calendar: ${k.label}`);
+    ad.addEventListener('click', () => calendarSheet(d, tasks, `kd-${k.id}`));
     const x = el('button', 'iconbtn');
     x.type = 'button';
     x.innerHTML = svg('<path d="M6 6l12 12M18 6L6 18"/>', 14);
@@ -94,7 +107,7 @@ export async function renderDealCrm(box, d, { touch, api }) {
       renderDealCrm(box, d, { touch, api });
       toast('Key date deleted.', { label: 'Undo', run: () => { d.keyDates = keep; touch(); renderDealCrm(box, d, { touch, api }); } });
     });
-    row.append(cb, main, x);
+    row.append(cb, main, ad, x);
     kd.appendChild(row);
   }
   const kf = el('form', 'task-add');
@@ -309,4 +322,61 @@ export function editContact(api, c = {}, deals = []) {
   });
   // only if nothing else has focus yet: on a slow device the timer can fire after the first tap into another field
   if (!c.id) setTimeout(() => { if (!document.activeElement?.matches('#sheet input, #sheet select, #sheet textarea')) name.focus(); }, 50);
+}
+
+/* ------------------------------------------------------ calendar file */
+
+const NAME_KEY = 'zlatura.ics.v1';
+const showNameKept = () => { try { return localStorage.getItem(NAME_KEY) !== 'hidden'; } catch { return true; } };
+
+/** The sheet that turns a deal's open key dates (or just one, `only`) and task due dates into a calendar file. */
+function calendarSheet(d, tasks, only = null) {
+  const dlg = el('dialog', 'sheet action-sheet');
+  const box = el('div', 'sheet-card');
+  const body = el('div', 'sheet-body');
+  const { events, left } = dealEvents(d, tasks);
+  const shown = only ? events.filter((e) => e.key === only) : events;
+  const checks = [];
+  const row = (label, checked, disabled = false) => {
+    const l = el('label', 'task-row');
+    const cb = el('input');
+    cb.type = 'checkbox'; cb.checked = checked; cb.disabled = disabled;
+    l.append(cb, el('span', 'task-title', label));
+    body.appendChild(l);
+    return cb;
+  };
+  body.appendChild(el('h3', null, 'Add to calendar'));
+  for (const e of shown) checks.push([row(`${e.title.replace(/^[^:]*: /, '')}, ${niceDate(`${e.date}T12:00:00`)}`, true), e.key]);
+  if (!shown.length) body.appendChild(el('p', 'task-meta', 'No open dates to add.'));
+  if (left && !only) body.appendChild(el('p', 'task-meta', `${left} ${left === 1 ? 'date' : 'dates'} left out: no date`));
+  const closing = closingOf(d);
+  const x = only ? null : row(closing ? `Add the 1031 dates from the closing on ${niceDate(`${closing.date}T12:00:00`)}` : 'Add one Closing date to offer the 1031 dates', false, !closing);
+  const nm = row('Show the deal name in the calendar', showNameKept());
+  body.appendChild(el('p', 'task-meta', 'Titles include the deal name. If your calendar syncs to a work or shared account, others may see it.'));
+  const go = el('button', 'btn btn-primary', 'Make calendar file');
+  go.type = 'button';
+  const after = el('p', 'task-meta');
+  after.setAttribute('role', 'status');
+  go.addEventListener('click', async () => {
+    try { localStorage.setItem(NAME_KEY, nm.checked ? 'shown' : 'hidden'); } catch { /* fine */ }
+    const keep = new Set(checks.filter(([c]) => c.checked).map(([, k]) => k));
+    const out = dealEvents(d, tasks, { showName: nm.checked }).events.filter((e) => keep.has(e.key));
+    if (x && x.checked) out.push(...exchangeEvents(d, closing, { showName: nm.checked }));
+    if (!out.length) { after.textContent = 'Tick at least one date.'; return; }
+    const base = (d.name || d.figures?.address || 'Deal').replace(/[^\w\s-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    try {
+      const r = await deliver(`Deal - ${base}-dates.ics`, icsFor(out, { version: VERSION }), 'text/calendar;charset=utf-8', { map: 'calendar', share: isIOS() && isStandalone() });
+      if (r === 'done') after.textContent = 'Adding again updates the same events where your calendar supports it. A date deleted, re-added or marked passed is not removed from Calendar: delete it there.';
+    } catch (err) { deliveryError(err); }
+  });
+  const done = el('button', 'action-cancel', 'Done');
+  done.type = 'button';
+  done.addEventListener('click', () => { closeSheet(dlg); dlg.remove(); });
+  body.append(go, after);
+  box.appendChild(body);
+  dlg.append(box, done);
+  dlg.addEventListener('close', () => dlg.remove());
+  backdropCloses(dlg);
+  document.body.appendChild(dlg);
+  openSheet(dlg);
 }
