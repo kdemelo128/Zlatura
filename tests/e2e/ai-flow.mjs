@@ -192,7 +192,8 @@ await page.fill('#ai-question', 'And the cap rate?');
 await page.click('#ai-ask');
 await page.waitForFunction(() => /AI requests\./.test(document.querySelector('#sheet-body').innerText), null, { timeout: 30000 });
 const limited = (await page.locator('#sheet-body').innerText()).replace(/\s+/g, ' ');
-check('a daily limit shows the server’s message, not a bare status', new RegExp(`This device has used today's ${used} AI requests\\. It resets at 00:00 UTC, in \\d+ h \\d+ min\\.`).test(limited), limited.slice(-200));
+// under an hour before 00:00 UTC the server says "in 31 min" with no hours (server/budget.mjs untilReset)
+check('a daily limit shows the server’s message, not a bare status', new RegExp(`This device has used today's ${used} AI requests\\. It resets at 00:00 UTC, in (?:\\d+ h )?\\d+ min\\.`).test(limited), limited.slice(-200));
 await page.click('#sheet-close');
 cfg.dailyRequests = 200;
 check('call action items became the deal’s next steps', /Send the T-12 \(Seller\)/.test(await page.textContent('#deal-crm')) && /from call notes/.test(await page.textContent('#deal-crm')));
