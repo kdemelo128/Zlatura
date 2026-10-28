@@ -196,6 +196,8 @@ export function planRestore(backup, current, mode = 'merge', now = Date.now()) {
     const lost = briefCount(current.kv['research.briefs']);
     if (lost && !(kv['research.briefs'] || []).length) summary.push(`${lost} research brief${lost === 1 ? '' : 's'} on this device will be deleted.`);
     else if (lost) summary.push(`Research briefs on this device are replaced by the ${kv['research.briefs'].length} in the backup.`);
+    const lostAhead = asArray(current.kv[SCRATCH]).filter((r) => kvTooNew(SCRATCH, r)).length;
+    if (lostAhead) summary.push(`${lostAhead} quick underwriting${lostAhead === 1 ? '' : 's'} on this device made by a newer version of Zlatura ${lostAhead === 1 ? 'is' : 'are'} not shown and will be deleted too.`);
     const lostQu = asArray(current.kv[SCRATCH]).length;
     if (lostQu && !qu.list.length) summary.push(`${lostQu} quick underwriting${lostQu === 1 ? '' : 's'} on this device will be deleted.`);
     else if (lostQu) summary.push(`Quick underwritings on this device are replaced by the ${qu.list.length} in the backup.`);

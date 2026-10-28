@@ -189,6 +189,44 @@ const times = await page.evaluate(async () => {
 });
 check('perf: an edit redraws every figure within 150 ms', Math.max(...times) < 150, `worst ${Math.max(...times).toFixed(1)} ms of ${times.length}`);
 
+// a write that fails is said out loud, never reported as done
+const KV = (list) => page.evaluate(async (l) => { const s = await import('/app/store.js'); await s.kvSet('uw.scratch', l); }, list);
+const filler = (n, from) => page.evaluate(async ([k, f]) => { const u = await import('/app/uwstore.js'); return Array.from({ length: k }, (_, i) => u.newScratch({ now: 1000 + f + i })); }, [n, from]);
+const reloadUw = async () => { await page.reload({ waitUntil: 'load' }); await page.evaluate(() => { location.hash = '#underwrite'; }); await page.waitForSelector('#uw-card'); };
+const toastNow = () => page.evaluate(() => (document.querySelector('.toast') || {}).textContent || '');
+// at the cap of 100: Undo of Save as a deal can't bring the quick underwriting back, so the deal must stay
+await KV(await filler(99, 0));
+await reloadUw();
+await page.click('#uw-new');
+await typeChars('#uw-price', '3000000'); await page.keyboard.press('Tab'); await pause(600);
+check('at the cap the list holds 100', (await storeCall('kvGet', 'uw.scratch')).length === 100);
+await page.click('#uw-save-deal');
+await page.waitForSelector('#view-deal:not([hidden]) #deal-tiles .tile');
+await pause(400);
+await KV([...(await storeCall('kvGet', 'uw.scratch')), ...(await filler(1, 500))]);
+await page.locator('.toast button', { hasText: 'Undo' }).click();
+await pause(600);
+const capToast = await toastNow();
+check('Undo at the cap says it could not bring the quick underwriting back, and does not say it is undone', /couldn’t be brought back/.test(capToast) && !/Undone/.test(capToast), capToast);
+check('and the deal is kept, and storage holds 100 with none of them the one saved as a deal', (await storeCall('listDeals')).some((d) => d.figures.price === 3000000) && (await storeCall('kvGet', 'uw.scratch')).length === 100 && !(await storeCall('kvGet', 'uw.scratch')).some((r) => r.figures.price === 3000000));
+// storage that refuses a delete: the record is still there, and the screen says so
+await KV([...(await filler(1, 900)).map((r) => ({ ...r, name: 'Fail test', figures: { price: 2000000, noi: 130000 } }))]);
+await reloadUw();
+await page.waitForFunction(() => document.querySelector('#uw-name').value === 'Fail test');
+await page.evaluate(() => {
+  for (const m of ['put', 'delete']) { const o = IDBObjectStore.prototype[m]; IDBObjectStore.prototype[m] = function (...a) { if (a[m === 'put' ? 1 : 0] === 'uw.scratch') throw new Error('blocked'); return o.apply(this, a); }; }
+});
+await page.click('#uw-delete');
+await pause(500);
+check('Delete with storage refusing says it could not delete, and the record stays on screen and in storage', /couldn’t be deleted/.test(await toastNow()) && (await page.inputValue('#uw-name')) === 'Fail test' && (await storeCall('kvGet', 'uw.scratch')).length === 1);
+await page.click('#uw-save-deal');
+await page.waitForSelector('#view-deal:not([hidden]) #deal-tiles .tile');
+await pause(500);
+const dupToast = await toastNow();
+check('Save as a deal with storage refusing the removal says the quick underwriting is still there, with no Undo', /couldn’t be removed/.test(dupToast) && (await page.locator('.toast button').count()) === 0 && (await storeCall('listDeals')).some((d) => d.name === 'Fail test') && (await storeCall('kvGet', 'uw.scratch')).length === 1, dupToast);
+await reloadUw();
+await KV(null);
+
 // axe and targets on the screen
 async function audit(name) {
   await pause(450);

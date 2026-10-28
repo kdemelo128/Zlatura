@@ -4,8 +4,8 @@
  * with an Undo. Nothing here edits a deal. */
 
 import { $, el, svg, parseNum, parsePct, int, dec, money0, money2, pct, times, short, niceDate, toast } from './kit.js';
-import { quantizeDeal } from './engine/money.js';
-import { createDeal, discardDeal, showDeal, loanDefaults } from './dealui.js';
+import { quantizeDeal, toCents } from './engine/money.js';
+import { createDeal, discardDeal, showDeal, loanDefaults, scnRead } from './dealui.js';
 import { newScratch, work, dealFields, loadScratch, saveScratch, deleteScratch, MAX_SCRATCH } from './uwstore.js';
 
 let api = null;
@@ -37,11 +37,8 @@ const HOLD = [
 /** What was typed, as the deal page reads the same kind of field (null when it can't be read: a blank is absent, never 0). */
 function read(kind, raw) {
   if (kind === 'text') return raw.trim() || null;
-  if (kind === 'pct') return parsePct(raw);
-  if (kind === 'pct0') return parsePct(raw, { fraction: false });
-  if (kind === 'hold') { const v = parseNum(raw); return ok(v) && v >= 1 && v <= 30 ? Math.round(v) : null; }
-  if (kind === 'delta') { const v = parseNum(raw); return ok(v) && v > -100 && v < 1000 ? v : null; }
-  return parseNum(raw);
+  if (kind === 'hold') return scnRead('int', raw);
+  return kind === 'num' || kind === 'int' || kind === 'money' ? parseNum(raw) : scnRead(kind, raw);
 }
 function show(kind, v) {
   if (v === null || v === undefined || v === '') return '';
@@ -54,7 +51,9 @@ function show(kind, v) {
 
 /* ---------------------------------------------------------------- storage */
 
-const enqueue = (fn) => (chain = chain.then(fn).catch((e) => { toast(`The quick underwriting couldn’t be saved: ${e.message || e}`); }));
+/** Run a storage step after the ones before it. Resolves or rejects with the step's own result: a caller that reports success must handle the rejection. */
+const enqueue = (fn) => { const p = chain.then(fn); chain = p.catch(() => {}); return p; };
+const why = (e) => (e && e.message) || String(e);
 
 /** Write the latest edit now (it is also written 300 ms after the last keystroke, and when the app is hidden). */
 function flush() {
@@ -62,7 +61,8 @@ function flush() {
   timer = null;
   const rec = dirty;
   dirty = null;
-  return rec ? enqueue(() => saveScratch(rec)) : chain;
+  // the autosave has no action to hold back: a failed write is said at once, and the record stays on screen
+  return rec ? enqueue(() => saveScratch(rec)).catch((e) => { toast(`The quick underwriting couldn’t be saved: ${why(e)}`); }) : chain;
 }
 
 /** The on-screen record changed: money to whole cents at once, as a deal's is; the first edit adds it to the list. */
@@ -264,7 +264,7 @@ function results() {
   const g = cur.figures.gross; const o = cur.figures.opex;
   live.build.textContent = '';
   if (ok(g) && ok(o)) {
-    const net = Math.round((g - o) * 100) / 100;
+    const net = toCents(g - o);
     live.build.append(`Gross income less operating expenses is ${money0(net)}. `);
     if (net !== cur.figures.noi) live.build.appendChild(button('btn-plain btn-sm', 'Use as NOI', () => { cur.figures.noi = net; live.inputs.get('figures.noi').value = show('money', net); touched(); flush(); results(); }));
   }
@@ -345,7 +345,7 @@ async function removeCurrent() {
   const u = cur;
   await flush();
   if (!items.includes(u)) { cur = fresh(); draw(); return; }
-  await enqueue(() => deleteScratch(u.id));
+  try { await enqueue(() => deleteScratch(u.id)); } catch (e) { toast(`The quick underwriting couldn’t be deleted, so it is still here: ${why(e)}`); return; }
   items = items.filter((x) => x !== u);
   cur = items[0] || fresh();
   draw();
@@ -354,11 +354,12 @@ async function removeCurrent() {
 
 /** Put a record back in the list (Undo), where its date puts it, and open it. */
 async function bringBack(u, message) {
-  await enqueue(() => saveScratch(u));
+  try { await enqueue(() => saveScratch(u)); } catch (e) { toast(`It couldn’t be brought back: ${why(e)}`); return false; }
   items = [...items.filter((x) => x.id !== u.id), u].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   cur = u;
   draw();
   toast(message);
+  return true;
 }
 
 async function saveAsDeal() {
@@ -367,14 +368,20 @@ async function saveAsDeal() {
   await flush();
   let d;
   try { d = await createDeal(dealFields(u), 'Created from a quick underwriting'); } catch (e) { toast(`The deal couldn’t be saved: ${e.message || e}`); return; }
-  await enqueue(() => deleteScratch(u.id));
+  try { await enqueue(() => deleteScratch(u.id)); } catch (e) {
+    // the deal exists and the quick underwriting is still stored: say so, and offer no Undo that would hide the duplicate
+    await showDeal(d.id);
+    toast(`Saved as a deal, but the quick underwriting couldn’t be removed (${why(e)}). It is still under Underwrite: delete it there.`, null, 9000);
+    return;
+  }
   items = items.filter((x) => x !== u);
   cur = items[0] || fresh();
   draw();
   await showDeal(d.id);
   toast('Saved as a deal. The quick underwriting is now this deal.', {
     label: 'Undo',
-    run: async () => { await discardDeal(d.id); await bringBack(u, 'Undone: it is a quick underwriting again.'); api.showView('underwrite'); },
+    // the quick underwriting comes back first: the deal is deleted only once it is safely stored again
+    run: async () => { if (!(await bringBack(u, 'Undone: it is a quick underwriting again.'))) return; await discardDeal(d.id); api.showView('underwrite'); },
   });
 }
 
@@ -385,11 +392,12 @@ export function initUnderwrite(compsApi) {
   window.addEventListener('pagehide', () => { flush(); });
   document.addEventListener('viewchange', () => { flush(); });
   loadScratch().then((r) => {
-    items = r.items;
+    // anything typed before the list arrived stays on screen, at the top of what was stored
+    const mine = items.includes(cur) ? cur : null;
+    items = mine ? [mine, ...r.items.filter((x) => x.id !== mine.id)] : r.items;
     hidden = r.hidden;
-    cur = items[0] || fresh();
-    draw();
-  }).catch(() => { cur = fresh(); draw(); });
+    if (mine) drawList(); else { cur = items[0] || cur; draw(); }
+  }).catch(() => {});
   cur = fresh();
   draw();
 }

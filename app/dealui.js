@@ -1332,7 +1332,7 @@ const scnShow = (kind, v) => {
   if (kind === 'delta') return `${v > 0 ? '+' : ''}${dec(v, 2)}%`;
   return `${dec(v, 2)}%`;
 };
-const scnRead = (kind, raw) => {
+export const scnRead = (kind, raw) => {
   if (kind === 'money') return parseNum(raw);
   if (kind === 'int') { const v = parseNum(raw); return ok(v) && v >= 1 && v <= 30 ? Math.round(v) : null; }
   if (kind === 'delta') { const v = parseNum(raw); return ok(v) && v > -100 && v < 1000 ? v : null; }
