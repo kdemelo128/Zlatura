@@ -8,6 +8,7 @@
 
 import { cellValue, csvRows, unreadable, isCsv } from './sheetread.js';
 import { readText } from './textfile.js';
+import { calDay } from './pipeline.js';
 import { waltMethod } from './engine/walt.js';
 import {
   project, rentRollSummary, validateRentRoll, validateLease, generateSteps, monthlyAmount, inPlace, rollover,
@@ -1122,7 +1123,7 @@ export function rowsToLeases(rr, table, mapping) {
     const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(s);
     if (m) { const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]); const iso = `${y}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`; return dayOf(iso) !== null ? iso : null; }
     const t = Date.parse(s);
-    return Number.isFinite(t) ? localDate(new Date(t)) : null;
+    return Number.isFinite(t) ? new Date(calDay(s, t)).toISOString().slice(0, 10) : null;
   };
   const leases = []; let skipped = 0;
   for (const row of table.rows) {

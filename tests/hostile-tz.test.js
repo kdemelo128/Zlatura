@@ -98,3 +98,29 @@ test('a rent roll CSV date written in words is stored as that calendar day in an
   assert.equal(leases[0].leaseStart, '2027-05-31', 'May 31, 2027 is not 05-30 east of UTC');
   assert.equal(leases[0].leaseEnd, '2028-12-31');
 });
+
+test('a date typed as a year, a month, or with a Z or offset is that calendar day in any zone', async () => {
+  const today = new Date('2026-10-10T12:00:00Z');
+  const want = (iso) => (Date.UTC(...iso) - today.getTime()) / (365.25 * 86400000);
+  assert.equal(yearsLeft('2036', today), want([2036, 0, 1]));
+  assert.equal(yearsLeft('2036-01', today), want([2036, 0, 1]));
+  assert.equal(yearsLeft('2036-01-31T00:00:00Z', today), want([2036, 0, 31]));
+  assert.equal(yearsLeft('2036-01-31T00:00:00+05:00', today), want([2036, 0, 30, 19]));
+  assert.equal(yearsLeft('Jan 31 2036 12:00', today), want([2036, 0, 31, 12]), 'a typed time is kept');
+  globalThis.window = globalThis.window || {};
+  globalThis.document = globalThis.document || { addEventListener() {}, dispatchEvent() {} };
+  const { rowsToLeases } = await import('../app/rentrollui.js');
+  const { emptyRentRoll } = await import('../app/rentroll.js');
+  const { leases } = rowsToLeases(emptyRentRoll('Retail', '2026-10-10'), { sheet: 'x.csv', rows: [['1', 'A', '2027-05', '2028'], ['2', 'B', '2029-02-28T00:00:00Z', '']] }, ['unit', 'tenant', 'leaseStart', 'leaseEnd']);
+  assert.equal(leases[0].leaseStart, '2027-05-01');
+  assert.equal(leases[0].leaseEnd, '2028-01-01');
+  assert.equal(leases[1].leaseStart, '2029-02-28');
+});
+
+test('a text cut at 32,000 characters never ends on half an emoji', async () => {
+  const { cutText } = await import('../app/template.js');
+  const t = cutText(`${'a'.repeat(31999)}👩rest`);
+  assert.equal(t.length, 31999);
+  assert.equal(cutText('short'), 'short');
+  assert.equal(cutText('a'.repeat(40000)).length, 32000);
+});

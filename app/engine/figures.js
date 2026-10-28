@@ -15,7 +15,7 @@ import { walt } from './walt.js';
 import { breakEvenOccupancy } from './breakeven.js';
 import { NOI_GAP, conv } from './conventions.js';
 import { matchLabel } from '../t12.js';
-import { isoDay } from '../pipeline.js';
+import { isoDay, calDay } from '../pipeline.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const pos = (x) => ok(x) && x > 0;
@@ -81,7 +81,7 @@ export function yearsLeft(text, today = new Date()) {
   if (y) return Number(y[1]);
   let d = Date.parse(s.replace(/(\d)(st|nd|rd|th)\b/, '$1'));
   // a printed date is a calendar day: read it as that day's UTC midnight (as om.js parseDate does), whatever the device's zone
-  if (Number.isFinite(d) && !/^\d{4}-\d{2}-\d{2}$/.test(s.trim())) { const x = new Date(d); d = Date.UTC(x.getFullYear(), x.getMonth(), x.getDate()); }
+  if (Number.isFinite(d)) d = calDay(s, d);
   if (Number.isFinite(d)) return Math.max(0, (d - today.getTime()) / YEAR);
   return null;
 }
