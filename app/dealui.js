@@ -1715,28 +1715,50 @@ function renderRentRoll(m) {
   box.appendChild(b);
 }
 
+let rentSchedOpen = false;     // whether the many-lease schedules were left open, kept across redraws
+
 /** The net lease rent schedule: each stated rent period, its yearly rent and rent over the asking price. */
 function renderRentSchedule(m) {
   const box = $('deal-rentsched');
   if (!box) return;
   box.textContent = '';
-  const list = dealSchedules(deal, m.price);
-  box.hidden = !list.length;
-  if (!list.length) return;
-  const bad = list.some(({ S }) => S.errors.length);
+  // counted cheaply: with many leases the tables are built only when the broker opens them, so an edit stays fast
+  const n = ((deal.rr && deal.rr.leases) || []).filter((L) => !L.vacant && (L.periods || []).length).length;
+  box.hidden = !n;
+  if (!n) return;
   const h = el('div', 'card-head');
   h.appendChild(el('h2', null, 'Rent schedule'));
   const cp = button('btn-sm', 'Copy rent schedule', () => copyRentSchedule(m));
   cp.id = 'deal-rentsched-copy';
-  cp.disabled = bad;
   h.appendChild(cp);
   box.appendChild(h);
+  if (n === 1) {
+    const list = dealSchedules(deal, m.price);
+    cp.disabled = list.some(({ S }) => S.errors.length);
+    fillRentSchedules(box, list);
+    return;
+  }
+  const det = el('details', 'fold rs-many');
+  det.open = rentSchedOpen;
+  det.appendChild(el('summary', null, `${n} leases have rent periods: show their schedules`));
+  const fill = () => {
+    if (!det.open || det.querySelector('table, .warn-text')) return;
+    const list = dealSchedules(deal, null);
+    fillRentSchedules(det, list);
+    cp.disabled = list.some(({ S }) => S.errors.length);
+  };
+  det.addEventListener('toggle', () => { rentSchedOpen = det.open; fill(); });
+  box.appendChild(det);
+  fill();
+}
+
+function fillRentSchedules(host, list) {
   for (const { L, S } of list) {
-    if (list.length > 1) { const t = el('h3', 'hint-sm', leaseName(L)); t.style.padding = '0 16px'; box.appendChild(t); }
+    if (list.length > 1) { const t = el('h3', 'hint-sm', leaseName(L)); t.style.padding = '0 16px'; host.appendChild(t); }
     if (S.errors.length) {
       const p = el('p', 'warn-text', `This lease has ${S.errors.length} problem${S.errors.length === 1 ? '' : 's'} in its rent periods. Fix them in the rent roll before using this schedule.`);
       p.style.padding = '0 16px 10px';
-      box.appendChild(p);
+      host.appendChild(p);
       continue;
     }
     const { head, rows } = scheduleCells(S);
@@ -1756,10 +1778,10 @@ function renderRentSchedule(m) {
     });
     const wrap = el('div', 'scroll');
     wrap.appendChild(t);
-    box.appendChild(wrap);
+    host.appendChild(wrap);
     const ul = el('ul', 'rr-checks');
-    for (const n of S.notes) ul.appendChild(el('li', 'hint-sm', n));
-    box.appendChild(ul);
+    for (const x of S.notes) ul.appendChild(el('li', 'hint-sm', x));
+    host.appendChild(ul);
   }
 }
 

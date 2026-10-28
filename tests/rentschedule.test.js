@@ -33,7 +33,7 @@ test('per SF with no SF is null, never 0, and says so', () => {
   const r = S.rows[0];
   assert.equal(r.annual, null); assert.equal(r.monthly, null); assert.equal(r.onPrice, null); assert.equal(r.psfYear, null);
   assert.match(r.note, /Per SF, but the space has no SF/);
-  assert.ok(S.errors.length, 'the lease is also flagged');
+  assert.equal(S.errors.length, 0, 'shown with its note, not blocked');
 });
 
 test('a gap between periods is a row with no rent, and no change runs across it', () => {
@@ -105,7 +105,7 @@ test('more than one occupied lease: a table each, no rent ÷ price', () => {
 test('the pasted text runs every cell through tsvCell: a hostile name cannot start a formula', () => {
   const deal = { figures: {}, rr: { leases: [lease([P('2026-01-01', '2026-12-31', 100000, 'year', { note: '=cmd|\' /C calc\'!A0' })]), lease([P('2026-01-01', '2026-12-31', 5000)], { id: 'l2', unit: '+SUM(1)' })] } };
   const t = scheduleTsv(dealSchedules(deal, null));
-  for (const line of t.split('\n')) for (const c of line.split('\t')) assert.ok(!/^[=+@-]/.test(c) || /^-?\$|^—$/.test(c) || /^[+-]\d/.test(c), `cell starts a formula: ${c}`);
+  for (const line of t.split('\n')) for (const c of line.split('\t')) assert.ok(!/^[=+@-]/.test(c) || /^(—|-?\$[\d,.]+)$/.test(c), `cell starts a formula: ${c}`);
   assert.match(t, /Period\tYears\tAnnual rent/);
 });
 
@@ -144,4 +144,42 @@ test('the deal brief has a Rent schedule section for a deal with a rent roll', a
   walk(box);
   assert.ok(all.some((t) => t === 'Rent schedule'), 'the heading');
   assert.ok(all.some((t) => t === '5.00%'), 'rent over price');
+});
+
+test('a lease with problems is named and left out of the brief and the sheet, not dropped silently', async () => {
+  globalThis.document ||= { addEventListener() {}, dispatchEvent() {} };
+  const ExcelJS = (await import('exceljs')).default;
+  const fflate = await import('fflate');
+  const { buildDealWorkbook } = await import('../app/workbook.js');
+  const { renderDealBrief } = await import('../app/brief.js');
+  const { fakeDocument } = await import('./impact-cases.js');
+  const { analyze } = await import('../app/deal.js');
+  const { analysisInput } = await import('../app/impact.js');
+  const bad = lease([P('2026-01-01', '2026-12-31', 100000), P('2026-06-01', '2027-12-31', 90000)], { id: 'lx', unit: 'Z9' });
+  const deal = { name: 'Test', figures: { price: 2000000 }, loan: {}, sources: {}, rr: { settings: { asOf: '2026-01-01' }, leases: [bad, lease([P('2026-01-01', '2026-12-31', 5000)], { id: 'ly', unit: 'Y1' })] } };
+  const m = analyze(analysisInput(deal), null);
+  const doc = fakeDocument(); const box = doc.createElement('div');
+  renderDealBrief(box, { deal, m, comps: null });
+  const all = []; const walk = (n) => { all.push(n.textContent || n.own || ''); (n.children || []).forEach(walk); };
+  walk(box);
+  assert.ok(all.some((t) => /^Left out: Z9 · Acme Test Co has 1 problem in its rent periods\.$/.test(t)), 'brief names it');
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(await buildDealWorkbook(ExcelJS, fflate, { deal, metrics: m, comps: null }));
+  const cells = []; wb.getWorksheet('Rent Schedule').eachRow((r) => r.eachCell((c) => cells.push(String(c.value))));
+  assert.ok(cells.some((t) => /^Left out: Z9 · Acme Test Co has 1 problem in its rent periods\.$/.test(t)), 'sheet names it');
+});
+
+test('a per-SF period with no SF is shown with its note, not blocked', () => {
+  const S = rentSchedule(lease([P('2026-01-01', '2026-12-31', 25, 'psf_year')], { sf: null }));
+  assert.equal(S.errors.length, 0);
+  assert.match(S.rows[0].note, /Per SF, but the space has no SF/);
+  assert.match(scheduleCells(S).rows[0].at(-1), /Per SF, but the space has no SF/);
+});
+
+test('years labels come from the month difference and still need real anniversaries', () => {
+  const r = (s, e) => rentSchedule(lease([P(s, e, 1000, 'month')], { leaseStart: '2026-03-15' })).rows[0].years;
+  assert.equal(r('2027-03-15', '2028-03-14'), 'Year 2');
+  assert.equal(r('2026-03-15', '2031-03-14'), 'Years 1–5');
+  assert.equal(r('2027-03-16', '2028-03-14'), null);
+  assert.equal(r('2026-03-15', '2028-03-20'), null);
 });

@@ -76,6 +76,9 @@ const text = async (page, sel) => ((await page.locator(sel).count()) ? (await pa
     lease('lc', PACK.plus, PACK.script, [P('2026-01-01', '2030-12-31', 50000)]),
   ];
   const { browser, ctx, page } = await open('b', leases, { lease_type: 'NNN' });
+  check('B: with two leases the tables wait behind a count line', (await page.locator('#deal-rentsched table').count()) === 0 && /2 leases have rent periods/.test(await text(page, '#deal-rentsched summary')));
+  await page.locator('#deal-rentsched summary').click();
+  await page.waitForTimeout(200);
   const card = await text(page, '#deal-rentsched');
   check('B: a table for each lease, no Rent ÷ price column', (await page.locator('#deal-rentsched table').count()) === 2 && !/Rent ÷ price/i.test(card.replace(/Rent ÷ price is shown/gi, '')) && /single-tenant deal only/.test(card), card.slice(0, 200));
   check('B: the hostile names stay plain text', (await page.locator('#deal-rentsched img, #deal-rentsched script').count()) === 0 && card.includes(PACK.img), card.slice(0, 160));

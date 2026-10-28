@@ -127,11 +127,12 @@ export function renderDealBrief(box, { deal, m, comps, photos = [], preparedBy =
   cols.appendChild(right2);
   box.appendChild(cols);
 
-  // the stated rent periods of a net lease, with rent over the asking price (left out when a lease has problems)
-  for (const { L, S } of dealSchedules(deal, m.price)) {
-    if (S.errors.length) continue;
-    box.appendChild(h(doc, 'h2', 'ps-h2', 'Rent schedule'));
-    if (dealSchedules(deal, null).length > 1) box.appendChild(h(doc, 'div', 'ps-sub', leaseName(L)));
+  // the stated rent periods of a net lease, with rent over the asking price (a lease with problems is named and left out)
+  const scheds = dealSchedules(deal, m.price);
+  if (scheds.length) box.appendChild(h(doc, 'h2', 'ps-h2', 'Rent schedule'));
+  for (const { L, S } of scheds) {
+    if (S.errors.length) { box.appendChild(h(doc, 'p', 'ps-sub', `Left out: ${leaseName(L)} has ${S.errors.length} problem${S.errors.length === 1 ? '' : 's'} in its rent periods.`)); continue; }
+    if (scheds.length > 1) box.appendChild(h(doc, 'div', 'ps-sub', leaseName(L)));
     const { head, rows } = scheduleCells(S);
     const t = h(doc, 'table', 'ps-table');
     const hr = h(doc, 'tr');

@@ -245,9 +245,12 @@ export const dayText = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso 
 /** "Years 1–5" when both ends of a period fall on anniversaries of the lease start; else null. */
 function yearsLabel(start, from, to) {
   if (!start) return null;
-  const a = [...Array(101).keys()].find((k) => addMonths(start, 12 * k) === from);
-  const b = [...Array(101).keys()].find((k) => addDays(addMonths(start, 12 * (k + 1)), -1) === to);
-  if (a === undefined || b === undefined || b < a) return null;
+  // whole years between two dates by the month difference, then one check that the date really is an anniversary
+  const yearsBetween = (x, y) => (+y.slice(0, 4) - +x.slice(0, 4)) * 12 + (+y.slice(5, 7) - +x.slice(5, 7));
+  const from0 = yearsBetween(start, from); const to0 = yearsBetween(start, addDays(to, 1) || '');
+  if (!(from0 >= 0) || from0 % 12 || !(to0 > 0) || to0 % 12) return null;
+  const a = from0 / 12; const b = to0 / 12 - 1;
+  if (addMonths(start, 12 * a) !== from || addDays(addMonths(start, 12 * (b + 1)), -1) !== to || b < a) return null;
   return a === b ? `Year ${a + 1}` : `Years ${a + 1}–${b + 1}`;
 }
 
@@ -261,7 +264,8 @@ function yearsLabel(start, from, to) {
  * @param {Lease} L @param {{ price?: number | null, leaseType?: string, options?: string, single?: boolean }} [o]
  */
 export function rentSchedule(L, { price = null, leaseType = '', options = '', single = true } = {}) {
-  const errors = validateLease(L).filter((x) => x.level === 'error').map((x) => x.text);
+  // a per-SF period with no SF is shown as a row with no amounts and its own note, not as a blocking error
+  const errors = validateLease(L).filter((x) => x.level === 'error' && !/is per SF but the space has no SF/.test(x.text)).map((x) => x.text);
   const absolute = /\babsolute\b/i.test(leaseType || '');
   const showPrice = single;
   const px = showPrice && pos(price) ? price : null;

@@ -298,7 +298,7 @@ export const DEAL_SHEET_SECTIONS = {
 for (const [r, [label, reads]] of Object.entries(DEAL_SHEET_ROWS)) node(`xlsx.deal.B${r}`, { group: 'export', file: 'Deal workbook', sheet: 'Deal Analysis', label: `${label} (B${r})`, reads });
 for (const [k, [label, reads]] of Object.entries(DEAL_SHEET_SECTIONS)) node(`xlsx.deal.${k}`, { group: 'export', file: 'Deal workbook', sheet: 'Deal Analysis', label, reads });
 /** What the net lease rent schedule (lease.js rentSchedule) reads: the rent periods, SF, free rent, the price, lease type and options. */
-const RENT_SCHEDULE_READS = ['lease.rent', 'lease.sf', 'lease.status', 'lease.unit', 'lease.tenant', 'lease.leaseStart', 'lease.abatements', 'lease.options', 'leases', 'fig.price', 'figures.lease_type', 'figures.options'];
+const RENT_SCHEDULE_READS = ['lease.rent', 'lease.sf', 'lease.status', 'lease.unit', 'lease.tenant', 'lease.leaseStart', 'lease.abatements', 'lease.options', 'leases', 'fig.price', 'figures.lease_type', { path: 'figures.options', when: 'single-tenant, lease has no options' }];
 node('xlsx.deal.rentSchedule', { group: 'export', file: 'Deal workbook', sheet: 'Rent Schedule', label: 'Rent Schedule', reads: RENT_SCHEDULE_READS, rr: true });
 node('xlsx.deal.omRentRoll', { group: 'export', file: 'Deal workbook', sheet: 'Rent Roll', label: 'Rent Roll (the OM’s table)', reads: [{ path: 'rentRoll', when: 'only for a deal with no rent roll of its own' }] });
 

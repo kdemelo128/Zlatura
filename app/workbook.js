@@ -1399,13 +1399,14 @@ export async function buildDealWorkbook(ExcelJS, fflate, { deal, metrics, comps,
 
 /** The net lease rent schedule: stated rent periods as values, rent over price as a formula on the Deal Analysis price. */
 function rentScheduleTab(wb, deal, m) {
-  const list = dealSchedules(deal, m.price).filter(({ S: sc }) => !sc.errors.length);
+  const list = dealSchedules(deal, m.price);
   if (!list.length) return;
   const ws = sheet(wb, 'Rent Schedule', [12, 12, 11, 15, 13, 11, 10, 14, 44], 'FF0F766E');
   title(ws, 1, 9, 'Rent Schedule', 'Rent over the asking price, from the stated rent periods only. It is a cap rate only when the lease type says absolute net.');
   let r = 4;
   for (const { L, S: sc } of list) {
     if (list.length > 1) { label(ws, `A${r}`, leaseName(L), { bold: true }); r += 1; }
+    if (sc.errors.length) { note(ws, `A${r}`, `Left out: ${leaseName(L)} has ${sc.errors.length} problem${sc.errors.length === 1 ? '' : 's'} in its rent periods.`, 9); r += 2; continue; }
     headerRow(ws, r, ['From', 'To', 'Years', 'Annual rent', 'Monthly', '$/SF/yr', 'Change', sc.showPrice ? sc.priceLabel : '', 'Notes']);
     r += 1;
     for (const x of sc.rows) {
