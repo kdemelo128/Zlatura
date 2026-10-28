@@ -5,8 +5,11 @@
  * $/SF order), so the three outputs never disagree. */
 
 import { signOf } from './numtext.js';
+import { feeSummary } from './calc.js';
+import { toCents, toRate } from './engine/money.js';
+import { STAGE_LABEL, stageOf } from './pipeline.js';
 
-export const VERSION = '4.7.60';
+export const VERSION = '4.7.61';
 
 const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
 const ppsf = (c) => (num(c.price) && num(c.bsf) ? c.price / c.bsf : null);
@@ -92,6 +95,36 @@ export function compsCsv(sales, market) {
   const rows = [CSV_COLS.map(([h]) => h)];
   for (const c of [...sales, ...market]) rows.push(CSV_COLS.map(([, get]) => get(c)));
   return rows.map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n';
+}
+
+/* -------------------------------------------------------------- fees CSV */
+
+const text = (v) => (typeof v === 'string' ? v : '');
+const cents = (v) => (num(v) === null ? '' : toCents(v).toFixed(2));
+/** [heading, value, isMoney]: money is already written as 2-decimal text, and a negative one (an overpayment) must not get the formula guard's quote.
+ *  @type {[string, (d: any, f: any, s: any) => any, number?][]} */
+const FEE_COLS = [
+  ['Deal ID', (d) => d.id], ['Deal', (d) => d.name || text(d.figures && d.figures.address) || 'Untitled deal'], ['Stage', (d) => STAGE_LABEL[stageOf(d)]],
+  ['Address', (d) => d.figures && d.figures.address],
+  ['Fee price', (d, f) => cents(f.price), 1], ['Rate %', (d, f, s) => (s.expected ? toRate(s.expected.effectivePct) : null)],
+  ['Gross fee', (d, f, s) => cents(s.expected && s.expected.total), 1], ['Co-broker', (d, f, s) => cents(s.expected && s.expected.coBroker), 1],
+  ['Our side', (d, f, s) => cents(s.expected && s.expected.listingSide), 1], ['Referral', (d, f, s) => cents(s.expected && s.expected.referral), 1],
+  ['House', (d, f, s) => cents(s.expected && s.expected.house), 1], ['Agent', (d, f, s) => cents(s.expected && s.expected.agent), 1],
+  ['Invoiced', (d, f, s) => cents(s.invoiced), 1], ['Invoice date', (d, f) => f.invoiced && text(f.invoiced.on)], ['Invoice ref', (d, f) => f.invoiced && text(f.invoiced.ref)],
+  ['Paid to date', (d, f, s) => cents(s.paidToDate), 1], ['Last payment', (d, f, s) => s.lastPaid], ['Outstanding', (d, f, s) => cents(s.outstanding), 1],
+];
+
+/** RFC 4180 CSV, CRLF line ends, one row per deal that has a fee record: the terms, the expected fee and splits, what was invoiced and paid.
+ *  Each split is rounded to cents on its own, so a row can be a cent off its total. */
+export function feesCsv(deals) {
+  const rows = [FEE_COLS.map(([h]) => cell(h))];
+  for (const d of deals) {
+    const f = d && d.fee;
+    if (!f || typeof f !== 'object' || Array.isArray(f)) continue;
+    const s = feeSummary(f);
+    rows.push(FEE_COLS.map(([, get, money]) => (money ? get(d, f, s) : cell(get(d, f, s)))));
+  }
+  return rows.map((r) => r.join(',')).join('\r\n') + '\r\n';
 }
 
 /* ------------------------------------------------------------ comp sheet */

@@ -112,8 +112,16 @@ interface ScenarioOver {
   price?: Usd; noi?: UsdPerYear; occ?: Pct; rentChange?: PctChange; expenseChange?: PctChange;
   ltv?: Pct; rate?: Pct; amort?: Years; io?: boolean; closing?: Pct; hold?: Years; growth?: Pct; saleCost?: Pct; exitCap?: Pct; noiBasis?: 'rentroll';
 }
+/** A deal's fee record (deal.fee; absent = none, never $0). Money in whole cents, rates as typed (0.5 is 0.5%), null = not entered. */
+interface FeePayment { amount: Usd | null; on: string | null; ref: string }
+interface Fee {
+  price: Usd | null; flatPct: Pct | null; tiers: { upTo: Usd | null; pct: Pct | null }[];
+  coBrokerPct: Pct | null; referralPct: Pct | null; housePct: Pct | null;
+  invoiced: FeePayment | null; paid: FeePayment[];
+}
+
 interface Deal {
-  id: string; name?: string; figures: Figures; loan: Loan; rr?: RentRoll | null; rentRoll?: OmRentRow[];
+  id: string; name?: string; figures: Figures; loan: Loan; rr?: RentRoll | null; rentRoll?: OmRentRow[]; fee?: Fee;
   live?: ScenarioOver; scenarios?: { id: string; name: string; at?: number; over: ScenarioOver }[];
   targets?: { cap?: Pct | null; irr?: Pct | null; value?: Pct | null };
   sources?: Record<string, { hand?: boolean; page?: number; ai?: boolean; orig?: unknown; line?: string; verified?: boolean }>;

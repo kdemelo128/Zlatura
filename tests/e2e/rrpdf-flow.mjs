@@ -69,7 +69,7 @@ await page.waitForTimeout(900);
 check('the rent roll now has six units', (await units()) === 6, String(await units()));
 const a = await saved();
 check('each lease says it came from the PDF: kind pdf, the file, the page and the line', a && a.n === 6 && a.sources.every((s) => s.kind === 'pdf' && s.file === 'rr-dd.pdf' && s.page === 1 && s.line > 0), JSON.stringify(a && a.sources[0]));
-check('the deal carries the new schema', a && a.schema === 4, String(a && a.schema));
+check('the deal carries the new schema', a && a.schema === 5, String(a && a.schema));
 const snaps = await page.evaluate(async () => {
   const db = await new Promise((r) => { const q = indexedDB.open('zlatura'); q.onsuccess = () => r(q.result); });
   const all = await new Promise((r) => { const q = db.transaction('snapshots').objectStore('snapshots').getAll(); q.onsuccess = () => r(q.result); });

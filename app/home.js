@@ -9,6 +9,7 @@ import { listAllDeals, updateDeal, showDeal, currentDealId } from './dealui.js';
 import { taskRow, contactLinks, editContact } from './dealcrm.js';
 import { $, el, toast, actionSheet, getXlsx, deliver, printed, XLSX, short, money0, money2, pct, int, niceDate, localDate } from './kit.js';
 import { dateInput } from './dateinput.js';
+import { feesCsv } from './exporters.js';
 
 let api = null;
 let visible = false;
@@ -441,9 +442,11 @@ async function report() {
   const v = await actionSheet('Pipeline report', [
     { label: 'Excel workbook', sub: 'Pipeline, tasks and contacts, one sheet each', value: 'xlsx', primary: true },
     { label: 'Print or save as PDF', sub: 'The pipeline by stage, with next steps', value: 'print' },
+    { label: 'Fees CSV', sub: 'One row per deal with a fee record: expected, invoiced, paid, outstanding', value: 'fees' },
   ]);
   if (v === 'xlsx') reportXlsx().catch((e) => { console.error(e); toast('The report could not be built here.'); });
   else if (v === 'print') reportPrint();
+  else if (v === 'fees') reportFees().catch((e) => { console.error(e); toast('The fees file could not be made here.'); });
 }
 
 async function reportXlsx() {
@@ -469,6 +472,13 @@ async function reportXlsx() {
     contacts.map((c) => ({ ...c, deals: (c.dealIds || []).map((x) => nameOf[x]).filter(Boolean).join('; ') })));
   const bytes = new Uint8Array(await wb.xlsx.writeBuffer());
   await deliver(`Pipeline ${localDate()}.xlsx`, bytes, XLSX, { map: 'none: the pipeline lists deals by stage, not their figures' });
+}
+
+async function reportFees() {
+  const deals = (await listAllDeals()).filter((d) => d.fee);
+  if (!deals.length) { toast('No deal has a fee record yet. Add one from a deal’s Fee card.'); return; }
+  // a byte-order mark tells Excel the file is UTF-8
+  await deliver(`Fees ${localDate()}.csv`, new TextEncoder().encode(`\uFEFF${feesCsv(deals)}`), 'text/csv', { map: 'fees-csv' });
 }
 
 async function reportPrint() {

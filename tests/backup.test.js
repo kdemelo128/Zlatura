@@ -314,3 +314,33 @@ for (const file of ['backup-4.7.50-before-research.json', 'backup-4.7.36-before-
     }
   });
 }
+
+/* ----------------------------------------------------------- the fee record */
+
+import { feeSummary } from '../app/calc.js';
+import { feesCsv } from '../app/exporters.js';
+
+test('a deal’s fee record rides along in a backup: it comes back as it went in, and the backup version stays 2', async () => {
+  const fee = { price: 6450000, flatPct: 3, tiers: [], coBrokerPct: 50, referralPct: 0, housePct: 40, invoiced: { amount: 193500, on: '2026-03-01', ref: 'INV-1' }, paid: [{ amount: 100000, on: '2026-04-01', ref: '' }] };
+  const b = await buildBackup({ deals: [deal('d1', 5, { fee, schema: 5 })], appVersion: '4.7.61' });
+  assert.equal(b.version, 2);
+  const back = readBackup(JSON.stringify(b));
+  assert.deepEqual(back.deals[0].fee, fee);
+  assert.deepEqual(planRestore(back, { deals: [], kv: {}, session: null, local: {} }).deals.put[0].fee, fee);
+});
+
+test('a fee record that was edited by hand or damaged is read without an error, and shown blank, never as 0', async () => {
+  const hostile = [{ paid: 'x', invoiced: { amount: 100 } }, { paid: [null, 'x', { amount: 'a', on: 7 }], tiers: 'x', price: 'x', invoiced: 'x' }, { tiers: [null, 5, { upTo: 'x', pct: {} }], price: 1e6, flatPct: '3' }];
+  const b = await buildBackup({ deals: hostile.map((fee, i) => deal(`h${i}`, 5, { fee, schema: 5 })), appVersion: '4.7.61' });
+  const back = readBackup(JSON.stringify(b));
+  const plan = planRestore(back, { deals: [], kv: {}, session: null, local: {} });
+  assert.equal(plan.deals.put.length, 3);
+  const rows = feesCsv(plan.deals.put).trim().split('\r\n').slice(1).map((r) => r.split(','));
+  assert.equal(rows.length, 3);
+  assert.equal(rows[0][15], '', 'payments that are not a list: paid to date is blank');
+  assert.equal(rows[0][17], '', 'and so is what is outstanding');
+  for (const r of rows.slice(0, 2)) assert.equal(r[4], '', 'a price that is not a number is blank');
+  assert.deepEqual(rows[2].slice(5, 12), ['', '', '', '', '', '', ''], 'a price with no rate that can be read is not a fee of 0');
+  assert.deepEqual(rows[1].slice(4), ['', '', '', '', '', '', '', '', '', '', '', '', '', ''], 'a list of unreadable payments is not 0 paid');
+  assert.equal(feeSummary(plan.deals.put[2].fee).expected, null, 'no price a number, no expected fee');
+});

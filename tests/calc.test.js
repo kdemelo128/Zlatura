@@ -171,3 +171,71 @@ test('lease comparison: landlord PV is a present value, not a sum of payments', 
   const [c] = compareLeases([{ k: 'C', rent: 12, sf: 1000, months: 12 }], 0);
   assert.equal(c.landlordPv, 12000);
 });
+
+/* ----------------------------------------------------------- the fee record */
+
+import { feeSummary } from '../app/calc.js';
+
+test('feeSummary: a flat rate is the fee price times the rate, and rates are as typed (0.5 is 0.5%)', () => {
+  const s = feeSummary({ price: 6450000, flatPct: 3 });
+  assert.equal(s.expected.total, 193500);
+  assert.equal(feeSummary({ price: 2000000, flatPct: 0.5 }).expected.total, 10000, '0.5 stays 0.5%, not 50%');
+  assert.equal(s.invoiced, null);
+  assert.equal(s.paidToDate, null, 'no payments list: unknown, not 0');
+});
+
+test('feeSummary: tiers are worked in bands, and a flat rate wins when both are given', () => {
+  // 6% of the first $1M, 4% of the next $4M, 2% above: on $6M that is 60,000 + 160,000 + 20,000
+  const tiers = [{ upTo: 1e6, pct: 6 }, { upTo: 5e6, pct: 4 }, { upTo: null, pct: 2 }];
+  assert.equal(feeSummary({ price: 6e6, tiers }).expected.total, 240000);
+  assert.equal(feeSummary({ price: 6e6, flatPct: 3, tiers }).expected.total, 180000);
+  assert.equal(feeSummary({ price: 6e6, tiers: [{ upTo: 1e6, pct: 6 }] }).expected.lines.at(-1).note, 'no rate for this part of the price');
+});
+
+test('feeSummary: a tier with a limit but no rate gives no fee, not the next tier’s rate over its band', () => {
+  const tiers = [{ upTo: 1e6, pct: null }, { upTo: 5e6, pct: 4 }, { upTo: null, pct: 2 }];
+  const s = feeSummary({ price: 6e6, tiers });
+  assert.equal(s.expected, null, 'was 220,000: the first $1M charged at 4%');
+  assert.equal(s.tierGap, 1);
+  assert.equal(feeSummary({ price: 6e6, flatPct: 3, tiers }).expected.total, 180000, 'a flat rate does not use the tiers');
+  assert.equal(feeSummary({ price: 6e6, tiers: [{ upTo: null, pct: 2 }] }).expected.total, 120000, 'a top tier has no limit and needs none');
+});
+
+test('feeSummary: a share that was not entered is not 0, and an entered 0 is', () => {
+  const base = { price: 1e6, flatPct: 5, coBrokerPct: 50, housePct: 40 };
+  const blank = feeSummary({ ...base, referralPct: null }).expected;
+  assert.equal(blank.total, 50000, 'the fee itself does not need the shares');
+  assert.deepEqual([blank.coBroker, blank.listingSide, blank.referral, blank.house, blank.agent], [null, null, null, null, null]);
+  const zero = feeSummary({ ...base, referralPct: 0 }).expected;
+  assert.deepEqual([zero.coBroker, zero.listingSide, zero.referral, zero.house, zero.agent], [25000, 25000, 0, 10000, 15000]);
+  assert.deepEqual(feeSummary({ ...base, referralPct: 10 }).expected.referral, 2500);
+});
+
+test('feeSummary: two payments add up, the last payment date is the latest, and an overpayment is a negative balance', () => {
+  const fee = { price: 1e6, flatPct: 5, invoiced: { amount: 50000, on: '2026-03-01', ref: 'INV-7' }, paid: [{ amount: 20000.1, on: '2026-05-01' }, { amount: 10000.2, on: '2026-04-01' }] };
+  const s = feeSummary(fee);
+  assert.equal(s.invoiced, 50000);
+  assert.equal(s.paidToDate, 30000.3, 'cents, with no float tail');
+  assert.equal(s.outstanding, 19999.7);
+  assert.equal(s.lastPaid, '2026-05-01');
+  const over = feeSummary({ ...fee, paid: [{ amount: 50000 }, { amount: 100.5 }] });
+  assert.equal(over.outstanding, -100.5, 'overpaid: below zero, not hidden');
+  const exact = feeSummary({ invoiced: { amount: 0.3 }, paid: [{ amount: 0.1 }, { amount: 0.2 }] });
+  assert.ok(Object.is(exact.outstanding, 0), 'a settled invoice is 0 (not -0, not 5e-17)');
+  assert.equal(exact.paidToDate, 0.3, 'the payments are added in cents: 0.1 + 0.2 is 0.3');
+  assert.equal(feeSummary({ invoiced: { amount: 0.3 }, paid: [{ amount: 0.1 }] }).outstanding, 0.2, 'and the balance is cents too (0.3 - 0.1 is 0.19999999999999998 as a double)');
+  assert.equal(feeSummary({ invoiced: { amount: 100 }, paid: [] }).outstanding, 100, 'nothing paid yet: all of it is outstanding');
+});
+
+test('feeSummary: no fee price means no expected fee (never guessed), and a fee record in an unknown shape reads blank', () => {
+  assert.equal(feeSummary({ flatPct: 3 }).expected, null);
+  assert.equal(feeSummary({ price: null, flatPct: 3 }).expected, null);
+  assert.equal(feeSummary({ price: 1e6, flatPct: null, tiers: [{ upTo: null, pct: null }] }).expected, null, 'a price with no rate typed is not a fee of $0');
+  assert.equal(feeSummary({ price: 1e6, flatPct: 0 }).expected.total, 0, 'an entered 0% is 0');
+  for (const fee of [undefined, null, 'x', 7, [], { paid: 'x', tiers: 'x', invoiced: 'x', price: 'x' }]) {
+    const s = feeSummary(fee);
+    assert.deepEqual([s.expected, s.invoiced, s.paidToDate, s.lastPaid, s.outstanding], [null, null, null, null, null]);
+  }
+  assert.equal(feeSummary({ invoiced: { amount: 5 }, paid: 'x' }).outstanding, null, 'payments that cannot be read are not 0');
+  assert.equal(feeSummary({ invoiced: { amount: 5 }, paid: [{ amount: 2 }, { amount: null }] }).paidToDate, null, 'a payment with no amount yet is not a payment of 0');
+});

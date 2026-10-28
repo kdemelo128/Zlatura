@@ -63,6 +63,13 @@ export function quantizeDeal(deal) {
       if (L.percentRent) { fix(L.percentRent, 'sales', `${who}.percentRent.sales`, toCents); fix(L.percentRent, 'breakpoint', `${who}.percentRent.breakpoint`, toCents); }
     });
   }
+  const fee = deal.fee;
+  if (fee && typeof fee === 'object') {
+    fix(fee, 'price', 'fee.price', toCents);
+    if (Array.isArray(fee.tiers)) fee.tiers.forEach((t, i) => fix(t, 'upTo', `fee.tiers[${i}].upTo`, toCents));
+    fix(fee.invoiced, 'amount', 'fee.invoiced.amount', toCents);
+    if (Array.isArray(fee.paid)) fee.paid.forEach((p, i) => fix(p, 'amount', `fee.paid[${i}].amount`, toCents));
+  }
   return { deal, changes };
 }
 
