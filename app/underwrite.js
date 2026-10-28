@@ -192,7 +192,7 @@ function card() {
     i.id = `uw-target-${key}`;
     i.inputMode = 'decimal';
     i.value = ok(cur.targets[key]) ? dec(cur.targets[key], 2) : '';
-    i.setAttribute('aria-label', `${label} target, percent`);
+    i.setAttribute("aria-label", `Quick underwrite: ${label} target, percent`);
     i.addEventListener('change', () => {
       const v = parsePct(i.value);
       if (ok(v) && v > 0 && v < 100) cur.targets[key] = v; else delete cur.targets[key];
