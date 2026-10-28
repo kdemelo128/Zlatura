@@ -28,6 +28,15 @@ export const CONTACT_ROLES = ['Owner', 'Seller’s broker', 'Buyer', 'Lender', '
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x) && x > 0;
 const day = (s) => { if (!s) return null; const t = Date.parse(`${String(s).slice(0, 10)}T00:00:00Z`); return Number.isNaN(t) ? null : t / 86400000; };
+/** A parsed date text (`t` = Date.parse(s)) as milliseconds on the calendar day it names, in any zone. Text Date.parse reads as UTC
+ *  (2036, 2036-01, 2036-01-31, a trailing Z or offset) keeps its UTC fields; the rest was read in local time and keeps its local
+ *  fields, typed time included, so the result never moves with the device's zone. */
+export function calDay(s, t) {
+  const u = String(s).trim();
+  if (/^\d{4}(-\d\d){0,2}$/.test(u) || /(\dZ|\d[+-]\d\d:\d\d|\s[+-]\d{4}|\s(GMT|UTC))$/i.test(u)) return t;
+  const x = new Date(t);
+  return Date.UTC(x.getFullYear(), x.getMonth(), x.getDate(), x.getHours(), x.getMinutes(), x.getSeconds(), x.getMilliseconds());
+}
 export const isoDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /** Deals by stage: count and asking value, with the deals newest first. */

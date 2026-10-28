@@ -344,6 +344,8 @@ class Styles {
 
 const EPOCH = Date.UTC(1899, 11, 30);
 const serial = (d) => (d.getTime() - EPOCH) / 86400000;
+/** At most 32,000 characters, never ending on half of an emoji (a lone surrogate is not valid XML text). */
+export const cutText = (s) => { const t = s.slice(0, 32000); return /[\uD800-\uDBFF]$/.test(t) ? t.slice(0, -1) : t; };
 const XML_BAD = /[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g;
 
 const DEFAULT_FMT = { money: '"$"#,##0', money2: '"$"#,##0.00', int: '#,##0', dec: '0.00', pct: '0.00%', date: 'm/d/yyyy' };
@@ -387,7 +389,7 @@ function setValue(doc, c, type, value, styles, fallbackStyle) {
   if (value === null || value === undefined || value === '') return;
   let s = c.getAttribute('s') !== null ? Number(c.getAttribute('s')) : fallbackStyle;
   if (type === 'text') {
-    const t = String(value).replace(XML_BAD, '').slice(0, 32000);
+    const t = cutText(String(value).replace(XML_BAD, ''));
     c.setAttribute('t', 'inlineStr');
     const is = doc.createElementNS(MAIN, 'is');
     const te = doc.createElementNS(MAIN, 't');
@@ -945,14 +947,15 @@ function renameSheet(pkg, from, to) {
 const AUDIT = 'Zlatura Audit';
 /** The audit sheet's name before the rename: refilling such a workbook replaces it. */
 const OLD_AUDIT = 'Comp Loader Audit';
-const esc = (s) => String(s).replace(XML_BAD, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// cut before escaping: cutting after could split an entity such as &amp; and break the XML
+const esc = (s) => cutText(String(s).replace(XML_BAD, '')).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 /** A sheet listing every cell written and where its value came from; refilling replaces it. */
 function addAuditSheet(pkg, log, auditTitle) {
   const cell = (r, c, v) => {
     if (v === null || v === undefined || v === '') return '';
     if (typeof v === 'number' && Number.isFinite(v)) return `<c r="${colName(c)}${r}"><v>${v}</v></c>`;
     const t = v instanceof Date ? v.toISOString().slice(0, 10) : String(v);
-    return `<c r="${colName(c)}${r}" t="inlineStr"><is><t xml:space="preserve">${esc(t).slice(0, 32000)}</t></is></c>`;
+    return `<c r="${colName(c)}${r}" t="inlineStr"><is><t xml:space="preserve">${esc(t)}</t></is></c>`;
   };
   const rows = [
     [`Filled by Zlatura on ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC${auditTitle ? ` · ${auditTitle}` : ''}`],

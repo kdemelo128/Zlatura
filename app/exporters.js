@@ -6,7 +6,7 @@
 
 import { signOf } from './numtext.js';
 
-export const VERSION = '4.7.59';
+export const VERSION = '4.7.60';
 
 const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
 const ppsf = (c) => (num(c.price) && num(c.bsf) ? c.price / c.bsf : null);
@@ -74,11 +74,17 @@ function safeText(s) {
   return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
 }
 
-function cell(v) {
+export function cell(v) {
   if (v === null || v === undefined) return '';
   if (typeof v === 'number') return String(v);
   const s = safeText(String(v).replace(/\r\n?/g, '\n'));
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/** One text cell of a pasted tab-separated table: tabs and line breaks become spaces (they would start a new cell or
+ *  row), then the same formula guard as a CSV cell. */
+export function tsvCell(v) {
+  return safeText(String(v ?? '').replace(/[\t\r\n]+/g, ' '));
 }
 
 /** RFC 4180 CSV, CRLF line ends, one row per comp: sales first, then listings. */

@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.7.60: Hostile text and time zones: names and notes come back exactly, no export runs as a formula, dates show the same day in every zone (on the development branch; not merged or deployed)
+
+A security pass over text a person types or pastes, and over every date the app works out from the device's clock. Nothing stored is rewritten and there is no migration; the CSV date fix changes only future imports.
+
+- **Copy comp table:** a property name such as `Acme<tab>=1+1` pasted `=1+1` into its own cell, because tabs inside a name were kept and the formula guard did not cover tabs or returns. Tabs and line breaks in a name now become spaces, then the guard runs (`tsvCell` in `exporters.js`).
+- **Rent roll CSV:** a negative number was written as the text `'-1200`, and a lone carriage return split a row. It now uses the comps CSV's one cell writer (`cell` in `exporters.js`): numbers stay numbers, text that starts like a formula is guarded, line breaks stay inside quotes.
+- **Rent roll CSV date:** `May 31, 2027` was stored as 05-30 east of UTC. It is now read as the calendar day typed.
+- **1031 exchange clock:** the deadline for a Mar 1 closing (Apr 15) showed as Apr 14 in US zones. The dates are shown as the calendar day they are (`niceDay` in `kit.js`).
+- **Lease years left (`termLeft`):** a printed date such as "January 31, 2036" was read in the device's time zone, so the figure moved with the zone: 190 of the 618 saved results failed under Los Angeles or Kiritimati. It is read as that day's UTC midnight, as the OM reader does. "Today" in the rent roll checks was the UTC date; at 8:30 pm in Los Angeles it named tomorrow. It is the device's calendar day now.
+- **Filled-template audit sheet:** a text of more than 32,000 characters was escaped and then cut, which could split `&amp;` and break the sheet's XML. It is cut first, then escaped.
+- **Text direction:** every text input and textarea, and the deal and tenant names in lists, set `dir="auto"`, so Arabic or Hebrew reads right to left.
+- **Tested** with an invented pack (`tests/fixtures/hostile.js`: apostrophes, emoji, Arabic, a direction mark, markup, formula starts, 40,000 characters with an `&` at 31,998, control characters): `tests/hostile-tz.test.js`, a new `npm run test:tz` (the Node suite under America/Los_Angeles and Pacific/Kiritimati, in `check:full` and in CI after `npm test`), and `tests/e2e/hostile-flow.mjs` (typed key by key into a comp, a tenant, the deal name and a site-visit note; kept through a reload and a backup restored into a fresh profile; both CSVs, the copy table, both workbooks, the filled templates, the printed pages, the PDF and the AI request body read back; no dialog or script; run with Los Angeles and London clocks). Each fix fails on the old code and has a mutation check.
+- **Saved results:** unchanged in every zone (618 saved deal results and 646 displayed figures identical; the 190 differences under Los Angeles and Kiritimati on 4.7.56 are gone).
+- **Not tested:** Excel's 32,767-character cell limit and its 2,079-character hyperlink limit (the comps workbook writes a 40,000-character map link for a 40,000-character name), and Safari's `dir="auto"` (WebKit is not installed here).
+
 ## 4.7.59: Read the text in a site photo (a sign, a name, an address) on your device (on the development branch; not merged or deployed)
 
 A site photo can carry the property's address, a business name or a "for lease" phone number. Each photo on the Site visit tab now has a "Read the text in this photo" button (Aa).

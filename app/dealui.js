@@ -662,6 +662,7 @@ function renderDeal(r) {
   if (deal.visit.at) eb.appendChild(el('span', 'chip chip-teal', `Visited ${niceDate(deal.visit.at)}`));
   t.appendChild(eb);
   const name = el('h1', null, title);
+  name.dir = 'auto';
   try { name.contentEditable = 'plaintext-only'; } catch { name.contentEditable = 'true'; }
   name.spellcheck = false;
   name.title = 'Tap to rename';
@@ -684,6 +685,7 @@ function renderDeal(r) {
   tabs.setAttribute('aria-label', 'Deal sections');
   // when the header scrolls away, the tab bar carries the deal's name
   const wsName = el('span', 'ws-name', title);
+  wsName.dir = 'auto';
   wsName.setAttribute('aria-hidden', 'true');
   tabs.appendChild(wsName);
   if ('IntersectionObserver' in window) {
