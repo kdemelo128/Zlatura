@@ -659,7 +659,9 @@ export const openChecks = (t) => (t ? statementChecks(t).filter((c) => !(t.seen 
 export function t12ForAnalysis(t) {
   if (!t || !Array.isArray(t.lines)) return null;
   const T = statementTotals(t);
-  return { noi: T.noi, egi: T.egi, opex: T.opex, taxes: T.taxes, months: T.months, from: t.months[0] || null, to: t.months[t.months.length - 1] || null, unassigned: T.unassigned, open: openLines(t).length, held: heldCount(t) };
+  return { noi: T.noi, egi: T.egi, opex: T.opex, taxes: T.taxes, months: T.months, from: t.months[0] || null, to: t.months[t.months.length - 1] || null, unassigned: T.unassigned, open: openLines(t).length, held: heldCount(t),
+    // red flags 6.3.5/6.3.8: what the lines are filed under (a count of lines per category) and each category's total
+    cats: t.lines.reduce((o, l) => { if (l.category) o[l.category] = (o[l.category] || 0) + 1; return o; }, /** @type {Record<string, number>} */ ({})), by: T.by };
 }
 
 /**

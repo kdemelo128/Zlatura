@@ -522,14 +522,15 @@ here, where most of the money logic is built, and is checked on every PR.*
   configured benchmarks
 - [~] 6.3.4 Tax not reassessed for the price: a question on every deal with
   a price or taxes (`assessment`); no jurisdiction rules (7.6)
-- [ ] 6.3.5 Management fee, reserves or payroll missing or low (mentioned
-  only in the light-expenses question)
+- [~] 6.3.5 Management fee, reserves or payroll missing or low (T-12 half
+  built in 4.7.67; the OM-statement half waits on a stored field)
 - [ ] 6.3.6 Rent roll rent above the lease abstract; expirations that differ
   between documents (needs 6.6)
-- [ ] 6.3.7 Free rent, abatements and concessions not reflected in stated
-  income
-- [ ] 6.3.8 Physical against economic occupancy (the rent roll's leased SF
-  is compared with the OM's occupancy, `rentRollOcc`)
+- [~] 6.3.7 Free rent, abatements and concessions not reflected in stated
+  income (leases against the T-12, 4.7.67; OM-statement half waits)
+- [~] 6.3.8 Physical against economic occupancy (the rent roll's leased SF
+  is compared with the OM's occupancy, `rentRollOcc`; against the T-12's
+  collected rent, 4.7.67)
 - [~] 6.3.9 Tenant risks: rent expiring within two years, vacant space,
   short term left, the guarantor (questions); concentration shown in the
   rent roll; no co-tenancy, termination-option, go-dark or above-market
