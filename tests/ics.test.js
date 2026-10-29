@@ -6,7 +6,7 @@ import { exchangeDates } from '../app/tools.js';
 
 const NOW = Date.UTC(2026, 0, 1, 0, 10, 5);
 const opts = { now: NOW, version: '9.9.9' };
-const ev = (o) => ({ uid: 'u1@zlatura.invalid', date: '2027-03-01', title: 'Harbor Plaza: Closing', alarms: ALARMS, ...o });
+const ev = (o) => ({ evId: 'u1@zlatura.invalid', date: '2027-03-01', title: 'Harbor Plaza: Closing', alarms: ALARMS, ...o });
 const unfold = (t) => t.replace(/\r\n /g, '');
 const lines = (t) => t.split('\r\n');
 const octets = (s) => new TextEncoder().encode(s).length;
@@ -15,7 +15,7 @@ const ARABIC = 'مبنى المرفأ التجاري، الطابق الأول؛
 const LONG = 'Closing statement review with the lender and the title company, '.repeat(6);
 
 test('two events, exact text', () => {
-  const t = icsFor([ev({}), ev({ uid: 'u2@zlatura.invalid', date: '2027-04-15', title: 'Task, with; marks', alarms: ['-PT15H'] })], opts);
+  const t = icsFor([ev({}), ev({ evId: 'u2@zlatura.invalid', date: '2027-04-15', title: 'Task, with; marks', alarms: ['-PT15H'] })], opts);
   assert.equal(t, [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Zlatura//Zlatura 9.9.9//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     'BEGIN:VEVENT', 'UID:u1@zlatura.invalid', 'DTSTAMP:20260101T001005Z', 'SEQUENCE:10', 'DTSTART;VALUE=DATE:20270301', 'DTEND;VALUE=DATE:20270302',
@@ -29,7 +29,7 @@ test('two events, exact text', () => {
 });
 
 test('no line is over 75 octets; unfolding gives back emoji, Arabic and long text', () => {
-  const t = icsFor([ev({ title: PACK }), ev({ uid: 'b', title: ARABIC }), ev({ uid: 'c', title: LONG.slice(0, 150), description: LONG })], opts);
+  const t = icsFor([ev({ title: PACK }), ev({ evId: 'b', title: ARABIC }), ev({ evId: 'c', title: LONG.slice(0, 150), description: LONG })], opts);
   for (const l of lines(t)) assert.ok(octets(l) <= 75, `${octets(l)} octets: ${l}`);
   const u = unfold(t);
   assert.ok(u.includes(`SUMMARY:${PACK}`));
@@ -40,7 +40,7 @@ test('no line is over 75 octets; unfolding gives back emoji, Arabic and long tex
 
 test('a line break in a title cannot start a new line of the file', () => {
   for (const bad of ['A\r\nBEGIN:VEVENT', 'A\rBEGIN:VEVENT', 'A\nBEGIN:VEVENT', 'A BEGIN:VEVENT']) {
-    const t = icsFor([ev({ title: bad }), ev({ uid: 'z' })], opts);
+    const t = icsFor([ev({ title: bad }), ev({ evId: 'z' })], opts);
     assert.equal(lines(t).filter((l) => l === 'BEGIN:VEVENT').length, 2, JSON.stringify(bad));
   }
   assert.equal(esc('a\r\nb'), 'a\\nb');
@@ -55,14 +55,14 @@ test('a title is capped at 200 characters', () => {
 });
 
 test('the end is the next day, over month, year and leap day', () => {
-  const t = icsFor([ev({ date: '2027-12-31' }), ev({ uid: 'b', date: '2028-02-28' }), ev({ uid: 'c', date: '2027-02-28' })], opts);
+  const t = icsFor([ev({ date: '2027-12-31' }), ev({ evId: 'b', date: '2028-02-28' }), ev({ evId: 'c', date: '2027-02-28' })], opts);
   assert.ok(t.includes('DTSTART;VALUE=DATE:20271231\r\nDTEND;VALUE=DATE:20280101'));
   assert.ok(t.includes('DTSTART;VALUE=DATE:20280228\r\nDTEND;VALUE=DATE:20280229'));
   assert.ok(t.includes('DTSTART;VALUE=DATE:20270228\r\nDTEND;VALUE=DATE:20270301'));
 });
 
 test('blank, invalid and done items are left out, and today never appears', () => {
-  const t = icsFor([ev({ date: '' }), ev({ date: null }), ev({ date: 'not a date' }), ev({ done: true }), ev({ uid: 'ok', date: '2031-05-06' })], opts);
+  const t = icsFor([ev({ date: '' }), ev({ date: null }), ev({ date: 'not a date' }), ev({ done: true }), ev({ evId: 'ok', date: '2031-05-06' })], opts);
   assert.equal(lines(t).filter((l) => l === 'BEGIN:VEVENT').length, 1);
   assert.ok(!/DTSTART;VALUE=DATE:2026/.test(t));
 });
@@ -77,12 +77,12 @@ const tasks = [{ id: 't1', dealId: 'dA', title: 'Send LOI', due: '2027-01-05', d
 
 test('a deal offers its open dated key dates and tasks; UIDs are stable per deal', () => {
   const a = dealEvents(deal, tasks);
-  assert.deepEqual(a.events.map((e) => e.uid), ['kd-dA-k1@zlatura.invalid', 'kd-dA-k4@zlatura.invalid', 'task-t1@zlatura.invalid']);
+  assert.deepEqual(a.events.map((e) => e.evId), ['kd-dA-k1@zlatura.invalid', 'kd-dA-k4@zlatura.invalid', 'task-t1@zlatura.invalid']);
   assert.equal(a.left, 2);
   assert.deepEqual(a.events.map((e) => e.alarms.length), [2, 2, 1]);
-  assert.deepEqual(dealEvents(deal, tasks).events.map((e) => e.uid), a.events.map((e) => e.uid));
+  assert.deepEqual(dealEvents(deal, tasks).events.map((e) => e.evId), a.events.map((e) => e.evId));
   const b = dealEvents({ ...deal, id: 'dB' }, []);
-  assert.ok(b.events.every((e, i) => e.uid !== a.events[i].uid));
+  assert.ok(b.events.every((e, i) => e.evId !== a.events[i].evId));
   assert.equal(a.events[0].title, 'Harbor Plaza: Closing');
   assert.equal(dealEvents(deal, tasks, { showName: false }).events[0].title, 'Zlatura deal: Closing');
 });
@@ -96,12 +96,12 @@ test('the 1031 dates equal exchangeDates, and need exactly one open Closing', ()
   assert.equal(x45.date, r.identify.toISOString().slice(0, 10));
   assert.equal(x180.date, r.close.toISOString().slice(0, 10));
   assert.equal(x45.date, '2027-04-15');
-  assert.equal(x45.uid, 'x45-dA-k1@zlatura.invalid');
+  assert.equal(x45.evId, 'x45-dA-k1@zlatura.invalid');
   assert.match(x45.description, /not tax advice/);
 });
 
 test('a date never moves with the device zone', () => {
-  const code = "import('./app/ics.js').then(({icsFor})=>{const t=icsFor([{uid:'u',date:'2027-03-01T00:30:00',title:'t'},{uid:'v',date:'2027-03-01',title:'t'}],{now:0});console.log((t.match(/DTSTART;VALUE=DATE:\\d+/g)).join(' '))})";
+  const code = "import('./app/ics.js').then(({icsFor})=>{const t=icsFor([{evId:'u',date:'2027-03-01T00:30:00',title:'t'},{evId:'v',date:'2027-03-01',title:'t'}],{now:0});console.log((t.match(/DTSTART;VALUE=DATE:\\d+/g)).join(' '))})";
   for (const tz of ['Pacific/Kiritimati', 'America/Los_Angeles']) {
     const out = execFileSync(process.execPath, ['-e', code], { env: { ...process.env, TZ: tz }, cwd: new URL('..', import.meta.url).pathname }).toString().trim();
     assert.equal(out, 'DTSTART;VALUE=DATE:20270301 DTSTART;VALUE=DATE:20270301', tz);

@@ -335,7 +335,7 @@ function calendarSheet(d, tasks, only = null) {
   const box = el('div', 'sheet-card');
   const body = el('div', 'sheet-body');
   const { events, left } = dealEvents(d, tasks);
-  const shown = only ? events.filter((e) => e.key === only) : events;
+  const shown = only ? events.filter((e) => e.slot === only) : events;
   const checks = [];
   const row = (label, checked, disabled = false) => {
     const l = el('label', 'task-row');
@@ -346,7 +346,7 @@ function calendarSheet(d, tasks, only = null) {
     return cb;
   };
   body.appendChild(el('h3', null, 'Add to calendar'));
-  for (const e of shown) checks.push([row(`${e.title.replace(/^[^:]*: /, '')}, ${niceDate(`${e.date}T12:00:00`)}`, true), e.key]);
+  for (const e of shown) checks.push([row(`${e.title.replace(/^[^:]*: /, '')}, ${niceDate(`${e.date}T12:00:00`)}`, true), e.slot]);
   if (!shown.length) body.appendChild(el('p', 'task-meta', 'No open dates to add.'));
   if (left && !only) body.appendChild(el('p', 'task-meta', `${left} ${left === 1 ? 'date' : 'dates'} left out: no date`));
   const closing = closingOf(d);
@@ -360,7 +360,7 @@ function calendarSheet(d, tasks, only = null) {
   go.addEventListener('click', async () => {
     try { localStorage.setItem(NAME_SLOT, nm.checked ? 'shown' : 'hidden'); } catch { /* fine */ }
     const keep = new Set(checks.filter(([c]) => c.checked).map(([, k]) => k));
-    const out = dealEvents(d, tasks, { showName: nm.checked }).events.filter((e) => keep.has(e.key));
+    const out = dealEvents(d, tasks, { showName: nm.checked }).events.filter((e) => keep.has(e.slot));
     if (x && x.checked) out.push(...exchangeEvents(d, closing, { showName: nm.checked }));
     if (!out.length) { after.textContent = 'Tick at least one date.'; return; }
     const base = (d.name || d.figures?.address || 'Deal').replace(/[^\w\s-]+/g, ' ').replace(/\s+/g, ' ').trim();

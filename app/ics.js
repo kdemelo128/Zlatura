@@ -48,7 +48,7 @@ const cap = (s, n = 200) => { const a = Array.from(String(s ?? '')); return a.le
 const dayOf = (s) => { if (!s) return null; const t = Date.parse(s); return Number.isNaN(t) ? null : calDay(s, t); };
 
 /**
- * events: [{ uid, date, title, description?, alarms?: [TRIGGER, …], done? }]. A blank or invalid date and a done item
+ * events: [{ evId, date, title, description?, alarms?: [TRIGGER, …], done? }]. A blank or invalid date and a done item
  * are left out; a missing date is never set to today. now (ms) and version stamp the file.
  */
 export function icsFor(events, { now = Date.now(), version = '' } = {}) {
@@ -58,7 +58,7 @@ export function icsFor(events, { now = Date.now(), version = '' } = {}) {
     const day = e.done ? null : dayOf(e.date);
     if (day === null) continue;
     const title = cap(e.title);
-    L.push('BEGIN:VEVENT', `UID:${esc(e.uid)}`, `DTSTAMP:${stamp(now)}`, `SEQUENCE:${seq}`,
+    L.push('BEGIN:VEVENT', `UID:${esc(e.evId)}`, `DTSTAMP:${stamp(now)}`, `SEQUENCE:${seq}`,
       `DTSTART;VALUE=DATE:${ymd(day)}`, `DTEND;VALUE=DATE:${ymd(day + 86400000)}`, `SUMMARY:${esc(title)}`);
     if (e.description) L.push(`DESCRIPTION:${esc(e.description)}`);
     const d = new Date(day);
@@ -79,12 +79,12 @@ export function dealEvents(deal, tasks, { showName = true } = {}) {
   for (const k of deal.keyDates || []) {
     if (k.done) continue;
     if (dayOf(k.date) === null) { left += 1; continue; }
-    events.push({ key: `kd-${k.id}`, uid: `kd-${deal.id}-${k.id}@${UID_HOST}`, date: k.date, title: `${name}: ${k.label}`, alarms: ALARMS });
+    events.push({ slot: `kd-${k.id}`, evId: `kd-${deal.id}-${k.id}@${UID_HOST}`, date: k.date, title: `${name}: ${k.label}`, alarms: ALARMS });
   }
   for (const t of tasks || []) {
     if (t.dealId !== deal.id || t.done) continue;
     if (dayOf(t.due) === null) { left += 1; continue; }
-    events.push({ key: `task-${t.id}`, uid: `task-${t.id}@${UID_HOST}`, date: t.due, title: `${name}: ${t.title}`, alarms: ALARM_TASK });
+    events.push({ slot: `task-${t.id}`, evId: `task-${t.id}@${UID_HOST}`, date: t.due, title: `${name}: ${t.title}`, alarms: ALARM_TASK });
   }
   return { events, left };
 }
@@ -102,7 +102,7 @@ export function exchangeEvents(deal, closing, { showName = true } = {}) {
   const iso = (d) => d.toISOString().slice(0, 10);
   const description = `From Zlatura. Calendar days from the closing on ${closing.date}, weekends and holidays included. An indication, not tax advice: confirm with the qualified intermediary and a tax adviser.`;
   return [
-    { key: 'x45', uid: `x45-${deal.id}-${closing.id}@${UID_HOST}`, date: iso(r.identify), title: `${name}: 1031 identify replacement property by (day 45)`, description, alarms: ALARMS },
-    { key: 'x180', uid: `x180-${deal.id}-${closing.id}@${UID_HOST}`, date: iso(r.close), title: `${name}: 1031 close by (day 180, or the tax return due date if earlier)`, description, alarms: ALARMS },
+    { slot: 'x45', evId: `x45-${deal.id}-${closing.id}@${UID_HOST}`, date: iso(r.identify), title: `${name}: 1031 identify replacement property by (day 45)`, description, alarms: ALARMS },
+    { slot: 'x180', evId: `x180-${deal.id}-${closing.id}@${UID_HOST}`, date: iso(r.close), title: `${name}: 1031 close by (day 180, or the tax return due date if earlier)`, description, alarms: ALARMS },
   ];
 }
