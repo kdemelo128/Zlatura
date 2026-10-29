@@ -8,7 +8,7 @@
 
 import { el, parseNum, toast, localDate } from './kit.js';
 import { dateInput } from './dateinput.js';
-import { newCredit, creditChecks, readRating, ratingGap, ratingLine, clip, AGENCIES, partyLabel, MAX_TEXT, MAX_LONG } from './credit.js';
+import { mendCredit, newCredit, creditChecks, readRating, ratingGap, ratingLine, clip, AGENCIES, partyLabel, MAX_TEXT, MAX_LONG } from './credit.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const moneyText = (v) => (ok(v) ? v.toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 }) : '');
@@ -31,7 +31,7 @@ export function renderCreditCard(box, h) {
     box.appendChild(add);
     return;
   }
-  const c = d.credit;
+  const c = mendCredit(d.credit);
   const g = c.guarantor;
   const today = localDate();
   const lease = c.leaseId ? occupied(d).find((L) => L.id === c.leaseId) || null : null;

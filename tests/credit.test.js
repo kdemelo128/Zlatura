@@ -1,7 +1,7 @@
 /* The credit record: rating scales and the checks on the Credit card (invented parties only). */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readRating, ratingGap, ratingLine, creditChecks, newCredit, clip } from '../app/credit.js';
+import { readRating, ratingGap, ratingLine, creditChecks, newCredit, mendCredit, clip } from '../app/credit.js';
 
 const TODAY = '2026-10-29';
 const rating = (o) => ({ id: 'r', of: 'tenant', agency: 'sp', agencyName: '', rating: 'BBB', outlook: '', asOf: '2026-09-01', source: 'typed from a report', typedOn: TODAY, ...o });
@@ -55,6 +55,25 @@ test('obligor: fires when only the parent is rated, not when the tenant or a gua
   assert.deepEqual(ids(rec()), [], 'no ratings: nothing to say');
 });
 
+test('obligor wording follows the case: a rated guarantor with an unknown or no guaranty, and several ratings', () => {
+  const g = (scope) => ({ name: 'Example Guarantor', scope, limit: '', endsOn: null });
+  const text = (c) => creditChecks(c, { today: TODAY })[0].text;
+  assert.equal(text(rec({ guarantor: g(null), ratings: [rating({ of: 'guarantor' })] })), 'The guarantor is rated, but whether the guaranty is full or limited isn’t recorded, so the rating may not stand behind this rent.');
+  const both = rec({ parent: 'Example Parent Inc', guarantor: g('none'), ratings: [rating({ of: 'guarantor' }), rating({ of: 'parent' })] });
+  assert.equal(text(both), 'Example Guarantor is rated, but there is no guaranty, so the rating does not stand behind this rent.');
+  const two = rec({ parent: 'Example Parent Inc', ratings: [rating({ of: 'parent' }), rating({ of: 'parent', agency: 'fitch' })] });
+  assert.doesNotMatch(text(two), /only rating/);
+});
+
+test('a damaged record (ratings not a list, no guarantor, no go-dark) never throws', () => {
+  for (const bad of [{ ratings: 'x' }, { ratings: null, guarantor: null, goDark: null }, { ratings: [{ of: 'guarantor', agency: 'sp', rating: 'A', asOf: '2026-09-01' }] }, {}]) {
+    assert.doesNotThrow(() => creditChecks(bad, { today: TODAY }));
+    assert.doesNotThrow(() => ratingLine(bad, { of: 'guarantor', agency: 'sp', rating: 'A', asOf: '2026-09-01', source: 's', typedOn: TODAY }));
+    const m = mendCredit({ ...bad });
+    assert.ok(Array.isArray(m.ratings) && m.guarantor && m.goDark);
+  }
+});
+
 test('guaranty-ends: before the lease end raises it; the same day does not', () => {
   const g = (endsOn) => rec({ guarantor: { name: 'G', scope: 'full', limit: '', endsOn } });
   assert.deepEqual(ids(g('2028-06-30'), { lease: { leaseEnd: '2028-12-31' } }), ['guaranty-ends']);
@@ -92,7 +111,11 @@ test('rent-sales: rent as a share of typed sales; blank, zero or no linked lease
   const out = creditChecks(withSales(1200000), { today: TODAY, lease });
   assert.deepEqual(out.map((k) => k.id), ['rent-sales']);
   assert.equal(out[0].text, 'Rent is 10% of the store sales typed (2025).');
-  for (const a of [undefined, null, 0]) assert.deepEqual(ids(withSales(a), { lease }), [], String(a));
+  assert.equal(creditChecks(withSales(1000000), { today: TODAY, lease })[0].text, 'Rent is 12% of the store sales typed (2025).');
+  assert.equal(creditChecks(withSales(1445783.13), { today: TODAY, lease })[0].text, 'Rent is 8.3% of the store sales typed (2025).');
+  assert.equal(creditChecks(withSales(1e12), { today: TODAY, lease })[0].text, 'Rent is under 0.1% of the store sales typed (2025).');
+  assert.equal(creditChecks(withSales(1200000), { today: TODAY, asOf: '2031-06-01', lease })[0].text, 'No rent on Jun 1, 2031 for this lease.');
+  for (const a of [undefined, null, 0, 0.001, NaN, Infinity]) assert.deepEqual(ids(withSales(a), { lease }), [], String(a));
   assert.deepEqual(ids(withSales(1200000), {}), []);
 });
 

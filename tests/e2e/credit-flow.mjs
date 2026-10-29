@@ -128,6 +128,20 @@ await settle();
 check('store sales are stored in whole cents; go dark is yes', (await credit()).sales.annual === 1234567.89 && (await credit()).goDark.state === 'yes');
 check('go dark is flagged; with no lease linked there is no rent-over-sales line', /The lease lets the tenant close the store and keep paying rent \(go dark\)\./.test(await txt('#credit-checks')) && !/Rent is/.test(await txt('#credit-checks')));
 
+/* ----------------------------- nothing typed on the card reaches an export */
+const typed = ['1,234,567', '1234567', 'BBB-', 'Baa3', 'agency report, invented', 'typed from a memo', 'Example Cafe LLC'];
+const [xdl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#deal-root .view-head .btn-primary')]);
+const xfile = `${SHOTS}credit-deal.xlsx`;
+await xdl.saveAs(xfile);
+const zip = await (await import('jszip')).default.loadAsync(fs.readFileSync(xfile));
+let xmlAll = '';
+for (const n of Object.keys(zip.files)) if (/\.xml$/.test(n)) xmlAll += await zip.files[n].async('string');
+await page.evaluate(() => { window.print = () => {}; });
+await page.evaluate(() => [...document.querySelectorAll('#deal-root button')].find((b) => b.textContent.includes('Deal brief')).click());
+await page.waitForTimeout(800);
+const briefText = await page.locator('#print-sheet').innerText();
+check('the workbook and the printed brief carry none of the sales, ratings, sources or tenant entity typed on the Credit card', xmlAll.length > 500 && briefText.length > 50 && typed.every((t) => !xmlAll.includes(t) && !briefText.includes(t)), typed.filter((t) => xmlAll.includes(t) || briefText.includes(t)).join(' | '));
+
 /* ----------------------------------------------------- the hostile pack */
 const ONE = (s) => s.replace(/[\r\n]/g, '').trim().slice(0, 200);
 const badPack = [];
