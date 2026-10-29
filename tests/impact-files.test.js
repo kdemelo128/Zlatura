@@ -11,7 +11,7 @@ import { readOm } from '../app/om.js';
 import { retail } from './om-fixtures.js';
 import { compBasis, analyze } from '../app/deal.js';
 import { fixtureDeals, changesFor, tryChange, workbookParts, briefSections, fakeDocument } from './impact-cases.js';
-import { nodes, analysisInput, figId, DEAL_SHEET_ROWS, BRIEF_SECTIONS, DEAL_SHEET_SECTIONS } from '../app/impact.js';
+import { nodes, analysisInput, hasRentRoll, figId, DEAL_SHEET_ROWS, BRIEF_SECTIONS, DEAL_SHEET_SECTIONS } from '../app/impact.js';
 import ExcelJS from 'exceljs';
 import * as fflate from 'fflate';
 
@@ -33,7 +33,7 @@ test('every sheet, row, section and heading in the files is registered', async (
     const brief = await briefSections({ ...deal, visitLines: extra.visitLines }, m, BASIS, extra, 'A. Broker');
     const unknown = [...brief.keys()].filter((k) => !N.has(k));
     assert.deepEqual(unknown, [], `${label}: a brief heading BRIEF_HEADINGS in app/impact.js doesn't know`);
-    for (const k of Object.keys(BRIEF_SECTIONS)) if (k !== 'visit') assert.ok(brief.has(`brief.${k}`), `${label}: the brief has no “${k}” section`);
+    for (const k of Object.keys(BRIEF_SECTIONS)) if (k !== 'visit' && (k !== 'rentSchedule' || hasRentRoll(deal))) assert.ok(brief.has(`brief.${k}`), `${label}: the brief has no “${k}” section`);
   }
 });
 

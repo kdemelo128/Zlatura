@@ -288,7 +288,22 @@ export async function deliver(filename, bytes, type, opts = {}) {
 /** A print (deal brief, comp sheet, a tool's results) counts as a deliverable too. */
 export const printed = (name, { map = null } = {}) => document.dispatchEvent(new CustomEvent('deliverable', { detail: { name, kind: 'print', map } }));
 
-async function handOver(filename, bytes, type, { share = false } = {}) {
+/** A file name that is safe to hand to the system: no path separators, control characters or characters
+ *  a file system or a link refuses, no leading dots, at most 120 characters with the extension kept. Text
+ *  typed on the page (a deal name) often ends up in a file name. */
+export function downloadName(name) {
+  let n = String(name ?? '').normalize('NFC')
+    .replace(/[\u0000-\u001f\u007f\u2028\u2029\u202a-\u202e\u2066-\u2069]+/g, ' ')
+    .replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim().replace(/^[.\s-]+/, '');
+  const dot = n.lastIndexOf('.');
+  const ext = dot > 0 && n.length - dot <= 8 ? n.slice(dot) : '';
+  const stem = (ext ? n.slice(0, dot) : n).trim();
+  n = `${stem.slice(0, 120 - ext.length).trim() || 'file'}${ext}`;
+  return n;
+}
+
+async function handOver(rawName, bytes, type, { share = false } = {}) {
+  const filename = downloadName(rawName);
   const blob = bytes instanceof Blob ? bytes : new Blob([bytes], { type });
   if (IN_ARTIFACT) {
     const downloads = await window.claude.use('downloads').catch(() => null);

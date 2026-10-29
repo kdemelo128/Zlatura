@@ -1,5 +1,22 @@
 # Changelog
 
+## 4.7.65: File names handed to the phone are made safe first (code scanning alert 12) (on the development branch; not merged or deployed)
+
+CodeQL alert 12 (js/xss-through-dom, high) flagged `app/kit.js` `handOver`: a file name built from text typed on the page (a deal name) went to the download link and the share sheet unchanged. The name is not HTML, but a name with path separators, control or right-to-left characters, quotes or angle brackets should not reach a download link, so it is cleaned at the one place every file passes through.
+
+- **`downloadName`** (`app/kit.js`): path separators, quotes, `:*?<>|` become hyphens; control, line-separator and bidirectional characters are removed; leading dots, spaces and hyphens are dropped; the name is cut to 120 characters with its extension kept; an empty name becomes "file". Ordinary names, accents, non-Latin text and emoji are unchanged. `handOver` cleans the name before the share sheet, the artifact save channel and the download link.
+- **Tested:** `tests/downloadname.test.js` (5 tests) fails on the old code (the function does not exist there). No saved result, data format or figure changes: golden identical.
+- **Not verified:** whether CodeQL clears the alert on this change; the alert stays open until the next scan says so, and it is not dismissed.
+
+## 4.7.64: Net lease rent schedule, with rent over the asking price for each period (on the development branch; not merged or deployed)
+
+A net lease deal now shows its stated rent as a schedule: each dated rent period with its yearly and monthly rent, $/SF, the rise over the period before it, and rent over the asking price.
+
+- **Only what the lease states.** The schedule reads the rent periods and nothing else: no period is invented after the last one, a gap shows as "No rent stated", per-SF rent with no SF shows "—" (never 0), and free rent is a note (the amount stays at contract rent).
+- **Rent over price is not called a cap rate** unless the lease type says "absolute"; "NNN" alone gets a footnote saying the landlord may pay some expenses. With no price it asks for one; with more than one tenant there is a table per lease and no price column.
+- **Where it shows:** a Rent schedule card on the deal page, "Copy rent schedule" (tab-separated, also in the deal menu), a Rent schedule section in the deal brief, and a Rent Schedule sheet in the deal workbook (rent over price is a formula on the Deal Analysis price).
+- **Tested:** `tests/rentschedule.test.js` (hand-worked figures, workbook and brief), the impact map tests, and the `rent-schedule-flow` browser flow (values, copied text, hostile names, axe). Saved results and displayed figures are unchanged.
+
 ## 4.7.63: Key dates and task due dates go to the iPhone calendar (on the development branch; not merged or deployed)
 
 A deal's key dates had nowhere to go except by hand into Calendar.
