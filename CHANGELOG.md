@@ -13,6 +13,15 @@ The first step of the Underwriting workspace (`docs/proposals/underwriting-works
 - **Tested:** `tests/uwstore.test.js`, new cases in `tests/backup.test.js` (including every backup fixture, 3.1.0 to 4.7.56, restoring to the plan 4.7.56 gave: new fixture `backup-4.7.56-before-uw-workspace.json`, made by `tests/tools/make-backup-4.7.56-uw.mjs`) and the browser flow `underwrite-flow` (phone and desktop, typing key by key, figures equal to a deal page, reload, Save as a deal and Undo, Settings and Tools reachable, axe, 150 ms per edit). `shell-flow` and `mobile-audit` follow the moved Settings button.
 - **Saved results:** unchanged (618 saved deal results and 646 displayed figures identical).
 
+## 4.7.72: Code scanning alert 12, second fix: the download link is set in one step (on the development branch; not merged or deployed)
+
+CodeQL alert 12 (js/xss-through-dom, high) stayed open after 4.7.65. Reproduced locally with CodeQL 2.27.3: it follows a deal name typed on the page into the calendar file's text, then into the download link built from that file.
+
+- **What the alert is:** the link points to a file the browser itself made (a `blob:` address) and the file name is already cleaned, so no script address can reach the link: a false positive in substance. CodeQL does not know that.
+- **Change:** `handOver` in `app/kit.js` sets the link's address and file name together with `Object.assign`. Nothing else changes: same link, same file, same name.
+- **Checked:** the same CodeQL query run on main before this change gives 1 result (app/kit.js, the link); after it, 0. No test can see this difference (the app behaves the same); calendar and download flows pass unchanged. Saved results and figures unchanged (golden identical).
+- **Not verified:** that GitHub's own CodeQL (a different version) clears alert 12; the alert stays open until its next scan on main says so, and it is not dismissed.
+
 ## 4.7.71: A deal can be marked confidential: AI stays off it and its exports say so (on the development branch; not merged or deployed)
 
 Plan 19.2 asked for a confidential tag. A deal's menu now has **Confidential**; a marked deal shows a "Confidential" chip and a "(Confidential)" badge in lists and the pipeline.
