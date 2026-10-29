@@ -13,5 +13,6 @@
 export function reversion({ basisNext, exitCap, saleCostPct = 0 }) {
   const gross = basisNext / (exitCap / 100);
   const saleCosts = saleCostPct ? gross * saleCostPct / 100 : 0;
-  return { gross, saleCosts, net: gross - saleCosts };
+  // net is gross x (1 - cost%), the DCF tool's own order; in the last digit it is not gross - saleCosts
+  return { gross, saleCosts, net: saleCostPct ? gross * (1 - saleCostPct / 100) : gross };
 }

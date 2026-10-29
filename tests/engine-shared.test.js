@@ -13,6 +13,7 @@ import { reversion } from '../app/engine/returns.js';
 import { recovery, percentageRent, dcf } from '../app/calc.js';
 import { holdReturns } from '../app/deal.js';
 import { project, DEFAULT_SETTINGS } from '../app/lease.js';
+import { toCents } from '../app/engine/money.js';
 
 const near = (a, b, tol = 1e-6) => assert.ok(Math.abs(a - b) <= tol, `${a} vs ${b}`);
 
@@ -145,4 +146,42 @@ test('no second copy: the Tools, the projection and the Deal screen call the eng
   assert.doesNotMatch(src('calc.js'), /Math\.max\(0, expenses - /);
   assert.doesNotMatch(src('calc.js'), /series\[n\] \/ \(exitCap/);
   assert.doesNotMatch(src('deal.js'), /nois\[n\] \/ \(exitCap/);
+});
+
+/* --------------------------------------- bit-for-bit with the code before A1 */
+test('projection percentage rent keeps its order of operations: year 3 is $267,909.38', () => {
+  // 8.5% on sales of 3,000,000 growing 2.5% a year, breakpoint 0; (rate / 100) before the 12ths
+  const rr = rollOf({ sf: 1000, other: 1000, rent: 1000, pool: 0, growth: 0, pct: { rate: 8.5, sales: 3000000, breakpoint: 0, natural: false, growth: 2.5 } });
+  rr.settings.years = 3;
+  const P = project(rr);
+  assert.equal(toCents(P.annual[2].pctRent), 267909.38);
+});
+
+test('the DCF tool\'s sale price is still gross x (1 - cost%), on a grid', () => {
+  for (const noi of [91234.56, 100000, 777777.77]) for (const cap of [5.25, 7, 8.5]) for (const cost of [0, 1.5, 2, 3.75]) for (const n of [1, 5, 10]) {
+    const d = dcf({ noi, growth: 3, years: n, discount: 8, exitCap: cap, saleCost: cost });
+    assert.equal(d.reversion, (noi * 1.03 ** n / (cap / 100)) * (1 - cost / 100), `${noi} ${cap} ${cost} ${n}`);
+  }
+});
+
+test('kept edges, pinned as they are today (A1b may change them on purpose)', () => {
+  // projection: a tenant with no SF and no typed share recovers 0 (the tool says "can't tell")
+  const none = rollOf({ sf: 0, other: 1000, rent: 50000, pool: 100000, growth: 0, rec: { method: 'prorata' } });
+  assert.equal(project(none).annual[0].recoveries, 0);
+  // tool: a zero base rent is not a natural-breakpoint base; the typed breakpoint is used
+  assert.equal(percentageRent({ sales: 1200000, rate: 6, natural: true, baseRent: 0, breakpoint: 1000000 }).breakpoint, 1000000);
+  // projection: text amounts are read as numbers, as before
+  const asText = rollOf({ sf: 2500, other: 7500, rent: 50000, pool: 100000, growth: 0, rec: { method: 'base_year', baseAmount: '90000' } });
+  const asNumber = rollOf({ sf: 2500, other: 7500, rent: 50000, pool: 100000, growth: 0, rec: { method: 'base_year', baseAmount: 90000 } });
+  near(project(asText).annual[0].recoveries, 2500); // (100,000 - 90,000) x 25%
+  assert.equal(project(asText).annual[0].recoveries, project(asNumber).annual[0].recoveries);
+  const stopText = rollOf({ sf: 2500, other: 7500, rent: 50000, pool: 400000, growth: 0, rec: { method: 'stop', stopPsf: '30' } });
+  near(project(stopText).annual[0].recoveries, 25000);
+});
+
+test('property: a fixed recovery in the projection grows by its own rate each year', () => {
+  fc.assert(fc.property(fc.integer({ min: 1000, max: 90000 }), fc.integer({ min: 0, max: 8 }), (amount, gr) => {
+    const P = project(rollOf({ sf: 2000, other: 8000, rent: 50000, pool: 5, growth: 9, rec: { method: 'fixed', amount, growth: gr } }));
+    for (let y = 0; y < 2; y++) near(P.annual[y].recoveries, amount * (1 + gr / 100) ** y, 1e-6 * amount);
+  }), { numRuns: 40 });
 });

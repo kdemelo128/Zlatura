@@ -545,13 +545,14 @@ export function project(rr, { asOf: asOfArg, years: yearsArg } = {}) {
     // expense recoveries
     const Rc = L.recovery;
     if (Rc && Rc.method && Rc.method !== 'none') {
+      // (old code coerced a text amount like '90000' to a number; Number() keeps that)
       // an unknown share is 0 here (a blank rent-roll row recovers nothing); the Recovery tool says "can't tell"
       const share = shareOf({ sharePct: Rc.share, tenantSf: L.sf, buildingSf: totalSf }) ?? 0;
       months.forEach((m, k) => {
         if (!m.occupied) return;
         const g = (1 + (s.expenseGrowth || 0) / 100) ** Math.floor(k / 12);
         const pool = (ok(s.recoverable) ? s.recoverable : ok(s.opex) ? s.opex : 0) * g;
-        const annual = recoveryAnnual({ method: Rc.method, pool, share, tenantSf: L.sf, buildingSf: totalSf || L.sf, baseAmount: Rc.baseAmount, stopPsf: Rc.stopPsf, fixed: (Rc.amount || 0) * (1 + (Rc.growth || 0) / 100) ** Math.floor(k / 12) }) ?? 0;
+        const annual = recoveryAnnual({ method: Rc.method, pool, share, tenantSf: L.sf, buildingSf: totalSf || L.sf, baseAmount: Number(Rc.baseAmount || 0), stopPsf: Number(Rc.stopPsf || 0), fixed: (Rc.amount || 0) * (1 + (Rc.growth || 0) / 100) ** Math.floor(k / 12) }) ?? 0;
         rows[k].recoveries += (annual / 12) * m.occupied;
       });
     }

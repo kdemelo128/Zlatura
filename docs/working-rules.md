@@ -149,7 +149,7 @@ These stop merge conflicts from recurring.
 
 Approved as decision 1 of `docs/proposals/argus-class-cashflow.md` (section 0), and a standing rule:
 - **Never** decompile, disassemble, trace or get round a licence, key or terms of use on any vendor's software.
-- **Never** use a vendor's file formats, report layouts or help text, or leaked code.
+- **Never** copy or use a vendor's file formats, databases, report layouts or help text, or leaked code.
 - **Never** import or export another vendor's model files.
 - **No vendor trademark** appears in the product, its exports or its marketing (code comments included).
 - Build the **published industry method** (textbooks, appraisal practice, public measurement standards) on our own

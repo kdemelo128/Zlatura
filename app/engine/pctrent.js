@@ -21,5 +21,6 @@ export function breakpointOf({ rate, natural = false, baseRent, breakpoint }) {
  * @param {{ sales: number, rate: number, breakpoint: number }} a
  */
 export function overageOf({ sales, rate, breakpoint }) {
-  return Math.max(0, sales - breakpoint) * rate / 100;
+  // (rate / 100) first: the projection's own order of operations, kept so its cents do not move
+  return Math.max(0, sales - breakpoint) * (rate / 100);
 }

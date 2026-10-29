@@ -48,7 +48,7 @@ The longer wording of every rule below is in `docs/working-rules.md`.
   - never outside code for the engine or money logic.
 - **Clean room** (`docs/working-rules.md`): no decompiling, tracing or
   circumventing vendor software; no vendor file formats, report layouts,
-  help text, leaked code, model-file import/export or trademarks; build the
+  help text, leaked code, model-file import/export; no vendor trademark in the product or exports; build the
   published industry method on our own engine.
 - **The owner's support code is a standing source** (`docs/working-rules.md`):
   for any rent roll, T-12, NOI, WALT, Review Queue or Data QC work, look at
