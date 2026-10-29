@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.71 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.72 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -133,7 +133,8 @@ section with grep, never in full.
 - **Tenant credit record (4.7.68, merged #96):** schema 6, a credit card per deal (ratings, guarantor, go-dark, store sales); checks only, no calculation changes; ratings and store sales never leave the device in exports.
 - **Conformance docs drift (4.7.69, merged #97):** matrix rows and PLAN_STATUS ticks brought up to date, a test that every browser flow is listed in `run.sh`, `CSS.escape` in `researchui.js`, and the new PLAN_STATUS section "Owner additions and changes to the plan".
 - **Documents hub D1 (4.7.70, PR opening):** Tools → Documents → PDF pages: merge, split, reorder, rotate, extract; on the device, nothing stored; `@cantoo/pdf-lib` 2.11.1 vendored with licence and checksum. Next: D2 conversions, D3 due-diligence registry.
-- **Confidential tag (4.7.71, PR opening):** one boolean per deal that blocks every AI call for it and marks its exports; the file name and printed pages say CONFIDENTIAL.
+- **Confidential tag (4.7.71, merged #100):** one boolean per deal that blocks every AI call for it and marks its exports; the file name and printed pages say CONFIDENTIAL.
+- **Code scanning alert 12, second fix (4.7.72, PR opening):** reproduced with CodeQL 2.27.3 run locally; the download link is set in one step; 1 result before, 0 after locally. The alert stays open until GitHub's next scan says otherwise.
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
   owner says to continue.
