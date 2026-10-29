@@ -384,16 +384,16 @@ async function fillSheet(t, deal) {
   try { preview = previewCells(fflate, currentBytes(t), t.mapping.cells, values, xmlApi()); } catch (err) { toast(err.message || String(err)); return; }
   const rows = rentRollRows(deal);
   const tables = (t.mapping.tables || []).filter((x) => x.use !== false && x.columns.some((c) => c.field));
-  const audit = el('input'); audit.type = 'checkbox'; audit.checked = true;
+  const audit = el('input'); audit.type = 'checkbox'; audit.checked = true; audit.disabled = !!deal.confidential; // a confidential fill always carries the sheet that says so
   const go = btn('btn-primary', 'Fill and download', async () => {
     try {
       const { bytes, report } = fillCells(fflate, currentBytes(t), {
         cellMap: t.mapping.cells.map((m) => ({ ...m, label: DEAL_FIELD[m.field] ? DEAL_FIELD[m.field].label : m.field })), values,
         tables: tables.map((x) => ({ sheet: x.sheet, headerRow: x.headerRow, columns: x.columns, rows, source: `rent roll as of ${deal.rr ? deal.rr.settings.asOf : ''}` })),
-        audit: audit.checked, auditTitle: deal.name || deal.figures.address || '',
+        audit: audit.checked || !!deal.confidential, auditTitle: `${deal.confidential ? 'CONFIDENTIAL · ' : ''}${deal.name || deal.figures.address || ''}`,
       }, xmlApi());
       const ext = /\.xlsm$/i.test(currentFile(t)) ? 'xlsm' : 'xlsx';
-      const name = `${t.name} - ${(deal.name || deal.figures.address || 'Deal').replace(/[^\w\s-]+/g, ' ').replace(/\s+/g, ' ').trim()} (${localDate()}).${ext}`;
+      const name = `${deal.confidential ? 'CONFIDENTIAL - ' : ''}${t.name} - ${(deal.name || deal.figures.address || 'Deal').replace(/[^\w\s-]+/g, ' ').replace(/\s+/g, ' ').trim()} (${localDate()}).${ext}`;
       const done = await deliver(name, bytes, ext === 'xlsm' ? XLSM_TYPE : XLSX_TYPE, { map: 'template-fill' });
       if (done === 'done') toast(`${report.written} cell${report.written === 1 ? '' : 's'} filled${report.tables.length ? `, ${report.tables.map((x) => `${x.rows} rent roll rows on ${x.sheet}`).join(', ')}` : ''}. Formulas recalculate when Excel opens the file.`, null, 8000);
       api.sheetClose();
@@ -438,7 +438,7 @@ async function fillSheet(t, deal) {
       : 'This deal has no rent roll yet, so the rent roll table is left as it is.'));
   }
   const a = el('label', 'chk');
-  a.append(audit, document.createTextNode(' Add a “Zlatura Audit” sheet listing every cell written and its source'));
+  a.append(audit, document.createTextNode(deal.confidential ? ' A “Zlatura Audit” sheet is added (always, for a confidential deal)' : ' Add a “Zlatura Audit” sheet listing every cell written and its source'));
   body.appendChild(a);
   body.appendChild(el('p', 'hint-sm', 'Formulas are not calculated here: Excel works them out when it opens the file. Cells that hold formulas, and the inside of merged cells, are never written.'));
 }
