@@ -214,6 +214,9 @@ part it extends or contradicts, and its status.
   review (permissible purpose, cost, security, data retention). Not implemented.
 - [ ] Documents hub (owner, 2026-10-29; `docs/proposals/documents-hub.md`, #92).
   A section under Tools, not a top-level tab; extends Part 12. Not implemented.
+- [ ] Lease-by-lease cash flow and valuation, "ARGUS-class", clean-room only
+  (owner, 2026-10-29; `docs/proposals/argus-class-cashflow.md`). Extends Part 7
+  and Part 9. Proposal written, awaiting approval. Not implemented.
 - [ ] UI revamp with user-selectable modules and a tutorial (owner). Extends
   the "UI revamp" list above and Part 20. Not implemented.
 - [ ] A full improvement run on every feature (owner): each touched feature
