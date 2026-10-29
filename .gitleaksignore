@@ -1,0 +1,2 @@
+# gitleaks false positive, per commit: a localStorage slot name flagged by generic-api-key because it was named NAME_KEY (renamed since). Not a credential.
+70a755d2f19c459a0f142335aa536fb69248b564:app/dealcrm.js:generic-api-key:329
