@@ -653,8 +653,10 @@ export async function sweepTrash(now = Date.now()) {
     return n;
   } catch { return 0; }
 }
+/** The same, but a read error throws: the AI guard must not read "could not look" as "not confidential". */
+export async function loadDealStrict(id) { return (await tx('readonly', (s) => s.get(id), 'deals')) || null; }
 export async function loadDeal(id) {
-  try { return (await tx('readonly', (s) => s.get(id), 'deals')) || null; } catch { return null; }
+  try { return await loadDealStrict(id); } catch { return null; }
 }
 /** Delete a deal. Its history and snapshots are kept TRASH_DAYS, so bringing it back keeps them. */
 export async function deleteDeal(id) {
@@ -668,11 +670,12 @@ export async function deleteDeal(id) {
   } catch { return false; }
 }
 /** Every saved deal, newest first, without loading photos into the list's memory twice. */
+export async function listDealsStrict() {
+  const all = (await tx('readonly', (s) => s.getAll(), 'deals')) || [];
+  return all.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
 export async function listDeals() {
-  try {
-    const all = (await tx('readonly', (s) => s.getAll(), 'deals')) || [];
-    return all.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-  } catch { return []; }
+  try { return await listDealsStrict(); } catch { return []; }
 }
 
 /* ----------------------------------------------------------- small values */
