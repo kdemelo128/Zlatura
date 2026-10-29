@@ -57,14 +57,14 @@ Last updated: 4.7.66; two Part 21.2 breaches fixed: the rent schedule uses only 
   5. [x] F1, money rounding: the before/after table shown and approved
      (2026-10-15); `t12.js`, `omstatement.js`, `om.js` and `template.js` use
      `toCents`; the T-12 months-vs-year flag (4.7.14, #32).
-  6. [x] F2 (old CSVs, Windows-1252; 4.7.15, merged #33), F5 (CI audit, pinned actions), F6/F7
-     (hostile-text pack, timezones) and F10 (stolen-laptop and
-     disaster-recovery plans), one PR each.
+  6. [x] F2 (old CSVs, Windows-1252; 4.7.15, merged #33), F5 (CI audit, pinned actions) and F6/F7
+     (hostile-text pack, timezones; 4.7.60), one PR each. F10 (stolen-laptop and
+     disaster-recovery plans) is not done and stays open below.
   7. T-12 multi-format import (`docs/proposals/t12-multiformat.md`). `.xls`
      only if SheetJS can be fetched and its license is Apache-2.0 or MIT,
      then pinned and vendored with a `THIRD_PARTY.md` entry; otherwise
      skipped, and the owner told.
-  8. F3 (the Back button), F4 (strict CSP), F8 ("Recently deleted", 30
+  8. [x] F3 (the Back button, 4.7.62), F4 (strict CSP), F8 ("Recently deleted", 30
      days, approved) and F9 (an optional backup password with a clear
      lost-password warning, approved), one PR each.
   9. OM red-flag check, then the pro forma vs T-12 bridge as an interactive
@@ -99,13 +99,13 @@ Last updated: 4.7.66; two Part 21.2 breaches fixed: the rent schedule uses only 
   each PR; no polling check-ins; short reports; on a usage limit, write a
   short state note here first.
 - **Questions for the owner:** where the master plan and the later
-  instructions differ, at the end of this file.
+  instructions differ, see "Owner additions and changes to the plan" below.
 
 ## Counts
 
 | Group | Done | Partial | In progress | Not started | Blocked | Items |
 |---|---|---|---|---|---|---|
-| The owner's directive | 22 | 2 | 0 | 16 | 0 | 40 |
+| The owner's directive | 27 | 3 | 0 | 19 | 0 | 49 |
 | Rules and process (Parts 0, 1.3, 22, 23, 24) | 19 | 7 | 1 | 0 | 0 | 27 |
 | The 15 pillars (Part 2) | 1 | 8 | 0 | 6 | 0 | 15 |
 | Phase 0: audit and baseline | 9 | 0 | 0 | 0 | 0 | 9 |
@@ -118,7 +118,7 @@ Last updated: 4.7.66; two Part 21.2 breaches fixed: the rent schedule uses only 
 | Phase 7: workspaces and integrations | 1 | 4 | 0 | 9 | 0 | 14 |
 | Phase 8: final audit | 1 | 2 | 0 | 7 | 1 | 11 |
 | Real-world validation | 0 | 0 | 0 | 0 | 5 | 5 |
-| **All** | **115** | **122** | **1** | **150** | **8** | **396** |
+| **All** | **120** | **123** | **1** | **153** | **8** | **405** |
 
 The pillars are counted on their own as well as through the items of the
 phases that build them.
@@ -198,6 +198,40 @@ Behind the "New look" toggle, after 2b.
 - [ ] Clean-up of existing screens
 - [ ] Feature map, and a test that no feature is lost
 
+### Owner additions and changes to the plan
+The master plan is not edited. Each item gives the date, the source, the plan
+part it extends or contradicts, and its status.
+- [ ] Monal rename (owner, 2026-10-29, conformance check). Contradicts Part 0
+  rule 8 and Part 1.1 (the name is Zlatura). The owner overrides rule 8 in
+  intent. A proposal comes first (name clearance, storage-key and IndexedDB
+  migration like 4.0.0, manifest, repo and URL as a hosting gate, logo
+  concepts); the build waits for its approval. Not implemented.
+- [ ] Platform expansion (owner, 2026-10-29; `docs/proposals/platform-expansion.md`,
+  #90). Extends Part 17.5 and Part 4. X0 and X1 are approved to design and
+  build when reached; later phases wait. Not implemented.
+- [ ] Lead finder (licensed people-data, public records, the owner's own
+  Instagram account; owner, 2026-10-29). Not in the plan. Last, behind legal
+  review (permissible purpose, cost, security, data retention). Not implemented.
+- [ ] Documents hub (owner, 2026-10-29; `docs/proposals/documents-hub.md`, #92).
+  A section under Tools, not a top-level tab; extends Part 12. Not implemented.
+- [ ] UI revamp with user-selectable modules and a tutorial (owner). Extends
+  the "UI revamp" list above and Part 20. Not implemented.
+- [ ] A full improvement run on every feature (owner): each touched feature
+  gets better, and none is removed. Partially implemented, item by item.
+- [x] Time-zone change (4.7.60) acknowledged (owner, 2026-10-29): `termLeft`
+  moved by under 0.001 years on US-zone devices; all 618 saved results match
+  in every zone. Tested with synthetic fixtures only.
+- [x] Work order follows the owner's approved phases and order, not Part 22's
+  list (owner, 2026-10-29). Standing rule 6 in `docs/NOW.md` is superseded
+  by the later approvals.
+- [x] Feature study (`docs/proposals/feature-ideas.md`, #87): ideas 1 (net
+  lease rent schedule, 4.7.64) and 2 (.ics key dates, 4.7.63) approved
+  2026-10-28; idea 3 (tenant credit record) approved with a designer note
+  (2026-10-28), schema 6 approved 2026-10-29.
+- Open decisions: negative payments on the fee record (allow only as an
+  explicit refund, or refuse); committing `underwriting-workspace.md`, which
+  `platform-expansion.md` relies on but main does not hold.
+
 ### Other standing instructions
 - [x] Data QC panel (4.7.35, #59: T-12 and rent roll checks in one panel)
 - [x] Character-by-character typing tests for every input type:
@@ -221,11 +255,11 @@ in the order of the build order above:
 - [x] F2 old CSVs: every text file read through `app/textfile.js`; a
   Windows-1252 fallback, with a note saying how each file was read (4.7.15,
   PR open)
-- [ ] F3 the phone's Back button returns to the last screen
+- [x] F3 the phone's Back button returns to the last screen (4.7.62)
 - [ ] F4 a strict Content-Security-Policy, with `script-src`
 - [x] F5 dependency audit in CI, and actions pinned to commit SHAs (4.7.17, merged #35; the owner turns on GitHub security alerts)
-- [ ] F6 hostile-text pack (apostrophes, emoji, right-to-left, formulas);
-  F7 tests run in other timezones
+- [x] F6 hostile-text pack (apostrophes, emoji, right-to-left, formulas);
+  F7 tests run in other timezones (4.7.60; `npm run test:tz`)
 - [ ] F8 "Recently deleted" for 30 days (approved)
 - [ ] F9 an optional password on backups, with a clear lost-password
   warning (approved)
