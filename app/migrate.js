@@ -135,6 +135,22 @@ export const MIGRATIONS = [
       return { rounded: [] };
     },
   },
+  {
+    id: 'credit-record',
+    field: 'schema',
+    to: 6,
+    since: '4.7.68',
+    does: 'A deal can carry a tenant credit record (who pays the rent, who guarantees it, ratings the broker typed, store sales). Nothing already stored changes: this marks the deal as written by a version that knows the credit record, so an older app refuses its backup instead of dropping it.',
+    brief: 'ready for the credit record',
+    silent: true,
+    kind: 'create',
+    label: () => 'Ready for the credit record',
+    needed: (d) => (d.schema || 0) < 6,
+    up(d) {
+      d.schema = 6;
+      return { rounded: [] };
+    },
+  },
 ];
 
 /** The newest value of each version field this code writes. */

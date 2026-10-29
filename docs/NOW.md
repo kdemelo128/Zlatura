@@ -129,7 +129,8 @@ section with grep, never in full.
   (`docs/proposals/security-robustness-triage.md`), then fixes, at most two
   security PRs open at once.
 - **Conformance fixes (4.7.66, merged #94):** the rent schedule uses only a typed price; commission tiers that do not rise give no figure.
-- **OM red flags (4.7.67, PR opening):** the checks ask about a missing or low management fee, payroll, free rent and unstated occupancy; questions only, no figure changes.
+- **OM red flags (4.7.67, merged #95):** the checks ask about a missing or low management fee, payroll, free rent and unstated occupancy; questions only, no figure changes.
+- **Tenant credit record (4.7.68, merged #96):** schema 6, a credit card per deal (ratings, guarantor, go-dark, store sales); checks only, no calculation changes; ratings and store sales never leave the device in exports.
 - **Conformance docs drift (4.7.69, PR opening):** matrix rows and PLAN_STATUS ticks brought up to date, a test that every browser flow is listed in `run.sh`, `CSS.escape` in `researchui.js`, and the new PLAN_STATUS section "Owner additions and changes to the plan".
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
