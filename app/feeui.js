@@ -52,6 +52,7 @@ export function renderFeeCard(box, h) {
     expectedBox.textContent = '';
     const E = S.expected;
     if (!ok(f.price) || f.price <= 0) expectedBox.appendChild(el('p', 'hint-sm', 'The expected fee stays blank until there is a fee price: it is never guessed.'));
+    else if (S.tierRise) expectedBox.appendChild(el('p', 'warn-text hint-sm', 'Tier limits must rise'));
     else if (S.tierGap) expectedBox.appendChild(el('p', 'warn-text hint-sm', `Tier ${S.tierGap} has a limit but no rate`));
     else if (!E) expectedBox.appendChild(el('p', 'hint-sm', 'Enter a flat rate, or a rate for at least one tier, to see the expected fee.'));
     else {

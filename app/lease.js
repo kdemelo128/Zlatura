@@ -296,15 +296,19 @@ export function rentSchedule(L, { price = null, leaseType = '', options = '', si
   }
   const notes = ['Annual rent is the yearly rate in force for the period.'];
   if (!single) notes.push('Rent ÷ price is shown for a single-tenant deal only.');
-  else if (!px) notes.push('Add the asking price to see rent ÷ price.');
+  else if (!px) notes.push('No price entered. Add the asking price to see rent ÷ price.');
   else notes.push(absolute ? 'The lease type is typed as absolute net, so rent is taken as NOI.'
     : `Rent over the asking price, not an NOI cap rate: the lease type is “${(leaseType || '').trim() || 'not stated'}”, so the landlord may pay some expenses.`);
   if (String(options || '').trim()) notes.push(`Renewal options (as typed): ${String(options).trim()}. Option, not committed.`);
-  return { rows, errors, absolute, showPrice, priced: !!px, priceLabel: absolute ? 'Cap rate (rent ÷ price)' : 'Rent ÷ price', notes };
+  return { rows, errors, absolute, showPrice, priced: !!px, priceLabel: absolute && px ? 'Cap rate (rent ÷ price)' : 'Rent ÷ price', notes };
 }
+
+/** The price the broker typed: a price worked out from NOI and the cap rate is not one (rent over it would just echo the cap). */
+export function typedPrice(m) { return m && m.derived && m.derived.price ? null : (m ? m.price : null); }
 
 /** One schedule per occupied lease with rent periods; rent over price only when it is the only tenant. */
 export function dealSchedules(deal, price) {
+  // price is what the broker typed; main callers pass typedPrice(m)
   const f = deal.figures || {};
   const occ = ((deal.rr && deal.rr.leases) || []).filter((L) => !L.vacant && (L.periods || []).length);
   const single = occ.length === 1;
