@@ -335,7 +335,7 @@ export function openPdfPages(api) {
         done = await deliver(`${base.replace(/\.(pdf|zip)$/i, '')}.zip`, fflate.zipSync(zip), 'application/zip', { map: 'none: a document the broker supplied' });
       }
       if (done === 'done') {
-        const note = r.unpruned ? ' Some pages’ content could not be read to cut their resources, so those were copied unchanged and may carry pictures that only other pages use.' : '';
+        const note = r.unpruned ? ' For these pages, some resources were copied unchanged, which can include pictures from other pages of the same file; check the result before sharing.' : '';
         toast(how); say(how + note);
         if (note) problems([note.trim()]);
       }

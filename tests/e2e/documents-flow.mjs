@@ -6,7 +6,7 @@
 import fs from 'fs';
 import { createRequire } from 'module';
 import { phone, BASE, finish } from './lib.mjs';
-import { plainPdf, hostilePdf, damagedPdf, encryptedPdf } from '../tools/docpdfs.mjs';
+import { plainPdf, hostilePdf, damagedPdf, encryptedPdf, undecodablePdf } from '../tools/docpdfs.mjs';
 
 const F = new URL('./files/', import.meta.url).pathname;
 const AXE = createRequire(import.meta.url).resolve('axe-core/axe.min.js');
@@ -186,6 +186,13 @@ await desk.page.waitForTimeout(500);
 const ax2 = await axe(desk.page, '#sheet');
 check('axe finds nothing on the sheet at desktop size', ax2.length === 0, ax2.join(' ; '));
 check('no sideways scroll at desktop width', await desk.page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
+// a page whose content cannot be read to cut its resources is saved whole, and the screen says so
+await desk.page.setInputFiles('#docs-file', buf('Odd.pdf', undecodablePdf()));
+await desk.page.waitForFunction(() => document.querySelectorAll('#docs-list li').length === 6, null, { timeout: 15000 });
+await desk.page.locator('#docs-list li').nth(0).locator('button[data-act="del"]').click();
+const odd = await Promise.all([desk.page.waitForEvent('download', { timeout: 30000 }), desk.page.click('#docs-save')]);
+await desk.page.waitForFunction(() => /copied unchanged, which can include pictures from other pages/.test(document.getElementById('docs-problems').textContent));
+check('a file whose content could not be read is saved, with the honest note about copied resources', !!odd[0] && /check the result before sharing/.test(await desk.page.locator('#docs-problems').innerText()));
 await desk.browser.close();
 
 /* -------------------------------------------------------- offline: library and worker */

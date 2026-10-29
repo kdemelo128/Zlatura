@@ -70,19 +70,21 @@ function contentParts(doc, page) {
   return streams.some((x) => x === undefined) ? null : streams;
 }
 
-/** Every action reachable from `action` through /Next, each once; null when there are too many to be a real chain. */
+/** Every action reachable from `action` through /Next, each once; null when there are too many to be a real chain (or to follow at all). */
 function actionsFrom(ctx, action) {
   const seen = new Set();
   const stack = [action];
-  while (stack.length) {
-    if (seen.size > MAX_ACTIONS) return null;
-    const a = ctx.lookup(stack.pop());
-    if (!(a instanceof PDFDict) || seen.has(a)) continue;
-    seen.add(a);
-    const next = a.get(PDFName.of('Next'));
-    const n = next && ctx.lookup(next);
-    if (n instanceof PDFArray) stack.push(...n.asArray()); else if (next) stack.push(next);
-  }
+  try {
+    while (stack.length) {
+      if (seen.size > MAX_ACTIONS) return null;
+      const a = ctx.lookup(stack.pop());
+      if (!(a instanceof PDFDict) || seen.has(a)) continue;
+      seen.add(a);
+      const next = a.get(PDFName.of('Next'));
+      const n = next && ctx.lookup(next);
+      if (n instanceof PDFArray) { for (const r of n.asArray()) stack.push(r); } else if (next) stack.push(next);
+    }
+  } catch { return null; }
   return [...seen];
 }
 const typeOf = (a) => { const t = a.lookup(PDFName.of('S')); return t instanceof PDFName ? t.asString() : ''; };
@@ -91,11 +93,12 @@ const runs = (ctx, action) => { const all = actionsFrom(ctx, action); return all
 /** Is every action in the chain one a kept link may have? */
 const safe = (ctx, action) => { const all = actionsFrom(ctx, action); return all !== null && all.every((a) => SAFE.has(typeOf(a))); };
 
-/** The names a content stream uses (/Im1, /F1 …): every /Name token, with #hh escapes read. Over-keeping is safe, under-keeping is not. */
+/** The names a content stream uses (/Im1, /F1 …): every /Name token, with #hh escapes read. Over-keeping is safe, under-keeping is not.
+ *  A name ends at a PDF white-space byte (NUL, tab, line feed, form feed, carriage return, space) or a delimiter, and at nothing else. */
 function namesIn(bytes) {
   const names = new Set();
   const text = Array.from(bytes, (b) => String.fromCharCode(b)).join('');
-  for (const m of text.matchAll(/\/([^\s/[\]<>()%{}]+)/g)) {
+  for (const m of text.matchAll(/\/([^\x00\t\n\f\r /[\]<>()%{}]+)/g)) {
     names.add(m[1]);
     names.add(m[1].replace(/#([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16))));
   }
@@ -103,11 +106,39 @@ function namesIn(bytes) {
 }
 const bytesOf = (stream) => (stream instanceof PDFRawStream ? decodePDFRawStream(stream).decode() : stream.getContents());
 
+const nameOf = (d, key) => { const v = d.lookup(PDFName.of(key)); return v instanceof PDFName ? v.asString() : ''; };
+
+/** Does a thing this holder draws carry resources of its own that fall back to the holder's, or could reach other pages' pictures
+ *  by a route not cut here? Then the holder is left whole: a font or picture lost from a page is worse than one kept. */
+function hazard(ctx, kind, v) {
+  const x = ctx.lookup(v);
+  const dict = x instanceof PDFRawStream ? x.dict : x;
+  if (!(dict instanceof PDFDict)) return false;
+  if (kind === 'Font') return nameOf(dict, 'Subtype') === '/Type3';
+  if (kind === 'Pattern') return x instanceof PDFRawStream; // a tiling pattern (a stream) draws with its own or the page's resources
+  if (kind === 'ExtGState') { const m = dict.lookup(PDFName.of('SMask')); return m instanceof PDFDict; } // a soft mask draws a group
+  if (kind === 'XObject') return nameOf(dict, 'Subtype') === '/Form' && !(dict.lookup(PDFName.of('Resources')) instanceof PDFDict);
+  return false;
+}
+
+/** Cut a form XObject's own resources by its own content (once); false if that was not possible. */
+function cutForm(doc, x, seen) {
+  if (!seen.has(x)) {
+    seen.set(x, true);
+    let ok = false;
+    try { ok = prune(doc, x.dict, bytesOf(x), seen); } catch { ok = false; }
+    seen.set(x, ok);
+  }
+  return seen.get(x);
+}
+
 /**
  * Cut a resources holder (a page, or a form XObject's stream) down to what `bytes` name, so pictures and fonts that
  * only other pages use are not copied with it. Each kind is rebuilt as a new dictionary, never edited, because
  * pages often share one. A form XObject that is kept is cut the same way, by its own content.
- * Returns false when something could not be decoded: that part is then left whole.
+ * Returns false when the holder was left whole or something could not be read: a kept form without resources of its
+ * own, a Type 3 font, a tiling pattern or a soft mask is drawn with resources that cannot be told apart, so nothing is cut.
+ * `seen` maps each form already cut to that answer.
  */
 function prune(doc, holder, bytes, seen) {
   const ctx = doc.context;
@@ -115,6 +146,14 @@ function prune(doc, holder, bytes, seen) {
   const res = typeof holder.Resources === 'function' ? holder.Resources() : holder.lookup(PDFName.of('Resources'));
   if (!(res instanceof PDFDict)) return true;
   const used = namesIn(bytes);
+  const wanted = (name) => used.has(name.asString().slice(1)) || used.has(name.decodeText());
+  // first look, changing nothing: is anything drawn here one that needs the whole dictionary?
+  for (const [key, value] of res.entries()) {
+    const kind = key.asString().slice(1);
+    const sub = KINDS.includes(kind) ? ctx.lookup(value) : null;
+    if (!(sub instanceof PDFDict)) continue;
+    for (const [name, v] of sub.entries()) if (wanted(name) && hazard(ctx, kind, v)) return false;
+  }
   const fresh = ctx.obj({});
   let whole = true;
   for (const [key, value] of res.entries()) {
@@ -123,16 +162,11 @@ function prune(doc, holder, bytes, seen) {
     if (!(sub instanceof PDFDict)) { fresh.set(key, value); continue; }
     const keep = ctx.obj({});
     for (const [name, v] of sub.entries()) {
-      const n = name.asString().slice(1);
-      if (!used.has(n) && !used.has(name.decodeText())) continue;
+      if (!wanted(name)) continue;
       keep.set(name, v);
       const x = kind === 'XObject' ? ctx.lookup(v) : null;
-      if (x instanceof PDFRawStream && !seen.has(x)) {
-        seen.add(x);
-        const sb = x.dict.lookup(PDFName.of('Subtype'));
-        if (sb instanceof PDFName && sb.asString() === '/Form') {
-          try { if (!prune(doc, x.dict, bytesOf(x), seen)) whole = false; } catch { whole = false; }
-        }
+      if (x instanceof PDFRawStream && nameOf(x.dict, 'Subtype') === '/Form') {
+        if (!cutForm(doc, x, seen)) whole = false;
       }
     }
     fresh.set(key, keep);
@@ -143,8 +177,9 @@ function prune(doc, holder, bytes, seen) {
 
 /** Cut what can run something, and what leads to another page, from a page of the source document, before the page is copied.
  *  Returns false when the page's resources could not be cut down and are copied whole. */
-function clean(doc, page) {
+function clean(doc, page, seen) {
   const ctx = doc.context;
+  const appearances = [];
   // links to articles, attached files and the scripts on the page itself
   for (const k of ['AA', 'B', 'AF']) page.node.delete(PDFName.of(k));
   const annots = page.node.lookup(PDFName.of('Annots'));
@@ -159,17 +194,31 @@ function clean(doc, page) {
       if (act && !safe(ctx, act)) a.delete(PDFName.of('A'));
       // each of these can lead copyPages to a page that was not picked, to the form's other fields and their scripts, or to a file
       for (const k of ['AA', 'Dest', 'P', 'Parent', 'IRT', 'PA', 'Kids', 'AF', 'FS']) a.delete(PDFName.of(k));
+      // the drawn look of the annotation (normal, rollover, down): a form, or a form for each state
+      const ap = a.lookup(PDFName.of('AP'));
+      if (ap instanceof PDFDict) {
+        for (const k of ['N', 'D', 'R']) {
+          const x = ap.get(PDFName.of(k)) && ctx.lookup(ap.get(PDFName.of(k)));
+          if (x instanceof PDFRawStream) appearances.push(x);
+          else if (x instanceof PDFDict) for (const [, v] of x.entries()) { const y = ctx.lookup(v); if (y instanceof PDFRawStream) appearances.push(y); }
+        }
+      }
       return true;
     });
     page.node.set(PDFName.of('Annots'), ctx.obj(keep));
   }
-  // pictures and fonts only another page uses
+  // pictures and fonts only another page uses. An appearance without resources of its own draws with the page's: then nothing is cut.
   try {
+    let whole = true;
+    for (const x of appearances) {
+      if (!(x.dict.lookup(PDFName.of('Resources')) instanceof PDFDict)) return false;
+      if (!cutForm(doc, x, seen)) whole = false;
+    }
     const parts = contentParts(doc, page) || [];
     const bytes = new Uint8Array(parts.reduce((n, x) => n + bytesOf(x).length + 1, 0));
     let at = 0;
     for (const x of parts) { const b = bytesOf(x); bytes.set(b, at); at += b.length; bytes[at++] = 32; }
-    return prune(doc, page.node, bytes, new Set());
+    return prune(doc, page.node, bytes, seen) && whole;
   } catch { return false; }
 }
 
@@ -187,6 +236,7 @@ async function build(blobs, outputs, tick) {
   let done = 0;
   const results = [];
   let unpruned = false;
+  const seen = new Map();
   for (const order of need) {
     const out = await PDFDocument.create();
     // one copy call per source file, so a font shared by its pages is written once
@@ -197,7 +247,7 @@ async function build(blobs, outputs, tick) {
       if (!docs.has(f)) docs.set(f, await load(blobs[f]).catch((e) => { e.file = f; throw e; }));
       const src = docs.get(f);
       const idx = Array.from(set).sort((a, b) => a - b);
-      for (const p of idx) if (!clean(src, src.getPage(p))) unpruned = true;
+      for (const p of idx) if (!clean(src, src.getPage(p), seen)) unpruned = true;
       const pages = await out.copyPages(src, idx);
       idx.forEach((p, k) => copied.set(`${f}:${p}`, pages[k]));
     }

@@ -139,3 +139,8 @@ export function sharedImagesPdf(mode) {
     shared];
   return assemble(objs);
 }
+
+/** One page whose content stream names a filter nobody can decode: its resources cannot be cut down, so they are copied whole. */
+export function undecodablePdf() {
+  return assemble([...frame(), page(5, ''), { dict: '<< /Filter /FooDecode >>', stream: 'q Q' }]);
+}

@@ -343,3 +343,60 @@ test('a content list held by reference is refused when one of its streams is mis
   const r = await w.ask({ id: 120, type: 'inspect', file: blob(pdf) });
   assert.deepEqual([r.ok, r.kind], [false, 'invalid']);
 });
+
+/* ------------------------------------------------- third review */
+
+// two pages that share ONE resources dictionary (object 20); `extras` fill objects 8 and up; page 2 draws SECRETIMGTWO (object 10)
+const imgObj = (t) => streamObj('<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceGray /BitsPerComponent 8 >>', t);
+function sharedRes(res, c1, extras, p1x = '') {
+  const objs = [...frame('4 0 R 5 0 R', 2), pageObj(6, `/Resources 20 0 R ${p1x}`).replace('/Resources << /Font << /F1 3 0 R >> >>', ''), pageObj(7).replace('/Resources << /Font << /F1 3 0 R >> >>', '/Resources 20 0 R'), streamObj('<< >>', c1), streamObj('<< >>', '/Im3 Do')];
+  const all = [...objs, ...extras];
+  while (all.length < 19) all.push('null');
+  all.push(res);
+  return buildPdf(all);
+}
+const NOFORM = '<< /Type /XObject /Subtype /Form /BBox [0 0 9 9] >>';
+const pickedOnly = async (w, pdf, id) => { const r = await extractOne(w, pdf, id); return { out: raw(r.files[0]), r }; };
+const keptOrFlagged = ({ out, r }, why) => { assert.ok(out.includes('KEEPIMG'), `${why}: the picked page keeps the picture it draws`); assert.ok(!out.includes('SECRETIMGTWO') || r.unpruned === true, `${why}: the other page's picture is absent, or the file is flagged`); };
+const imgs = () => [imgObj('KEEPIMG'), imgObj('SECRETIMGTWO')];
+
+test('a form, a Type 3 font or a tiling pattern with no resources of its own draws with the page\'s: the page keeps its picture', async () => {
+  const w = startWorker();
+  const nores = sharedRes('<< /XObject << /Fm1 8 0 R /Im2 9 0 R /Im3 10 0 R >> >>', '/Fm1 Do', [streamObj(NOFORM, '/Im2 Do'), ...imgs()]);
+  const type3 = sharedRes('<< /Font << /F1 8 0 R >> /XObject << /Im2 9 0 R /Im3 10 0 R >> >>', 'BT /F1 12 Tf (a) Tj ET',
+    ['<< /Type /Font /Subtype /Type3 /FontBBox [0 0 1 1] /FontMatrix [1 0 0 1 0 0] /CharProcs << /a 11 0 R >> /Encoding << /Type /Encoding /Differences [97 /a] >> /FirstChar 97 /LastChar 97 /Widths [1] >>', ...imgs(), streamObj('<< >>', '1 0 d0 /Im2 Do')]);
+  const pat = sharedRes('<< /Pattern << /P1 8 0 R >> /XObject << /Im2 9 0 R /Im3 10 0 R >> >>', '/Pattern cs /P1 scn 0 0 100 100 re f',
+    [streamObj('<< /Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 10 10] /XStep 10 /YStep 10 >>', '/Im2 Do'), ...imgs()]);
+  for (const [i, [why, pdf]] of [['form', nores], ['type3', type3], ['pattern', pat]].entries()) keptOrFlagged(await pickedOnly(w, pdf, 130 + i), why);
+});
+
+test('resources reached through a pattern, a soft mask or an annotation\'s look are cut by their own content, or the file is flagged', async () => {
+  const w = startWorker();
+  const patRes = sharedRes('<< /Pattern << /P1 8 0 R >> /XObject << /Im2 9 0 R /Im3 10 0 R >> >>', '/Pattern cs /P1 scn 0 0 100 100 re f',
+    [streamObj('<< /Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 10 10] /XStep 10 /YStep 10 /Resources 20 0 R >>', '/Im2 Do'), ...imgs()]);
+  const mask = sharedRes('<< /ExtGState << /GS1 8 0 R >> /XObject << /Im2 9 0 R /Im3 10 0 R >> >>', '/GS1 gs /Im2 Do',
+    ['<< /Type /ExtGState /SMask << /Type /Mask /S /Alpha /G 11 0 R >> >>', ...imgs(), streamObj('<< /Type /XObject /Subtype /Form /BBox [0 0 9 9] /Resources 20 0 R >>', '/Im2 Do')]);
+  const look = sharedRes('<< /XObject << /Im2 9 0 R /Im3 10 0 R >> >>', '/Im2 Do',
+    ['<< /Type /Annot /Subtype /Stamp /Rect [0 0 9 9] /AP << /N 11 0 R >> >>', ...imgs(), streamObj('<< /Type /XObject /Subtype /Form /BBox [0 0 9 9] /Resources 20 0 R >>', '/Im2 Do')], '/Annots [8 0 R]');
+  const lookNone = sharedRes('<< /XObject << /Im2 9 0 R /Im3 10 0 R >> >>', '/Fm1 Do',
+    ['<< /Type /Annot /Subtype /Stamp /Rect [0 0 9 9] /AP << /N 11 0 R >> >>', ...imgs(), streamObj(NOFORM, '/Im2 Do')], '/Annots [8 0 R]');
+  for (const [i, [why, pdf]] of [['pattern with the shared dictionary', patRes], ['soft mask', mask], ['annotation look', look], ['annotation look with no resources', lookNone]].entries()) keptOrFlagged(await pickedOnly(w, pdf, 140 + i), why);
+  const cut = await pickedOnly(w, look, 150);
+  assert.ok(!cut.out.includes('SECRETIMGTWO') && cut.r.unpruned === false, 'an annotation look with resources of its own is simply cut');
+});
+
+test('a resource name holding a vertical tab is one name: only PDF white space ends a name', async () => {
+  const w = startWorker();
+  const pdf = sharedRes('<< /XObject << /Im#0B2 9 0 R /Im3 10 0 R >> >>', '/Im\x0b2 Do', ['null', ...imgs()]);
+  const { out, r } = await pickedOnly(w, pdf, 160);
+  assert.ok(out.includes('KEEPIMG') && !out.includes('SECRETIMGTWO'));
+  assert.equal(r.unpruned, false);
+});
+
+test('a link whose /Next array holds 200,000 entries is judged, not crashed on', async () => {
+  const w = startWorker();
+  const pdf = twoPages('/Annots [8 0 R]', [link('/A 9 0 R'), `<< /S /Named /N /NextPage /Next [${'10 0 R '.repeat(200000)}] >>`, '<< /S /Named /N /PrevPage >>']);
+  const r = await w.ask({ id: 170, type: 'build', files: [blob(pdf)], outputs: [one] });
+  assert.equal(r.ok, true, JSON.stringify(r).slice(0, 200));
+  assert.ok(raw(r.files[0]).includes('NextPage'), 'the harmless chain is followed to its end and the link kept');
+});
