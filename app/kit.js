@@ -327,8 +327,7 @@ async function handOver(rawName, bytes, type, { share = false } = {}) {
   }
   const url = URL.createObjectURL(blob);
   const a = el('a');
-  a.href = url;
-  a.download = filename;
+  Object.assign(a, { href: url, download: filename });
   document.body.appendChild(a);
   a.click();
   a.remove();
