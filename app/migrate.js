@@ -139,7 +139,7 @@ export const MIGRATIONS = [
     id: 'credit-record',
     field: 'schema',
     to: 6,
-    since: '4.7.66',
+    since: '4.7.68',
     does: 'A deal can carry a tenant credit record (who pays the rent, who guarantees it, ratings the broker typed, store sales). Nothing already stored changes: this marks the deal as written by a version that knows the credit record, so an older app refuses its backup instead of dropping it.',
     brief: 'ready for the credit record',
     silent: true,

@@ -1,7 +1,7 @@
 /* Make tests/fixtures/backup-4.7.64-before-credit.json with the real 4.7.64
  * code, taken from git (fac128b): two invented deals saved at schema 5, one with
  * a rent roll of two leases, a saved scenario and a fee record, one with an empty rent roll.
- * 4.7.66 adds schema step 6 ("credit-record") for deal.credit; the step must leave
+ * 4.7.68 adds schema step 6 ("credit-record") for deal.credit; the step must leave
  * these deals exactly as saved, apart from the version field. Every name and
  * figure is made up.
  *
