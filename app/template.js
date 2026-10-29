@@ -22,6 +22,7 @@
  * run it outside a browser. */
 
 import { toCents } from './engine/money.js';
+import { safeUnzip } from './filekind.js';
 
 const MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 const REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
@@ -127,9 +128,9 @@ class Package {
     this.fflate = fflate;
     this.xml = xml;
     try {
-      this.files = fflate.unzipSync(bytes);
-    } catch {
-      throw new Error('That file is not an Excel workbook (.xlsx). Save the template as .xlsx and try again.');
+      this.files = safeUnzip(bytes, fflate); // sizes checked, never trusted (filekind.js)
+    } catch (e) {
+      throw new Error(/bomb|more than a spreadsheet|unpack to/.test(e.message) ? e.message : 'That file is not an Excel workbook (.xlsx). Save the template as .xlsx and try again.');
     }
     if (!this.files['[Content_Types].xml'] || !this.files['xl/workbook.xml']) {
       throw new Error(this.files['xl/workbook.bin']

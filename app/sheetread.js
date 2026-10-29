@@ -2,7 +2,7 @@
  * the rent roll import and the T-12 import both start here. Pure apart from
  * readGrids(), which loads ExcelJS when a workbook needs it. */
 import { readText } from './textfile.js';
-import { checkUpload } from './filekind.js';
+import { checkUpload, hardenZip } from './filekind.js';
 
 /** A cell's value as text, a number or an ISO date (YYYY-MM-DD): formulas give their cached result. */
 export function cellValue(v) {
@@ -84,6 +84,13 @@ export function unreadable(file, what) {
 }
 export const isCsv = (file) => /\.csv$/i.test(file.name) || file.type === 'text/csv';
 
+/** A workbook's bytes with sizes checked (filekind.js hardenZip), for ExcelJS; throws the reason when refused. */
+export function guardedBuffer(buffer, fflate) {
+  const safe = hardenZip(new Uint8Array(buffer), fflate);
+  if (safe.refuse) throw new Error(safe.refuse);
+  return safe.buffer;
+}
+
 /**
  * Every visible sheet of a workbook (or the one table of a text file) as rows
  * of values: [{ sheet, hidden, rows: [{ r (1-based row number), cells: [] }] }],
@@ -105,9 +112,10 @@ export async function readGrids(file, getXlsx, { maxRows = 400, includeHidden = 
     const rows = csvRows(skipFirst ? text.replace(/^[^\r\n]*\r?\n?/, '') : text, { delimiter }).map((cells, i) => ({ r: i + 1 + (skipFirst ? 1 : 0), cells })).filter((x) => x.cells.some((v) => String(v).trim()));
     return [{ sheet: 'CSV', hidden: false, rows, delimiter, encoding, note, macros: false }];
   }
-  const { ExcelJS } = await getXlsx();
+  const { ExcelJS, fflate } = await getXlsx();
   const wb = new ExcelJS.Workbook();
-  try { await wb.xlsx.load(up.buffer || await file.arrayBuffer()); } catch { throw new Error('That file could not be opened as an Excel workbook. It may be damaged, password protected or not really .xlsx.'); }
+  const buffer = up.guarded ? up.buffer : guardedBuffer(up.buffer || await file.arrayBuffer(), fflate);
+  try { await wb.xlsx.load(buffer); } catch { throw new Error('That file could not be opened as an Excel workbook. It may be damaged, password protected or not really .xlsx.'); }
   return gridsOf(wb, { maxRows, includeHidden }).map((g) => ({ ...g, macros: !!up.macros }));
 }
 

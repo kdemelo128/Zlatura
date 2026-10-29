@@ -45,6 +45,87 @@ export function zipKind(bytes, unzipSync) {
   return { kind: 'zip', macros: false, refuse: null };
 }
 
+const MISMATCH = 'That file’s parts are not the size the file says they are, which is how a decompression bomb looks. It was not opened.';
+const BAD_ZIP = 'That file could not be opened as an Excel workbook. It may be damaged, password protected or not really .xlsx.';
+
+/**
+ * Unpack a zip without ever trusting what it declares about itself: the
+ * central directory is read by hand, the caps are checked on the declared
+ * sizes (entries, total, ratio), and each entry is then inflated in small
+ * pieces into a buffer of exactly its declared size, stopping the moment it
+ * would overrun (so a part declared at 1,000 bytes that inflates to 300 MB
+ * costs one piece, not 300 MB) and refused if it ends short. Returns
+ * { name: bytes } (a folder is an empty entry) or throws an Error whose message
+ * is the reason. `fflate` supplies Inflate.
+ * @param {Uint8Array} bytes
+ * @param {any} fflate
+ * @returns {Record<string, Uint8Array>}
+ */
+export function safeUnzip(bytes, fflate) {
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let eocd = -1;
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 22 - 65535); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error(BAD_ZIP);
+  const count = dv.getUint16(eocd + 10, true);
+  let at = dv.getUint32(eocd + 16, true);
+  if (count === 0xffff || at === 0xffffffff) throw new Error(BAD_ZIP); // zip64: far beyond a spreadsheet
+  if (count > LIMITS.zipEntries) throw new Error(`That file holds ${count} parts, more than a spreadsheet does (${LIMITS.zipEntries}). It was not opened.`);
+  const list = [];
+  let total = 0;
+  for (let n = 0; n < count; n++) {
+    if (at + 46 > bytes.length || dv.getUint32(at, true) !== 0x02014b50) throw new Error(BAD_ZIP);
+    const flags = dv.getUint16(at + 8, true);
+    const method = dv.getUint16(at + 10, true);
+    const size = dv.getUint32(at + 20, true);
+    const original = dv.getUint32(at + 24, true);
+    const nameLen = dv.getUint16(at + 28, true);
+    const skip = nameLen + dv.getUint16(at + 30, true) + dv.getUint16(at + 32, true);
+    const local = dv.getUint32(at + 42, true);
+    if (at + 46 + nameLen > bytes.length || local + 30 > bytes.length) throw new Error(BAD_ZIP);
+    const name = new TextDecoder().decode(bytes.subarray(at + 46, at + 46 + nameLen));
+    if ((flags & 1) || (method !== 0 && method !== 8) || original === 0xffffffff || size === 0xffffffff) throw new Error(BAD_ZIP);
+    total += original;
+    if (total > LIMITS.zipTotal) throw new Error(`That file would unpack to over ${LIMITS.zipTotal / 1e6} MB (the most is ${LIMITS.zipTotal / 1e6} MB). It was not opened.`);
+    if (original > LIMITS.zipRatio * Math.max(size, 1)) throw new Error('That file packs a part far tighter than a spreadsheet does, which is how a decompression bomb looks. It was not opened.');
+    const start = local + 30 + dv.getUint16(local + 26, true) + dv.getUint16(local + 28, true);
+    if (start + size > bytes.length) throw new Error(BAD_ZIP);
+    list.push({ name, method, size, original, start });
+    at += 46 + skip;
+  }
+  const files = /** @type {Record<string, Uint8Array>} */ ({});
+  for (const e of list) {
+    const data = bytes.subarray(e.start, e.start + e.size);
+    if (e.method === 0) {
+      if (e.size !== e.original) throw new Error(MISMATCH);
+      files[e.name] = data.slice();
+      continue;
+    }
+    const out = new Uint8Array(e.original);
+    let pos = 0;
+    const inf = new fflate.Inflate((chunk) => { if (pos + chunk.length > out.length) throw new Error(MISMATCH); out.set(chunk, pos); pos += chunk.length; });
+    try {
+      for (let i = 0; i < data.length || i === 0; i += 16384) inf.push(data.subarray(i, i + 16384), i + 16384 >= data.length);
+    } catch (err) { throw err.message === MISMATCH ? err : new Error(BAD_ZIP); }
+    if (pos !== e.original) throw new Error(MISMATCH);
+    files[e.name] = out;
+  }
+  return files;
+}
+
+/**
+ * A workbook's bytes made safe for ExcelJS, whose bundled JSZip inflates
+ * whatever is really in the file and ignores the sizes it declares: the zip
+ * is unpacked with safeUnzip and packed again with no compression, so
+ * ExcelJS reads the same parts from a file whose sizes are true.
+ * @returns {{ buffer: ArrayBuffer|null, refuse: string|null }}
+ */
+export function hardenZip(bytes, fflate) {
+  try {
+    const out = fflate.zipSync(Object.fromEntries(Object.entries(safeUnzip(bytes, fflate)).map(([k, v]) => [k, [v, { level: 0 }]])));
+    return { buffer: out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength), refuse: null };
+  } catch (e) { return { buffer: null, refuse: e.message || BAD_ZIP }; }
+}
+
 /** Does `b` hold the text `s` written as UTF-16LE (how an OLE directory names its streams)? */
 function hasUtf16(b, s) {
   const pat = [];
@@ -77,7 +158,7 @@ const named = (file, is, ok) => { const e = extOf(file.name); return e && !ok.in
  * its kind's limit before anything more is read.
  * @param {{ name: string, size: number, slice: (a: number, b: number) => { arrayBuffer: () => Promise<ArrayBuffer> }, arrayBuffer: () => Promise<ArrayBuffer> }} file
  * @param {{ getFflate?: () => Promise<any> }} [opts]
- * @returns {Promise<{ kind: string, macros: boolean, refuse: string|null, buffer?: ArrayBuffer }>}
+ * @returns {Promise<{ kind: string, macros: boolean, refuse: string|null, buffer?: ArrayBuffer, guarded?: boolean }>}
  */
 export async function checkUpload(file, { getFflate } = {}) {
   const no = (kind, refuse) => ({ kind, macros: false, refuse });
@@ -104,5 +185,9 @@ export async function checkUpload(file, { getFflate } = {}) {
   if (z.refuse) return no('zip', z.refuse);
   if (z.kind === 'docx') return no('docx', `${named(file, 'a Word document', ['docx'])}A Word document ${LATER}.`);
   if (z.kind === 'zip') return no('zip', 'That is a zip file, not a spreadsheet. Save the statement as .xlsx or CSV.');
-  return { kind: 'xlsx', macros: z.macros, refuse: null, buffer };
+  if (!fflate) return { kind: 'xlsx', macros: z.macros, refuse: null, buffer };
+  // ExcelJS ignores a zip's declared sizes, so it gets a copy whose sizes were checked (hardenZip)
+  const safe = hardenZip(bytes, fflate);
+  if (safe.refuse) return no('zip', safe.refuse);
+  return { kind: 'xlsx', macros: z.macros, refuse: null, buffer: safe.buffer, guarded: true };
 }
