@@ -48,6 +48,8 @@ for (const [k, l] of [['ltv', 'Loan to value'], ['rate', 'Interest rate'], ['amo
 input('comps', 'The sale comps');
 input('rentRoll', 'The OM’s rent roll table (a deal with no rent roll of its own)');
 input('name', 'Deal name');
+input('keyDates', 'Key dates');
+input('tasks', 'Task due dates');
 input('unpriced', 'Unpriced (no asking price)');
 input('sources', 'Where each figure came from');
 input('source', 'The file the deal was read from');
@@ -58,6 +60,8 @@ input('targets', 'What-if targets (cap rate, IRR, value)');
 input('conventions', 'Calculation conventions (Settings)');
 input('preparedBy', 'Prepared by (Settings)');
 input('example', 'Fictional sample (an example deal)');
+input('fee', 'The fee record (fee terms, invoice and payments)');
+input('credit', 'The tenant credit record (parties, guaranty, typed ratings, store sales)');
 input('t12', 'The T-12 operating statement (its lines, their categories, its months)');
 
 /** Lease fields, as a person edits them. `status` covers vacant and month to month; `rent` the rent periods. */
@@ -91,7 +95,7 @@ export const NOT_CALCULATED = {
   'figures.renovated': 'shown on the deal screen only',
   'figures.stories': 'shown on the deal screen only',
   'figures.parking': 'shown on the deal screen only',
-  'figures.options': 'shown on the deal screen only',
+  credit: 'shown on the Credit card only; kept in backups, on no export',
 };
 
 /* ---------------------------------------------------- the deal analysis */
@@ -105,10 +109,13 @@ function fromEngine(R) {
   if (p === 'd.rentRoll') return LEASES_IN_ANALYSIS.map((x) => (typeof x === 'string' ? keep(x) : { ...x, when: R.when || x.when }));
   if (p === 'd.rentRollAsOf') return [keep('rr.settings.asOf')];
   // K33's band: the property type picks it, and its numbers are in Settings
-  if (p === 'd.ptype') return [keep('figures.ptype'), { ...R, path: 'conventions', when: 'the K33 rent per SF band' }];
+  if (p === 'd.ptype') return [keep('figures.ptype'), { ...R, path: 'conventions', when: 'the K33 rent per SF band, and the OM red-flag levels (om.*)' }];
   // the rent roll's own leases (rentroll.js rollFacts): each rule names the lease fields it uses, 'asOf' for the as-of date
   if (p === 'd.rollFacts') return (R.fields || []).flatMap((f) => (f === 'asOf' ? ['rr.settings.asOf'] : [`lease.${f}`])).concat('leases').map((x) => ({ path: x, when: R.when || 'only for a deal with a rent roll' }));
   // the roll's other income lines (name and amount a year), read by the recoveries-twice check
+  // the OM's printed occupancy line and rent line (their wording, from the deal's sources)
+  if (p === 'd.occLine') return [keep('sources'), { ...R, path: 'conventions', when: 'the occupancy gap set in Settings (om.occ.gap)' }];
+  if (p === 'd.rentLine') return [keep('sources')];
   if (p === 'd.rollOther') return [keep('rr.settings.otherIncome'), keep('leases')].map((x) => (typeof x === 'string' ? { path: x, when: R.when } : { ...x, when: R.when }));
   // the T-12, and the OM's own figures it is compared with (kept as they were before "Use the T-12's figures")
   if (p === 'd.t12') return [keep('t12')];
@@ -220,7 +227,7 @@ const SCN_BASE = [
 const SCN_ALSO = () => {
   const replaced = new Set(['figures.price', 'figures.noi', 'figures.cap', 'figures.occ']);
   const set = new Set(['figures.gross', 'figures.opex', 'loan.minDscr', 'loan.minDy']);
-  for (const F of [...FIGURES.list, ...RULES.list]) for (const R of F.reads) for (const x of fromEngine(R)) if (x.path.startsWith('figures.') || x.path.startsWith('lease') || x.path.startsWith('rr.') || ['rentRoll', 'conventions', 't12', 'proj.noi'].includes(x.path)) if (!replaced.has(x.path)) set.add(x.path);
+  for (const F of [...FIGURES.list, ...RULES.list]) for (const R of F.reads) for (const x of fromEngine(R)) if (x.path.startsWith('figures.') || x.path.startsWith('lease') || x.path.startsWith('rr.') || ['rentRoll', 'conventions', 't12', 'sources', 'proj.noi'].includes(x.path)) if (!replaced.has(x.path)) set.add(x.path);
   return [...set];
 };
 const SCN_OTHER = SCN_ALSO();
@@ -258,6 +265,7 @@ export const FIELD_READS = {
   loan: ['fig.loan'], debtService: ['fig.debtService'], dscr: ['fig.dscr'], debtYield: ['fig.debtYield'], equity: ['fig.equity'], cashOnCash: ['fig.cashOnCash'],
   rrRent: ['rr.annualRent'], rrOcc: ['rr.occupancy'], walt: ['rr.walt', 'conventions'], rrNoi1: ['proj.noi', 'rr.settings.opex'],
   exitCap: ['scenario'], hold: ['scenario'], leveredIrr: ['scenario'], unleveredIrr: ['scenario'], multiple: ['scenario'],
+  feeGross: ['fee'], feeInvoiced: ['fee'], feePaid: ['fee'],
   dealName: ['name', 'figures.address'], preparedBy: ['preparedBy'], today: [],
 };
 for (const F of DEAL_FIELDS) {
@@ -296,6 +304,9 @@ export const DEAL_SHEET_SECTIONS = {
 };
 for (const [r, [label, reads]] of Object.entries(DEAL_SHEET_ROWS)) node(`xlsx.deal.B${r}`, { group: 'export', file: 'Deal workbook', sheet: 'Deal Analysis', label: `${label} (B${r})`, reads });
 for (const [k, [label, reads]] of Object.entries(DEAL_SHEET_SECTIONS)) node(`xlsx.deal.${k}`, { group: 'export', file: 'Deal workbook', sheet: 'Deal Analysis', label, reads });
+/** What the net lease rent schedule (lease.js rentSchedule) reads: the rent periods, SF, free rent, the price, lease type and options. */
+const RENT_SCHEDULE_READS = ['lease.rent', 'lease.sf', 'lease.status', 'lease.unit', 'lease.tenant', 'lease.leaseStart', 'lease.abatements', 'lease.options', 'leases', 'fig.price', 'figures.lease_type', { path: 'figures.options', when: 'single-tenant, lease has no options' }];
+node('xlsx.deal.rentSchedule', { group: 'export', file: 'Deal workbook', sheet: 'Rent Schedule', label: 'Rent Schedule', reads: RENT_SCHEDULE_READS, rr: true });
 node('xlsx.deal.omRentRoll', { group: 'export', file: 'Deal workbook', sheet: 'Rent Roll', label: 'Rent Roll (the OM’s table)', reads: [{ path: 'rentRoll', when: 'only for a deal with no rent roll of its own' }] });
 
 /** The rent roll tabs (rrbook.js), in the rent roll workbook and the deal workbook alike. */
@@ -305,6 +316,8 @@ export const RR_SHEETS = {
   'Cash Flow': [...Object.keys(PROJ_LINES).map((k) => `proj.${k}`), 'rr.settings.asOf', 'rr.settings.marketRent', 'rr.settings.marketUnit', 'rr.settings.marketGrowth', 'rr.settings.renewal', 'rr.settings.opex', 'rr.settings.expenseGrowth', 'rr.settings.generalVacancy'],
 };
 for (const [s, reads] of Object.entries(RR_SHEETS)) node(`xlsx.rr.${s}`, { group: 'export', file: 'Rent roll workbook, and the deal workbook', sheet: s, label: s, reads: reads.map((p) => (typeof p === 'string' ? { path: p, ...RR } : p)), rr: true });
+node('csv.fees', { group: 'export', file: 'Fees CSV', label: 'One row per deal with a fee record', reads: ['fee', 'name', 'figures.address'] });
+node('ics', { group: 'export', file: 'Key dates calendar file', label: 'Key dates and task due dates', reads: ['name', 'keyDates', 'tasks'] });
 node('csv.rr', { group: 'export', file: 'Rent roll CSV', label: 'The grid as shown', rr: true, reads: [...LEASE_FIELDS.map(([k]) => `lease.${k}`), 'leases', 'rr.settings.asOf', 'rr.settings.marketRent', 'rr.settings.marketUnit', 'rr.totalSf'] });
 
 /* -------------------------------------------------------------- documents */
@@ -319,6 +332,7 @@ export const BRIEF_SECTIONS = {
   financing: ['Financing', ['loan.ltv', 'loan.rate', 'loan.io', 'loan.amort', 'fig.loan', 'fig.debtService', 'fig.debtYield', 'fig.cashFlow', 'fig.equity', 'fig.breakEven', 'fig.breakEvenBasis', 'fig.maxLoan']],
   comps: ['Against the sale comps', ['comps', 'fig.vsWeighted', 'fig.valueAtWeighted', 'fig.valueAtMedianCap']],
   ladder: ['Value across cap rates', ['fig.ladder']],
+  rentSchedule: ['Rent schedule', RENT_SCHEDULE_READS],
   checks: ['What doesn’t add up', ALL_CHECKS],
   questions: ['Questions to ask', [...ALL_CHECKS, 'questions']],
   visit: ['Site visit', ['visit']],
@@ -326,10 +340,10 @@ export const BRIEF_SECTIONS = {
 };
 /** The brief's section headings, and the section each starts. */
 export const BRIEF_HEADINGS = [
-  [/^The property$/, 'property'], [/^Income$/, 'income'], [/^Financing/, 'financing'], [/^Against \d+ sale comps$/, 'comps'], [/^Value across cap rates$/, 'ladder'],
+  [/^The property$/, 'property'], [/^Income$/, 'income'], [/^Financing/, 'financing'], [/^Against \d+ sale comps$/, 'comps'], [/^Value across cap rates$/, 'ladder'], [/^Rent schedule$/, 'rentSchedule'],
   [/^What doesn’t add up$/, 'checks'], [/^Questions to ask$/, 'questions'], [/^Site visit$/, 'visit'], [/^Scenarios/, 'scenarios'],
 ];
-for (const [k, [label, reads]] of Object.entries(BRIEF_SECTIONS)) node(`brief.${k}`, { group: 'document', file: 'Deal brief', label, reads });
+for (const [k, [label, reads]] of Object.entries(BRIEF_SECTIONS)) node(`brief.${k}`, { group: 'document', file: 'Deal brief', label, reads, ...(k === 'rentSchedule' ? { rr: true } : {}) });
 node('summary', {
   group: 'document', file: 'Copy summary', label: 'The five-line summary',
   reads: ['figures.address', 'figures.city', 'figures.state', 'figures.zip', 'name', 'figures.ptype', 'figures.bsf', 'figures.units', 'figures.year', 'figures.zoning',
@@ -346,8 +360,10 @@ export const DELIVERABLES = {
   'deal-workbook': ['Deal workbook (Excel)', () => [...NODES.keys()].filter((k) => k.startsWith('xlsx.'))],
   'rr-workbook': ['Rent roll workbook (Excel)', () => [...NODES.keys()].filter((k) => k.startsWith('xlsx.rr.'))],
   'rr-csv': ['Rent roll CSV', () => ['csv.rr']],
+  'fees-csv': ['Fees CSV', () => ['csv.fees']],
   'template-fill': ['A firm template, filled', () => [...NODES.keys()].filter((k) => k.startsWith('field.'))],
   'deal-brief': ['Deal brief (printed or PDF)', () => [...NODES.keys()].filter((k) => k.startsWith('brief.'))],
+  calendar: ['Key dates calendar file (.ics)', () => ['ics']],
   summary: ['Copy summary', () => ['summary']],
 };
 
@@ -434,6 +450,8 @@ export function inputOfPath(steps) {
   }
   if (a === 'rentRoll') return { input: 'rentRoll' };
   if (a === 't12') return { input: 't12' };
+  if (a === 'fee') return { input: 'fee' };
+  if (a === 'credit') return { input: 'credit' };
   if (a === 'scenarios') return { input: 'scenarios' };
   if (a === 'targets') return { input: 'targets' };
   if (a === 'visit') return { input: 'visit' };
@@ -453,6 +471,9 @@ export function analysisInput(d, { project = null } = {}) {
   const out = { ...d.figures, rentRoll: rr ? legacyRows(rr) : d.rentRoll, loan: d.loan, rentRollAsOf: rr && rr.settings ? rr.settings.asOf : null, ...(rr ? { rollFacts: rollFacts(rr), rollOther: ((rr.settings || {}).otherIncome || []).map((o) => ({ name: o.name || '', annual: o.annual })) } : {}) };
   // a deal with a T-12: its totals, and the OM's figures as they were before the T-12's were used; and the
   // rent roll's year 1 NOI when `project` gives it (a projection already worked out; none, and that pair isn't compared)
+  const src0 = d.sources || {};
+  if (src0.occ && src0.occ.line) out.occLine = String(src0.occ.line);
+  if (src0.rent_inplace && src0.rent_inplace.line) out.rentLine = String(src0.rent_inplace.line);
   const t = t12ForAnalysis(d.t12);
   if (t) {
     const before = d.t12.applied && d.t12.applied.before;

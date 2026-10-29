@@ -213,7 +213,7 @@ export async function openBriefs() {
           changed();
           note.tell(`Brief on ${gone.subject.name} restored.`);
           await render();
-          content.querySelector(`[data-brief="${gone.id}"] .btn-primary`)?.focus();
+          content.querySelector(`[data-brief="${CSS.escape(gone.id)}"] .btn-primary`)?.focus();
         });
         await render();
         note.undo.focus(); // the row that held focus is gone

@@ -96,3 +96,29 @@ test('tool inputs: totals to cents, rates per SF or unit to four decimals', () =
   assert.deepEqual(v, { noi: 875000, rent: 36.1235, growth: 3.33333 });
   assert.deepEqual(ch.map((c) => c.path), ['DCF: noi', 'DCF: rent']);
 });
+
+test('a deal’s fee record is kept in whole cents: price, tier limits, the invoice and each payment', () => {
+  const d = { figures: {}, fee: { price: 6450000.005, flatPct: 2.5, tiers: [{ upTo: 1000000.004, pct: 6 }, { upTo: null, pct: 2 }], invoiced: { amount: 1234.567, on: '2026-03-01', ref: 'INV-1' }, paid: [{ amount: 0.1 + 0.2, on: '2026-04-01', ref: '' }, { amount: 50.555, on: null, ref: '' }] } };
+  const { changes } = quantizeDeal(d);
+  assert.equal(d.fee.invoiced.amount, 1234.57);
+  assert.equal(d.fee.price, 6450000.01);
+  assert.equal(d.fee.tiers[0].upTo, 1000000);
+  assert.deepEqual(d.fee.paid.map((p) => p.amount), [0.3, 50.56]);
+  assert.equal(d.fee.flatPct, 2.5, 'a rate is not money: left as typed');
+  assert.deepEqual(changes.map((c) => c.path).sort(), ['fee.invoiced.amount', 'fee.paid[0].amount', 'fee.paid[1].amount', 'fee.price', 'fee.tiers[0].upTo']);
+  assert.deepEqual(quantizeDeal(d).changes, [], 'and a second run changes nothing');
+});
+
+test('a fee record in a shape the app does not know is passed over without an error', () => {
+  for (const fee of ['x', 7, [], { paid: 'x', tiers: 3, invoiced: 'x' }, { paid: [null, 'x', { amount: 'a' }], tiers: [null] }]) {
+    assert.doesNotThrow(() => quantizeDeal({ figures: {}, fee }));
+  }
+});
+
+test('a deal’s credit record keeps store sales in whole cents, and passes over a shape it does not know', () => {
+  const d = { figures: {}, credit: { v: 1, sales: { annual: 1234567.891, year: '2025', source: '' } } };
+  const { changes } = quantizeDeal(d);
+  assert.equal(d.credit.sales.annual, 1234567.89);
+  assert.deepEqual(changes.map((c) => c.path), ['credit.sales.annual']);
+  for (const credit of ['x', 7, [], { sales: 'x' }, { sales: null }]) assert.doesNotThrow(() => quantizeDeal({ figures: {}, credit }));
+});

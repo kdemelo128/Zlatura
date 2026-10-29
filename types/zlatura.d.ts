@@ -112,8 +112,23 @@ interface ScenarioOver {
   price?: Usd; noi?: UsdPerYear; occ?: Pct; rentChange?: PctChange; expenseChange?: PctChange;
   ltv?: Pct; rate?: Pct; amort?: Years; io?: boolean; closing?: Pct; hold?: Years; growth?: Pct; saleCost?: Pct; exitCap?: Pct; noiBasis?: 'rentroll';
 }
+/** A deal's fee record (deal.fee; absent = none, never $0). Money in whole cents, rates as typed (0.5 is 0.5%), null = not entered. */
+interface FeePayment { amount: Usd | null; on: string | null; ref: string }
+interface Fee {
+  price: Usd | null; flatPct: Pct | null; tiers: { upTo: Usd | null; pct: Pct | null }[];
+  coBrokerPct: Pct | null; referralPct: Pct | null; housePct: Pct | null;
+  invoiced: FeePayment | null; paid: FeePayment[];
+}
+/** A deal's tenant credit record (deal.credit; absent = no record, never "none"). Ratings are typed by the broker, never fetched. */
+interface CreditRating { id: string; of: 'tenant' | 'guarantor' | 'parent'; agency: 'sp' | 'moodys' | 'fitch' | 'other'; agencyName: string; rating: string; outlook: string; asOf: IsoDate; source: string; typedOn: IsoDate }
+interface Credit {
+  v: 1; leaseEntity: string; leaseId: string | null; parent: string;
+  guarantor: { name: string; scope: 'full' | 'limited' | 'none' | null; limit: string; endsOn: IsoDate | null };
+  ratings: CreditRating[]; sales: { annual: Usd; year: string; source: string } | null; goDark: { state: 'yes' | 'no' | null; note: string };
+}
+
 interface Deal {
-  id: string; name?: string; figures: Figures; loan: Loan; rr?: RentRoll | null; rentRoll?: OmRentRow[];
+  id: string; name?: string; figures: Figures; loan: Loan; rr?: RentRoll | null; rentRoll?: OmRentRow[]; fee?: Fee; credit?: Credit;
   live?: ScenarioOver; scenarios?: { id: string; name: string; at?: number; over: ScenarioOver }[];
   targets?: { cap?: Pct | null; irr?: Pct | null; value?: Pct | null };
   sources?: Record<string, { hand?: boolean; page?: number; ai?: boolean; orig?: unknown; line?: string; verified?: boolean }>;

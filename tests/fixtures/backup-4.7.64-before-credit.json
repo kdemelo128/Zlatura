@@ -1,0 +1,412 @@
+{
+ "format": "zlatura-backup",
+ "version": 2,
+ "app": "4.7.64",
+ "createdAt": "2026-10-29T02:34:53.013Z",
+ "counts": {
+  "deals": 2,
+  "templates": 0,
+  "tasks": 1,
+  "contacts": 0
+ },
+ "deals": [
+  {
+   "id": "d4764a",
+   "name": "Invented Plaza (fictional)",
+   "createdAt": 1792203277340,
+   "updatedAt": 1792203290000,
+   "source": null,
+   "readAt": null,
+   "pages": 0,
+   "figures": {
+    "address": "100 Example Way",
+    "city": "Sampleton",
+    "state": "ZZ",
+    "price": 6450000,
+    "noi": 387000,
+    "bsf": 24000
+   },
+   "sources": {},
+   "rentRoll": [],
+   "unpriced": false,
+   "loan": {
+    "ltv": 65,
+    "rate": 6.75,
+    "amort": 30,
+    "io": false,
+    "closing": 2,
+    "minDscr": 1.25,
+    "minDy": 8
+   },
+   "qDone": {},
+   "myQuestions": [],
+   "live": {
+    "price": 6200000,
+    "ltv": 60
+   },
+   "scenarios": [
+    {
+     "id": "s1",
+     "name": "Lower price",
+     "at": 1792203295000,
+     "over": {
+      "price": 6000000
+     }
+    }
+   ],
+   "targets": {
+    "cap": null,
+    "irr": 15,
+    "value": null
+   },
+   "visit": {
+    "at": null,
+    "items": {},
+    "notes": "",
+    "photos": [],
+    "audio": []
+   },
+   "moneyVersion": 1,
+   "schema": 5,
+   "stage": "marketing",
+   "rr": {
+    "settings": {
+     "asOf": "2026-10-01",
+     "years": 10,
+     "marketRent": null,
+     "marketUnit": "psf_year",
+     "marketGrowth": 3,
+     "opex": null,
+     "expenseGrowth": 3,
+     "recoverable": null,
+     "generalVacancy": 0,
+     "reservesPsf": 0,
+     "otherIncome": [],
+     "leaseUpMonths": 6,
+     "buildingSf": 24000,
+     "renewal": {
+      "assume": true,
+      "probability": 65,
+      "termMonths": 60,
+      "downtime": 6,
+      "renewFree": 0,
+      "newFree": 3,
+      "renewTi": 0,
+      "newTi": 0,
+      "renewLc": 0,
+      "newLc": 0,
+      "escalation": 3
+     }
+    },
+    "leases": [
+     {
+      "id": "lmvsxkd780oq1",
+      "unit": "101",
+      "tenant": "Example Cafe LLC",
+      "sf": 1500,
+      "vacant": false,
+      "mtm": false,
+      "leaseStart": "2024-01-01",
+      "rentStart": null,
+      "leaseEnd": "2029-12-31",
+      "periods": [
+       {
+        "start": "2024-01-01",
+        "end": "2029-12-31",
+        "rate": 45000,
+        "unit": "year",
+        "source": "documented",
+        "note": "OM rent roll, page 3"
+       }
+      ],
+      "abatements": [],
+      "source": {
+       "kind": "om",
+       "page": 3
+      },
+      "custom": {}
+     },
+     {
+      "id": "lmvsxkd781z67",
+      "unit": "102",
+      "tenant": "",
+      "sf": 800,
+      "vacant": true,
+      "mtm": false,
+      "leaseStart": null,
+      "rentStart": null,
+      "leaseEnd": null,
+      "periods": [],
+      "abatements": [],
+      "source": {
+       "kind": "om",
+       "page": 3
+      },
+      "custom": {}
+     }
+    ],
+    "columns": [
+     {
+      "key": "unit",
+      "label": "Unit / suite",
+      "width": 90,
+      "hidden": false
+     },
+     {
+      "key": "tenant",
+      "label": "Tenant",
+      "width": 180,
+      "hidden": false
+     },
+     {
+      "key": "sf",
+      "label": "SF",
+      "width": 80,
+      "hidden": false
+     },
+     {
+      "key": "share",
+      "label": "Pro-rata share %",
+      "width": 90,
+      "hidden": false
+     },
+     {
+      "key": "status",
+      "label": "Status",
+      "width": 110,
+      "hidden": false
+     },
+     {
+      "key": "leaseStart",
+      "label": "Lease start",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "leaseEnd",
+      "label": "Lease end",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "annual",
+      "label": "Annual rent",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "psf",
+      "label": "Rent / SF / yr",
+      "width": 100,
+      "hidden": false
+     },
+     {
+      "key": "recovery",
+      "label": "Recoveries",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "marketRent",
+      "label": "Market rent",
+      "width": 100,
+      "hidden": false
+     },
+     {
+      "key": "options",
+      "label": "Options",
+      "width": 160,
+      "hidden": false
+     }
+    ],
+    "preset": "Retail"
+   },
+   "fee": {
+    "price": 6450000,
+    "flatPct": 2.5,
+    "tiers": [],
+    "coBrokerPct": null,
+    "referralPct": null,
+    "housePct": null,
+    "invoiced": null,
+    "paid": []
+   }
+  },
+  {
+   "id": "d4764b",
+   "name": "Invented Court (fictional)",
+   "createdAt": 1792203277340,
+   "updatedAt": 1792203291000,
+   "source": null,
+   "readAt": null,
+   "pages": 0,
+   "figures": {
+    "address": "7 Sample Court",
+    "price": 2400000,
+    "noi": 144000
+   },
+   "sources": {},
+   "rentRoll": [],
+   "unpriced": false,
+   "loan": {
+    "ltv": 65,
+    "rate": 6.75,
+    "amort": 30,
+    "io": false,
+    "closing": 2,
+    "minDscr": 1.25,
+    "minDy": 8
+   },
+   "qDone": {},
+   "myQuestions": [],
+   "live": {},
+   "scenarios": [],
+   "targets": {
+    "cap": null,
+    "irr": 15,
+    "value": null
+   },
+   "visit": {
+    "at": null,
+    "items": {},
+    "notes": "",
+    "photos": [],
+    "audio": []
+   },
+   "moneyVersion": 1,
+   "schema": 5,
+   "rr": {
+    "settings": {
+     "asOf": "2026-10-01",
+     "years": 10,
+     "marketRent": null,
+     "marketUnit": "psf_year",
+     "marketGrowth": 3,
+     "opex": null,
+     "expenseGrowth": 3,
+     "recoverable": null,
+     "generalVacancy": 0,
+     "reservesPsf": 0,
+     "otherIncome": [],
+     "leaseUpMonths": 6,
+     "buildingSf": null,
+     "renewal": {
+      "assume": true,
+      "probability": 65,
+      "termMonths": 60,
+      "downtime": 6,
+      "renewFree": 0,
+      "newFree": 3,
+      "renewTi": 0,
+      "newTi": 0,
+      "renewLc": 0,
+      "newLc": 0,
+      "escalation": 3
+     }
+    },
+    "leases": [],
+    "columns": [
+     {
+      "key": "unit",
+      "label": "Unit / suite",
+      "width": 90,
+      "hidden": false
+     },
+     {
+      "key": "tenant",
+      "label": "Tenant",
+      "width": 180,
+      "hidden": false
+     },
+     {
+      "key": "sf",
+      "label": "SF",
+      "width": 80,
+      "hidden": false
+     },
+     {
+      "key": "share",
+      "label": "Pro-rata share %",
+      "width": 90,
+      "hidden": false
+     },
+     {
+      "key": "status",
+      "label": "Status",
+      "width": 110,
+      "hidden": false
+     },
+     {
+      "key": "leaseStart",
+      "label": "Lease start",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "rentStart",
+      "label": "Rent start",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "leaseEnd",
+      "label": "Lease end",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "annual",
+      "label": "Annual rent",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "psf",
+      "label": "Rent / SF / yr",
+      "width": 100,
+      "hidden": false
+     },
+     {
+      "key": "recovery",
+      "label": "Recoveries",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "marketRent",
+      "label": "Market rent",
+      "width": 100,
+      "hidden": false
+     },
+     {
+      "key": "nextStep",
+      "label": "Next rent change",
+      "width": 140,
+      "hidden": false
+     },
+     {
+      "key": "options",
+      "label": "Options",
+      "width": 160,
+      "hidden": false
+     }
+    ],
+    "preset": "Office"
+   }
+  }
+ ],
+ "kv": {
+  "crm.stages": {
+   "d4764a": "Marketing"
+  },
+  "crm.tasks": [
+   {
+    "id": "t1",
+    "text": "Call the owner",
+    "done": false
+   }
+  ]
+ },
+ "session": null,
+ "local": {}
+}

@@ -64,3 +64,40 @@ test('csv: the full address is one line a map can geocode, with a 5-digit ZIP', 
   assert.equal(fullAddress(comp({ zip: 2001 })), '1 Test St NW, Washington, DC 02001');
   assert.equal(fullAddress(comp({ city: null, state: null, zip: null })), '1 Test St NW');
 });
+
+/* --------------------------------------------------------------- fees CSV */
+
+import { feesCsv } from '../app/exporters.js';
+
+const feeDeal = (id, name, fee, extra = {}) => ({ id, name, stage: 'closed', figures: { address: '100 Example Way, Sampleton' }, fee, ...extra });
+
+test('fees csv: one row per deal with a fee record, deals with none left out, money to 2 decimals', () => {
+  const csv = feesCsv([
+    feeDeal('d1', 'Invented Plaza', { price: 6450000, flatPct: 3, coBrokerPct: 50, referralPct: 0, housePct: 40, invoiced: { amount: 193500, on: '2026-03-01', ref: 'INV-1' }, paid: [{ amount: 100000, on: '2026-04-01', ref: '' }, { amount: 50000.5, on: '2026-05-02', ref: '' }] }),
+    feeDeal('d2', 'No fee here', undefined),
+    feeDeal('d3', 'Empty record', { price: null, flatPct: null, tiers: [], coBrokerPct: null, referralPct: null, housePct: null, invoiced: null, paid: [] }),
+  ]);
+  const rows = parseCsv(csv);
+  assert.equal(csv.endsWith('\r\n'), true);
+  assert.deepEqual(rows[0], ['Deal ID', 'Deal', 'Stage', 'Address', 'Fee price', 'Rate %', 'Gross fee', 'Co-broker', 'Our side', 'Referral', 'House', 'Agent', 'Invoiced', 'Invoice date', 'Invoice ref', 'Paid to date', 'Last payment', 'Outstanding']);
+  assert.equal(rows.length, 3, 'a header and the two deals that have a record');
+  assert.deepEqual(rows[1], ['d1', 'Invented Plaza', 'Closed', '100 Example Way, Sampleton', '6450000.00', '3', '193500.00', '96750.00', '96750.00', '0.00', '38700.00', '58050.00', '193500.00', '2026-03-01', 'INV-1', '150000.50', '2026-05-02', '43499.50']);
+  // a record with nothing entered is blank everywhere it has no answer, never 0 (a paid list that is empty is a real 0 payments)
+  assert.deepEqual(rows[2].slice(4), ['', '', '', '', '', '', '', '', '', '', '', '0.00', '', '']);
+});
+
+test('fees csv: a deal or reference a spreadsheet would read as a formula is guarded, and an overpayment keeps its minus sign', () => {
+  const evil = "=cmd|' /C calc'!A0";
+  const rows = parseCsv(feesCsv([feeDeal('=1+1', evil, { price: 1e6, flatPct: 1, invoiced: { amount: 100, on: '2026-01-01', ref: '@SUM(A1)' }, paid: [{ amount: 150, on: '2026-01-02', ref: '' }] }, { figures: { address: '+1 Main St' } })]));
+  assert.equal(rows[1][0], "'=1+1");
+  assert.equal(rows[1][1], `'${evil}`);
+  assert.equal(rows[1][3], "'+1 Main St");
+  assert.equal(rows[1][14], "'@SUM(A1)");
+  assert.equal(rows[1][17], '-50.00', 'a number, not text: no quote in front of the minus');
+});
+
+test('fees csv: a fee record in an unknown shape is written blank, without an error', () => {
+  const rows = parseCsv(feesCsv([feeDeal('d1', 'Odd', { price: 'x', paid: 'x', tiers: 'x', invoiced: 'x' }), feeDeal('d2', 'Array', []), feeDeal('d3', 'String', 'x'), null]));
+  assert.equal(rows.length, 2, 'only the object counts as a record');
+  assert.deepEqual(rows[1].slice(4), ['', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+});

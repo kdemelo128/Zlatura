@@ -178,7 +178,7 @@ export async function workbookParts(deal, m, comps, extra) {
           add(`xlsx.deal.${section}`, text);
         });
       } else {
-        const id = !rr && ws.name === 'Rent Roll' ? 'xlsx.deal.omRentRoll' : ['Rent Roll', 'Lease Schedule', 'Cash Flow'].includes(ws.name) ? `xlsx.rr.${ws.name}` : `xlsx.?${ws.name}`;
+        const id = ws.name === 'Rent Schedule' ? 'xlsx.deal.rentSchedule' : !rr && ws.name === 'Rent Roll' ? 'xlsx.deal.omRentRoll' : ['Rent Roll', 'Lease Schedule', 'Cash Flow'].includes(ws.name) ? `xlsx.rr.${ws.name}` : `xlsx.?${ws.name}`;
         ws.eachRow((row) => add(id, row.values.map(cellText).join(',')));
       }
     });

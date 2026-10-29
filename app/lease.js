@@ -34,6 +34,7 @@
  */
 
 import { walt } from './engine/walt.js';
+import { toCents, toRate } from './engine/money.js';
 
 const DAY = 86400000;
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
@@ -236,6 +237,85 @@ export function inPlace(L, asOf) {
   for (const a of L.abatements || []) if (d >= dayOf(a.start) && d <= dayOf(a.end)) abated = Math.max(abated, (a.pct || 0) / 100);
   return { monthly, net: monthly * (1 - abated), period };
 }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** 'Jan 1, 2027' from an ISO date. */
+export const dayText = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? `${MONTHS[+m[2] - 1]} ${+m[3]}, ${m[1]}` : String(iso || ''); };
+
+/** "Years 1–5" when both ends of a period fall on anniversaries of the lease start; else null. */
+function yearsLabel(start, from, to) {
+  if (!start) return null;
+  // whole years between two dates by the month difference, then one check that the date really is an anniversary
+  const yearsBetween = (x, y) => (+y.slice(0, 4) - +x.slice(0, 4)) * 12 + (+y.slice(5, 7) - +x.slice(5, 7));
+  const from0 = yearsBetween(start, from); const to0 = yearsBetween(start, addDays(to, 1) || '');
+  if (!(from0 >= 0) || from0 % 12 || !(to0 > 0) || to0 % 12) return null;
+  const a = from0 / 12; const b = to0 / 12 - 1;
+  if (addMonths(start, 12 * a) !== from || addDays(addMonths(start, 12 * (b + 1)), -1) !== to || b < a) return null;
+  return a === b ? `Year ${a + 1}` : `Years ${a + 1}–${b + 1}`;
+}
+
+/**
+ * A net lease's stated rent as rows: each dated period's yearly and monthly
+ * rent, $/SF, the rise over the period before it, and rent over the asking
+ * price. It reads only `L.periods` (never generateSteps or the renewal
+ * projection), so nothing appears after the last period the lease states, and a
+ * rent that can't be worked out is null, never 0. Rent over price is not an NOI
+ * cap rate unless the lease type says absolute net.
+ * @param {Lease} L @param {{ price?: number | null, leaseType?: string, options?: string, single?: boolean }} [o]
+ */
+export function rentSchedule(L, { price = null, leaseType = '', options = '', single = true } = {}) {
+  // a per-SF period with no SF is shown as a row with no amounts and its own note, not as a blocking error
+  const errors = validateLease(L).filter((x) => x.level === 'error' && !/is per SF but the space has no SF/.test(x.text)).map((x) => x.text);
+  const absolute = /\babsolute\b/i.test(leaseType || '');
+  const showPrice = single;
+  const px = showPrice && pos(price) ? price : null;
+  const ps = (L.periods || []).map((p) => ({ p, s: dayOf(p.start), e: dayOf(p.end) })).filter((x) => x.s !== null && x.e !== null).sort((a, b) => a.s - b.s);
+  const rows = [];
+  let prev = null;
+  for (const { p, s, e } of ps) {
+    if (prev && s > prev.e + 1) rows.push({ from: isoOf(prev.e + 1), to: isoOf(s - 1), years: null, annual: null, monthly: null, psfYear: null, change: null, onPrice: null, kind: 'gap', note: 'No rent stated' });
+    const mo = monthlyAmount(p.rate, p.unit, L.sf);
+    const annual = mo === null ? null : toCents(mo * 12);
+    const notes = [];
+    if (mo === null) notes.push((p.unit === 'psf_year' || p.unit === 'psf_month') && !pos(L.sf) ? 'Per SF, but the space has no SF' : 'No rent stated');
+    if (p.source === 'projected') notes.push('Projected, not in the lease');
+    for (const a of L.abatements || []) {
+      const as = dayOf(a.start); const ae = dayOf(a.end);
+      if (as !== null && ae !== null && as <= e && ae >= s) notes.push(`${a.pct === 100 ? 'Free rent' : 'Rent abated'} ${a.pct}% from ${dayText(a.start)} to ${dayText(a.end)}`);
+    }
+    if (p.note) notes.push(String(p.note));
+    const row = {
+      from: p.start, to: p.end, years: yearsLabel(L.leaseStart, p.start, p.end), annual,
+      monthly: mo === null ? null : toCents(mo), psfYear: annual !== null && pos(L.sf) ? toRate(annual / L.sf) : null,
+      change: null, onPrice: annual !== null && px ? (annual / px) * 100 : null,
+      kind: p.source === 'projected' ? 'projected' : 'documented', note: notes.join('; '),
+    };
+    if (prev && prev.row && s === prev.e + 1 && prev.row.annual !== null && prev.row.annual > 0 && annual !== null) row.change = toRate((annual / prev.row.annual - 1) * 100);
+    rows.push(row);
+    prev = { e, row };
+  }
+  const notes = ['Annual rent is the yearly rate in force for the period.'];
+  if (!single) notes.push('Rent ÷ price is shown for a single-tenant deal only.');
+  else if (!px) notes.push('No price entered. Add the asking price to see rent ÷ price.');
+  else notes.push(absolute ? 'The lease type is typed as absolute net, so rent is taken as NOI.'
+    : `Rent over the asking price, not an NOI cap rate: the lease type is “${(leaseType || '').trim() || 'not stated'}”, so the landlord may pay some expenses.`);
+  if (String(options || '').trim()) notes.push(`Renewal options (as typed): ${String(options).trim()}. Option, not committed.`);
+  return { rows, errors, absolute, showPrice, priced: !!px, priceLabel: absolute && px ? 'Cap rate (rent ÷ price)' : 'Rent ÷ price', notes };
+}
+
+/** The price the broker typed: a price worked out from NOI and the cap rate is not one (rent over it would just echo the cap). */
+export function typedPrice(m) { return m && m.derived && m.derived.price ? null : (m ? m.price : null); }
+
+/** One schedule per occupied lease with rent periods; rent over price only when it is the only tenant. */
+export function dealSchedules(deal, price) {
+  // price is what the broker typed; main callers pass typedPrice(m)
+  const f = deal.figures || {};
+  const occ = ((deal.rr && deal.rr.leases) || []).filter((L) => !L.vacant && (L.periods || []).length);
+  const single = occ.length === 1;
+  return occ.map((L) => ({ L, S: rentSchedule(L, { price, leaseType: f.lease_type, options: L.options || (single ? f.options : ''), single }) }));
+}
+
+export const leaseName = (L) => [L.unit, L.tenant].filter(Boolean).join(' · ') || 'Lease';
 
 /**
  * The months of one lease, from `from` (an ISO date, first of a month) for `n`

@@ -6,6 +6,8 @@
  * summary is the same in five lines, for a text or a Teams message. */
 
 import { waltMethod } from './engine/walt.js';
+import { scheduleCells } from './rentschedule.js';
+import { dealSchedules, typedPrice, leaseName } from './lease.js';
 import { money0, money2, pct, signed, times, yrs, int, niceDate } from './kit.js';
 
 const h = (doc, tag, cls, text) => {
@@ -124,6 +126,28 @@ export function renderDealBrief(box, { deal, m, comps, photos = [], preparedBy =
   }
   cols.appendChild(right2);
   box.appendChild(cols);
+
+  // the stated rent periods of a net lease, with rent over the asking price (a lease with problems is named and left out)
+  const scheds = dealSchedules(deal, typedPrice(m));
+  if (scheds.length) box.appendChild(h(doc, 'h2', 'ps-h2', 'Rent schedule'));
+  for (const { L, S } of scheds) {
+    if (S.errors.length) { box.appendChild(h(doc, 'p', 'ps-sub', `Left out: ${leaseName(L)} has ${S.errors.length} problem${S.errors.length === 1 ? '' : 's'} in its rent periods.`)); continue; }
+    if (scheds.length > 1) box.appendChild(h(doc, 'div', 'ps-sub', leaseName(L)));
+    const { head, rows } = scheduleCells(S);
+    const t = h(doc, 'table', 'ps-table');
+    const hr = h(doc, 'tr');
+    for (const x of head) hr.appendChild(h(doc, 'th', null, x));
+    t.appendChild(hr);
+    for (const r of rows) {
+      const tr = h(doc, 'tr');
+      for (const x of r) tr.appendChild(h(doc, 'td', null, x));
+      t.appendChild(tr);
+    }
+    box.appendChild(t);
+    const ul = h(doc, 'ul', 'ps-list');
+    for (const n of S.notes) ul.appendChild(h(doc, 'li', null, n));
+    box.appendChild(ul);
+  }
 
   const list = (title, items) => {
     if (!items.length) return;

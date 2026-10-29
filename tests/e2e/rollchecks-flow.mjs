@@ -26,7 +26,7 @@ d.rr.leases = [
   L('l1', '101', 'Acme Widgets', 2000, 160000),
   L('l2', '102', 'Beta Bakery', 1000, null),
   L('l3', '103', '', 1000, null, { vacant: true, leaseStart: null, leaseEnd: null }),
-  L('l4', '104', 'Delta Dental', 1000, 80000),
+  L('l4', '104', 'Delta Dental', 1000, 80000, { abatements: [{ start: '2026-11-01', end: '2027-01-31', pct: 100 }] }),
   L('l5', '104', 'Echo Salon', 1000, 80000),
 ];
 const file = `${F}rollchecks-backup.json`;
@@ -64,6 +64,9 @@ for (const [size, opts] of SIZES) {
   check(tag('What doesn’t add up names the tenant with no rent, and says it counts as vacant'), /1 tenant on the rent roll has no rent entered \(blank, not \$0\): 102 \(Beta Bakery\)\..*count as vacant|count[s]? as vacant/.test(t) && /102 \(Beta Bakery\)/.test(t), t.slice(0, 400));
   check(tag('and the unit listed twice, once'), /lists a unit more than once: 104 \(2 times\)/.test(t), t.slice(0, 400));
   check(tag('the vacant suite and the $80 per SF median raise nothing else'), !/no SF|no start date|ended before|paying rent after|median rent/.test(t), t.slice(0, 400));
+  // red flag 6.3.7: free rent the roll documents in the next 12 months; with no T-12 to compare it is a question, not a warning
+  const qs = (await page.locator('#deal-q').innerText()).replace(/\s+/g, ' ');
+  check(tag('Questions to ask raises the roll’s free rent ($20,000, unit 104), as a question'), /\$20,000 of free rent in the 12 months after 2026-10-10 \(104 \(Delta Dental\)\)/.test(qs), qs.slice(0, 400));
   const nWarn = await page.locator('#deal-checks li:not(.info)').count();
   const badge = (await page.locator('.tab[data-view="deal"] .badge:visible').first().textContent().catch(() => '')).trim();
   check(tag('the Deal tab’s badge counts the warnings (not the Notes)'), nWarn >= 2 && badge === String(nWarn), `${badge} vs ${nWarn}`);
@@ -92,6 +95,7 @@ for (const [size, opts] of SIZES) {
   await page.goto(`${BASE}#settings`, { waitUntil: 'load' });
   await page.waitForSelector('#conv-rr-psf-high');
   check(tag('Settings offers the four rent per SF band numbers at their defaults'), (await Promise.all(['low', 'high', 'mfLow', 'mfHigh'].map((k) => page.inputValue(`#conv-rr-psf-${k}`)))).join(',') === '3,200,3,80');
+  check(tag('Settings offers the OM red-flag levels at their defaults'), (await Promise.all(['items-min', 'payroll-units', 'mgmt-low', 'payroll-low', 'occ-gap'].map((k) => page.inputValue(`#conv-om-${k}`)))).join(',') === '4,50,2,500,5');
   await page.locator('#conv-rr-psf-high').click();
   await page.keyboard.press('Control+A');
   for (const ch of '50') { await page.keyboard.type(ch); await page.waitForTimeout(40); }

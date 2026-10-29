@@ -32,10 +32,10 @@ import { compBasis } from './deal.js';
 import { dateInput } from './dateinput.js';
 import {
   $, el, svg, IN_ARTIFACT, XLSX, parseNum, parsePct, int, dec, money2, pct, localDate, toast,
-  openSheet, closeSheet, backdropCloses, actionSheet, getPdfjs, getXlsx, getFflate, idle,
+  openSheet, closeSheet, backdropCloses, backClosesSheet, actionSheet, getPdfjs, getXlsx, getFflate, idle,
   isIOS, isStandalone, canShareFiles, deliver, deliveryError, printed, copyText, pdfProblem,
 } from './kit.js';
-import { initDeal, dealForWorkbook, currentDealName, openTemplates } from './dealui.js';
+import { initDeal, dealForWorkbook, currentDealName, currentDealId, openTemplates, openDeal } from './dealui.js';
 import { initTools } from './toolsui.js';
 import { initUnderwrite } from './underwrite.js';
 import { initHome } from './home.js';
@@ -69,6 +69,13 @@ const monthsAgo = (c) => (c.date ? (Date.now() - new Date(c.date).getTime()) / 8
 
 const VIEWS = ['home', 'comps', 'deal', 'underwrite', 'tools', 'review', 'settings'];
 let currentView = 'home';
+/* The phone's Back button walks the screens the broker has been through: each
+ * screen (and each deal, as #deal/<id>) is one history entry, and Back never
+ * leaves the app (the entry under the first screen is a guard that sends
+ * it forward again). A sheet's own entry is kept in kit.js. A sandboxed preview can refuse
+ * history changes; the screens still switch. */
+const hashFor = (name) => (name === 'deal' && currentDealId() ? `#deal/${currentDealId()}` : `#${name}`);
+const hist = (how, hash) => { try { history[how]({ z: 1 }, '', hash); } catch { /* fine */ } };
 function showView(name, { push = true } = {}) {
   if (!VIEWS.includes(name)) name = 'home';
   currentView = name;
@@ -78,14 +85,30 @@ function showView(name, { push = true } = {}) {
   });
   $('view-name').textContent = $(`view-${name}`).dataset.title;
   document.title = `${$(`view-${name}`).dataset.title} · ${PRODUCT}`;
-  // a sandboxed preview can refuse history changes; the tab still switches
-  if (push && location.hash !== `#${name}`) { try { history.replaceState(null, '', `#${name}`); } catch { /* fine */ } }
+  // choosing the screen already shown adds no entry; a sheet's entry still on top is taken over, not left behind
+  if (push && location.hash !== hashFor(name)) hist(history.state?.sheet ? 'replaceState' : 'pushState', hashFor(name));
   window.scrollTo({ top: 0 });
   document.dispatchEvent(new CustomEvent('viewchange', { detail: name }));
 }
 document.querySelectorAll('[data-view]').forEach((t) => t.addEventListener('click', () => showView(t.dataset.view)));
 document.querySelectorAll('a.brand').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); showView('home'); }));
-window.addEventListener('hashchange', () => showView(location.hash.slice(1), { push: false }));
+/** Show what the address says: a screen, or a deal (#deal/<id>). */
+async function route() {
+  const at = location.hash;
+  const [name, id] = at.slice(1).split('/');
+  if (name === 'deal' && id && id !== currentDealId()) await openDeal(id);
+  if (location.hash === at) showView(name, { push: false });   // else a newer move has taken over while the deal loaded
+}
+/** The address names the deal on screen: a deal opened, created or closed there rewrites the entry it is on. */
+function syncDealHash() { if (currentView === 'deal' && location.hash !== hashFor('deal')) hist('replaceState', hashFor('deal')); }
+window.addEventListener('popstate', () => {
+  if (backClosesSheet()) return;
+  if (history.state?.sheet) { history.back(); return; }   // a sheet's entry with no sheet (Forward onto it, or it was closed): step over it
+  if (history.state?.root) { history.forward(); return; }   // Back from the first screen: the guard sends it straight back
+  route();
+});
+// after a tick: a deal opened by showDeal is followed by its own showView, which adds the entry
+document.addEventListener('dealchange', () => setTimeout(syncDealHash, 0));
 
 /* --------------------------------------------------------------- the sheet */
 
@@ -1511,4 +1534,14 @@ restoreSession();
 store.kvGet('conventions').then((v) => { if (v) { setConventions(v); document.dispatchEvent(new CustomEvent('conventionchange')); } });
 // the old database from before the rename: deleted once a backup has been made since the move, or after 30 days
 setTimeout(() => { store.finishRename().catch(() => {}); }, 4000);
-showView(VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'home', { push: false });
+if (history.state?.sheet) hist('replaceState', location.hash);   // a reload while a sheet was open
+else if (!history.state?.z) {
+  // the guard under the first screen is added on the first tap or key: Chrome's Back skips entries a page adds without one
+  const guard = () => {
+    if (history.state?.z) return;
+    try { history.replaceState({ z: 1, root: true }, ''); } catch { return; }
+    hist('pushState', location.hash || '#home');
+  };
+  for (const t of ['pointerup', 'keydown']) window.addEventListener(t, guard, { capture: true, once: true });
+}
+route();

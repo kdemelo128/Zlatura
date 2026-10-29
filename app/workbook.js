@@ -23,6 +23,7 @@
  *   CoStar Notes     the full notes behind each comp
  */
 import { addRentRollTabs } from './rrbook.js';
+import { dealSchedules, typedPrice, leaseName } from './lease.js';
 import { signOf } from './numtext.js';
 import { ROLL_TOOL } from './dealfields.js';
 import { netEffectiveRent, nerExcel } from './engine/leasing.js';
@@ -1396,11 +1397,42 @@ export async function buildDealWorkbook(ExcelJS, fflate, { deal, metrics, comps,
   return cleanPackage(fflate, await wb.xlsx.writeBuffer(), { charts: null });
 }
 
+/** The net lease rent schedule: stated rent periods as values, rent over price as a formula on the Deal Analysis price. */
+function rentScheduleTab(wb, deal, m) {
+  const list = dealSchedules(deal, typedPrice(m));
+  if (!list.length) return;
+  const ws = sheet(wb, 'Rent Schedule', [12, 12, 11, 15, 13, 11, 10, 14, 44], 'FF0F766E');
+  title(ws, 1, 9, 'Rent Schedule', 'Rent over the asking price, from the stated rent periods only. It is a cap rate only when the lease type says absolute net.');
+  let r = 4;
+  for (const { L, S: sc } of list) {
+    if (list.length > 1) { label(ws, `A${r}`, leaseName(L), { bold: true }); r += 1; }
+    if (sc.errors.length) { note(ws, `A${r}`, `Left out: ${leaseName(L)} has ${sc.errors.length} problem${sc.errors.length === 1 ? '' : 's'} in its rent periods.`, 9); r += 2; continue; }
+    headerRow(ws, r, ['From', 'To', 'Years', 'Annual rent', 'Monthly', '$/SF/yr', 'Change', sc.showPrice ? sc.priceLabel : '', 'Notes']);
+    r += 1;
+    for (const x of sc.rows) {
+      v(ws, `A${r}`, S.serial(new Date(x.from)), DATE);
+      v(ws, `B${r}`, S.serial(new Date(x.to)), DATE);
+      v(ws, `C${r}`, x.years || null);
+      v(ws, `D${r}`, x.annual, MONEY2);
+      v(ws, `E${r}`, x.monthly, MONEY2);
+      v(ws, `F${r}`, x.psfYear, MONEY2);
+      v(ws, `G${r}`, x.change === null ? null : x.change / 100, PCT2);
+      if (sc.showPrice) { if (sc.priced) f(ws, `H${r}`, rate(`D${r}`, "'Deal Analysis'!B5"), x.onPrice === null ? null : x.onPrice / 100, PCT2, { align: 'right' }); else v(ws, `H${r}`, '—', null, { align: 'right' }); }
+      v(ws, `I${r}`, x.note || null, null, { wrap: true });
+      r += 1;
+    }
+    for (const n of sc.notes) { note(ws, `A${r}`, n, 9); r += 1; }
+    r += 1;
+  }
+  ws.views = [{ showGridLines: false }];
+}
+
 function addDeal(wb, deal, metrics, comps) {
   const now = new Date();
   const asOf = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
   dealTab(wb, deal, metrics, comps, {});
   // the full rent roll (lease schedules, cash flow) when the deal has one; else the OM's table
+  rentScheduleTab(wb, deal, metrics);
   if (deal.rr && deal.rr.leases && deal.rr.leases.length) { addRentRollTabs(wb, deal, deal.rr); return; }
   const rows = deal.figures.rentRoll || [];
   if (rows.length) rentRollTab(wb, rows, asOf);

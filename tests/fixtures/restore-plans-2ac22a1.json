@@ -175,6 +175,16 @@
     "replace": "86d21ff89994af67442e4fb2293f07c2c288c4e43991dc586d789dedf2b83dc6"
    }
   },
+  "backup-4.7.56-before-fee-record.json": {
+   "empty": {
+    "merge": "cddcc52bc4dacdbf138f726c6d7f22c7d831e677d81ca5b78b3ca9645fe6f311",
+    "replace": "f9efb9efb3d4c02fef650949927177a85d963c819d4d18639171fbf953503eb4"
+   },
+   "newer": {
+    "merge": "2a678198e885aa8edac9b454a787b2ab8506a6a4ea0163645987291cd51d57cc",
+    "replace": "9dc9b733bbbe6f17bc5d620e24edee39341d39e0cf3d550924a01cf7463eac17"
+   }
+  },
   "backup-4.7.56-before-uw-workspace.json": {
    "empty": {
     "merge": "95b78aa85e13122d029e14516315f1a59fdf253e3634fab18d6aa74758da680b",
@@ -184,6 +194,9 @@
     "merge": "7b313e3bab3bb2af323d45f24ead54333d64299422ef47e3ee6f47846acb991c",
     "replace": "2f2cfbc5be4ae4eb4f4d3dc8d2dd9aeea3084238870c44786f1be153026acd09"
    }
+  },
+  "backup-4.7.64-before-credit.json": {
+   "refusedByOldCode": "This backup holds 2 deals saved by a newer version of Zlatura (“Invented Plaza (fictional)”, “Invented Court (fictional)”): update the app first. Nothing was restored."
   },
   "backup-comp-loader-3.3.0.json": {
    "empty": {

@@ -22,7 +22,7 @@ await page.waitForFunction(() => document.querySelectorAll('#sales-table tbody t
 const nSales = await page.locator('#sales-table tbody tr').count();
 await go('tools');
 const cards = await page.locator('#tools-root button.tool').count();
-check('30 tools listed in groups', cards === 30 && (await page.locator('#tools-root .tool-group').count()) === 7, `${cards}`);
+check('31 tools listed in 8 groups', cards === 31 && (await page.locator('#tools-root .tool-group').count()) === 8, `${cards}`);
 await page.fill('#tool-search', 'waterfall');
 check('search narrows the list', (await page.locator('#tools-root button.tool').count()) === 1);
 await page.fill('#tool-search', '');
@@ -76,6 +76,15 @@ check('waterfall distributes every dollar', (await result('Total distributed')) 
 await page.fill('#tool-waterfall-h2', '6');
 await page.waitForTimeout(150);
 check('hurdles out of order are flagged', /Hurdles should rise/.test(await page.textContent('#sheet-body .tool-warn')));
+await closeSheet();
+
+// commission: tier limits that fall give no fee (they would count a band twice); rising limits give $160,000
+await openTool('commission');
+await fill([['#tool-commission-price', '5m'], ['#tool-commission-t1Up', '2m'], ['#tool-commission-t1', '6'], ['#tool-commission-t2Up', '1m'], ['#tool-commission-t2', '4'], ['#tool-commission-t3', '2']]);
+check('commission: falling tier limits say "Tier limits must rise" and show no fee', (await result('Tier limits must rise')) === '—' && (await result('Total commission')) === undefined);
+await page.fill('#tool-commission-t1Up', '1m'); await page.fill('#tool-commission-t2Up', '2m');
+await page.waitForTimeout(150);
+check('commission: rising limits give $160,000', (await result('Total commission')) === '$160,000', String(await result('Total commission')));
 await closeSheet();
 
 // comp set check uses the comps loaded on the Comps tab

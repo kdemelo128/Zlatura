@@ -104,3 +104,15 @@ test('GitHub Pages serves the site as is, and the tests run on every push', () =
   const ignore = read('.gitignore');
   for (const p of ['node_modules', '*.pdf', '*.xlsx']) assert.ok(ignore.includes(p), `.gitignore keeps ${p} out`);
 });
+
+test('the PDF writer (Documents > PDF pages) is pinned, licensed, listed with its checksum and cached for offline use', async () => {
+  const f = 'vendor/pdf-lib-cantoo-2.11.1.min.js';
+  assert.ok(exists(f) && exists('vendor/licenses/pdf-lib-cantoo-2.11.1.LICENSE.md'));
+  assert.match(read('vendor/licenses/pdf-lib-cantoo-2.11.1.LICENSE.md'), /MIT License/);
+  const { createHash } = await import('node:crypto');
+  const sum = createHash('sha256').update(fs.readFileSync(path.join(ROOT, f))).digest('hex');
+  assert.ok(read('THIRD_PARTY.md').includes(`${sum}  ${f}`), 'THIRD_PARTY.md lists the checksum of the file as shipped');
+  assert.ok(read('sw.js').includes(`'${f}'`), 'the service worker caches it');
+  assert.ok(fs.statSync(path.join(ROOT, f)).size < 1e6, 'at 1 MB or less it can be in the install set');
+  assert.ok(read('app/pdfpages-worker.js').includes(`importScripts('../${f}')`), 'the worker loads exactly this file');
+});

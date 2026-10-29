@@ -148,6 +148,13 @@ const TOOLS = [
   },
   ...MORE_TOOLS,
 ];
+/* Documents: not a calculator, so it is added apart from the list the calculators are checked against
+ * (tests/tools/golden.mjs reads that list). It opens the PDF pages sheet (pdfpagesui.js), which loads when first used. */
+TOOLS.push(/** @type {any} */ ({
+  id: 'pdf-pages', group: 'Documents', title: 'PDF pages', color: '#4F555E', docs: true, inputs: [],
+  desc: 'Merge PDFs, put pages in order, turn, delete, extract or split them. On this device; nothing is uploaded or kept.',
+  icon: '<path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6"/>',
+}));
 export const TOOL_IDS = TOOLS.map((t) => t.id);
 
 /** A tool's run gives either lines or { lines, tables, warnings }. */
@@ -161,7 +168,7 @@ function render() {
   root.textContent = '';
   const head = el('div', 'view-head');
   head.appendChild(el('h1', null, 'Tools'));
-  head.appendChild(el('p', null, `${TOOLS.length} calculators for valuation, debt, returns, leasing and development. Figures you type are remembered on this device; tools marked “deal” load the open deal’s figures.`));
+  head.appendChild(el('p', null, `${TOOLS.length} tools: calculators for valuation, debt, returns, leasing and development, and PDF page tools under Documents. Figures you type are remembered on this device; tools marked “deal” load the open deal’s figures.`));
   root.appendChild(head);
   const search = el('input', 'tool-search');
   search.type = 'search';
@@ -291,6 +298,7 @@ function inputField(t, [id, label, kind, ph, help], mem, onDate) {
 
 function open(t) {
   if (t.rows) { openWalt(t); return; }
+  if (t.docs) { import('./pdfpagesui.js').then((m) => m.openPdfPages(api)); return; }
   const mem = (memory[t.id] ||= {});
   const d = dealForTools();
   const ctx = { deal: d, sales: api.sales };

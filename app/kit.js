@@ -140,13 +140,40 @@ export function toast(msg, action = null, ms = 4200) {
 
 /* -------------------------------------------------------------- sheets */
 
+/* An open sheet owns one history entry, so the phone's Back closes it instead
+ * of leaving the screen behind it (see ui.js, which routes the rest of Back). */
+const openSheets = [];   // sheets holding an entry, innermost last
+let ownBacks = 0;        // popstates we caused ourselves, by closing a sheet with its own button
+/** Give up a closed sheet's entry (once). */
+function release(dlg) {
+  const i = openSheets.indexOf(dlg);
+  if (i < 0) return;   // already released, or closed by Back, which has given up the entry itself
+  openSheets.splice(i, 1);
+  // a screen opened right after the close has already taken the entry over (ui.js showView): nothing left to give up
+  if (history.state?.sheet) { ownBacks += 1; history.back(); }
+}
+function holdEntry(dlg) {
+  if (openSheets.includes(dlg)) return;
+  try { history.pushState({ z: 1, sheet: true }, ''); } catch { return; } // a sandboxed preview can refuse
+  openSheets.push(dlg);
+  dlg.addEventListener('close', () => release(dlg), { once: true });   // Esc closes a sheet without closeSheet
+}
+/** Back was pressed: closes the innermost sheet and returns true, or false when none is open. */
+export function backClosesSheet() {
+  if (ownBacks) { ownBacks -= 1; return true; }
+  const dlg = openSheets.pop();
+  if (dlg) closeSheet(dlg);
+  return !!dlg;
+}
+
 /** Open a <dialog> as a sheet: from the bottom on a phone, centred on a desk. */
 export function openSheet(dlg) {
-  if (typeof dlg.showModal === 'function') { if (!dlg.open) dlg.showModal(); } else dlg.setAttribute('open', '');
+  if (typeof dlg.showModal === 'function') { if (!dlg.open) { dlg.showModal(); holdEntry(dlg); } } else dlg.setAttribute('open', '');
   const body = dlg.querySelector('.sheet-body');
   if (body) body.scrollTop = 0;
 }
 export function closeSheet(dlg) {
+  release(dlg);   // at once, so a screen opened straight after finds the history settled
   if (typeof dlg.close === 'function' && dlg.open) dlg.close(); else dlg.removeAttribute('open');
 }
 /** Tapping the dimmed backdrop closes a sheet. */
@@ -240,9 +267,9 @@ export const idle = (fn) => (window.requestIdleCallback ? window.requestIdleCall
 export const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent)
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 export const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-export const canShareFiles = () => {
+export const canShareFiles = (type = XLSX, name = 'x.xlsx') => {
   try {
-    return !IN_ARTIFACT && !!navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.xlsx', { type: XLSX })] });
+    return !IN_ARTIFACT && !!navigator.canShare && navigator.canShare({ files: [new File(['x'], name, { type })] });
   } catch { return false; }
 };
 
@@ -261,13 +288,28 @@ export async function deliver(filename, bytes, type, opts = {}) {
 /** A print (deal brief, comp sheet, a tool's results) counts as a deliverable too. */
 export const printed = (name, { map = null } = {}) => document.dispatchEvent(new CustomEvent('deliverable', { detail: { name, kind: 'print', map } }));
 
-async function handOver(filename, bytes, type, { share = false } = {}) {
+/** A file name that is safe to hand to the system: no path separators, control characters or characters
+ *  a file system or a link refuses, no leading dots, at most 120 characters with the extension kept. Text
+ *  typed on the page (a deal name) often ends up in a file name. */
+export function downloadName(name) {
+  let n = String(name ?? '').normalize('NFC')
+    .replace(/[\u0000-\u001f\u007f\u2028\u2029\u202a-\u202e\u2066-\u2069]+/g, ' ')
+    .replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim().replace(/^[.\s-]+/, '');
+  const dot = n.lastIndexOf('.');
+  const ext = dot > 0 && n.length - dot <= 8 ? n.slice(dot) : '';
+  const stem = (ext ? n.slice(0, dot) : n).trim();
+  n = `${stem.slice(0, 120 - ext.length).trim() || 'file'}${ext}`;
+  return n;
+}
+
+async function handOver(rawName, bytes, type, { share = false } = {}) {
+  const filename = downloadName(rawName);
   const blob = bytes instanceof Blob ? bytes : new Blob([bytes], { type });
   if (IN_ARTIFACT) {
     const downloads = await window.claude.use('downloads').catch(() => null);
     if (downloads) { await downloads.save({ filename, data: blob }); return 'done'; }
   }
-  if ((share || (isIOS() && isStandalone())) && canShareFiles()) {
+  if ((share || (isIOS() && isStandalone())) && canShareFiles(type, filename)) {
     const file = new File([blob], filename, { type });
     try {
       await navigator.share({ files: [file], title: filename });

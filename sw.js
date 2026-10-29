@@ -26,7 +26,7 @@
  * a cache of its own, named for its version and kept across app updates: after
  * the first use it works offline too. Before that, offline, it says it needs
  * a connection once. */
-const VERSION = '4.7.60';
+const VERSION = '4.7.70';
 const CACHE = `zlatura-${VERSION}`;
 const ASSETS = [
   './',
@@ -73,6 +73,9 @@ const ASSETS = [
   'app/t12.js',
   'app/t12ui.js',
   'app/t12labels.js',
+  'app/credit.js',
+  'app/creditui.js',
+  'app/feeui.js',
   'app/review.js',
   'app/reviewui.js',
   'app/projector.js',
@@ -81,6 +84,7 @@ const ASSETS = [
   'app/impact.js',
   'app/impactui.js',
   'app/rentroll.js',
+  'app/rentschedule.js',
   'app/rrdoc.js',
   'app/rentrollui.js',
   'app/rrbook.js',
@@ -92,6 +96,7 @@ const ASSETS = [
   'app/aiui.js',
   'app/researchui.js',
   'app/pipeline.js',
+  'app/ics.js',
   'app/crm.js',
   'app/dealcrm.js',
   'app/home.js',
@@ -116,10 +121,14 @@ const ASSETS = [
   'app/dealfields.js',
   'app/library.js',
   'app/libraryui.js',
+  'app/pdfpages.js',
+  'app/pdfpages-worker.js',
+  'app/pdfpagesui.js',
   'vendor/pdf-4.7.76-legacy.min.js',
   'vendor/pdf-4.7.76-legacy.worker.min.js',
   'vendor/exceljs-4.4.0.min.js',
   'vendor/fflate-0.8.3.min.js',
+  'vendor/pdf-lib-cantoo-2.11.1.min.js',
   'icons/favicon.svg',
   'icons/icon-192.png',
   'icons/icon-512.png',
