@@ -36,6 +36,7 @@ import { renderRentRollWorkspace } from './rentrollui.js';
 import { redrawKeepingFocus } from './focuskeep.js';
 import { renderT12Card } from './t12ui.js';
 import { renderFeeCard } from './feeui.js';
+import { renderCreditCard } from './creditui.js';
 import { openLibrary } from './libraryui.js';
 import { openAiSettings, readWithAi, openAssistant, transcribeNote, openTranscript } from './aiui.js';
 import { crossChecks } from './reconcile.js';
@@ -734,6 +735,9 @@ function renderDeal(r) {
   comps.id = 'deal-comps';
   main.appendChild(comps);
   main.appendChild(figuresCard());
+  const credit = el('section', 'card credit-card');
+  credit.id = 'deal-credit';
+  main.appendChild(credit);
   const t12 = el('section', 'card t12-card');
   t12.id = 'deal-t12';
   main.appendChild(t12);
@@ -772,6 +776,7 @@ function renderDeal(r) {
   r.appendChild(stack);
   renderDerived();
   // drawn once here, not with the figures: a redraw while typing would take the keyboard away
+  renderCreditCard(credit, { deal, touch: (meta) => touch(d0, meta) });
   renderFeeCard(fee, { deal, touch: (meta) => touch(d0, meta) });
   showPane(pane, { focus: false });
 }

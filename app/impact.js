@@ -61,6 +61,7 @@ input('conventions', 'Calculation conventions (Settings)');
 input('preparedBy', 'Prepared by (Settings)');
 input('example', 'Fictional sample (an example deal)');
 input('fee', 'The fee record (fee terms, invoice and payments)');
+input('credit', 'The tenant credit record (parties, guaranty, typed ratings, store sales)');
 input('t12', 'The T-12 operating statement (its lines, their categories, its months)');
 
 /** Lease fields, as a person edits them. `status` covers vacant and month to month; `rent` the rent periods. */
@@ -94,6 +95,7 @@ export const NOT_CALCULATED = {
   'figures.renovated': 'shown on the deal screen only',
   'figures.stories': 'shown on the deal screen only',
   'figures.parking': 'shown on the deal screen only',
+  credit: 'shown on the Credit card only; kept in backups, on no export',
 };
 
 /* ---------------------------------------------------- the deal analysis */
@@ -446,6 +448,7 @@ export function inputOfPath(steps) {
   if (a === 'rentRoll') return { input: 'rentRoll' };
   if (a === 't12') return { input: 't12' };
   if (a === 'fee') return { input: 'fee' };
+  if (a === 'credit') return { input: 'credit' };
   if (a === 'scenarios') return { input: 'scenarios' };
   if (a === 'targets') return { input: 'targets' };
   if (a === 'visit') return { input: 'visit' };
