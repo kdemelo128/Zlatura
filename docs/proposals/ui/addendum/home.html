@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Home, addendum mockup</title>
+<link rel="stylesheet" href="addendum.css">
+<style>
+.date { color: var(--muted); font-size: var(--fs-small); }
+.lede { font: 400 var(--fs-h2)/1.3 var(--serif); max-width: 30ch; margin-top: var(--s1); font-variant-numeric: tabular-nums lining-nums; }
+.acts { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.waiting { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4); }
+.waiting .body { flex: 1; }
+.deal .t { display: flex; gap: var(--s2); align-items: baseline; }
+.figs, .fighead { display: grid; grid-template-columns: 1.25fr .8fr 1.15fr; gap: var(--s3); text-align: right; font-variant-numeric: tabular-nums; }
+.figs { font-size: var(--fs-small); font-weight: 600; margin-top: 2px; }
+.figs .no { font-weight: 400; color: var(--muted); }
+.fighead { font-size: var(--fs-cap); color: var(--muted); padding: var(--s2) 0 var(--s1); border-bottom: 1px solid var(--hair); }
+.lede { text-wrap: balance; }
+.deal .next { font-size: var(--fs-small); color: var(--muted); margin-top: 2px; }
+.stage { display: grid; grid-template-columns: 1fr auto auto; gap: var(--s4); align-items: baseline; padding: var(--s3) 0; border-bottom: 1px solid var(--hair); font-variant-numeric: tabular-nums; }
+.stage span:nth-child(2) { color: var(--muted); font-size: var(--fs-small); }
+.stage .meter { grid-column: 1 / -1; height: 4px; background: var(--surface-2); margin-top: -4px; }
+.stage .meter i { display: block; height: 100%; background: var(--muted); }
+.cols { display: grid; gap: var(--s6); align-items: start; }
+.right { display: contents; }
+.a-foot { order: 9; }
+.foot-actions { display: flex; justify-content: space-between; align-items: center; }
+@media (min-width: 960px) {
+  .cols { grid-template-columns: 1.6fr 1fr; grid-template-areas: "wait right" "cont right" "pipe right"; column-gap: var(--s10); row-gap: var(--s8); }
+  .right { grid-area: right; display: grid; gap: var(--s6); align-content: start; } .a-wait { grid-area: wait; } .a-cont { grid-area: cont; } .a-pipe { grid-area: pipe; } 
+  .lede { max-width: 38ch; font-size: 1.75rem; }
+  .deal .body { display: grid; grid-template-columns: 1fr 23rem; column-gap: var(--s4); align-items: baseline; }
+  .deal .next { grid-column: 1 / -1; }
+  .fighead { width: 23rem; margin-left: auto; border-bottom: 0; }
+  .hero { display: flex; align-items: end; justify-content: space-between; gap: var(--s6); }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="Main"></nav>
+  <header class="top">
+    <a class="wordmark" href="#home" data-brand aria-label="Home"></a>
+    <button class="ib" type="button" aria-label="Search deals, contacts and tools" data-i="search"></button>
+    <button class="ib" type="button" aria-label="Help" data-i="help"></button>
+  </header>
+  <main id="main">
+    <section class="hero" aria-labelledby="lede">
+      <div>
+        <p class="date"><time datetime="2026-10-29">Thursday 29 October</time></p>
+        <h1 id="lede" class="lede">6 active deals, $41.2M asking. 2 tasks due today, 1 overdue.</h1>
+      </div>
+      <div class="acts">
+        <button class="btn primary" type="button" data-i="plus">Read an OM</button>
+        <button class="btn" type="button">Add comps</button>
+      </div>
+    </section>
+
+    <div class="cols">
+        <div class="box waiting a-wait">
+          <span data-i="review"></span>
+          <div class="body"><b>3 items to review</b><div class="s small muted">T-12 lines from Tallow Creek Industrial</div></div>
+          <a class="btn quiet" href="#review">Review</a>
+        </div>
+
+        <div class="right">
+        <section class="sec a-today" aria-labelledby="td">
+          <h2 id="td">Today <a class="more" href="#">Show all 7</a></h2>
+          <ul class="rows">
+            <li><span class="when late">Overdue</span><div class="body"><div class="t">Send the LOI draft</div><div class="s">Harbor Row Lofts</div></div></li>
+            <li><span class="when">Today</span><div class="body"><div class="t">Call the lender about rate lock</div><div class="s">Linden Court Offices</div></div></li>
+            <li><span class="when"><time datetime="2026-11-03">3 Nov</time></span><div class="body"><div class="t">Due diligence ends</div><div class="s">Ostrander Flats, key date</div></div></li>
+          </ul>
+        </section>
+        <div class="foot-actions a-foot">
+          <a class="tap small" href="#">Customize Home</a>
+          <span class="cap">2 cards on the Hidden shelf</span>
+        </div>
+        </div>
+        <section class="sec a-cont" aria-labelledby="cw">
+          <h2 id="cw">Continue working <a class="more" href="#deals">All deals</a></h2>
+          <div class="fighead" aria-hidden="true"><span>Asking</span><span>Cap rate</span><span>NOI</span></div>
+          <ul class="rows">
+            <li class="deal"><div class="body">
+              <div class="t"><a href="deal.html">Linden Court Offices</a></div>
+              <div class="figs"><span><span class="vh">Asking </span>$9,850,000</span><span><span class="vh">Cap rate </span>6.75%</span><span><span class="vh">NOI </span>$664,900</span></div>
+              <div class="next">Next: ask the seller for the 2025 CAM reconciliation</div>
+            </div></li>
+            <li class="deal"><div class="body">
+              <div class="t"><a href="#">Harbor Row Lofts</a></div>
+              <div class="figs"><span><span class="vh">Asking </span>$14,200,000</span><span><span class="vh">Cap rate </span>5.90%</span><span><span class="vh">NOI </span>$837,800</span></div>
+              <div class="next">Next: tour booked for Monday at 10:00</div>
+            </div></li>
+            <li class="deal"><div class="body">
+              <div class="t"><a href="#">Marrow Street Retail</a></div>
+              <div class="figs"><span><span class="vh">Asking </span>$3,475,000</span><span class="no"><span class="vh">Cap rate </span>not entered</span><span><span class="vh">NOI </span>$228,400</span></div>
+              <div class="next">Next: add the asking cap rate from the broker's email</div>
+            </div></li>
+          </ul>
+        </section>
+
+        <section class="sec a-pipe" aria-labelledby="pl">
+          <h2 id="pl">Pipeline <a class="more" href="#deals">Open the board</a></h2>
+          <div class="stage"><span>Underwriting</span><span>3 deals</span><span>$27,525,000</span><div class="meter"><i style="width:67%"></i></div></div>
+          <div class="stage"><span>Offer out</span><span>2 deals</span><span>$11,900,000</span><div class="meter"><i style="width:29%"></i></div></div>
+          <div class="stage"><span>Under contract</span><span>1 deal</span><span>$1,775,000</span><div class="meter"><i style="width:4%"></i></div></div>
+        </section>
+    </div>
+  </main>
+  <nav class="bar" aria-label="Main"></nav>
+</div>
+<script src="shell.js"></script>
+<script>shell('home');</script>
+</body>
+</html>
