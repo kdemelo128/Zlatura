@@ -66,7 +66,7 @@ await page.click('button.tool[data-tool="pdf-pages"]');
 await page.waitForSelector('#docs-file', { state: 'attached' });
 await page.waitForFunction(() => /Add one or more PDFs/.test(document.getElementById('docs-status').textContent));
 check('before any file: the buttons are off and the sheet says to begin', await page.locator('#docs-save').isDisabled() && /Add one or more PDFs/.test(await status()));
-check('the loss of bookmarks, scripts and signatures is said before anything is saved', /Bookmarks, attachments, scripts and form fields are not kept.*web links are kept, and a digital signature/.test(await page.locator('#sheet-body').innerText()));
+check('the loss of bookmarks, scripts and signatures is said before anything is saved', /Bookmarks, attachments, scripts and form fields are not kept.*web links are kept, hidden layers are not carried over and may show, and a digital signature/.test(await page.locator('#sheet-body').innerText()));
 
 /* ------------------------------------------------------------- add and order */
 await page.setInputFiles('#docs-file', [FILE_A, FILE_B]);

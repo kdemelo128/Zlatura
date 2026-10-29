@@ -68,7 +68,7 @@ export function openPdfPages(api) {
   });
   body.classList.add('docs-pages');
 
-  body.appendChild(el('p', 'hint-sm', 'The pages are copied unchanged. Bookmarks, attachments, scripts and form fields are not kept, links to other pages or files are cut, web links are kept, and a digital signature on the original will no longer verify.'));
+  body.appendChild(el('p', 'hint-sm', 'The pages are copied unchanged. Bookmarks, attachments, scripts and form fields are not kept, links to other pages or files are cut, web links are kept, hidden layers are not carried over and may show, and a digital signature on the original will no longer verify.'));
 
   const add = el('button', 'btn btn-primary docs-add', 'Add PDFs…');
   add.type = 'button';
@@ -334,7 +334,11 @@ export function openPdfPages(api) {
         r.files.forEach((bytes, k) => { zip[downloadName(partName(base, k + 1, r.files.length))] = [bytes, { level: 0 }]; });
         done = await deliver(`${base.replace(/\.(pdf|zip)$/i, '')}.zip`, fflate.zipSync(zip), 'application/zip', { map: 'none: a document the broker supplied' });
       }
-      if (done === 'done') { toast(how); say(how); }
+      if (done === 'done') {
+        const note = r.unpruned ? ' Some pages’ content could not be read to cut their resources, so those were copied unchanged and may carry pictures that only other pages use.' : '';
+        toast(how); say(how + note);
+        if (note) problems([note.trim()]);
+      }
     } catch (err) { deliveryError(err); }
   }
 

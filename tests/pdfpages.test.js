@@ -8,7 +8,7 @@ import {
   checkAdd, problemText, pagesOf, overPages, move, rotate, remove, pageLabel, parseRanges, orderFor, withPdf, partName,
   MAX_FILES, MAX_PAGES, MAX_BYTES,
 } from '../app/pdfpages.js';
-import { plainPdf, hostilePdf, damagedPdf, encryptedPdf, tocPdf, chainPdf, lostContentPdf, cutBeforeContentPdf, strayPdf } from './tools/docpdfs.mjs';
+import { plainPdf, hostilePdf, damagedPdf, encryptedPdf, tocPdf, chainPdf, lostContentPdf, cutBeforeContentPdf, strayPdf, sharedImagesPdf, buildPdf, streamObj, pageObj, textStream } from './tools/docpdfs.mjs';
 
 const pdfjs = await import('../vendor/pdf-4.7.76-legacy.min.js');
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf-4.7.76-legacy.worker.min.js', import.meta.url).href;
@@ -263,4 +263,83 @@ test('if a picked page still leads to one that was not picked, by a route nothin
   assert.equal(r.ok, false);
   assert.equal(r.files, undefined);
   assert.match(r.message, /not picked/);
+});
+
+/* ------------------------------------------------- second review */
+
+const one = [{ f: 0, p: 0, rot: 0 }];
+const extractOne = async (w, bytes, id, order = one) => { const r = await w.ask({ id, type: 'build', files: [blob(bytes)], outputs: [order] }); assert.equal(r.ok, true, JSON.stringify(r)); return r; };
+const FONT = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
+const frame = (kids, count) => ['<< /Type /Catalog /Pages 2 0 R >>', `<< /Type /Pages /Kids [${kids}] /Count ${count} >>`, FONT];
+
+test('pictures only another page uses stay out, whether the pages share resources by inheritance, by one dictionary or through a form', async () => {
+  const w = startWorker();
+  for (const [i, mode] of ['inherit', 'shared', 'form'].entries()) {
+    assert.ok(raw(sharedImagesPdf(mode)).includes('SCANPAGETWO'));
+    const r = await extractOne(w, sharedImagesPdf(mode), 70 + i);
+    const out = raw(r.files[0]);
+    assert.ok(out.includes('SCANPAGEONE'), `${mode}: the picked page keeps its picture`);
+    assert.ok(!out.includes('SCANPAGETWO'), `${mode}: the other page's picture is not in the file`);
+    const both = await extractOne(w, sharedImagesPdf(mode), 80 + i, [...one, { f: 0, p: 1, rot: 0 }]);
+    if (mode !== 'form') assert.ok(raw(both.files[0]).includes('SCANPAGETWO'), `${mode}: picking both keeps both pictures`);
+  }
+});
+
+test('content that cannot be decoded keeps its resources whole, and the worker says so', async () => {
+  const w = startWorker();
+  const pdf = buildPdf([...frame('4 0 R', 1), pageObj(5).replace('/Resources << /Font << /F1 3 0 R >> >>', '/Resources << /XObject << /Im1 6 0 R /Im2 7 0 R >> >>'),
+    streamObj('<< /Filter /FooDecode >>', 'q /Im1 Do Q'), streamObj('<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceGray /BitsPerComponent 8 >>', 'KEEPONE'), streamObj('<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceGray /BitsPerComponent 8 >>', 'KEEPTWO')]);
+  const r = await extractOne(w, pdf, 90);
+  assert.equal(r.unpruned, true);
+  assert.ok(raw(r.files[0]).includes('KEEPONE') && raw(r.files[0]).includes('KEEPTWO'));
+  const clean = await extractOne(w, sharedImagesPdf('shared'), 91);
+  assert.equal(clean.unpruned, false);
+});
+
+const link = (a, extra = '') => `<< /Type /Annot /Subtype /Link /Rect [0 0 9 9] ${a} ${extra} >>`;
+const twoPages = (p1, objs, p2 = '') => buildPdf([...frame('4 0 R 5 0 R', 2), pageObj(6, p1), pageObj(7, p2), textStream('PAGEONE'), textStream('SECRETPAGETWO'), ...objs]);
+
+test('a kept link keeps only a web address or reader command: reset, hide, go-to and the rest are cut with whatever they lead to', async () => {
+  const w = startWorker();
+  const cases = [
+    ['reset form', twoPages('/Annots [8 0 R]', [link('/A << /S /ResetForm /Fields [9 0 R] >>'), '<< /FT /Tx /T (f) /V (SECRETFIELDVALUE) /AA << /K << /S /JavaScript /JS (FIELDJS) >> >> /Kids [10 0 R] >>', '<< /Type /Annot /Subtype /Widget /Parent 9 0 R /Rect [0 0 9 9] >>']), ['SECRETFIELDVALUE', 'FIELDJS']],
+    ['hide', twoPages('/Annots [8 0 R]', [link('/A << /S /Hide /T 9 0 R >>'), '<< /Type /Annot /Subtype /FreeText /Rect [0 0 9 9] /Contents (SECRETNOTEP2) >>']), ['SECRETNOTEP2']],
+    ['widget kids', twoPages('/Annots [8 0 R]', ['<< /Type /Annot /Subtype /Widget /FT /Btn /Rect [0 0 9 9] /Kids [9 0 R] >>', '<< /Type /Annot /Subtype /Widget /Rect [0 0 9 9] /AA << /U << /S /JavaScript /JS (KIDSJS) >> >> >>']), ['KIDSJS']],
+    ['partial action', twoPages('/Annots [8 0 R]', [link('/PA << /S /GoTo /D [5 0 R /Fit] >>')]), ['SECRETPAGETWO']],
+    ['articles', twoPages('/B [9 0 R]', ['<< /Type /Thread /F 9 0 R >>', '<< /Type /Bead /T 8 0 R /N 10 0 R /V 10 0 R /P 4 0 R /R [0 0 9 9] >>', '<< /Type /Bead /T 8 0 R /N 9 0 R /V 9 0 R /P 5 0 R /R [0 0 9 9] >>'], '/B [10 0 R]'), ['SECRETPAGETWO']],
+    ['page attachment', twoPages('/AF [8 0 R]', ['<< /Type /Filespec /F (a.xml) /EF << /F 9 0 R >> >>', streamObj('<< /Type /EmbeddedFile >>', 'EMBEDDEDSECRET')]), ['EMBEDDEDSECRET']],
+    ['annotation attachment', twoPages('/Annots [9 0 R]', ['<< /Type /Filespec /F (a.xml) /EF << /F 10 0 R >> >>', '<< /Type /Annot /Subtype /Square /Rect [0 0 9 9] /AF [8 0 R] >>', streamObj('<< /Type /EmbeddedFile >>', 'EMBEDDEDSECRET')]), ['EMBEDDEDSECRET']],
+    ['link file spec', twoPages('/Annots [9 0 R]', ['<< /Type /Filespec /F (a.xml) /EF << /F 10 0 R >> >>', link('', '/FS 8 0 R'), streamObj('<< /Type /EmbeddedFile >>', 'EMBEDDEDSECRET')]), ['EMBEDDEDSECRET']],
+  ];
+  for (const [name, pdf, marks] of cases) {
+    assert.ok(marks.every((m) => raw(pdf).includes(m)), `${name}: the fixture has the marker`);
+    const r = await extractOne(w, pdf, 100);
+    for (const m of marks) assert.ok(!raw(r.files[0]).includes(m), `${name}: ${m} is not in the file`);
+    assert.ok(!raw(r.files[0]).includes('SECRETPAGETWO'), `${name}: nor is the other page`);
+  }
+  const web = await extractOne(w, twoPages('/Annots [8 0 R]', [link('/A << /S /URI /URI (https://example.test/x) /Next << /S /Named /N /NextPage >> >>')]), 101);
+  assert.ok(raw(web.files[0]).includes('https://example.test/x'), 'a web link is kept');
+});
+
+test('an action chain with fan-out is followed once per action, and one too long to follow is treated as unsafe', async () => {
+  const w = startWorker();
+  const fan = [link('/A 9 0 R')];
+  for (let i = 0; i < 12; i++) fan.push(`<< /S /Named /N /NextPage /Next [${Array(8).fill(`${10 + i} 0 R`).join(' ')}] >>`);
+  fan.push('<< /S /Named /N /PrevPage >>');
+  const t0 = Date.now();
+  const r = await extractOne(w, twoPages('/Annots [8 0 R]', fan), 110);
+  assert.ok(Date.now() - t0 < 5000, 'finished');
+  assert.ok(raw(r.files[0]).includes('NextPage'), 'a harmless fan-out is kept');
+  const long = [link('/A 9 0 R')];
+  for (let i = 0; i < 2600; i++) long.push(`<< /S /Named /N /NextPage /Next ${10 + i} 0 R >>`);
+  long.push('<< /S /Named /N /PrevPage >>');
+  const r2 = await extractOne(w, twoPages('/Annots [8 0 R]', long), 111);
+  assert.ok(!raw(r2.files[0]).includes('NextPage'), 'a chain of 2,600 actions is cut');
+});
+
+test('a content list held by reference is refused when one of its streams is missing', async () => {
+  const w = startWorker();
+  const pdf = buildPdf([...frame('4 0 R', 1), pageObj(5), '[6 0 R 99 0 R]', textStream('ONE')]);
+  const r = await w.ask({ id: 120, type: 'inspect', file: blob(pdf) });
+  assert.deepEqual([r.ok, r.kind], [false, 'invalid']);
 });

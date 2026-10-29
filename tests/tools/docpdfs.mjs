@@ -116,3 +116,26 @@ export function cutBeforeContentPdf() {
 export function strayPdf() {
   return assemble([...frame({ pages: 2 }).map((x, i) => (i === 1 ? '<< /Type /Pages /Count 2 /Kids [4 0 R 6 0 R] >>' : x)), page(5, '/Foo 6 0 R'), content('P1'), page(7), content('SECRET4')]);
 }
+
+export const buildPdf = assemble;
+export const streamObj = (dict, stream) => ({ dict, stream });
+export const pageObj = page;
+export const textStream = content;
+const FONT = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
+
+/** Two pages, each drawing its own picture ("SCANPAGEONE", "SCANPAGETWO" are the picture bytes), where the pictures sit in ONE
+ *  resources dictionary the pages share: `inherit` (on the page tree), `shared` (one dictionary both pages point to), or `form`
+ *  (page 1 draws a form whose own resources are that shared dictionary). */
+export function sharedImagesPdf(mode) {
+  const img = (t) => ({ dict: '<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceGray /BitsPerComponent 8 >>', stream: t });
+  const shared = '<< /Font << /F1 3 0 R >> /XObject << /Im1 8 0 R /Im2 9 0 R /Fm1 10 0 R >> >>';
+  const leaf = (c, res) => `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]${res ? ` /Resources ${res}` : ''} /Contents ${c} 0 R >>`;
+  const objs = ['<< /Type /Catalog /Pages 2 0 R >>',
+    `<< /Type /Pages /Kids [4 0 R 5 0 R] /Count 2${mode === 'inherit' ? ` /Resources ${shared}` : ''} >>`, FONT,
+    leaf(6, mode === 'shared' || mode === 'form' ? '11 0 R' : ''), leaf(7, mode === 'shared' || mode === 'form' ? '11 0 R' : ''),
+    { dict: '<< >>', stream: mode === 'form' ? '/Fm1 Do' : 'q 612 0 0 792 0 0 cm /Im1 Do Q' }, { dict: '<< >>', stream: 'q 612 0 0 792 0 0 cm /Im2 Do Q' },
+    img('SCANPAGEONE'), img('SCANPAGETWO'),
+    { dict: `<< /Type /XObject /Subtype /Form /BBox [0 0 612 792] /Resources 11 0 R >>`, stream: 'q 612 0 0 792 0 0 cm /Im1 Do Q' },
+    shared];
+  return assemble(objs);
+}
