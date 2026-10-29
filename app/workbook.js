@@ -1392,8 +1392,14 @@ export async function buildDealWorkbook(ExcelJS, fflate, { deal, metrics, comps,
   wb.modified = new Date();
   wb.calcProperties = { fullCalcOnLoad: true };
   addDeal(wb, deal, metrics, comps);
+  if (deal.confidential) markConfidential(wb);
   wb.views = [{ activeTab: 0, firstSheet: 0, visibility: 'visible' }];
   return cleanPackage(fflate, await wb.xlsx.writeBuffer(), { charts: null });
+}
+
+/** Printed on every page of every sheet; never in a cell, so no figure moves. */
+export function markConfidential(wb) {
+  wb.eachSheet((ws) => { ws.headerFooter = { oddHeader: '&C&B&14CONFIDENTIAL', oddFooter: '&LCONFIDENTIAL: do not copy or forward&RPage &P of &N' }; });
 }
 
 function addDeal(wb, deal, metrics, comps) {

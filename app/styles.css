@@ -1292,3 +1292,4 @@ dialog.sheet[open] { animation: up .26s var(--ease); }
 .review-acts label.check { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; font-size: var(--t-14); }
 .review-bulk { padding: 0 var(--s4) var(--s3); }
 .review-group .card-head { flex-wrap: wrap; gap: 8px; }
+.btn[aria-disabled="true"] { opacity: .55; }

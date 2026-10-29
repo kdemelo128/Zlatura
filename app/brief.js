@@ -22,6 +22,7 @@ export const placeLine = (f) => [f.address, [f.city, [f.state, f.zip].filter(Boo
 export function dealSummaryText(deal, m, comps) {
   const f = deal.figures;
   const lines = [];
+  if (deal.confidential) lines.push('CONFIDENTIAL: do not forward');
   lines.push(placeLine(f) || deal.name || 'Deal');
   lines.push([f.ptype, ok(f.bsf) ? `${int(f.bsf)} SF` : null, ok(f.units) ? `${int(f.units)} units` : null,
     ok(f.year) ? `built ${f.year}` : null, f.zoning ? `zoned ${f.zoning}` : null].filter(Boolean).join(' · '));
@@ -47,7 +48,7 @@ export function renderDealBrief(box, { deal, m, comps, photos = [], preparedBy =
 
   const head = h(doc, 'header', 'ps-head');
   const left = h(doc, 'div');
-  left.appendChild(h(doc, 'div', 'ps-eyebrow', `${deal.example ? 'FICTIONAL SAMPLE · ' : ''}Deal brief${f.ptype ? ` · ${f.ptype}` : ''}`));
+  left.appendChild(h(doc, 'div', 'ps-eyebrow', `${deal.confidential ? 'CONFIDENTIAL · ' : ''}${deal.example ? 'FICTIONAL SAMPLE · ' : ''}Deal brief${f.ptype ? ` · ${f.ptype}` : ''}`));
   left.appendChild(h(doc, 'h1', 'ps-title', f.address || deal.name || 'Deal'));
   const where = [f.city, f.state, f.zip].filter(Boolean).join(', ');
   if (where) left.appendChild(h(doc, 'div', 'ps-sub', where));
@@ -155,4 +156,5 @@ export function renderDealBrief(box, { deal, m, comps, photos = [], preparedBy =
   box.appendChild(h(doc, 'p', 'ps-foot',
     'Figures read from the offering memorandum and checked against each other; "derived" figures were worked out from the others. '
     + 'Verify against the leases, the operating statements and the title before relying on any of them. Compiled with Zlatura.'));
+  if (deal.confidential) box.appendChild(h(doc, 'p', 'ps-foot', 'CONFIDENTIAL. Prepared for the named recipient only; do not copy, forward or post.'));
 }

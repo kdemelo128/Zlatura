@@ -220,7 +220,7 @@ export function dealForWorkbook(basis) {
 }
 function workbookDeal(m) {
   return {
-    name: `${deal.example ? 'FICTIONAL SAMPLE — ' : ''}${deal.name || deal.figures.address}`, source: deal.source, readAt: deal.readAt,
+    name: `${deal.confidential ? 'CONFIDENTIAL — ' : ''}${deal.example ? 'FICTIONAL SAMPLE — ' : ''}${deal.name || deal.figures.address}`, confidential: !!deal.confidential, source: deal.source, readAt: deal.readAt,
     figures: { ...deal.figures, rentRoll: deal.rentRoll }, loan: deal.loan, sources: deal.sources, rr: deal.rr, example: !!deal.example,
     questions: activeQuestions(m), visitLines: visitLines(), scenarioLines: scenarioLines(m),
   };
@@ -607,7 +607,7 @@ async function renderLanding(r) {
       ic.innerHTML = svg('<path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/>', 18);
       b.appendChild(ic);
       const m = el('div', 'li-main');
-      m.appendChild(el('div', 'li-title', d.name || d.figures?.address || 'Untitled deal'));
+      m.appendChild(el('div', 'li-title', `${d.name || d.figures?.address || 'Untitled deal'}${d.confidential ? ' (Confidential)' : ''}`));
       const f = d.figures || {};
       m.appendChild(el('div', 'li-sub', [STAGE_LABEL[stageOf(d)], f.ptype, f.price ? short(f.price) : null, f.cap ? `${pct(f.cap)} cap` : null, f.bsf ? `${int(f.bsf)} SF` : null, `updated ${niceDate(d.updatedAt)}`].filter(Boolean).join(' · ')));
       b.appendChild(m);
@@ -659,6 +659,15 @@ function renderDeal(r) {
   const pill = el('span', 'stage-pill', STAGE_LABEL[stageOf(deal)]);
   pill.id = 'deal-stage-pill';
   eb.appendChild(pill);
+  if (deal.confidential) {
+    const cc = el('button', 'chip chip-warn');
+    cc.type = 'button'; cc.id = 'deal-confidential-chip';
+    cc.innerHTML = svg('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>', 13);
+    cc.append(document.createTextNode(' Confidential'));
+    cc.setAttribute('aria-label', 'Confidential deal: open the confidential setting');
+    cc.addEventListener('click', openConfidential);
+    eb.appendChild(cc);
+  }
   if (deal.example) eb.appendChild(el('span', 'chip chip-warn', 'Fictional sample: not a real property'));
   if (deal.unpriced) eb.appendChild(el('span', 'chip chip-warn', 'Unpriced'));
   if (deal.visit.at) eb.appendChild(el('span', 'chip chip-teal', `Visited ${niceDate(deal.visit.at)}`));
@@ -2058,7 +2067,11 @@ function renderAudio(into = null) {
     const acts = el('div', 'voice-acts');
     if (a.transcript) {
       acts.appendChild(button('btn-sm btn-gray', a.transcript.reviewed ? 'Transcript' : 'Transcript (not yet checked)', () => openTranscript(aiHost(), a)));
-    } else acts.appendChild(button('btn-sm btn-gray', 'Transcribe…', () => transcribeNote(aiHost(), a)));
+    } else {
+      const tb = button('btn-sm btn-gray', 'Transcribe…', () => transcribeNote(aiHost(), a));
+      if (deal.confidential) tb.setAttribute('aria-disabled', 'true'); // stays focusable; a tap says why
+      acts.appendChild(tb);
+    }
     row.appendChild(acts);
     box.appendChild(row);
   }
@@ -2423,12 +2436,12 @@ export function openTemplates() {
 function useAsSubject() {
   api.setSubject(deal.figures);
   api.showView('comps');
-  toast('The deal is now the subject on the Comps tab: its value conclusions and pricing matrix use these figures.');
+  toast(`The deal is now the subject on the Comps tab: its value conclusions and pricing matrix use these figures.${deal.confidential ? ' Those outputs are not marked confidential.' : ''}`);
 }
 
 function fileBase() {
   const n = (deal.name || deal.figures.address || 'Deal').replace(/[^\w\s-]+/g, ' ').replace(/\s+/g, ' ').trim();
-  return `Deal - ${n} (${localDate()})`;
+  return `${deal.confidential ? 'CONFIDENTIAL - ' : ''}Deal - ${n} (${localDate()})`;
 }
 
 async function exportExcel() {
@@ -2467,6 +2480,28 @@ function printBrief() {
   Promise.all(imgs.map((i) => (i.decode ? i.decode().catch(() => {}) : null))).then(() => window.print());
 }
 
+/** The confidential setting. Turning it on blocks AI for this deal and marks its exports; it recalls nothing already sent. */
+async function openConfidential() {
+  const d = deal;
+  const body = api.sheetOpen({ eyebrow: 'Deal', title: 'Confidential deal', sub: d.name || d.figures.address || '' });
+  const chk = el('label', 'chk');
+  const on = el('input');
+  on.type = 'checkbox'; on.id = 'conf-toggle'; on.checked = !!d.confidential;
+  chk.append(on, document.createTextNode(' This deal is confidential'));
+  body.append(chk, el('p', 'hint-sm', 'On: the AI features refuse this deal (reading documents, asking, transcripts, call notes, and research from its contacts), and its summary, brief, workbooks, rent roll and filled templates say CONFIDENTIAL. This works on this device only and is not access control; it does not recall anything already sent. The comps and Tools outputs are not marked.'));
+  on.addEventListener('change', async () => {
+    if (!on.checked) {
+      const v = await actionSheet('Turn off confidential?', [{ label: 'Turn off', sub: 'AI works on this deal again, and exports are no longer marked.', value: 'yes', danger: true }]);
+      if (v !== 'yes') { on.checked = true; return; }
+    }
+    d.confidential = on.checked;
+    touch(d, { kind: 'edit', label: on.checked ? 'Marked confidential' : 'No longer confidential' });
+    await flushDeal();
+    if (deal === d) render();
+    toast(on.checked ? 'Marked confidential.' : 'No longer confidential.');
+  });
+}
+
 async function dealMenu() {
   const v = await actionSheet(deal.name || 'Deal', [
     { label: 'Copy summary', sub: 'five lines for a text or an email', value: 'copy', icon: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/>' },
@@ -2475,8 +2510,9 @@ async function dealMenu() {
     { label: 'Use as the comps subject', value: 'subject', icon: '<path d="M5 12h14M13 6l6 6-6 6"/>' },
     { label: 'History…', sub: 'every change to this deal; undo to any step', value: 'history', icon: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>' },
     '-',
-    { label: 'Read documents with AI…', sub: 'OM, rent roll, T-12 or lease: figures to check, page by page', value: 'ai-read', icon: '<path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z"/><path d="M5 17l.9 2.1L8 20l-2.1.9L5 23l-.9-2.1L2 20l2.1-.9z"/>' },
-    { label: 'Ask about this deal…', sub: 'answers from this deal’s figures, with sources', value: 'ai-ask', icon: '<path d="M21 12a8 8 0 01-11.6 7.1L4 21l1.9-5.4A8 8 0 1121 12z"/>' },
+    { label: 'Confidential…', sub: deal.confidential ? 'On: marked on exports, AI is off for this deal' : 'Mark exports and keep this deal away from AI', value: 'confidential', icon: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>' },
+    { label: 'Read documents with AI…', sub: deal.confidential ? 'Off: this deal is confidential' : 'OM, rent roll, T-12 or lease: figures to check, page by page', disabled: !!deal.confidential, value: 'ai-read', icon: '<path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z"/><path d="M5 17l.9 2.1L8 20l-2.1.9L5 23l-.9-2.1L2 20l2.1-.9z"/>' },
+    { label: 'Ask about this deal…', sub: deal.confidential ? 'Off: this deal is confidential' : 'answers from this deal’s figures, with sources', disabled: !!deal.confidential, value: 'ai-ask', icon: '<path d="M21 12a8 8 0 01-11.6 7.1L4 21l1.9-5.4A8 8 0 1121 12z"/>' },
     { label: 'AI settings…', value: 'ai-settings', icon: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>' },
     { label: 'Open in Maps', value: 'map', disabled: !deal.figures.address, icon: '<path d="M12 21s-7-6.1-7-11a7 7 0 1114 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>' },
     '-',
@@ -2495,6 +2531,7 @@ async function dealMenu() {
   else if (v === 'template') openTemplates();
   else if (v === 'ai-read') chooseForAi();
   else if (v === 'ai-ask') openAssistant(aiHost());
+  else if (v === 'confidential') openConfidential();
   else if (v === 'ai-settings') openAiSettings(api);
   else if (v === 'map') window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeLine(deal.figures))}`, '_blank', 'noopener');
   else if (v === 'new') $('om-file').click();
