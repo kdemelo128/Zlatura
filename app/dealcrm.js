@@ -2,6 +2,7 @@
  * next steps (tasks) and the people involved (contacts). */
 
 import * as crm from './crm.js';
+import * as ai from './ai.js';
 import { STAGE_LABEL, stageChoices, stageOf, taskBuckets, CONTACT_ROLES, KEY_DATE_LABELS, isoDay } from './pipeline.js';
 import { el, svg, toast, niceDate, actionSheet, openSheet, closeSheet, backdropCloses, deliver, deliveryError, isIOS, isStandalone } from './kit.js';
 import { icsFor, dealEvents, closingOf, exchangeEvents } from './ics.js';
@@ -278,6 +279,10 @@ export function editContact(api, c = {}, deals = []) {
   company.addEventListener('input', () => { rs.hidden = !company.value.trim(); });
   body.appendChild(rs);
   const linked = new Set(c.dealIds || []);
+  // research from a contact on a confidential deal is refused; the button stays focusable and a tap says why
+  const gate = async () => { const why = await ai.blocked({ research: { company: company.value.trim(), dealIds: [...linked] } }); if (why) rs.setAttribute('aria-disabled', 'true'); else rs.removeAttribute('aria-disabled'); };
+  company.addEventListener('input', gate);
+  gate();
   const record = () => ({ ...c, name: name.value, company: company.value, role: role.value, phone: phone.value.trim(), email: email.value.trim(), notes: notes.value, dealIds: [...linked] });
   const dirty = () => {
     const r = record();
@@ -287,6 +292,8 @@ export function editContact(api, c = {}, deals = []) {
   // research replaces this sheet: edits not yet saved are saved first, or kept out on purpose, never dropped silently
   rs.addEventListener('click', async () => {
     const co = company.value.trim();
+    const why = await ai.blocked({ research: { company: co, dealIds: [...linked] } });
+    if (why) { toast(why, null, 7000); return; }
     if (dirty()) {
       const v = await actionSheet('You have unsaved changes to this contact', [
         { label: 'Save, then research', sub: 'The contact is saved first.', value: 'save', primary: true },
@@ -297,7 +304,7 @@ export function editContact(api, c = {}, deals = []) {
         try { await crm.saveContact(record()); toast('Contact saved.'); } catch (e) { toast(e.message); return; }
       }
     }
-    startResearch({ company: co });
+    startResearch({ company: co, dealIds: [...new Set([...(c.dealIds || []), ...linked])] });
   });
   if (deals.length) {
     const sec = el('section');

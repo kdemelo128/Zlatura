@@ -45,7 +45,7 @@ async function render() {
   const lastBackup = await kvGet('backup.last');
   const scrollY = window.scrollY;
   root.textContent = '';
-  const nameOf = Object.fromEntries(deals.map((d) => [d.id, d.name || d.figures.address || 'Untitled deal']));
+  const nameOf = Object.fromEntries(deals.map((d) => [d.id, tagged(d, d.name || d.figures.address || 'Untitled deal')]));
   const p = pipelineSummary(deals);
   const b = taskBuckets(tasks);
 
@@ -171,7 +171,9 @@ function continueCard(deals, tasks) {
   c.appendChild(ul);
   return c;
 }
-const dealTitle = (d) => d.name || (d.figures && d.figures.address) || 'Untitled deal';
+/** A confidential deal is named so in every list, board and export that shows its name. */
+const tagged = (d, n) => (d.confidential ? `${n} (Confidential)` : n);
+const dealTitle = (d) => tagged(d, d.name || (d.figures && d.figures.address) || 'Untitled deal');
 
 function attentionCard(att) {
   const [c] = section('Needs attention', 'home-attention');
@@ -237,7 +239,7 @@ function pipelineCard(p) {
       const card = el('div', 'pipe-card');
       const open = el('button', 'pipe-open');
       open.type = 'button';
-      const nm = el('b', null, d.name || d.figures.address || 'Untitled deal'); nm.dir = 'auto'; open.appendChild(nm);
+      const nm = el('b', null, tagged(d, d.name || d.figures.address || 'Untitled deal')); nm.dir = 'auto'; open.appendChild(nm);
       const cap = capOf(d);
       open.appendChild(el('span', null, [ok(d.figures.price) ? short(d.figures.price) : 'unpriced', ok(cap) ? `${pct(cap, 2)} cap` : null, d.figures.ptype || null].filter(Boolean).join(' · ')));
       open.appendChild(el('span', 'pipe-when', `updated ${ago(d.updatedAt || d.createdAt)}`));
@@ -428,7 +430,7 @@ async function reportData() {
     const next = open.filter((t) => t.due).sort((a, b) => a.due.localeCompare(b.due))[0];
     const f = d.figures;
     return {
-      id: d.id, name: d.name || f.address || 'Untitled deal', stage: STAGE_LABEL[stageOf(d)], type: f.ptype || '', city: [f.city, f.state].filter(Boolean).join(', '),
+      id: d.id, name: tagged(d, d.name || f.address || 'Untitled deal'), stage: STAGE_LABEL[stageOf(d)], type: f.ptype || '', city: [f.city, f.state].filter(Boolean).join(', '),
       price: ok(f.price) ? f.price : null, noi: ok(f.noi) ? f.noi : null, cap: capOf(d), sf: ok(f.bsf) ? f.bsf : null, ppsf: ok(f.price) && ok(f.bsf) && f.bsf > 0 ? f.price / f.bsf : null,
       openTasks: open.length, next: next ? `${next.title} (${next.due}${next.due < today ? ', overdue' : ''})` : (open[0] ? open[0].title : ''),
       people: contacts.filter((c) => (c.dealIds || []).includes(d.id)).map((c) => `${c.name}${c.role ? ` (${c.role})` : ''}`).join('; '),
@@ -451,7 +453,7 @@ async function report() {
 
 async function reportXlsx() {
   const { rows, tasks, contacts, deals } = await reportData();
-  const nameOf = Object.fromEntries(deals.map((d) => [d.id, d.name || d.figures.address || 'Untitled deal']));
+  const nameOf = Object.fromEntries(deals.map((d) => [d.id, tagged(d, d.name || d.figures.address || 'Untitled deal')]));
   const { ExcelJS } = await getXlsx();
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Zlatura';

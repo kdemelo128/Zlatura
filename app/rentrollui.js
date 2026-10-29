@@ -781,7 +781,7 @@ async function exportCsv(deal, rr) {
   const cols = visibleColumns(rr.columns);
   const lines = [cols.map((x) => csvCell(x.label)).join(',')];
   for (const L of rr.leases) lines.push(cols.map((x) => { const v = x.get(L, c); return csvCell(ok(v) ? Math.round(v * 100) / 100 : v); }).join(','));
-  await deliver(`Rent roll - ${fileName(deal)}.csv`, new TextEncoder().encode(`${lines.join('\r\n')}\r\n`), 'text/csv', { map: 'rr-csv' });
+  await deliver(`${deal.confidential ? 'CONFIDENTIAL - ' : ''}Rent roll - ${fileName(deal)}.csv`, new TextEncoder().encode(`${lines.join('\r\n')}\r\n`), 'text/csv', { map: 'rr-csv' });
 }
 const fileName = (deal) => (deal.name || deal.figures?.address || 'Deal').replace(/[^\w\s-]+/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -790,7 +790,7 @@ async function exportWorkbook(deal, rr) {
     const libs = await getXlsx();
     const { buildRentRollWorkbook } = await import('./rrbook.js');
     const bytes = await buildRentRollWorkbook(libs.ExcelJS, libs.fflate, { deal, rr });
-    if (await deliver(`Rent roll - ${fileName(deal)}.xlsx`, bytes, XLSX, { map: 'rr-workbook' }) === 'done') toast('Rent roll workbook ready: the rent roll, every lease period, and the cash flow by year.');
+    if (await deliver(`${deal.confidential ? 'CONFIDENTIAL - ' : ''}Rent roll - ${fileName(deal)}.xlsx`, bytes, XLSX, { map: 'rr-workbook' }) === 'done') toast('Rent roll workbook ready: the rent roll, every lease period, and the cash flow by year.');
   } catch (err) {
     toast(`The workbook could not be built: ${err.message || err}`);
   }
