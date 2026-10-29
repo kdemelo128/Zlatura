@@ -14,6 +14,9 @@ import { monthlyPayment, amortMonths } from './engine/debt.js';
 import { breakEvenOccupancy } from './engine/breakeven.js';
 import { isPriced, median } from './engine/comps.js';
 import { toCents } from './engine/money.js';
+import { recoveryAnnual, shareOf } from './engine/recovery.js';
+import { breakpointOf, overageOf } from './engine/pctrent.js';
+import { reversion } from './engine/returns.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const pos = (x) => ok(x) && x > 0;
@@ -119,10 +122,10 @@ export function dcf({ noi, growth = 0, years = 10, discount, exitCap, saleCost =
     pvCf += pv;
     rows.push({ year: t, noi: series[t - 1], cashFlow: cf, pv });
   }
-  const reversion = (series[n] / (exitCap / 100)) * (1 - nz(saleCost) / 100);
-  const pvRev = reversion / (1 + d) ** n;
+  const sale = reversion({ basisNext: series[n], exitCap, saleCostPct: nz(saleCost) }).net;
+  const pvRev = sale / (1 + d) ** n;
   const value = pvCf + pvRev;
-  return { rows, reversion, pvReversion: pvRev, pvCashFlows: pvCf, value, impliedCap: value ? (series[0] / value) * 100 : null, reversionShare: value ? (pvRev / value) * 100 : null };
+  return { rows, reversion: sale, pvReversion: pvRev, pvCashFlows: pvCf, value, impliedCap: value ? (series[0] / value) * 100 : null, reversionShare: value ? (pvRev / value) * 100 : null };
 }
 
 /** An operating statement from its parts: potential rent down to NOI, with the ratios lenders ask for. */
@@ -337,23 +340,20 @@ export function renewalVsReplacement({ sf, renew, replace, discount = 8 }) {
 /** Percentage rent: the share of sales above the breakpoint (set, or natural = base rent ÷ rate). */
 export function percentageRent({ sales, rate, breakpoint, baseRent, natural = false }) {
   if (!ok(sales) || !pos(rate)) return null;
-  const bp = natural && pos(baseRent) ? baseRent / (rate / 100) : breakpoint;
-  if (!ok(bp)) return null;
-  const overage = Math.max(0, sales - bp) * rate / 100;
+  const bp = breakpointOf({ rate, natural, baseRent: pos(baseRent) ? baseRent : null, breakpoint });
+  if (bp === null) return null;
+  const overage = overageOf({ sales, rate, breakpoint: bp });
   return { breakpoint: bp, overage, occupancyCost: pos(baseRent) ? ((baseRent + overage) / sales) * 100 : null, salesToBreakpoint: bp - sales };
 }
 
 /** A tenant's share of operating expenses: pro rata, over a base year, over a stop, or fixed. */
 export function recovery({ expenses, tenantSf, buildingSf, sharePct, method = 'prorata', baseYear, stopPsf, fixed }) {
   if (!ok(expenses)) return null;
-  const share = ok(sharePct) ? sharePct / 100 : pos(tenantSf) && pos(buildingSf) ? tenantSf / buildingSf : null;
-  if (method === 'fixed') return { share, annual: nz(fixed), monthly: nz(fixed) / 12 };
-  if (share === null) return null;
-  let annual = 0;
-  if (method === 'prorata') annual = expenses * share;
-  else if (method === 'base_year') annual = Math.max(0, expenses - nz(baseYear)) * share;
-  else if (method === 'stop') annual = pos(buildingSf) && pos(tenantSf) ? Math.max(0, expenses / buildingSf - nz(stopPsf)) * tenantSf : 0;
-  return { share: share * 100, annual, monthly: annual / 12, psf: pos(tenantSf) ? annual / tenantSf : null };
+  const share = shareOf({ sharePct, tenantSf, buildingSf });
+  const annual = recoveryAnnual({ method, pool: expenses, share, tenantSf, buildingSf, baseAmount: baseYear, stopPsf, fixed });
+  if (annual === null) return null;
+  if (method === 'fixed') return { share, annual, monthly: annual / 12 };
+  return { share: /** @type {number} */ (share) * 100, annual, monthly: annual / 12, psf: pos(tenantSf) ? annual / tenantSf : null };
 }
 
 /** Lease-up of vacant space at a steady pace: how long, and the rent not earned meanwhile. */

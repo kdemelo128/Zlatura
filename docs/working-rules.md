@@ -145,6 +145,17 @@ These stop merge conflicts from recurring.
 6. **Research stays cheap.** The designer judges a shortlist; it doesn't
    browse. Keep summaries to a page.
 
+## Clean room: other vendors' software (owner, 2026-10-29)
+
+Approved as decision 1 of `docs/proposals/argus-class-cashflow.md` (section 0), and a standing rule:
+- **Never** decompile, disassemble, trace or get round a licence, key or terms of use on any vendor's software.
+- **Never** use a vendor's file formats, report layouts or help text, or leaked code.
+- **Never** import or export another vendor's model files.
+- **No vendor trademark** appears in the product, its exports or its marketing (code comments included).
+- Build the **published industry method** (textbooks, appraisal practice, public measurement standards) on our own
+  engine, with test values worked by hand from invented cases. Public vendor pages may be read for terminology only.
+- Where the method allows two readings, ask the owner; never copy a vendor's default.
+
 ## The owner's support code is a standing source (owner, 2026-10-17)
 
 The owner's underwriting support code (Python, in the git-ignored

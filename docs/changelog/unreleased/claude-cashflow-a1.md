@@ -1,0 +1,8 @@
+# One calculation in one place: recoveries, percentage rent and the sale price at exit
+
+The Tools and the rent-roll projection each worked out expense recoveries and percentage rent with their own copy of the arithmetic, and the Deal screen and the DCF tool each priced the sale at exit. The copies agreed, but would have drifted once caps and gross-ups arrive (phase A1 of `docs/proposals/argus-class-cashflow.md`).
+
+- **One function each:** `app/engine/recovery.js`, `app/engine/pctrent.js` and `app/engine/returns.js`. `calc.js`, `lease.js` and `deal.js` call them. Nothing changes on screen and no saved result moves: 646 figures compared, 0 changed; the 618 saved results pass; the projection of a 500-lease invented roll is bit-for-bit the same and no slower.
+- **Where the copies still differ at the edges** (kept exactly as they were, reported to the owner): an unknown tenant share is "can't tell" in the Recovery tool but 0 in the projection; a negative sale cost is ignored on the Deal screen but applied in the DCF tool; a natural breakpoint on a zero base rent is 0 in the projection but falls back to the typed breakpoint in the tool.
+- **Rule written down:** the clean-room rule (no decompiling, tracing or circumventing vendor software; no vendor formats, layouts, help text, leaked code, model files or trademarks) is now in `docs/working-rules.md` and `CLAUDE.md`. A code comment no longer names a vendor.
+- **Tested:** `tests/engine-shared.test.js` (hand-worked cases, two property tests that the projection and the Tools agree, a guard that the arithmetic is written once); each fails on the previous code; nine mutations of the new functions are each caught.
