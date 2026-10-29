@@ -78,6 +78,15 @@ await page.waitForTimeout(150);
 check('hurdles out of order are flagged', /Hurdles should rise/.test(await page.textContent('#sheet-body .tool-warn')));
 await closeSheet();
 
+// commission: tier limits that fall give no fee (they would count a band twice); rising limits give $160,000
+await openTool('commission');
+await fill([['#tool-commission-price', '5m'], ['#tool-commission-t1Up', '2m'], ['#tool-commission-t1', '6'], ['#tool-commission-t2Up', '1m'], ['#tool-commission-t2', '4'], ['#tool-commission-t3', '2']]);
+check('commission: falling tier limits say "Tier limits must rise" and show no fee', (await result('Tier limits must rise')) === '—' && (await result('Total commission')) === undefined);
+await page.fill('#tool-commission-t1Up', '1m'); await page.fill('#tool-commission-t2Up', '2m');
+await page.waitForTimeout(150);
+check('commission: rising limits give $160,000', (await result('Total commission')) === '$160,000', String(await result('Total commission')));
+await closeSheet();
+
 // comp set check uses the comps loaded on the Comps tab
 await openTool('compset');
 await fill([['#tool-compset-subjectSf', '10,000']]);

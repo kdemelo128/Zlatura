@@ -23,7 +23,7 @@
  *   CoStar Notes     the full notes behind each comp
  */
 import { addRentRollTabs } from './rrbook.js';
-import { dealSchedules, leaseName } from './lease.js';
+import { dealSchedules, typedPrice, leaseName } from './lease.js';
 import { signOf } from './numtext.js';
 import { ROLL_TOOL } from './dealfields.js';
 import { netEffectiveRent, nerExcel } from './engine/leasing.js';
@@ -1399,7 +1399,7 @@ export async function buildDealWorkbook(ExcelJS, fflate, { deal, metrics, comps,
 
 /** The net lease rent schedule: stated rent periods as values, rent over price as a formula on the Deal Analysis price. */
 function rentScheduleTab(wb, deal, m) {
-  const list = dealSchedules(deal, m.price);
+  const list = dealSchedules(deal, typedPrice(m));
   if (!list.length) return;
   const ws = sheet(wb, 'Rent Schedule', [12, 12, 11, 15, 13, 11, 10, 14, 44], 'FF0F766E');
   title(ws, 1, 9, 'Rent Schedule', 'Rent over the asking price, from the stated rent periods only. It is a cap rate only when the lease type says absolute net.');
@@ -1417,7 +1417,7 @@ function rentScheduleTab(wb, deal, m) {
       v(ws, `E${r}`, x.monthly, MONEY2);
       v(ws, `F${r}`, x.psfYear, MONEY2);
       v(ws, `G${r}`, x.change === null ? null : x.change / 100, PCT2);
-      if (sc.showPrice) f(ws, `H${r}`, rate(`D${r}`, "'Deal Analysis'!B5"), x.onPrice === null ? null : x.onPrice / 100, PCT2, { align: 'right' });
+      if (sc.showPrice) { if (sc.priced) f(ws, `H${r}`, rate(`D${r}`, "'Deal Analysis'!B5"), x.onPrice === null ? null : x.onPrice / 100, PCT2, { align: 'right' }); else v(ws, `H${r}`, '—', null, { align: 'right' }); }
       v(ws, `I${r}`, x.note || null, null, { wrap: true });
       r += 1;
     }

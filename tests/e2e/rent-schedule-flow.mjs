@@ -93,6 +93,15 @@ const text = async (page, sel) => ((await page.locator(sel).count()) ? (await pa
   void ctx;
 }
 
+// C. only a derived price (NOI and a stated cap, none typed): the schedule must not echo the cap back as rent / price
+{
+  const { browser, page } = await open('c', [lease('ld', '100', 'Acme Test Co', [P('2026-01-01', '2030-12-31', 100000)])], { price: null, noi: 100000, cap: 6.5, lease_type: 'Absolute NNN' });
+  const card = await text(page, '#deal-rentsched');
+  check('C: the tile says the price is derived', /derived from NOI and cap/.test(await text(page, '#deal-tiles')));
+  check('C: no 6.50% echo, no Cap rate label, "No price entered"', card.length > 0 && !/6\.50%/.test(card) && !/Cap rate \(rent/.test(card) && /No price entered/.test(card), card);
+  await browser.close();
+}
+
 for (const r of R) console.log(r.join(' | '));
 finish(R, 'errors', allErrors.flat());
 process.exit(R.some((r) => r[0] === 'FAIL') || allErrors.flat().length ? 1 : 0);

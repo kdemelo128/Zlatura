@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.65 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.66 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -128,6 +128,7 @@ section with grep, never in full.
   Security Hardening prompt v3: first a docs-only triage of its 250 items
   (`docs/proposals/security-robustness-triage.md`), then fixes, at most two
   security PRs open at once.
+- **Conformance fixes (4.7.66, PR opening):** the rent schedule uses only a typed price; commission tiers that do not rise give no figure.
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
   owner says to continue.
