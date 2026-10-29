@@ -318,7 +318,7 @@ test('a kept link keeps only a web address or reader command: reset, hide, go-to
     assert.ok(!raw(r.files[0]).includes('SECRETPAGETWO'), `${name}: nor is the other page`);
   }
   const web = await extractOne(w, twoPages('/Annots [8 0 R]', [link('/A << /S /URI /URI (https://example.test/x) /Next << /S /Named /N /NextPage >> >>')]), 101);
-  assert.ok(raw(web.files[0]).includes('https://example.test/x'), 'a web link is kept');
+  assert.ok(/\/URI\s*\(https:\/\/example\.test\/x\)/.test(raw(web.files[0])), 'a web link is kept');
 });
 
 test('an action chain with fan-out is followed once per action, and one too long to follow is treated as unsafe', async () => {
