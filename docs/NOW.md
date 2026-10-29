@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.67 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.69 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -130,6 +130,7 @@ section with grep, never in full.
   security PRs open at once.
 - **Conformance fixes (4.7.66, merged #94):** the rent schedule uses only a typed price; commission tiers that do not rise give no figure.
 - **OM red flags (4.7.67, PR opening):** the checks ask about a missing or low management fee, payroll, free rent and unstated occupancy; questions only, no figure changes.
+- **Conformance docs drift (4.7.69, PR opening):** matrix rows and PLAN_STATUS ticks brought up to date, a test that every browser flow is listed in `run.sh`, `CSS.escape` in `researchui.js`, and the new PLAN_STATUS section "Owner additions and changes to the plan".
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
   owner says to continue.

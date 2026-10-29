@@ -9,7 +9,7 @@ import { feeSummary } from './calc.js';
 import { toCents, toRate } from './engine/money.js';
 import { STAGE_LABEL, stageOf } from './pipeline.js';
 
-export const VERSION = '4.7.67';
+export const VERSION = '4.7.69';
 
 const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
 const ppsf = (c) => (num(c.price) && num(c.bsf) ? c.price / c.bsf : null);
