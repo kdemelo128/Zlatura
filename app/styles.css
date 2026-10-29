@@ -1196,12 +1196,12 @@ dialog.sheet[open] { animation: up .26s var(--ease); }
 
 /* tool families: one tint each, tuned for both themes */
 .tool[data-group="0"] { --g: #2350C8; } .tool[data-group="1"] { --g: #0A7064; } .tool[data-group="2"] { --g: #8A6118; }
-.tool[data-group="3"] { --g: #6A4C9C; } .tool[data-group="4"] { --g: #2A6FD0; } .tool[data-group="5"] { --g: #9A4A1F; } .tool[data-group="6"] { --g: #4F555E; }
+.tool[data-group="3"] { --g: #6A4C9C; } .tool[data-group="4"] { --g: #2A6FD0; } .tool[data-group="5"] { --g: #9A4A1F; } .tool[data-group="6"] { --g: #4F555E; } .tool[data-group="7"] { --g: #8A5A2B; }
 :root[data-theme="dark"] .tool[data-group="0"] { --g: #93ACFF; } :root[data-theme="dark"] .tool[data-group="1"] { --g: #3FC9B6; } :root[data-theme="dark"] .tool[data-group="2"] { --g: #DDB466; }
-:root[data-theme="dark"] .tool[data-group="3"] { --g: #B9A2EA; } :root[data-theme="dark"] .tool[data-group="4"] { --g: #7FB0F5; } :root[data-theme="dark"] .tool[data-group="5"] { --g: #EE9A6A; } :root[data-theme="dark"] .tool[data-group="6"] { --g: #AEB2B8; }
+:root[data-theme="dark"] .tool[data-group="3"] { --g: #B9A2EA; } :root[data-theme="dark"] .tool[data-group="4"] { --g: #7FB0F5; } :root[data-theme="dark"] .tool[data-group="5"] { --g: #EE9A6A; } :root[data-theme="dark"] .tool[data-group="6"] { --g: #AEB2B8; } :root[data-theme="dark"] .tool[data-group="7"] { --g: #D9A872; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .tool[data-group="0"] { --g: #93ACFF; } :root:not([data-theme="light"]) .tool[data-group="1"] { --g: #3FC9B6; } :root:not([data-theme="light"]) .tool[data-group="2"] { --g: #DDB466; }
-  :root:not([data-theme="light"]) .tool[data-group="3"] { --g: #B9A2EA; } :root:not([data-theme="light"]) .tool[data-group="4"] { --g: #7FB0F5; } :root:not([data-theme="light"]) .tool[data-group="5"] { --g: #EE9A6A; } :root:not([data-theme="light"]) .tool[data-group="6"] { --g: #AEB2B8; }
+  :root:not([data-theme="light"]) .tool[data-group="3"] { --g: #B9A2EA; } :root:not([data-theme="light"]) .tool[data-group="4"] { --g: #7FB0F5; } :root:not([data-theme="light"]) .tool[data-group="5"] { --g: #EE9A6A; } :root:not([data-theme="light"]) .tool[data-group="6"] { --g: #AEB2B8; } :root:not([data-theme="light"]) .tool[data-group="7"] { --g: #D9A872; }
   :root:not([data-theme="light"]) .tab .badge, :root:not([data-theme="light"]) .btn-teal, :root:not([data-theme="light"]) .tri button[aria-pressed="true"] { color: #0F1012; }
 }
 /* the appearance switch */
@@ -1299,3 +1299,26 @@ dialog.sheet[open] { animation: up .26s var(--ease); }
 .review-acts label.check { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; font-size: var(--t-14); }
 .review-bulk { padding: 0 var(--s4) var(--s3); }
 .review-group .card-head { flex-wrap: wrap; gap: 8px; }
+
+/* ====================================================== Documents: PDF pages */
+.docs-pages { display: grid; gap: var(--s3); align-content: start; }
+.docs-row { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.docs-pages .btn, .docs-pages .docs-icon, .docs-pages .field input { min-height: 44px; }
+.docs-pages .docs-icon { min-width: 44px; }
+.docs-files, .docs-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.docs-files li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.docs-fname { font-weight: 600; overflow-wrap: anywhere; min-width: 0; flex: 1 1 8em; }
+.docs-page { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--s2) var(--s3); align-items: center; border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--s2); background: var(--surface); }
+.docs-thumb { width: 64px; height: 64px; display: grid; place-items: center; background: var(--fill); border-radius: var(--r-xs); overflow: hidden; }
+.docs-thumb canvas { max-width: 64px; max-height: 64px; box-shadow: var(--shadow-sm, 0 0 0 1px var(--line)); background: #fff; }
+.docs-ptext { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.docs-btns { grid-column: 1 / -1; display: flex; gap: var(--s1, 4px); justify-content: flex-end; }
+.docs-out { display: grid; gap: var(--s3); border-top: 1px solid var(--line); padding-top: var(--s3); }
+.docs-progress { display: flex; align-items: center; gap: var(--s3); }
+.docs-progress progress { flex: 1; min-width: 0; height: 12px; }
+.docs-problems:empty { display: none; }
+.docs-problems p { margin: 2px 0; }
+@media (min-width: 640px) {
+  .docs-page { grid-template-columns: 64px minmax(0, 1fr) auto; }
+  .docs-btns { grid-column: auto; }
+}
