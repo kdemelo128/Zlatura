@@ -1,6 +1,6 @@
 # Feature ideas: a study for a retail investment sales broker
 
-Study only, 2026-10-28. Nothing here is approved, planned or built.
+Study only, 2026-10-28. Approved by the owner 2026-10-28: idea 1 (net lease rent schedule, built 4.7.64), idea 2 (.ics key dates, built 4.7.63) and idea 3 (tenant credit record, designer note first). Nothing else here is approved, planned or built.
 
 **Scope.** These are new ideas for a broker who sells single-tenant net lease, multi-tenant and mixed-use retail around DC, Maryland and Virginia, mostly from an iPhone. Anything already built, in `docs/PLAN_STATUS.md` or `docs/acceptance-matrix.md`, or already proposed (competitive gap, underwriting workspace E1 to E10, relationship intelligence, UI revamp) is left out.
 

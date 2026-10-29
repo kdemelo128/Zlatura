@@ -1,7 +1,7 @@
 # Acceptance matrix: Zlatura (from Comp Loader 3.3.0)
 
 Baseline: `main` at the merge of pull request #3 (content identical to commit
-`8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.70. This
+`8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.70 (rows for 4.7.52 to 4.7.64 added in the conformance drift fix). This
 file tracks every feature in the master plan, `ZLATURA_MASTER_PROMPT_v2.md`
 in the repository root (the "brief" below), as its Part 23 asks. In 4.7.2 it
 was checked against the master plan section by section: rows it was missing
@@ -83,6 +83,7 @@ the baseline; 32 flows are listed at 4.7.2).
 | Global search across documents, tasks, notes, comps | Partially implemented | Deals, contacts and tools only. |
 | Documents hub, step D1: PDF pages (merge, split, reorder, turn, delete, extract) | Tested with synthetic fixtures only | Tools > Documents > PDF pages (`app/pdfpagesui.js`, `pdfpages.js`, the worker `pdfpages-worker.js`, `@cantoo/pdf-lib` 2.11.1 vendored, 617 KB, cached for offline). On the device: no file is uploaded or stored. A password-protected or damaged file is refused by name; nothing is guessed. The output is a new document: page actions, script and launch links, attachments and the open action are cut. Limits: 20 files, 500 pages, 50 MB a file, 150 MB in all (60 MB on iPhone). Tested on invented PDFs read back with pdf.js (`pdfpages.test.js` with mutation checks; `documents-flow`: keyboard, announcements, 44 px targets, axe at phone and desktop size, Cancel, offline). Chromium only: **not tried on Safari or an iPhone**, memory on a big file there is unmeasured. Known limits: the watchdog is a flat 60 s; a cut file is spotted by a missing `%%EOF` in its last 1 KB; hidden (optional-content) layers are not carried over and may show; a page that uses a pattern, a soft mask, a Type 3 font, a form with no resources or an undecodable content keeps its resources whole, which can carry pictures from other pages of the same file (and the screen says so after saving). Not done in D1: dragging pages, converting images or other files to PDF (D2), the due-diligence checklist (D3). |
 | Deal switcher, recently opened, breadcrumbs | Partially implemented | Deals list, "Continue working" on Home, "All deals" back link. No breadcrumbs. |
+| The phone's Back button returns to the last screen (F3) | Tested with synthetic fixtures only | Added 4.7.62. `back-flow` in a desktop browser only; no iPhone or Safari swipe-back was tried. |
 | Review Queue | Implemented and verified | 4.7.0 (Phase 2, milestone 1). A Review tab appears only when something is waiting, with a count. It holds four kinds of item: T-12 lines to file, T-12 checks not yet seen, AI readings never applied or dismissed, and template cells mapped with low confidence. Each choice is recorded where the item lives, so on a deal it can be undone. Low-confidence OM readings are left out (approved). `t12-noi.test.js`, `t12-flow`, `a11y-flow`. Chromium only. |
 | Status bar (save, sync, scenario, template, confidence) | Not implemented | |
 | Keyboard shortcut cheat sheet (`?`) | Implemented and verified | 4.6.0. Press `?` anywhere you aren't typing, use "Keyboard shortcuts" in the search (⌘K), or use the button in Settings. Every key the app answers to is listed by where it works, with ⌘ on a Mac and Ctrl elsewhere. The list is `app/shortcuts.js`; `shortcuts.test.js` reads every keydown handler in `app/` and fails if one answers to a key that isn't listed, or if a listed key is no longer handled. `shell-flow` (open, contents, Escape, search, Settings, "?" typed in a field) and `a11y-flow` (axe, light and dark). Chromium only; not tried with a real iPad or Mac keyboard. |
@@ -104,7 +105,7 @@ the baseline; 32 flows are listed at 4.7.2).
 | Fee record on the deal (5.1): terms, expected fee and splits, invoice, payments, outstanding; Home → Report → Fees CSV | Tested with synthetic fixtures only | 4.7.61 (data format approved 2026-10-23: `deal.fee` in whole cents, silent migration step `fee-record` to schema 5). The expected fee is `commission()` (no second formula) and is blank without a typed fee price; a split shows only when all three shares were entered (a blank is not 0). Tested with invented deals (`calc.test.js`, `money.test.js`, `exporters.test.js`, `backup.test.js`, `migrate.test.js` on an invented 4.7.56 backup, `fee-flow`). Gap: the fee does not feed pipeline analytics yet, and a fee has one invoice. |
 | Tenant credit record on the deal: tenant entity, guarantor and its scope, typed ratings, store sales, go dark; seven checks on the card | Tested with synthetic fixtures only | 4.7.66 (data format approved 2026-10-29: `deal.credit`, silent migration step `credit-record` to schema 6). Ratings are typed by the broker with agency, rating, as-of date and source, are never fetched, and read "Typed by the broker on {date}; not verified by Zlatura."; a rating off its agency's scale is kept as typed with no investment-grade label. The checks (`creditChecks`, obligor, guaranty ends, limit blank, stale, OM differs, rent over sales, go dark) show on the card only and are not in `analyze()` (golden unchanged). The record shows on the deal page and in the backup only: typed ratings are on no client-facing document, and store sales are never exported. Tested with invented deals (`credit.test.js`, `money.test.js`, `migrate.test.js` on an invented 4.7.64 backup, `credit-flow`). Gap: no export carries a rating yet (needs the firm's compliance wording).
 | Pipeline analytics (commission by stage and probability, aging, conversion) | Not implemented | |
-| Calendar integration | Not implemented | |
+| Calendar integration | Partially implemented | Added 4.7.63. A one-way .ics file of key dates, tasks and the 1031 day 45 and day 180 events, handed over by the share sheet (`app/ics.js`, `calendar-flow`). No two-way sync; not tried in the iPhone Calendar. |
 | Custom widgets and saved views | Not implemented | |
 | Deal Health Score (explainable) | Not implemented | |
 
@@ -215,7 +216,10 @@ the baseline; 32 flows are listed at 4.7.2).
 | Early termination (notice, date, fee, cash-flow effect) | Not implemented | |
 | Expansion, contraction, purchase options | Partially implemented | Options column is text; not modelled. |
 | Recovery caps, admin fees, gross-ups | Partially implemented | Methods exist; caps, admin fees and gross-ups do not. |
-| Outputs: summary, schedule, expirations, concentration, WALT, loss to lease, projection, NOI bridge | Implemented and verified | WALT basis is named on screen. |
+| Outputs: summary, schedule, expirations, concentration, WALT, loss to lease, projection, NOI bridge | Implemented and verified | WALT basis is named on screen. Synthetic fixtures only. |
+| Net lease rent schedule with rent ÷ price per period | Tested with synthetic fixtures only | Added 4.7.64 (9.2, owner addition from the feature study). `tests/rentschedule.test.js`, `rent-schedule-flow`. Since 4.7.66 the ratio uses only a typed price, never one derived from the cap rate. |
+| Hostile text and time zones (F6, F7) | Tested with synthetic fixtures only | Added 4.7.60. `tests/fixtures/hostile.js`, `hostile-flow`, `npm run test:tz`. The time-zone fix moved `termLeft` by under 0.001 years on US-zone devices; the owner acknowledged it 2026-10-29. |
+| No "-$0" in displayed figures | Tested with synthetic fixtures only | Added 4.7.52 (20.6, 21.1). `numtext.js` `signOf`. Follow-up sites (glance, aifacts, t12ui, t12, omstatement, figures) are listed in the 4.7.52 changelog. |
 | Rent definitions kept distinct (contract, market, potential, billed, collected, effective) | Partially implemented | Contract, market and projected are distinct; billed and collected don't exist. |
 | Rollover Radar | Partially implemented | Expiration table with rent at risk; no option dates or re-leasing cost view. |
 | Messy rent roll intake (XLSX, CSV) with header detection and total-row skipping | Implemented and verified | Text-PDF rent rolls come through the OM reader, which since 4.7.4 reads by position with Data QC (synthetic fixtures only). 4.7.15 (F2): a CSV saved as Windows-1252 keeps its accented names and curly quotes, with a note in the import sheet (invented fixtures only; not yet tried on a real old CSV). |
@@ -309,10 +313,10 @@ the baseline; 32 flows are listed at 4.7.2).
 | Setup documented, health check, clear errors when keys are missing | Implemented, not fully tested | Added 4.7.2 (16.1.2). `server/README.md`; Settings → Test connection (`/api/health`). Not tried against a deployed server. |
 | Extraction, assistant, meeting notes, transcription | Tested with synthetic fixtures only | Stand-in model and speech service (`ai-flow`, `voice-flow`). |
 | Speaker labels; searchable meeting history | Not implemented | Added 4.7.2 (16.1.3). Transcripts have timed segments. |
-| Retries with backoff and cost caps | Not implemented | Added 4.7.2 (16.1.5). |
+| Retries with backoff and cost caps | Partially implemented | Added 4.7.2 (16.1.5). Whole-cent spending limits are built in the AI server (F12, 4.7.47); retries with backoff are not. No live model was called. |
 | Live provider validation | Blocked | Needs `ANTHROPIC_API_KEY`, `STT_URL`, `STT_API_KEY` and a deployed server. |
 | Provider abstraction, per-workspace data-leaving setting | Partially implemented | Speech is any OpenAI-compatible service; the language model is Anthropic only. AI is off by default; each send is confirmed. |
-| Prompt-injection defence with adversarial tests | Partially implemented | Document text is sent as data with instructions to ignore embedded instructions, and every quoted passage is checked against the PDF text. No adversarial test set. |
+| Prompt-injection defence with adversarial tests | Partially implemented | Document text is sent as data with instructions to ignore embedded instructions, and every quoted passage is checked against the PDF text. An invented adversarial set of 25 documents in 11 categories (4.7.47, 4.7.51) is tested; the real model is not tested. |
 | Source text, extracted facts, confirmed facts, AI interpretations, calculated results and discrepancies kept apart | Partially implemented | Added 4.7.2 (16.2). Source tags; AI readings stay apart until applied. |
 | Extraction evaluation harness | Not implemented | |
 | A concrete live-validation plan for AI and speech | Not implemented | Added 4.7.2 (16.4). |
@@ -334,9 +338,9 @@ the baseline; 32 flows are listed at 4.7.2).
 
 | Feature | Status | Notes |
 |---|---|---|
-| Key dates on a deal | Implemented and verified | |
+| Key dates on a deal | Implemented and verified | Synthetic fixtures only. Exported as .ics since 4.7.63. |
 | Diligence checklists, request tracking, Q&A manager, closing workspace, prorations | Not implemented | Site-visit checklist only. |
-| Contract-driven critical dates (incl. 1031 45/180 days) | Partially implemented | 1031 tool computes the deadlines; key dates are entered by hand. |
+| Contract-driven critical dates (incl. 1031 45/180 days) | Partially implemented | 1031 tool computes the deadlines; key dates are entered by hand. Since 4.7.63 the key dates and the 1031 day 45 and day 180 dates can be exported as .ics; they are still not set from a contract. |
 | Diligence findings proposing underwriting changes for review | Not implemented | Added 4.7.2 (18.6). |
 
 ## Part 19. Workspaces, security, privacy
