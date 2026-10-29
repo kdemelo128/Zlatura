@@ -109,10 +109,13 @@ function fromEngine(R) {
   if (p === 'd.rentRoll') return LEASES_IN_ANALYSIS.map((x) => (typeof x === 'string' ? keep(x) : { ...x, when: R.when || x.when }));
   if (p === 'd.rentRollAsOf') return [keep('rr.settings.asOf')];
   // K33's band: the property type picks it, and its numbers are in Settings
-  if (p === 'd.ptype') return [keep('figures.ptype'), { ...R, path: 'conventions', when: 'the K33 rent per SF band' }];
+  if (p === 'd.ptype') return [keep('figures.ptype'), { ...R, path: 'conventions', when: 'the K33 rent per SF band, and the OM red-flag levels (om.*)' }];
   // the rent roll's own leases (rentroll.js rollFacts): each rule names the lease fields it uses, 'asOf' for the as-of date
   if (p === 'd.rollFacts') return (R.fields || []).flatMap((f) => (f === 'asOf' ? ['rr.settings.asOf'] : [`lease.${f}`])).concat('leases').map((x) => ({ path: x, when: R.when || 'only for a deal with a rent roll' }));
   // the roll's other income lines (name and amount a year), read by the recoveries-twice check
+  // the OM's printed occupancy line and rent line (their wording, from the deal's sources)
+  if (p === 'd.occLine') return [keep('sources'), { ...R, path: 'conventions', when: 'the occupancy gap set in Settings (om.occ.gap)' }];
+  if (p === 'd.rentLine') return [keep('sources')];
   if (p === 'd.rollOther') return [keep('rr.settings.otherIncome'), keep('leases')].map((x) => (typeof x === 'string' ? { path: x, when: R.when } : { ...x, when: R.when }));
   // the T-12, and the OM's own figures it is compared with (kept as they were before "Use the T-12's figures")
   if (p === 'd.t12') return [keep('t12')];
@@ -224,7 +227,7 @@ const SCN_BASE = [
 const SCN_ALSO = () => {
   const replaced = new Set(['figures.price', 'figures.noi', 'figures.cap', 'figures.occ']);
   const set = new Set(['figures.gross', 'figures.opex', 'loan.minDscr', 'loan.minDy']);
-  for (const F of [...FIGURES.list, ...RULES.list]) for (const R of F.reads) for (const x of fromEngine(R)) if (x.path.startsWith('figures.') || x.path.startsWith('lease') || x.path.startsWith('rr.') || ['rentRoll', 'conventions', 't12', 'proj.noi'].includes(x.path)) if (!replaced.has(x.path)) set.add(x.path);
+  for (const F of [...FIGURES.list, ...RULES.list]) for (const R of F.reads) for (const x of fromEngine(R)) if (x.path.startsWith('figures.') || x.path.startsWith('lease') || x.path.startsWith('rr.') || ['rentRoll', 'conventions', 't12', 'sources', 'proj.noi'].includes(x.path)) if (!replaced.has(x.path)) set.add(x.path);
   return [...set];
 };
 const SCN_OTHER = SCN_ALSO();
@@ -468,6 +471,9 @@ export function analysisInput(d, { project = null } = {}) {
   const out = { ...d.figures, rentRoll: rr ? legacyRows(rr) : d.rentRoll, loan: d.loan, rentRollAsOf: rr && rr.settings ? rr.settings.asOf : null, ...(rr ? { rollFacts: rollFacts(rr), rollOther: ((rr.settings || {}).otherIncome || []).map((o) => ({ name: o.name || '', annual: o.annual })) } : {}) };
   // a deal with a T-12: its totals, and the OM's figures as they were before the T-12's were used; and the
   // rent roll's year 1 NOI when `project` gives it (a projection already worked out; none, and that pair isn't compared)
+  const src0 = d.sources || {};
+  if (src0.occ && src0.occ.line) out.occLine = String(src0.occ.line);
+  if (src0.rent_inplace && src0.rent_inplace.line) out.rentLine = String(src0.rent_inplace.line);
   const t = t12ForAnalysis(d.t12);
   if (t) {
     const before = d.t12.applied && d.t12.applied.before;
