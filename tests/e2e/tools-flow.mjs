@@ -22,7 +22,7 @@ await page.waitForFunction(() => document.querySelectorAll('#sales-table tbody t
 const nSales = await page.locator('#sales-table tbody tr').count();
 await go('tools');
 const cards = await page.locator('#tools-root button.tool').count();
-check('30 tools listed in groups', cards === 30 && (await page.locator('#tools-root .tool-group').count()) === 7, `${cards}`);
+check('31 tools listed in 8 groups', cards === 31 && (await page.locator('#tools-root .tool-group').count()) === 8, `${cards}`);
 await page.fill('#tool-search', 'waterfall');
 check('search narrows the list', (await page.locator('#tools-root button.tool').count()) === 1);
 await page.fill('#tool-search', '');

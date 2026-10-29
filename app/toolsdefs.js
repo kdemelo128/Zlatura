@@ -22,7 +22,7 @@ import { money0, money2, pct, times, int, dec, signed, short } from './kit.js';
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const loanOf = (v) => ({ ltv: v.ltv, rate: v.rate, amort: v.amort, io: !!v.io, closing: v.closing });
 
-export const GROUPS = ['Valuation', 'Debt and financing', 'Returns and fees', 'Leasing', 'Comps and market', 'Development', 'Conversions and dates'];
+export const GROUPS = ['Valuation', 'Debt and financing', 'Returns and fees', 'Leasing', 'Comps and market', 'Development', 'Conversions and dates', 'Documents'];
 
 export const MORE_TOOLS = [
   /* ---------------------------------------------------------- valuation */
