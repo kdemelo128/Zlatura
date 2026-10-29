@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.67 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.68 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -129,7 +129,8 @@ section with grep, never in full.
   (`docs/proposals/security-robustness-triage.md`), then fixes, at most two
   security PRs open at once.
 - **Conformance fixes (4.7.66, merged #94):** the rent schedule uses only a typed price; commission tiers that do not rise give no figure.
-- **OM red flags (4.7.67, PR opening):** the checks ask about a missing or low management fee, payroll, free rent and unstated occupancy; questions only, no figure changes.
+- **OM red flags (4.7.67, merged #95):** the checks ask about a missing or low management fee, payroll, free rent and unstated occupancy; questions only, no figure changes.
+- **Tenant credit record (4.7.68, PR opening):** schema 6, a credit card per deal (ratings, guarantor, go-dark, store sales); checks only, no calculation changes; ratings and store sales never leave the device in exports.
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
   owner says to continue.
