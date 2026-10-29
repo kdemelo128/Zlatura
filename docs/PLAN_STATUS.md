@@ -219,6 +219,9 @@ part it extends or contradicts, and its status.
   and Part 9. Proposal written, awaiting approval. Not implemented.
 - [ ] UI revamp with user-selectable modules and a tutorial (owner). Extends
   the "UI revamp" list above and Part 20. Not implemented.
+  - UI revamp addendum written, awaiting approval
+    (`docs/proposals/ui-revamp-addendum.md`, mockups in
+    `docs/proposals/ui/addendum/`).
 - [ ] A full improvement run on every feature (owner): each touched feature
   gets better, and none is removed. Partially implemented, item by item.
 - [x] Time-zone change (4.7.60) acknowledged (owner, 2026-10-29): `termLeft`

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>My workspace, addendum mockup</title>
+<link rel="stylesheet" href="addendum.css">
+<style>
+.top h1 { margin-right: auto; }
+.top .wordmark { display: none; }
+.intro { color: var(--muted); max-width: 36rem; }
+.role { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) 0; border-bottom: 1px solid var(--hair); }
+.role .body { flex: 1; }
+.mods { list-style: none; margin: 0; padding: 0; }
+.mod { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--s4); align-items: center; padding: var(--s3) 0; border-bottom: 1px solid var(--hair); }
+.mod .t { font-weight: 600; grid-column: 1; }
+.mod .s { grid-column: 1; }
+.mod .s { font-size: var(--fs-small); color: var(--muted); }
+.mod .ctl { display: flex; align-items: center; gap: var(--s1); grid-row: 1 / span 2; grid-column: 2; }
+.mod .fixed { font-size: var(--fs-small); color: var(--muted); }
+.mod.off .t { color: var(--muted); }
+.switchbtn { min-width: var(--tap); min-height: var(--tap); display: inline-grid; place-items: center; border: 0; background: none; padding: 0; cursor: pointer; }
+.count { font-size: var(--fs-small); color: var(--muted); font-variant-numeric: tabular-nums; }
+@media (min-width: 960px) {
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s10); align-items: start; }
+}
+.cols { display: grid; gap: var(--s8); }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="Main"></nav>
+  <header class="top">
+    <a class="ib" href="#" aria-label="Back to Settings" data-i="back"></a>
+    <h1>My workspace</h1>
+    <button class="ib" type="button" aria-label="Help" data-i="help"></button>
+  </header>
+  <main>
+    <p class="intro">Show the sections you use. A hidden section leaves the menus and Home but stays here, in search and in Help, one tap away. Nothing is deleted.</p>
+    <div class="role"><div class="body"><div class="t"><b>You mostly work as a broker</b></div><div class="small muted">Decides what opens first. It never hides anything.</div></div><button class="btn" type="button">Change</button></div>
+    <div class="cols">
+      <section class="sec" aria-labelledby="ws">
+        <h2 id="ws">Workspaces <span class="more count">4 of 6 shown</span></h2>
+        <ul class="mods">
+          <li class="mod"><span class="t">Underwrite</span><span class="s">Quick underwriting, sets and cash flow</span><span class="ctl"><span class="fixed">Always in the bar</span></span></li>
+          <li class="mod"><span class="t">Cash flow</span><span class="s">Lease by lease, year by year, in Underwrite</span><span class="ctl"><button class="switchbtn" type="button" role="switch" aria-checked="true" aria-label="Show Cash flow"><span class="switch on"></span></button></span></li>
+          <li class="mod"><span class="t">Documents</span><span class="s">Convert files, arrange PDF pages, the due-diligence list</span><span class="ctl"><button class="switchbtn" type="button" role="switch" aria-checked="true" aria-label="Show Documents"><span class="switch on"></span></button></span></li>
+          <li class="mod"><span class="t">Development</span><span class="s">Pro forma, draws, residual land value</span><span class="ctl"><button class="switchbtn" type="button" role="switch" aria-checked="true" aria-label="Show Development"><span class="switch on"></span></button></span></li>
+          <li class="mod off"><span class="t">Investors</span><span class="s">Investor register and quarterly reports</span><span class="ctl"><a class="btn quiet" href="#">Open once</a><button class="switchbtn" type="button" role="switch" aria-checked="false" aria-label="Show Investors"><span class="switch"></span></button></span></li>
+          <li class="mod off"><span class="t">Connections</span><span class="s">Exchange contacts and deals with your CRM</span><span class="ctl"><a class="btn quiet" href="#">Open once</a><button class="switchbtn" type="button" role="switch" aria-checked="false" aria-label="Show Connections"><span class="switch"></span></button></span></li>
+        </ul>
+      </section>
+      <section class="sec" aria-labelledby="hc">
+        <h2 id="hc">Home <span class="more count">4 of 7 shown</span></h2>
+        <ul class="mods">
+          <li class="mod"><span class="t">Today</span><span class="s">Overdue tasks, tasks due today, key dates</span><span class="ctl"><button class="switchbtn" type="button" role="switch" aria-checked="true" aria-label="Show Today"><span class="switch on"></span></button></span></li>
+          <li class="mod"><span class="t">Continue working</span><span class="s">Your three most recent deals</span><span class="ctl"><button class="switchbtn" type="button" role="switch" aria-checked="true" aria-label="Show Continue working"><span class="switch on"></span></button></span></li>
+          <li class="mod"><span class="t">Pipeline</span><span class="s">Deals and asking totals by stage</span><span class="ctl"><button class="switchbtn" type="button" role="switch" aria-checked="true" aria-label="Show Pipeline"><span class="switch on"></span></button></span></li>
+          <li class="mod"><span class="t">Tasks</span><span class="s">Your task list and a field for a new task</span><span class="ctl"><button class="switchbtn" type="button" role="switch" aria-checked="true" aria-label="Show Tasks"><span class="switch on"></span></button></span></li>
+          <li class="mod off"><span class="t">Contacts</span><span class="s">Find, add and edit people (also under More)</span><span class="ctl"><a class="btn quiet" href="#">Open once</a><button class="switchbtn" type="button" role="switch" aria-checked="false" aria-label="Show Contacts"><span class="switch"></span></button></span></li>
+          <li class="mod off"><span class="t">Recent activity</span><span class="s">What changed, newest first</span><span class="ctl"><a class="btn quiet" href="#">Open once</a><button class="switchbtn" type="button" role="switch" aria-checked="false" aria-label="Show Recent activity"><span class="switch"></span></button></span></li>
+                  <li class="mod off"><span class="t">This week</span><span class="s">Tasks due and files produced this week</span><span class="ctl"><a class="btn quiet" href="#">Open once</a><button class="switchbtn" type="button" role="switch" aria-checked="false" aria-label="Show This week"><span class="switch"></span></button></span></li>
+        </ul>
+        <p class="small" style="margin-top:var(--s3)"><a class="tap" href="#">Change the order on Home</a></p>
+      </section>
+    </div>
+  </main>
+  <nav class="bar" aria-label="Main"></nav>
+</div>
+<script src="shell.js"></script>
+<script>shell('workspace');</script>
+</body>
+</html>

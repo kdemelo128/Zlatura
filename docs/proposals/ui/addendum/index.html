@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>UI revamp addendum, mockups</title>
+<link rel="stylesheet" href="addendum.css">
+<style>
+main { max-width: 60rem; margin: 0 auto; }
+.intro { color: var(--muted); max-width: 40rem; }
+table td, table th { text-align: left; white-space: normal; height: auto; padding: var(--s3) var(--s3) var(--s3) 0; vertical-align: top; }
+td a { display: inline-flex; min-height: var(--tap); align-items: center; margin-right: var(--s3); }
+</style>
+</head>
+<body>
+<main>
+  <h1>UI revamp addendum: mockups</h1>
+  <p class="intro">Static pages for <a href="../../ui-revamp-addendum.md">the addendum proposal</a>. Every property, tenant, person and figure is invented. Nothing here is loaded by the app, and no page makes a network request: the fonts are local files (Source Serif 4 in <code>fonts/</code> with its OFL licence, and the app's own Public Sans). Each page is one responsive file: under 960 px wide it is the phone layout, above it the desktop layout. Add <code>?theme=dark</code> or <code>?theme=light</code> to force a theme; otherwise it follows the system.</p>
+  <p class="intro">The approved wireframes of the base proposal are in <a href="../index.html">the earlier set</a>.</p>
+  <table>
+    <caption>Screens, with screenshots at 390 by 844 (phone) and 1280 by 800 (desktop)</caption>
+    <thead><tr><th scope="col">Screen</th><th scope="col">Open</th><th scope="col">Screenshots</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Home</th><td><a href="home.html">Light</a><a href="home.html?theme=dark">Dark</a></td><td><a href="../shots/home-phone-light.png">Phone, light</a><a href="../shots/home-phone-dark.png">Phone, dark</a><a href="../shots/home-desktop-light.png">Desktop, light</a><a href="../shots/home-desktop-dark.png">Desktop, dark</a></td></tr>
+      <tr><th scope="row">Deal page, with source marks</th><td><a href="deal.html">Light</a><a href="deal.html?theme=dark">Dark</a></td><td><a href="../shots/deal-phone-light.png">Phone, light</a><a href="../shots/deal-phone-dark.png">Phone, dark</a><a href="../shots/deal-desktop-light.png">Desktop, light</a><a href="../shots/deal-desktop-dark.png">Desktop, dark</a></td></tr>
+      <tr><th scope="row">Underwrite, Cash flow</th><td><a href="underwrite.html">Light</a><a href="underwrite.html?theme=dark">Dark</a></td><td><a href="../shots/underwrite-phone-light.png">Phone, light</a><a href="../shots/underwrite-phone-dark.png">Phone, dark</a><a href="../shots/underwrite-desktop-light.png">Desktop, light</a><a href="../shots/underwrite-desktop-dark.png">Desktop, dark</a></td></tr>
+      <tr><th scope="row">Documents, PDF pages</th><td><a href="documents.html">Light</a><a href="documents.html?theme=dark">Dark</a></td><td><a href="../shots/documents-phone-light.png">Phone, light</a><a href="../shots/documents-phone-dark.png">Phone, dark</a><a href="../shots/documents-desktop-light.png">Desktop, light</a><a href="../shots/documents-desktop-dark.png">Desktop, dark</a></td></tr>
+      <tr><th scope="row">First-run tour (step 1 on the phone, step 2 on the desktop)</th><td><a href="tour.html">Light</a><a href="tour.html?theme=dark">Dark</a></td><td><a href="../shots/tour-phone-light.png">Phone, light</a><a href="../shots/tour-phone-dark.png">Phone, dark</a><a href="../shots/tour-desktop-light.png">Desktop, light</a><a href="../shots/tour-desktop-dark.png">Desktop, dark</a></td></tr>
+      <tr><th scope="row">My workspace (show or hide sections)</th><td><a href="workspace.html">Light</a><a href="workspace.html?theme=dark">Dark</a></td><td><a href="../shots/workspace-phone-light.png">Phone, light</a><a href="../shots/workspace-phone-dark.png">Phone, dark</a><a href="../shots/workspace-desktop-light.png">Desktop, light</a><a href="../shots/workspace-desktop-dark.png">Desktop, dark</a></td></tr>
+    </tbody>
+  </table>
+  <p class="intro" style="margin-top:var(--s6)">Checked with axe-core (WCAG 2.2 A and AA, and best practice) at both sizes in both themes: no violations, except a target-size finding on the deal page's two chart buttons when the sticky bottom bar covers them at one scroll position (none once they are scrolled into view). The four role radio buttons on the tour are 20 px, inside 52 px labels that are the tap target.</p>
+</main>
+<script>const t = new URLSearchParams(location.search).get('theme'); if (t) document.documentElement.dataset.theme = t;</script>
+</body>
+</html>
