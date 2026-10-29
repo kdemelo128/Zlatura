@@ -70,6 +70,7 @@ export function quantizeDeal(deal) {
     fix(fee.invoiced, 'amount', 'fee.invoiced.amount', toCents);
     if (Array.isArray(fee.paid)) fee.paid.forEach((p, i) => fix(p, 'amount', `fee.paid[${i}].amount`, toCents));
   }
+  fix(deal.credit && deal.credit.sales, 'annual', 'credit.sales.annual', toCents);
   return { deal, changes };
 }
 
