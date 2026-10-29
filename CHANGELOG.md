@@ -9,6 +9,7 @@ Plan 19.2 asked for a confidential tag. A deal's menu now has **Confidential**; 
 - **Data:** one optional `confidential` flag on a deal; no schema change. A backup carries it as it is. An older app restoring a newer backup ignores the flag.
 - **Limits, stated in the sheet:** works on this device only, is not access control, recalls nothing already sent; comps and Tools outputs are not marked.
 - **Tested:** `tests/confidential.test.js`, `tests/ai-guard-scan.test.js` (every network call goes through the guard), `tests/e2e/confidential-flow.mjs` (phone and desktop, axe). Saved results and the 646 displayed figures are unchanged.
+- **Sheets with many choices keep their Cancel button on screen** (`app/styles.css`): the deal actions sheet gained a row and its Cancel button fell below the bottom of a phone-sized screen, because the list could take the whole height and left no room for the button under it. The list now leaves room for it and scrolls. `back-flow` caught it.
 
 ## 4.7.70: Merge, reorder, split and extract PDF pages on your phone (on the development branch; not merged or deployed)
 
