@@ -1,14 +1,15 @@
 /* convertui.js -- Tools > Documents > Convert: pick a file, see what it can become and what it can't (and why), and
  * save the result. Everything runs on this device; nothing is uploaded and no file or result is kept (the file is
  * held only while this sheet is open). The rules and the pure conversions are in convert.js; PDFs are written in
- * convert-worker.js. A run that is cancelled or takes over a minute is stopped. */
+ * convert-worker.js. Cancel, or a minute passing, stops PDF writing at once and the other runs at the next page or step; one picture or workbook
+ * being decoded can't be interrupted, so its result is dropped instead of saved. */
 
 /* global createImageBitmap */
 
 import { el, toast, deliver, deliveryError, getPdfjs, getFflate, getXlsx, isIOS, downloadName } from './kit.js';
 import {
   classify, targetsFor, notPossible, MATRIX, NOT_OFFERED, baseName, imageSize, exifOrientation, pageScale, textPdfProblem,
-  docxText, csvToCells, csvToJson, jsonToCsv, workbookToCsvs, sheetName, MAX_IMAGE_PIXELS, IMAGE_PAGES,
+  docxText, clip, zipKeys, csvToCells, csvToJson, jsonToCsv, workbookToCsvs, sheetName, MAX_IMAGE_PIXELS, IMAGE_PAGES,
 } from './convert.js';
 import { WATCHDOG_MS, MAX_PAGES, problemText } from './pdfpages.js';
 import { pdfPages } from './pdftext.js';
@@ -55,8 +56,11 @@ const stopped = (ctl) => { if (ctl.stopped) throw Object.assign(new Error(ctl.wh
 /** A picture drawn to a canvas and written as `mime` ('image/png' or 'image/jpeg'): every pixel kept, on white if JPEG. */
 async function redraw(blob, mime, name, ctl) {
   const head = new Uint8Array(await blob.slice(0, 65536).arrayBuffer());
-  const size = imageSize(head);
-  if (size && size.w * size.h > MAX_IMAGE_PIXELS) throw new Error(`${name} is ${size.w} by ${size.h} pixels (${Math.round((size.w * size.h) / 1e5) / 10} million). A phone’s browser draws at most ${MAX_IMAGE_PIXELS / 1e6} million, so it was not converted.`);
+  let size = imageSize(head);
+  // the size can lie past the first 64 KB (a JPEG with long metadata, a HEIC): read the file (20 MB at most) to find it
+  if (!size) size = imageSize(new Uint8Array(await blob.arrayBuffer()));
+  if (!size) throw new Error(`${name}: its size in pixels can’t be read, so it was not opened (a very large picture could use all the memory this browser has).`);
+  if (size.w * size.h > MAX_IMAGE_PIXELS) throw new Error(`${name} is ${size.w} by ${size.h} pixels (${Math.round((size.w * size.h) / 1e5) / 10} million). A phone’s browser draws at most ${MAX_IMAGE_PIXELS / 1e6} million, so it was not converted.`);
   let bmp;
   try { bmp = await createImageBitmap(blob, { imageOrientation: 'from-image' }); } catch { throw new Error(`${name} could not be opened by this browser. ${/ftyp/.test(String.fromCharCode(...head.subarray(4, 8))) ? 'Only Safari opens HEIC photos; ask for a JPEG, or open this in Safari.' : 'It may be damaged.'}`); }
   try {
@@ -88,7 +92,7 @@ export function openConvert(api) {
 
   const body = api.sheetOpen({
     eyebrow: 'Tools · Documents', title: 'Convert files',
-    sub: 'Pick a file and see what it can become on this device. The file stays here: nothing is uploaded and nothing is kept.',
+    sub: 'Pick a file and see what it can become on this device. The file stays here: nothing is uploaded. The saved file’s name appears on Home’s activity list and in backups; no file contents are kept.',
   });
   body.classList.add('docs-pages');
 
@@ -287,23 +291,20 @@ export function openConvert(api) {
       const { sheets, notes } = workbookToCsvs(wb);
       if (!sheets.length) throw new Error(`${name} has no visible sheet to convert.${notes.length ? ` ${notes.join(' ')}` : ''}`);
       const enc = new TextEncoder();
-      const names = new Set();
-      const files = sheets.map((s, i) => {
-        let stem = sheets.length === 1 ? base : `${base} - ${s.name}`;
-        if (names.has(downloadName(stem))) stem += ` (${i + 1})`;
-        names.add(downloadName(stem));
-        return one(enc.encode(s.csv), 'csv', 'text/csv', stem);
-      });
+      const files = sheets.map((s) => one(enc.encode(s.csv), 'csv', 'text/csv', sheets.length === 1 ? base : `${clip(base, 80)} - ${s.name}`));
       return { files, note: [...(info.macros ? ['The workbook has macros; they are not copied.'] : []), ...notes].join(' ') };
     }
     if (m.id === 'csv-xlsx') {
-      const { rows, numbers } = csvToCells(info.text, info.delimiter, name);
+      const { rows, numbers, ambiguous } = csvToCells(info.text, info.delimiter, name);
       const { ExcelJS } = await getXlsx();
-      const wb = new ExcelJS.Workbook();
-      const ws = wb.addWorksheet(sheetName(base));
-      for (const r of rows) ws.addRow(r);
-      const bytes = new Uint8Array(await wb.xlsx.writeBuffer());
-      return { files: [one(bytes)], note: `${numbers} plain number${numbers === 1 ? '' : 's'} became number${numbers === 1 ? '' : 's'}; every other field stays text exactly as written.` };
+      let bytes;
+      try {
+        const wb = new ExcelJS.Workbook();
+        const ws = wb.addWorksheet(sheetName(base));
+        for (const r of rows) ws.addRow(r);
+        bytes = new Uint8Array(await wb.xlsx.writeBuffer());
+      } catch (e) { throw new Error(`${name} could not be written as a workbook (${String((e && e.message) || e).slice(0, 80)}).`); }
+      return { files: [one(bytes)], note: `${numbers} plain number${numbers === 1 ? '' : 's'} became number${numbers === 1 ? '' : 's'}; every other field stays text exactly as written.${ambiguous ? ` ${ambiguous} value${ambiguous === 1 ? '' : 's'} like 1.250 stayed text: this file seems to write decimals with a comma, so a dot could mean thousands or a decimal. Check ${ambiguous === 1 ? 'it' : 'them'}.` : ''}` };
     }
     if (m.id === 'csv-json') return { files: [one(new TextEncoder().encode(csvToJson(info.text, info.delimiter, name)))], note: '' };
     if (m.id === 'json-csv') return { files: [one(new TextEncoder().encode(jsonToCsv(info.text, name)))], note: '' };
@@ -329,7 +330,7 @@ export function openConvert(api) {
         const vp = page.getViewport({ scale: pageScale(v1.width, v1.height) });
         const bytes = await canvasBlob(null, Math.max(1, Math.ceil(vp.width)), Math.max(1, Math.ceil(vp.height)), m.type, async (g) => { await page.render({ canvasContext: g, viewport: vp }).promise; });
         page.cleanup();
-        out.push({ name: doc.numPages === 1 ? `${base}.${m.ext}` : `${base} page ${String(i).padStart(pad, '0')}.${m.ext}`, bytes, type: m.type });
+        out.push({ name: doc.numPages === 1 ? `${base}.${m.ext}` : `${clip(base, 80)} page ${String(i).padStart(pad, '0')}.${m.ext}`, bytes, type: m.type });
       }
       return { files: out, note: '' };
     } finally { doc.destroy(); }
@@ -350,31 +351,33 @@ export function openConvert(api) {
     ctl = { stopped: false, why: '' };
     lock(true);
     say('Converting…');
+    cancel.focus();
     clearTimeout(timer);
     timer = setTimeout(() => stop('it took more than a minute, so it was stopped'), WATCHDOG_MS);
     let res = null; let err = null;
     try { res = await convert(m); } catch (e) { err = e; }
     clearTimeout(timer);
     lock(false);
+    (can.querySelector(`#conv-to-${m.id}`) || pick).focus();
     if (ctl.stopped || (err && err.stopped)) {
       if (ctl.why === 'cancelled') say('Cancelled. Nothing was saved.');
-      else { problems([`Nothing was saved: ${ctl.why}.`]); say('Nothing was saved.'); }
+      else { problems([`${current.file.name || 'The file'} was not converted: ${ctl.why}. Nothing was saved.`]); say('Nothing was saved.'); }
       return;
     }
-    if (err) { problems([String(err.message || err)]); say('Nothing was saved.'); return; }
+    if (err) { const msg = String(err.message || err); const fn = current.file.name || 'The file'; problems([msg.includes(fn) ? msg : `${fn}: ${msg}`]); say('Nothing was saved.'); return; }
     try {
       let done;
       if (res.files.length === 1) done = await deliver(res.files[0].name, res.files[0].bytes, res.files[0].type, { map: 'none: a document the broker supplied' });
       else {
         const fflate = await getFflate();
         const zip = {};
-        for (const f of res.files) zip[downloadName(f.name)] = [f.bytes, { level: 0 }];
+        const keys = zipKeys(res.files.map((f) => f.name), downloadName);
+        res.files.forEach((f, i) => { zip[keys[i]] = [f.bytes, { level: 0 }]; });
         done = await deliver(`${baseName(current.file.name)}.zip`, fflate.zipSync(zip), 'application/zip', { map: 'none: a document the broker supplied' });
       }
       if (done === 'done') {
         const what = res.files.length === 1 ? 'Your file is ready.' : `${res.files.length} files are in your zip.`;
         toast(what); say(`${what}${res.note ? ` ${res.note}` : ''}`);
-        if (res.note) problems([res.note]);
       }
     } catch (e) { deliveryError(e); }
     (can.querySelector(`#conv-to-${m.id}`) || pick).focus();

@@ -100,12 +100,18 @@ if (made.webp) {
   check('WebP to PDF works', d && (await pdfText(d.bytes)).length === 1);
 } else check('WebP is not written by this browser, so its rows are not tried here', true, 'skipped');
 
-await pick(f('IMG_0001.HEIC', Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypheic'), Buffer.alloc(64)])));
+const heicBox = Buffer.from([0x69, 0x73, 0x70, 0x65, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 64]);
+await pick(f('IMG_0001.HEIC', Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypheic'), Buffer.alloc(8), heicBox, Buffer.alloc(64)])));
 check('HEIC offers JPEG only and says why not PDF or PNG', (await targets()).join('|') === 'To JPEG' && /To PDF or PNG: a HEIC photo becomes a JPEG only/.test(await page.locator('#conv-no').innerText()));
 dls = downloads.length;
 await page.click('#conv-to-heic-jpeg');
 await page.waitForFunction(() => /could not be opened by this browser/.test(document.getElementById('conv-problems').textContent), null, { timeout: 10000 });
 check('HEIC on a browser that can’t open it is refused by name, with the next step', /^IMG_0001\.HEIC could not be opened by this browser\. Only Safari opens HEIC photos/.test(await problems()) && downloads.length === dls, await problems());
+
+await pick(f('Unsized.HEIC', Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypheic'), Buffer.alloc(64)])));
+await page.click('#conv-to-heic-jpeg');
+await page.waitForFunction(() => /size in pixels can’t be read/.test(document.getElementById('conv-problems').textContent), null, { timeout: 10000 });
+check('a HEIC whose size can’t be read is refused by name, not decoded unchecked', /^Unsized\.HEIC: its size in pixels can’t be read/.test(await problems()) && downloads.length === dls, await problems());
 
 /* ------------------------------------------------------------------- PDF */
 await pick(f('Report.pdf', plainPdf('A', 3), 'application/pdf'));
@@ -120,6 +126,9 @@ check('PDF to PNG pictures: a zip with a PNG for each page, in order', d.name ==
 d = await convert('pdf-jpeg');
 z = unzipSync(new Uint8Array(d.bytes));
 check('PDF to JPEG pictures: three real JPEGs', Object.values(z).length === 3 && Object.values(z).every((b) => b[0] === 0xff && b[1] === 0xd8));
+await pick(f(`${'n'.repeat(110)}.pdf`, plainPdf('Q', 3), 'application/pdf'));
+d = await convert('pdf-png');
+check('a 110-character file name still gives a zip with all three pages', Object.keys(unzipSync(new Uint8Array(d.bytes))).length === 3, `${Object.keys(unzipSync(new Uint8Array(d.bytes))).length}`);
 await pick(f('One.pdf', plainPdf('S', 1), 'application/pdf'));
 d = await convert('pdf-png');
 check('a one-page PDF gives one PNG, not a zip', d.name === 'One.png');
@@ -144,6 +153,7 @@ check('a workbook offers CSV only and says PDF is not possible, with the reason'
 d = await convert('xlsx-csv');
 check('Excel to CSV: a blank stays blank, a date is a date, a formula gives its saved result', d.name === 'Rent roll.csv' && d.bytes.toString('utf8') === '﻿Unit,Rent,Start,Zip\r\nA1,1200,2026-01-31,07030\r\nA2,,,\r\nA3,2400,\'=hello,\r\n', JSON.stringify(d.bytes.toString('utf8')));
 const note = await status(); const noteProb = await problems();
+check('the notes are in the status region, not the alert', (await problems()) === '' || !/formula/.test(await problems()));
 check('and the notes say so: formulas, the guarded text and the skipped hidden sheet', /1 formula gave the result Excel last calculated/.test(note + noteProb) && /Hidden sheet not converted: Hidden/.test(note + noteProb) && /leading '/.test(note + noteProb), note);
 
 await pick(f('Units.csv', 'Unit,Rent,Zip,Note\n1,1200.50,00501,\n2,"1,300",07030,"a, b"\n'));

@@ -208,6 +208,17 @@ export function imageSize(b) {
     }
     return null;
   }
+  if (b.length >= 12 && String.fromCharCode(...b.subarray(4, 8)) === 'ftyp') {
+    // the largest image-extent box ('ispe': version and flags, then width and height) is the picture; smaller ones are thumbnails
+    let best = null;
+    for (let i = b.indexOf(0x69); i >= 0 && i + 16 <= b.length; i = b.indexOf(0x69, i + 1)) {
+      if (b[i + 1] === 0x73 && b[i + 2] === 0x70 && b[i + 3] === 0x65) {
+        const w = u32(i + 8); const h = u32(i + 12);
+        if (!best || w * h > best.w * best.h) best = { w, h };
+      }
+    }
+    return best;
+  }
   if (String.fromCharCode(...b.subarray(0, 4)) === 'RIFF' && b.length >= 30) {
     const t = String.fromCharCode(...b.subarray(12, 16));
     const le = (i, n) => { let v = 0; for (let k = n - 1; k >= 0; k--) v = v * 256 + b[i + k]; return v; };
@@ -279,6 +290,20 @@ const entity = (s) => s.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (m
   return n > 0 && n <= 0x10ffff && !(n >= 0xd800 && n <= 0xdfff) ? String.fromCodePoint(n) : '';
 });
 
+/** `xml` without its <mc:Fallback> blocks (a text box is stored twice, and the second copy is that block), found by search, not by pattern. */
+function dropFallback(xml) {
+  let out = ''; let i = 0;
+  for (;;) {
+    const a = xml.indexOf('<mc:Fallback>', i);
+    if (a < 0) break;
+    out += xml.slice(i, a);
+    const b = xml.indexOf('</mc:Fallback>', a);
+    if (b < 0) return out;
+    i = b + 14;
+  }
+  return out + xml.slice(i);
+}
+
 /**
  * The body text of a Word (.docx) file: paragraphs on lines, table cells separated by tabs. Only word/document.xml is
  * unpacked, and only if its declared size is within DOCX_BYTES. Throws a sentence for a file that isn't readable.
@@ -294,18 +319,20 @@ export function docxText(bytes, fflate, name = 'That document') {
   const raw = files['word/document.xml'];
   if (!raw) throw new Error(`${name} has no body text to read.`);
   // text boxes appear twice (the modern form and a fallback): the fallback is dropped so nothing is counted twice
-  const xml = new TextDecoder().decode(raw).replace(/<mc:Fallback>[\s\S]*?<\/mc:Fallback>/g, '');
-  let out = '';
-  for (const m of xml.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab\s*\/>|<w:br\s*\/>|<w:cr\s*\/>|<\/w:p>|<\/w:tc>|<\/w:tr>/g)) {
+  const xml = dropFallback(new TextDecoder().decode(raw));
+  // one pass, no backtracking over the whole body: a text run is what lies between <w:t> and the next '<'
+  const parts = [];
+  for (const m of xml.matchAll(/<w:t(?:[ \t\r\n][^<>]{0,300})?>([^<]*)<\/w:t>|<w:tab\s{0,5}\/>|<w:br\s{0,5}\/>|<w:cr\s{0,5}\/>|<\/w:p>|<\/w:tc>|<\/w:tr>/g)) {
     const t = m[0];
-    if (m[1] !== undefined) out += entity(m[1]);
-    else if (t.startsWith('<w:tab')) out += '\t';
-    else if (t === '</w:p>') out += '\n';
-    else if (t === '</w:tc>') out = out.endsWith('\n') ? `${out.slice(0, -1)}\t` : `${out}\t`;
-    else if (t === '</w:tr>') out = out.endsWith('\t') ? `${out.slice(0, -1)}\n` : out;
-    else out += '\n';
+    const last = parts.length - 1;
+    if (m[1] !== undefined) parts.push(entity(m[1]));
+    else if (t.startsWith('<w:tab')) parts.push('\t');
+    else if (t === '</w:p>') parts.push('\n');
+    else if (t === '</w:tc>') { if (last >= 0 && parts[last] === '\n') parts[last] = '\t'; else parts.push('\t'); }
+    else if (t === '</w:tr>') { if (last >= 0 && parts[last] === '\t') parts[last] = '\n'; }
+    else parts.push('\n');
   }
-  out = out.replace(/\n{3,}/g, '\n\n').trim();
+  const out = parts.join('').replace(/\n{3,}/g, '\n\n').trim();
   if (!out) throw new Error(`${name} has no text in its body (it may hold only pictures).`);
   return out;
 }
@@ -313,6 +340,10 @@ export function docxText(bytes, fflate, name = 'That document') {
 /** A plain decimal number: no sign but a minus, no leading zero, at most 15 digits (an id or a long number stays text). */
 const PLAIN_NUMBER = /^-?(0|[1-9]\d{0,14})(\.\d{1,14})?$/;
 const isPlainNumber = (s) => PLAIN_NUMBER.test(s) && !/^-0(\.0+)?$/.test(s) && s.replace(/\D/g, '').length <= 15;
+/** 1.250 or 1.250.000: a thousands separator in one country and a decimal point in another. */
+const DOTTED_THOUSANDS = /^-?\d{1,3}(\.\d{3})+$/;
+/** 1,25: a decimal comma. */
+const DECIMAL_COMMA = /^-?\d+,\d+$/;
 
 /** The rows of a CSV text, trailing empty rows dropped. */
 function tableRows(text, delimiter) {
@@ -329,17 +360,51 @@ export function csvToCells(text, delimiter, name = 'That file') {
   const rows = tableRows(text, delimiter);
   const width = rows.reduce((m, r) => Math.max(m, r.length), 0);
   if (rows.length * width > SHEET_CELLS) throw new Error(`${name} has ${rows.length} rows of up to ${width} columns, more than ${SHEET_CELLS / 1e6} million cells. Split it first.`);
-  let numbers = 0;
+  // a file that writes decimals with a comma (or separates fields with ;) reads 1.250 as one thousand two hundred fifty: not decided here
+  const euro = delimiter === ';' || rows.some((r) => r.some((v) => DECIMAL_COMMA.test(v)));
+  let numbers = 0; let ambiguous = 0;
   const out = rows.map((r) => r.map((v) => {
     if (v === '') return null;
+    if (euro && DOTTED_THOUSANDS.test(v)) { ambiguous++; return v; }
     if (isPlainNumber(v)) { numbers++; return Number(v); }
     return v;
   }));
-  return { rows: out, numbers, text: out.flat().filter((v) => typeof v === 'string').length };
+  return { rows: out, numbers, ambiguous };
 }
 
 /** A sheet name Excel accepts: no []:*?/\ , at most 31 characters, not empty. */
-export const sheetName = (s) => String(s || '').replace(/[[\]:*?/\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 31) || 'Sheet1';
+export function sheetName(s) {
+  const clean = String(s || '').replace(/[\u0000-\u001f\u007f[\]:*?/\\]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^'+|'+$/g, '').trim();
+  let out = ''; // Excel counts UTF-16 units: cut between characters, never inside an emoji
+  for (const ch of clean) { if (out.length + ch.length > 31) break; out += ch; }
+  out = out.trim() || 'Sheet1';
+  return /^history$/i.test(out) ? `${out} 1` : out;
+}
+/** `s` cut to at most `n` characters, never inside an emoji. */
+export const clip = (s, n) => Array.from(String(s)).slice(0, n).join('');
+
+/**
+ * Names for the entries of a zip: each made safe by `safe` (the file-name cleaner, which cuts a long name) and then
+ * made different from the ones before it, so no entry overwrites another.
+ * @param {string[]} names @param {(n: string) => string} safe
+ */
+export function zipKeys(names, safe) {
+  const used = new Set();
+  return names.map((n) => {
+    let k = safe(n);
+    for (let i = 2; used.has(k.toLowerCase()); i++) {
+      const d = k.lastIndexOf('.');
+      const ext = d > 0 ? k.slice(d) : '';
+      k = safe(`${clip(ext ? k.slice(0, d) : k, 100)} (${i})${ext}`);
+    }
+    used.add(k.toLowerCase());
+    return k;
+  });
+}
+
+/** A cell for a CSV: a text that a spreadsheet would run as a formula (starts with = + @ - tab or return) gets a leading quote, except a plain negative number like -1200. */
+export const GUARDED = /^[=+@\t\r]|^-(?!\d+(\.\d+)?$)/;
+export const safeCell = (v) => (typeof v === 'string' && /^-\d+(\.\d+)?$/.test(v) ? v : csvCell(v));
 
 /** CSV text to a JSON list of records keyed by the first row. Throws a sentence naming the row or column that can't be kept. */
 export function csvToJson(text, delimiter, name = 'That file') {
@@ -357,11 +422,31 @@ export function csvToJson(text, delimiter, name = 'That file') {
   return JSON.stringify(recs, null, 2);
 }
 
+/** The first number in JSON text (outside its strings) that a double can't hold exactly: over 15 digits, or 1e21 and up; else ''. */
+export function unsafeNumber(text) {
+  let inStr = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inStr) { if (c === '\\') i++; else if (c === '"') inStr = false; continue; }
+    if (c === '"') { inStr = true; continue; }
+    if (c === '-' || (c >= '0' && c <= '9')) {
+      const m = /^-?\d+(\.\d+)?([eE][+-]?\d+)?/.exec(text.slice(i, i + 400));
+      if (!m) continue;
+      const digits = m[0].replace(/[eE].*$/, '').replace(/\D/g, '').replace(/^0+/, '');
+      if (digits.length > 15 || Math.abs(Number(m[0])) >= 1e21) return m[0];
+      i += m[0].length - 1;
+    }
+  }
+  return '';
+}
+
 /** JSON text (a list of flat records) to CSV text with a byte-order mark. Throws a sentence naming what can't be kept. */
 export function jsonToCsv(text, name = 'That file') {
   let data;
   try { data = JSON.parse(text); } catch (e) { throw new Error(`${name} is not valid JSON (${String(e.message).slice(0, 80)}).`); }
   if (!Array.isArray(data) || !data.length) throw new Error(`${name} must be a list of records, like [{"a": 1}, {"a": 2}]. Nothing was converted.`);
+  const big = unsafeNumber(text);
+  if (big) throw new Error(`${name} holds the number ${big.slice(0, 40)}, which a number can’t hold exactly (more than 15 digits, or 1e21 or more), so it would be rounded. Write it as text in quotes. Nothing was converted.`);
   const cols = [];
   data.forEach((rec, i) => {
     if (!rec || typeof rec !== 'object' || Array.isArray(rec)) throw new Error(`Item ${i + 1} of ${name} is not a record (an object with named values).`);
@@ -371,7 +456,7 @@ export function jsonToCsv(text, name = 'That file') {
     }
   });
   const lines = [cols.map(csvCell).join(',')];
-  for (const rec of data) lines.push(cols.map((k) => (rec[k] === undefined || rec[k] === null ? '' : csvCell(typeof rec[k] === 'boolean' ? String(rec[k]) : rec[k]))).join(','));
+  for (const rec of data) lines.push(cols.map((k) => { const v = Object.hasOwn(rec, k) ? rec[k] : null; return v === null ? '' : safeCell(typeof v === 'boolean' ? String(v) : v); }).join(','));
   return `﻿${lines.join('\r\n')}\r\n`;
 }
 
@@ -407,7 +492,7 @@ export function workbookToCsvs(wb) {
         const raw = cellObj.value;
         if (raw && typeof raw === 'object' && ('formula' in raw || 'sharedFormula' in raw)) { formulas++; if (raw.result === undefined || raw.result === null) noResult++; }
         const v = csvValue(raw);
-        if (typeof v === 'string' && /^[=+\-@\t\r]/.test(v)) guarded++;
+        if (typeof v === 'string' && GUARDED.test(v)) guarded++;
         line[c - 1] = v;
       });
       grid[r - 1] = line;
@@ -415,13 +500,13 @@ export function workbookToCsvs(wb) {
     for (let r = 0; r < grid.length; r++) grid[r] ||= [];
     while (grid.length && grid.at(-1).every((v) => v === null || v === undefined || v === '')) grid.pop();
     const width = grid.reduce((m, l) => { let n = l.length; while (n && (l[n - 1] === null || l[n - 1] === undefined || l[n - 1] === '')) n--; return Math.max(m, n); }, 0);
-    const lines = grid.map((l) => Array.from({ length: width }, (_, i) => (l[i] === null || l[i] === undefined ? '' : csvCell(l[i]))).join(','));
+    const lines = grid.map((l) => Array.from({ length: width }, (_, i) => (l[i] === null || l[i] === undefined ? '' : safeCell(l[i]))).join(','));
     sheets.push({ name: ws.name, csv: `﻿${lines.join('\r\n')}\r\n` });
   });
   const notes = [];
   if (formulas) notes.push(`${formulas} formula${formulas === 1 ? '' : 's'} gave the result Excel last calculated${noResult ? `; ${noResult} had none saved and are blank` : ''}.`);
   if (merged) notes.push(`${merged} merged cell${merged === 1 ? '' : 's'}: the value is in the first cell only.`);
-  if (guarded) notes.push(`${guarded} text cell${guarded === 1 ? '' : 's'} starting with = + - or @ got a leading ' so a spreadsheet won’t run ${guarded === 1 ? 'it' : 'them'}.`);
+  if (guarded) notes.push(`${guarded} text cell${guarded === 1 ? '' : 's'} starting with = + @ tab or return, or with - (unless a plain number like -1200), got a leading ' so a spreadsheet won’t run ${guarded === 1 ? 'it' : 'them'}.`);
   if (hidden.length) notes.push(`Hidden sheet${hidden.length === 1 ? '' : 's'} not converted: ${hidden.join(', ')}.`);
   return { sheets, notes };
 }

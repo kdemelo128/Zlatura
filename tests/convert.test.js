@@ -8,7 +8,7 @@ import ExcelJS from 'exceljs';
 import * as fflate from 'fflate';
 import {
   MATRIX, NOT_OFFERED, KIND_LABEL, targetsFor, notPossible, classify, mismatch, textKind, imageSize, exifOrientation, pageScale,
-  unsupportedChars, textPdfProblem, docxText, csvToCells, csvToJson, jsonToCsv, workbookToCsvs, sheetName, baseName,
+  unsupportedChars, textPdfProblem, zipKeys, clip, unsafeNumber, docxText, csvToCells, csvToJson, jsonToCsv, workbookToCsvs, sheetName, baseName,
   MAX_IMAGE_PIXELS, PAGE_PICTURE, DOCX_BYTES,
 } from '../app/convert.js';
 import { plainPdf, encryptedPdf, tinyPng, hugePng, jpegShell, docxFile, oleDoc, otherZip } from './tools/docpdfs.mjs';
@@ -210,7 +210,7 @@ test('workbook to CSV: a blank stays blank (not 0), a formula gives its saved re
   assert.equal(sheets[0].csv, '﻿Unit,Rent,Start,Flag\r\nA1,1200,2026-01-31,TRUE\r\nA2,,,\r\nA3,2400,\'=hello,\r\n,,,\r\nMerged,,,\r\n');
   const text = notes.join(' ');
   assert.match(text, /2 formulas gave the result Excel last calculated; 1 had none saved and are blank/);
-  assert.match(text, /1 text cell starting with = \+ - or @ got a leading '/);
+  assert.match(text, /1 text cell starting with = \+ @ tab or return, or with - .*got a leading '/);
   assert.match(text, /Hidden sheet not converted: Hidden/);
   assert.match(text, /merged cell/);
 });
@@ -285,4 +285,88 @@ test('an encrypted PDF is not something this card converts without a message (pd
   let err;
   try { await pdfjs.getDocument({ data: new Uint8Array(encryptedPdf()), verbosity: 0 }).promise; } catch (e) { err = e; }
   assert.ok(err && /PasswordException|InvalidPDFException|FormatError/.test(err.name), String(err && err.name));
+});
+
+/* ------------------------------------------------------------------ review fixes */
+
+// the file-name cleaner of kit.js: stem cut so the whole name is 120 characters
+const safe120 = (n) => { const d = n.lastIndexOf('.'); const ext = d > 0 && n.length - d <= 8 ? n.slice(d) : ''; return `${(ext ? n.slice(0, d) : n).slice(0, 120 - ext.length)}${ext}`; };
+
+test('zip entries: three pages of a long-named file give three different names, and two sheets too', () => {
+  const base = 'x'.repeat(110);
+  const pages = [1, 2, 3].map((i) => `${clip(base, 80)} page ${i}.png`);
+  assert.equal(new Set(zipKeys(pages, safe120)).size, 3);
+  // even when the suffix is added after a long name (the way that lost entries), nothing is overwritten
+  const lost = [1, 2, 3].map((i) => `${base} page ${i}.png`);
+  assert.ok(new Set(lost.map(safe120)).size < 3, 'the cleaner alone does collide');
+  assert.equal(new Set(zipKeys(lost, safe120)).size, 3);
+  const sheets = zipKeys([`${'y'.repeat(105)} - Sheet A.csv`, `${'y'.repeat(105)} - Sheet B.csv`], safe120);
+  assert.equal(new Set(sheets).size, 2);
+  assert.deepEqual(zipKeys(['a.csv', 'A.csv'], (n) => n), ['a.csv', 'A (2).csv']);
+  assert.equal(clip('😀😀😀', 2), '😀😀');
+});
+
+test('Word to text: a hostile 1 MB body finishes in well under a second', () => {
+  const body = `<w:p>${'<mc:Fallback>'.repeat(80000)}</w:p>${'<w:t '.repeat(30000)}${'<w:tc></w:tc>'.repeat(20000)}`;
+  const zip = fflate.zipSync({ 'word/document.xml': fflate.strToU8(`<w:document><w:body><w:p><w:r><w:t>Real</w:t></w:r></w:p>${body}</w:body></w:document>`) });
+  const t0 = Date.now();
+  const out = docxText(zip, fflate, 'H.docx');
+  assert.ok(Date.now() - t0 < 1000, `${Date.now() - t0} ms`);
+  assert.ok(out.startsWith('Real'));
+});
+
+test('JSON to CSV: a key a record does not have is blank, never an inherited property', () => {
+  assert.equal(jsonToCsv('[{"a":1},{"a":2,"constructor":"x"}]', 'r.json'), '﻿a,constructor\r\n1,\r\n2,x\r\n');
+});
+
+test('JSON to CSV: a number that would be rounded is refused, a long number in quotes is fine', () => {
+  assert.equal(unsafeNumber('[{"a": 12345678901234567890}]'), '12345678901234567890');
+  assert.equal(unsafeNumber('[{"a": 1e21}]'), '1e21');
+  assert.equal(unsafeNumber('[{"a": "12345678901234567890", "b": 123456789012345, "c": 1.5e3}]'), '');
+  assert.throws(() => jsonToCsv('[{"id": 9007199254740993}]', 'r.json'), /holds the number 9007199254740993.*rounded.*Nothing was converted/);
+  assert.match(jsonToCsv('[{"id": "9007199254740993"}]', 'r.json'), /9007199254740993/);
+});
+
+test('CSV to Excel: with decimal commas or ; fields, 1.250 stays text and is counted; otherwise it is a number', () => {
+  const eu = csvToCells('a;b\n1.250;1,5\n', ';', 'r.csv');
+  assert.equal(eu.rows[1][0], '1.250');
+  assert.equal(eu.ambiguous, 1);
+  assert.equal(csvToCells('a,b\n1.250,"1,5"\n', ',', 'r.csv').rows[1][0], '1.250', 'a decimal comma in a quoted field is enough');
+  assert.equal(csvToCells('a,b\n1.250,2\n', ',', 'r.csv').rows[1][0], 1.25, 'no sign of decimal commas: a plain number');
+  assert.equal(eu.rows[1][1], '1,5');
+});
+
+test('CSV to Excel: at most 15 digits in all become a number', () => {
+  assert.equal(csvToCells('a\n1234567890.123456\n', ',').rows[1][0], '1234567890.123456');
+  assert.equal(csvToCells('a\n123456789012345\n', ',').rows[1][0], 123456789012345);
+  assert.equal(csvToCells('a\n1234567890123456\n', ',').rows[1][0], '1234567890123456');
+});
+
+test('sheet names: quotes, History, long names and emoji never reach the library as something it refuses', () => {
+  assert.equal(sheetName("'Q3 rent'"), 'Q3 rent');
+  assert.equal(sheetName('History'), 'History 1');
+  assert.equal(sheetName('history'), 'history 1');
+  const long = sheetName(`${'a'.repeat(30)}😀😀`);
+  assert.ok(long.length <= 31 && !/[\ud800-\udbff]$/.test(long), long);
+  assert.equal(sheetName("''"), 'Sheet1');
+});
+
+test('picture sizes: a HEIC’s extent box is read, the largest wins; a JPEG with long metadata is found in the whole file', () => {
+  const box = (w, h) => [0x69, 0x73, 0x70, 0x65, 0, 0, 0, 0, w >> 24, (w >> 16) & 255, (w >> 8) & 255, w & 255, h >> 24, (h >> 16) & 255, (h >> 8) & 255, h & 255];
+  const head = [0, 0, 0, 24, ...new TextEncoder().encode('ftypheic'), 0, 0, 0, 0];
+  assert.deepEqual(imageSize(Uint8Array.from([...head, ...box(256, 128), ...box(4000, 3000)])), { w: 4000, h: 3000 });
+  assert.equal(imageSize(Uint8Array.from(head)), null);
+  const jpg = jpegShell(5000, 4000);
+  const padded = Uint8Array.from([0xff, 0xd8, 0xff, 0xe1, 0xff, 0xfe, ...new Array(0xfffe - 2).fill(0), ...jpg.subarray(2)]);
+  assert.equal(imageSize(padded.subarray(0, 65536)), null, 'the first 64 KB do not hold it');
+  assert.deepEqual(imageSize(padded), { w: 5000, h: 4000 });
+});
+
+test('formula guard: a plain negative number is left alone, other text starting with = + @ - tab or return is guarded', () => {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.addRow(['-1200', '-12.50', '-cmd', '=1+1', '+5', '@x', '- 5', '-1,200']);
+  const { sheets, notes } = workbookToCsvs(wb);
+  assert.equal(sheets[0].csv, '﻿-1200,-12.50,\'-cmd,\'=1+1,\'+5,\'@x,\'- 5,"\'-1,200"\r\n');
+  assert.match(notes.join(' '), /6 text cells starting with = \+ @ tab or return, or with - \(unless a plain number like -1200\)/);
 });
