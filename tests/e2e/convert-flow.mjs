@@ -152,6 +152,7 @@ await pick(f('Rent roll.xlsx', await sheetOf()));
 check('a workbook offers CSV only and says PDF is not possible, with the reason', (await targets()).join('|') === 'To CSV' && /To PDF: the layout, fonts and page breaks of a workbook can’t be kept/.test(await page.locator('#conv-no').innerText()));
 d = await convert('xlsx-csv');
 check('Excel to CSV: a blank stays blank, a date is a date, a formula gives its saved result', d.name === 'Rent roll.csv' && d.bytes.toString('utf8') === '﻿Unit,Rent,Start,Zip\r\nA1,1200,2026-01-31,07030\r\nA2,,,\r\nA3,2400,\'=hello,\r\n', JSON.stringify(d.bytes.toString('utf8')));
+await page.waitForFunction(() => /Hidden sheet not converted/.test(document.getElementById('conv-status').textContent), null, { timeout: 5000 }).catch(() => {});
 const note = await status(); const noteProb = await problems();
 check('the notes are in the status region, not the alert', (await problems()) === '' || !/formula/.test(await problems()));
 check('and the notes say so: formulas, the guarded text and the skipped hidden sheet', /1 formula gave the result Excel last calculated/.test(note + noteProb) && /Hidden sheet not converted: Hidden/.test(note + noteProb) && /leading '/.test(note + noteProb), note);
