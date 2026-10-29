@@ -56,9 +56,9 @@ const RR_NUMBERS = [
 CONVENTIONS.push(...RR_NUMBERS);
 /* OM red flags 6.3.5/6.3.7/6.3.8: warnings and notes only, never a change to a figure. Decided with the rules, changeable here. */
 const OM_NUMBERS = [
-  { id: 'om.items.min', label: 'Missing-line check: a statement of at least', unit: 'expense lines', default: 4, min: 1, max: 50, help: 'A statement with fewer expense lines is a summary, so a missing management fee or payroll line is not asked about.' },
-  { id: 'om.payroll.units', label: 'Missing payroll: multifamily of at least', unit: 'units', default: 50, min: 1, max: 100000, help: 'Smaller multifamily is often run without on-site staff on the books, so a missing payroll line is not asked about.' },
-  { id: 'om.mgmt.low', label: 'Management fee: a note below', unit: '% of EGI', default: 2, min: 0, max: 20, help: 'A management fee under this share of effective gross income is asked about. Typed in points: 2 is two percent.' },
+  { id: 'om.items.min', label: 'Missing-line check: a statement of at least', unit: 'expense lines', whole: true, default: 4, min: 1, max: 50, help: 'A statement with fewer expense lines is a summary, so a missing management fee or payroll line is not asked about.' },
+  { id: 'om.payroll.units', label: 'Missing payroll: multifamily of at least', unit: 'units', whole: true, default: 50, min: 1, max: 100000, help: 'Smaller multifamily is often run without on-site staff on the books, so a missing payroll line is not asked about.' },
+  { id: 'om.mgmt.low', label: 'Management fee, as a share of EGI: a note below', unit: '%', default: 2, min: 0, max: 20, help: 'A management fee under this share of effective gross income is asked about. Typed in points: 2 is two percent.' },
   { id: 'om.payroll.low', label: 'Payroll: a note below', unit: '$/unit/yr', default: 500, min: 0, max: 100000, help: 'Multifamily with a full year of T-12: payroll under this per unit is asked about.' },
   { id: 'om.occ.gap', label: 'Occupancy: physical against economic differing by more than', unit: 'points', default: 5, min: 0, max: 100, help: 'Asked about when the stated occupancy says neither physical nor economic.' },
 ].map((c) => ({ ...c, settable: true, kind: 'number' }));
@@ -69,7 +69,7 @@ const current = Object.fromEntries(CONVENTIONS.filter((c) => c.settable).map((c)
 /** The NOI three ways thresholds, in percent of the larger NOI (convention noi.threeWays): a read of the settings, never a copy. */
 export const NOI_GAP = { get agree() { return /** @type {number} */ (current['noi.agree']); }, get warn() { return /** @type {number} */ (current['noi.warn']); } };
 
-const inRange = (c, v) => typeof v === 'number' && Number.isFinite(v) && v >= c.min && v <= c.max;
+const inRange = (c, v) => typeof v === 'number' && Number.isFinite(v) && v >= c.min && v <= c.max && (!c.whole || Number.isInteger(v));
 
 /** The current setting of a settable convention. */
 /** @type {(id: string) => any} */

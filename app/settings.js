@@ -76,6 +76,7 @@ function numberRow(c) {
     if (inp.value === shown) { msg.textContent = ''; inp.removeAttribute('aria-invalid'); return; }
     const v = c.unit === '%' ? parsePct(inp.value, { fraction: false }) : parseNum(inp.value);
     if (v === null || v < c.min || v > c.max) { bad(rangeText(c)); return; }
+    if (c.whole && !Number.isInteger(v)) { bad('Whole numbers only'); return; }
     setConventions({ [c.id]: v });
     if (conv(c.id) !== v) { bad(pairText(c)); return; }
     msg.textContent = '';

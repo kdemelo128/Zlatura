@@ -6,7 +6,7 @@ import { analyze } from '../app/deal.js';
 import { analysisInput } from '../app/impact.js';
 import { importStatement } from '../app/t12.js';
 import { rollFacts } from '../app/rentroll.js';
-import { setConventions, conventionValues } from '../app/engine/conventions.js';
+import { setConventions, conventionValues, conv } from '../app/engine/conventions.js';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m) => `${m} 2025`);
 const BASE = [['Base Rent', 60000], ['Real Estate Taxes', 9000], ['Insurance', 2000], ['Repairs & Maintenance', 4000], ['Utilities', 3000]];
@@ -20,6 +20,7 @@ const texts = (d) => checks(d).checks.map((c) => c.text);
 const has = (d, re) => texts(d).some((t) => re.test(t));
 const MISSING = /none is a management fee/; const PAYROLL = /none is payroll/; const LOW = /management fee is .* of EGI/; const PLOW = /payroll is .* per unit/;
 const FREE = /of free rent in the 12 months after/; const OCC = /without saying physical or economic/;
+const VAC = () => stmt([['Vacancy loss', 0]]);
 const MF = { ptype: 'Multifamily', units: 120 };
 
 test('6.3.5 missing: a statement of four expense lines with no management fee asks, and says no figure changed', () => {
@@ -87,6 +88,13 @@ test('6.3.7 free rent: with no T-12 to compare, a question and no warning', () =
   assert.ok(!m.checks.some((c) => FREE.test(c.text)));
   assert.ok(m.questions.some((q) => FREE.test(q)));
 });
+test('6.3.7 free rent: the window is the as-of day to a year on, not the as-of month', () => {
+  const at = (ab) => rollFacts({ settings: { asOf: '2026-10-10' }, leases: [lease('a', '103', 'Example Dental', 5000, { abatements: [ab] })] })[0].free12;
+  assert.equal(at({ start: '2026-10-01', end: '2026-10-09', pct: 100 }), 0, 'free rent ended the day before the as-of date');
+  assert.equal(at({ start: '2026-10-01', end: '2026-10-10', pct: 100 }), 403.23, 'only the as-of day counts: $12,500 a month over 31 days');
+  assert.ok(at({ start: '2027-10-01', end: '2027-10-09', pct: 100 }) > 0, 'the last days of the 12 months count');
+  assert.equal(at({ start: '2027-10-10', end: '2027-10-20', pct: 100 }), 0, 'the anniversary is outside');
+});
 test('6.3.7 free rent: projected abatements (lease-up, renewals) are left out', () => {
   const rr = roll([lease('a', '103', 'Example Dental', 5000, { abatements: [{ start: '2026-07-01', end: '2026-09-30', pct: 100, source: 'projected' }] })]);
   assert.equal(rollFacts(rr)[0].free12, 0);
@@ -94,21 +102,25 @@ test('6.3.7 free rent: projected abatements (lease-up, renewals) are left out', 
 });
 
 test('6.3.8 occupancy: neither physical nor economic, and the two measures differ', () => {
-  // 80% leased by SF; the T-12 collects all of its rent
+  // 80% leased by SF; the T-12 shows a $0 vacancy line, so it collects all of its rent
   const rr = roll([lease('a', '100', 'Example Dental', 8000), lease('v', '200', '', 2000, { vacant: true, periods: [] })]);
-  const d = deal({ rr, sources: { occ: { line: 'Occupancy 92%' } } });
+  const d = deal({ rr, t12: VAC(), sources: { occ: { line: 'Occupancy 92%' } } });
   const t = texts(d).find((x) => OCC.test(x));
   assert.match(t, /the rent roll is 80\.0% leased by SF; the T-12 collects 100\.0% of potential rent\. No figure has been changed\./);
-  assert.ok(!has(deal({ rr, sources: { occ: { line: 'Physical occupancy 92%' } } }), OCC));
-  assert.ok(!has(deal({ rr, sources: { occ: { line: 'Economic occupancy 92%' } } }), OCC));
-  assert.ok(!has(deal({ rr }), OCC), 'no occupancy line, no evidence');
+  assert.ok(!has(deal({ rr, t12: VAC(), sources: { occ: { line: 'Physical occupancy 92%' } } }), OCC));
+  assert.ok(!has(deal({ rr, t12: VAC(), sources: { occ: { line: 'Economic occupancy 92%' } } }), OCC));
+  assert.ok(!has(deal({ rr, t12: VAC() }), OCC), 'no occupancy line, no evidence');
   assert.ok(!has(deal({ rr, t12: null, sources: { occ: { line: 'Occupancy 92%' } } }), OCC), 'no T-12, no economic measure');
 });
 test('6.3.8 occupancy: a gap of exactly 5 points is not more than 5', () => {
   const rr = roll([lease('a', '100', 'Example Dental', 9500), lease('v', '200', '', 500, { vacant: true, periods: [] })]);
-  assert.ok(!has(deal({ rr, sources: { occ: { line: 'Occupancy 95%' } } }), OCC), '95% leased against 100% collected');
+  assert.ok(!has(deal({ rr, t12: VAC(), sources: { occ: { line: 'Occupancy 95%' } } }), OCC), '95% leased against 100% collected');
   const rr2 = roll([lease('a', '100', 'Example Dental', 9400), lease('v', '200', '', 600, { vacant: true, periods: [] })]);
-  assert.ok(has(deal({ rr: rr2, sources: { occ: { line: 'Occupancy 94%' } } }), OCC));
+  assert.ok(has(deal({ rr: rr2, t12: VAC(), sources: { occ: { line: 'Occupancy 94%' } } }), OCC));
+});
+test('6.3.8 occupancy: a T-12 with no vacancy or concession line says nothing of what was collected, so a blank is not read as $0', () => {
+  const rr = roll([lease('a', '100', 'Example Dental', 8000), lease('v', '200', '', 2000, { vacant: true, periods: [] })]);
+  assert.ok(!has(deal({ rr, sources: { occ: { line: 'Occupancy 92%' } } }), OCC));
 });
 test('6.3.8 occupancy: the T-12 collects less than it bills (vacancy and concessions)', () => {
   const rr = FULL();
@@ -126,5 +138,15 @@ test('the red flags change no number: every key of the analysis outside the chec
     const strip = ({ checks: c, questions: q, ...rest }) => rest;
     assert.deepEqual(strip(on), strip(off));
     assert.ok(on.checks.length > off.checks.length, 'the settings do turn the rows off');
+  } finally { setConventions(saved); }
+});
+
+test('settings: the line counts take whole numbers only, and the fee level shows its percent', () => {
+  const saved = conventionValues();
+  try {
+    setConventions({ 'om.items.min': 4.5, 'om.payroll.units': 60.5 });
+    assert.deepEqual([conv('om.items.min'), conv('om.payroll.units')], [4, 50]);
+    setConventions({ 'om.items.min': 6 });
+    assert.equal(conv('om.items.min'), 6);
   } finally { setConventions(saved); }
 });

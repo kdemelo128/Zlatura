@@ -482,8 +482,9 @@ rule('t12LowLines', 'A T-12 management fee or payroll that looks low', ['d.t12',
 rule('occBasis', 'Occupancy that does not say physical or economic', ['d.occLine', 'leases', 'd.t12'], (m, { d }, C) => {
   const t = d.t12; const line = d.occLine; const phys = m.leases && ok(m.leases.occupancy) ? m.leases.occupancy : null;
   if (!line || /physical|economic/i.test(line) || !t || t.open || phys === null) return;
-  const by = t.by || {};
-  if (!pos(by.rent)) return;
+  const by = t.by || {}; const cats = t.cats || {};
+  // with no vacancy or concession line the T-12 says nothing of what was collected: a blank is never read as $0
+  if (!pos(by.rent) || !(cats.vacancy || cats.concessions)) return;
   const econ = (by.rent + (by.vacancy || 0) + (by.concessions || 0)) / by.rent * 100;
   if (Math.abs(phys - econ) <= conv('om.occ.gap')) return;
   C.push({ level: 'info', text: `The OM states occupancy without saying physical or economic: the rent roll is ${pct1(phys)} leased by SF; the T-12 collects ${pct1(econ)} of potential rent. No figure has been changed.` });

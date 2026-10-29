@@ -294,14 +294,11 @@ test('a deal holding a partial T-12 as a year: the warning, and what moves it, a
 
 // OM red flags 6.3.5/6.3.8 (T-12 side): a multifamily T-12 with four expense lines and no management or payroll line, an occupancy line
 // that says neither physical nor economic. Each input a rule reads is changed in turn and must be on the map.
-export const flagDeal = () => { const d = t12Deal(); Object.assign(d.figures, { ptype: 'Multifamily', units: 120 }); d.sources = { occ: { line: 'Occupancy 92%' } }; return d; };
+const withRows = (d, more) => { d.t12 = importStatement([...T12_ROWS, ...more.map(([n, v], i) => ({ r: 20 + i, cells: [n, ...Array(12).fill(v), v * 12] }))], { file: 'invented.xlsx' }); return d; };
+// a $0 vacancy line: the T-12 then states what it collected, which the occupancy note needs
+export const flagDeal = () => { const d = withRows(t12Deal(), [['Vacancy loss', 0]]); Object.assign(d.figures, { ptype: 'Multifamily', units: 120 }); d.sources = { occ: { line: 'Occupancy 92%' } }; return d; };
 // the same statement with a management fee and payroll far below the going rate
-export const lowDeal = () => {
-  const d = flagDeal();
-  const rows = [...T12_ROWS, ...[['Property Management Fee', 100], ['Payroll', 100]].map(([n, v], i) => ({ r: 20 + i, cells: [n, ...Array(12).fill(v), v * 12] }))];
-  d.t12 = importStatement(rows, { file: 'invented.xlsx' });
-  return d;
-};
+export const lowDeal = () => withRows(flagDeal(), [['Vacancy loss', 0], ['Property Management Fee', 100], ['Payroll', 100]]);
 const flagChanges = (deal, extra) => [
   ...changesFor(deal, { leases: 2 }).filter((ch) => /^(t12|figures\.(ptype|units))$/.test(ch.input)),
   { input: 'figures.lease_type', label: 'lease type set to NNN', apply: (d) => { d.figures.lease_type = 'NNN'; } },

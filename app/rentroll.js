@@ -6,7 +6,7 @@
  * typed value lands on a lease, so the screen, the Excel export and the deal
  * analysis all read the same thing. */
 
-import { inPlace, leaseMonths, monthlyAmount, leaseId, dayOf, DEFAULT_SETTINGS, rentRollSummary, fromOmRows } from './lease.js';
+import { inPlace, leaseMonths, addMonths, addDays, monthlyAmount, leaseId, dayOf, DEFAULT_SETTINGS, rentRollSummary, fromOmRows } from './lease.js';
 import { rentRollQc } from './reconcile.js';
 import { blockingChecks } from './dataqc.js';
 import { rentRoll as readRentRollTable } from './omroll.js';
@@ -185,11 +185,14 @@ export function legacyRows(rr) {
   });
 }
 
-/** Free rent the lease documents in the 12 months from the as-of month, whole cents; projected abatements (renewals, lease-up) are left out. Null with no as-of date. */
+/** Free rent the lease documents in the 12 months from the as-of day, whole cents; projected abatements (renewals, lease-up) are left out. Null with no as-of date. */
 function free12(L, asOf) {
   if (L.vacant || dayOf(asOf) === null) return null;
-  const doc = { ...L, abatements: (L.abatements || []).filter((a) => a.source !== 'projected') };
-  return toCents(leaseMonths(doc, `${String(asOf).slice(0, 7)}-01`, 12).reduce((s, m) => s + m.abatement, 0));
+  // the window is the as-of day to the day before its anniversary: each abatement is clipped to it, then summed over the 13 calendar months it touches
+  const from = String(asOf).slice(0, 10); const to = addDays(addMonths(from, 12), -1);
+  const doc = { ...L, abatements: (L.abatements || []).filter((a) => a.source !== 'projected')
+    .map((a) => ({ ...a, start: a.start < from ? from : a.start, end: a.end > to ? to : a.end })).filter((a) => a.start <= a.end) };
+  return toCents(leaseMonths(doc, `${String(asOf).slice(0, 7)}-01`, 13).reduce((s, m) => s + m.abatement, 0));
 }
 
 /** What the roll checks read of each lease (engine/figures.js, K20-K33): never stored. `annual` is the contract rent
