@@ -304,7 +304,7 @@ export function editContact(api, c = {}, deals = []) {
         try { await crm.saveContact(record()); toast('Contact saved.'); } catch (e) { toast(e.message); return; }
       }
     }
-    startResearch({ company: co, dealIds: c.dealIds || [] });
+    startResearch({ company: co, dealIds: [...new Set([...(c.dealIds || []), ...linked])] });
   });
   if (deals.length) {
     const sec = el('section');

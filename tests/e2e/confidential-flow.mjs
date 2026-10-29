@@ -4,6 +4,8 @@
  * scope) still reaches it. The chip, the list badge, the summary and brief text and axe are checked; turning the mark off
  * restores AI. Deals, people and companies are invented. */
 import { createRequire } from 'module';
+import fs from 'node:fs';
+import ExcelJS from 'exceljs';
 import { phone, BASE, finish } from './lib.mjs';
 const AXE = createRequire(import.meta.url).resolve('axe-core/axe.min.js');
 const F = new URL('./files/', import.meta.url).pathname;
@@ -112,6 +114,34 @@ async function scenario(label, opts) {
   }, id).catch((e) => ({ err: String(e) }));
   check(L('the brief says CONFIDENTIAL at the top and the foot, only when marked'), !marks.err && /^CONFIDENTIAL/.test(marks.on.trim()) && /CONFIDENTIAL\. Prepared/.test(marks.on) && !/CONFIDENTIAL/.test(marks.off), marks.err || '');
   check(L('the summary starts with the mark, only when marked'), /^CONFIDENTIAL/.test(marks.sumOn) && !/CONFIDENTIAL/.test(marks.sumOff), `${marks.sumOn} | ${marks.sumOff}`);
+
+  // the export marks, while marked: file names, the workbook title, the pipeline card, the template fill sheet
+  const [dlBook] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#deal-root .view-head .btn-primary')]);
+  check(L('the deal workbook file name starts CONFIDENTIAL - '), dlBook.suggestedFilename().startsWith('CONFIDENTIAL - '), dlBook.suggestedFilename());
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(fs.readFileSync(await dlBook.path()));
+  check(L('and its title cell says CONFIDENTIAL —'), String(wb.getWorksheet('Deal Analysis').getCell('A1').value).includes('CONFIDENTIAL —'), String(wb.getWorksheet('Deal Analysis').getCell('A1').value));
+  await page.click('#tab-rentroll');
+  await page.locator('#deal-rentroll button[aria-label="More rent roll actions"]').click();
+  const [dlCsv] = await Promise.all([page.waitForEvent('download'), page.locator('.action-sheet .action-item', { hasText: 'Export CSV' }).click()]);
+  check(L('the rent roll CSV file name starts CONFIDENTIAL - '), dlCsv.suggestedFilename().startsWith('CONFIDENTIAL - '), dlCsv.suggestedFilename());
+  await page.click('.tab[data-view="home"] >> visible=true');
+  await page.waitForSelector('#home-pipeline .pipe');
+  check(L('the pipeline card says (Confidential)'), /\(Confidential\)/.test(await page.locator('#home-pipeline .pipe-card').first().innerText()));
+  await page.click('.tab[data-view="deal"] >> visible=true');
+  await menu('Fill my Excel template');
+  await page.waitForSelector('#sheet-foot button:has-text("Upload a template")');
+  const [ch] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#sheet-foot button', { hasText: 'Upload a template' }).click()]);
+  await ch.setFiles(F + 'uw-model.xlsx');
+  await page.waitForSelector('#sheet-body .tpl-grid');
+  await page.locator('#sheet-foot button', { hasText: 'Save mapping' }).click(); await pause(400);
+  await menu('Fill my Excel template');
+  await page.waitForSelector('#sheet-body .li');
+  await page.locator('#sheet-body .li button', { hasText: 'Fill' }).first().click();
+  await page.waitForSelector('#sheet-body table.tpl-preview');
+  const au = page.locator('#sheet-body label.chk input[type=checkbox]').last();
+  check(L('the template fill sheet has the audit box checked and locked'), (await au.isChecked()) && (await au.evaluate((e) => e.disabled)));
+  await page.click('#sheet-close'); await pause();
 
   // the list badge
   await more(); await sheetPick('All deals'); await pause(500);

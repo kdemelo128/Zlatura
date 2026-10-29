@@ -7,13 +7,15 @@ import path from 'node:path';
 const APP = new URL('../app/', import.meta.url).pathname;
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? (/vendor|node_modules/.test(e.name) ? [] : walk(path.join(dir, e.name))) : e.name.endsWith('.js') && !/\.min\.js$/.test(e.name) ? [path.join(dir, e.name)] : []));
 // comments and strings may mention these words; only code is scanned
-const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
 const FILES = walk(APP).map((f) => [path.relative(APP, f), code(fs.readFileSync(f, 'utf8'))]);
 
-test('fetch( appears once in app/, inside request(), after the guard', () => {
-  const hits = FILES.flatMap(([f, s]) => [...s.matchAll(/(?<![\w.])fetch\s*\(/g)].map((m) => [f, s, m.index]));
-  assert.deepEqual(hits.map(([f]) => f), ['ai.js'], 'one fetch( in app/, in ai.js');
+test('the word fetch appears once in all of app/, inside request(), after the guard', () => {
+  // any spelling counts: window.fetch(, globalThis.fetch(, fetch.call(, const f = fetch
+  const hits = FILES.flatMap(([f, s]) => [...s.matchAll(/\bfetch\b/g)].map((m) => [f, s, m.index]));
+  assert.deepEqual(hits.map(([f]) => f), ['ai.js'], 'one fetch token in app/, in ai.js');
   const [, s, at] = hits[0];
+  assert.match(s.slice(at), /^fetch\(`\$\{s\.url\}\$\{path\}`/, 'it is a plain call to the guarded path');
   const req = s.indexOf('async function request(');
   assert.ok(req >= 0 && req < at, 'the fetch is inside request()');
   const g = s.indexOf('await guard(', req);
@@ -22,8 +24,9 @@ test('fetch( appears once in app/, inside request(), after the guard', () => {
 
 test("'/api/' appears only in ai.js, and no other way out of the page is used", () => {
   for (const [f, s] of FILES) {
-    if (f !== 'ai.js') assert.ok(!/['"`]\/api\//.test(s), `${f} names an /api/ path`);
+    if (f !== 'ai.js') assert.ok(!/\/api\//.test(s), `${f} names an /api/ path`);
     assert.ok(!/XMLHttpRequest|sendBeacon|new\s+WebSocket|EventSource/.test(s), `${f} uses another network API`);
+    assert.ok(!/\.src\s*=\s*['"`]https?:/.test(s) && !/import\(\s*['"`]https?:/.test(s), `${f} loads a remote script or image`);
   }
 });
 

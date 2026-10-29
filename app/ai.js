@@ -3,7 +3,7 @@
  * address and an access token the firm issues, kept on this device. Nothing
  * is sent unless the broker has turned AI on and confirmed the send. */
 
-import { kvGet, kvSet, loadDeal, listDeals } from './store.js';
+import { kvGet, kvSet, loadDealStrict, listDealsStrict } from './store.js';
 import { listContacts } from './crm.js';
 import { matchContacts } from './claims.js';
 
@@ -42,11 +42,16 @@ export function blockReason(path, scope, { stored = null, deals = [], contacts =
   return null;
 }
 
+// A caller that passes a made-up { deal: {} } gets through: the guard trusts the scope it is given (inherent to the design).
+// A storage read error refuses the call rather than reading as "not confidential".
 async function guard(path, scope) {
   const kinds = scopeKind(scope);
-  const stored = kinds[0] === 'deal' && scope.deal.id !== undefined ? await loadDeal(scope.deal.id) : null;
-  const research = kinds[0] === 'research';
-  const why = blockReason(path, scope, { stored, deals: research ? await listDeals() : [], contacts: research ? await listContacts() : [] });
+  let why;
+  try {
+    const stored = kinds[0] === 'deal' && scope.deal.id !== undefined ? await loadDealStrict(scope.deal.id) : null;
+    const research = kinds[0] === 'research';
+    why = blockReason(path, scope, { stored, deals: research ? await listDealsStrict() : [], contacts: research ? await listContacts() : [] });
+  } catch { why = 'This device could not check whether the deal is confidential, so nothing was sent.'; }
   if (why) throw new AiConfidential(why);
 }
 

@@ -378,6 +378,8 @@ export function openTranscript(h, note) {
   const keep = () => { if (ta.value !== t.text) { t.text = ta.value; t.edited = true; } t.reviewed = true; h.touch(); };
   save.addEventListener('click', () => { keep(); toast('Transcript saved.'); h.api.sheetClose(); });
   notesBtn.addEventListener('click', async () => {
+    const why = await ai.blocked({ deal: h.deal() });
+    if (why) { toast(why, null, 7000); return; }
     keep();
     notesBtn.disabled = true;
     try {
