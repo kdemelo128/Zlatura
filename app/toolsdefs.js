@@ -22,7 +22,7 @@ import { money0, money2, pct, times, int, dec, signed, short } from './kit.js';
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const loanOf = (v) => ({ ltv: v.ltv, rate: v.rate, amort: v.amort, io: !!v.io, closing: v.closing });
 
-export const GROUPS = ['Valuation', 'Debt and financing', 'Returns and fees', 'Leasing', 'Comps and market', 'Development', 'Conversions and dates'];
+export const GROUPS = ['Valuation', 'Debt and financing', 'Returns and fees', 'Leasing', 'Comps and market', 'Development', 'Conversions and dates', 'Documents'];
 
 export const MORE_TOOLS = [
   /* ---------------------------------------------------------- valuation */
@@ -245,7 +245,7 @@ export const MORE_TOOLS = [
     fromDeal: (d) => ({ price: d.m.price }),
     run: (v) => {
       const r = commission({ price: v.price, flatPct: v.flatPct, tiers: [{ upTo: v.t1Up, pct: v.t1 }, { upTo: v.t2Up, pct: v.t2 }, { pct: v.t3 }], coBrokerPct: v.coBrokerPct, referralPct: v.referralPct, housePct: v.housePct });
-      if (!r) return { lines: [['Enter the sale price', '—']] };
+      if (!r) return { lines: [[(ok(v.price) && v.price > 0) ? 'Tier limits must rise' : 'Enter the sale price', '—']] };
       return {
         lines: [['Total commission', money0(r.total), true, `${pct(r.effectivePct, 2)} of the price`], ['Co-operating broker', money0(r.coBroker)], ['Listing side', money0(r.listingSide)], ['Referral', money0(r.referral)], ['House', money0(r.house)], ['Agent', money0(r.agent), true]],
         tables: [{ title: 'Tiers', head: ['From', 'To', 'Rate', 'Commission'], rows: r.lines.map((l) => [money0(l.from), money0(l.to), pct(l.pct, 2), money0(l.amount)]) }],

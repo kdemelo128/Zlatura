@@ -31,13 +31,14 @@ test('a 4.7.27 backup restores with its T-12 exactly as it was, and means the sa
   const plan = planRestore(b, empty, 'merge');
   const t = plan.deals.put[0].t12;
   assert.deepStrictEqual(t, raw.deals[0].t12, 'every field of the statement comes back as it went in');
-  assert.deepStrictEqual(pending(plan.deals.put[0]).map((x) => x.id), ['fee-record'], 'only the fee-record marker is waiting: no step touches the statement');
+  assert.deepStrictEqual(pending(plan.deals.put[0]).map((x) => x.id), ['fee-record', 'credit-record'], 'only the fee-record and credit-record markers are waiting: no step touches the statement');
   assert.ok(!('v' in t) && !('source' in t) && !('period' in t), 'nothing is added to it');
   assert.ok(t.lines.every((l) => !('blank' in l) && !('src' in l) && !('conf' in l)), 'no line is re-read');
   const T = statementTotals(t);
   assert.deepStrictEqual([T.egi, T.opex, T.taxes, T.noi, T.months, T.unassigned], [67500, 21200, 18000, 46300, 6, 0]);
-  const { open, held, ...forAnalysis } = t12ForAnalysis(t); // `open` (lines waiting) and `held` (period checks holding the totals, PR 3a) are new: 0 here
+  const { open, held, cats, by, ...forAnalysis } = t12ForAnalysis(t); // `cats` and `by` (red flags) are new; `open` (lines waiting) and `held` (period checks holding the totals, PR 3a) are new: 0 here
   assert.ok(open === undefined || open === 0);
+  assert.ok(cats && by, 'the red flags read what the lines are filed under; they change no figure');
   assert.equal(held, 0, 'a 4.7.27 statement has no period problem');
   assert.deepStrictEqual(forAnalysis, { noi: 46300, egi: 67500, opex: 21200, taxes: 18000, months: 6, from: '2026-01', to: '2026-06', unassigned: 0 });
   assert.deepStrictEqual(statementChecks(t).map((c) => c.id), ['months'], 'the same checks, and no blanks check');

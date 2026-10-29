@@ -21,19 +21,20 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.63; key dates to the phone calendar as an .ics file (PR opening); 4.7.62 the Back button (#88, merged); the Back button F3 (PR opening); 4.7.61 the deal fee record (#86, merged); the deal fee record 5.1, data format 5 (PR opening); 4.7.60; F6/F7, hostile text and time zones (PR opening); L5, text in a site photo (#84, merged); Phase B1c, the research screens (#83, merged); browser runs on eight port slots (#82, merged); counts recounted (the directive row had 18 of its 40 items; F12 and the Data QC panel ticked); underwriting U7, recoveries counted twice (#81, merged); Phase B1b, research briefs on the device (#80, merged); check:full runs the AI server tests (#79, merged); Phase B1a, the research route (#78, merged); the -$0 display fix (#77, merged); AI server injection set (#76, merged); fast-check property tests (#75, merged); CI security scanners (#74, merged); tool ideas and GitHub tools scan (#73, merged); F12, AI server limits (#72, merged); CodeQL alert fixes (4.7.46, #70, merged); Pillow audit (#68, merged); ponytail skill (#67, merged); underwriting U6, T-12 line checks (#66, merged); underwriting U5, rent roll checks (#65, merged); underwriting U4, WALT by total area (#64, merged); underwriting U3, strict review (#63, merged); underwriting U2, normalised NOI on screen (#62, merged); underwriting U1, normalise() (#61, merged); T-12 PR 3b, value flags and run rate (#60, merged); T-12 PR 3a, periods and the Data QC panel (#59, merged); T-12 PR 2, suggestions (#58, merged); A3 skills and glossary (#57, merged); git guardrail hook (#56, merged); security fixes F1 to F3 (#55, merged); T-12 PR 1b, the paste box (#54, merged); T-12 PR 1, the reading foundation (#53, merged); security checklist and tools decisions (#51, merged); support-code rule (PR opening); underwriting proposal (#48), roll comparison (#47), property-manager profile (#46), rent roll PDF upload (#45), `impact-flow` fix (#44) merged (2026-10-17).
+Last updated: 4.7.66; two Part 21.2 breaches fixed: the rent schedule uses only a typed price, and commission tiers that don't rise give no figure (PR opening); 4.7.65 file names handed to the phone are cleaned first (#93, merged); file names handed to the phone are cleaned first (code scanning alert 12) (PR opening); 4.7.64 the net lease rent schedule (#91, merged); the net lease rent schedule (PR opening); 4.7.63 key dates to the phone calendar (#89, merged); key dates to the phone calendar as an .ics file (PR opening); 4.7.62 the Back button (#88, merged); the Back button F3 (PR opening); 4.7.61 the deal fee record (#86, merged); the deal fee record 5.1, data format 5 (PR opening); 4.7.60; F6/F7, hostile text and time zones (PR opening); L5, text in a site photo (#84, merged); Phase B1c, the research screens (#83, merged); browser runs on eight port slots (#82, merged); counts recounted (the directive row had 18 of its 40 items; F12 and the Data QC panel ticked); underwriting U7, recoveries counted twice (#81, merged); Phase B1b, research briefs on the device (#80, merged); check:full runs the AI server tests (#79, merged); Phase B1a, the research route (#78, merged); the -$0 display fix (#77, merged); AI server injection set (#76, merged); fast-check property tests (#75, merged); CI security scanners (#74, merged); tool ideas and GitHub tools scan (#73, merged); F12, AI server limits (#72, merged); CodeQL alert fixes (4.7.46, #70, merged); Pillow audit (#68, merged); ponytail skill (#67, merged); underwriting U6, T-12 line checks (#66, merged); underwriting U5, rent roll checks (#65, merged); underwriting U4, WALT by total area (#64, merged); underwriting U3, strict review (#63, merged); underwriting U2, normalised NOI on screen (#62, merged); underwriting U1, normalise() (#61, merged); T-12 PR 3b, value flags and run rate (#60, merged); T-12 PR 3a, periods and the Data QC panel (#59, merged); T-12 PR 2, suggestions (#58, merged); A3 skills and glossary (#57, merged); git guardrail hook (#56, merged); security fixes F1 to F3 (#55, merged); T-12 PR 1b, the paste box (#54, merged); T-12 PR 1, the reading foundation (#53, merged); security checklist and tools decisions (#51, merged); support-code rule (PR opening); underwriting proposal (#48), roll comparison (#47), property-manager profile (#46), rent roll PDF upload (#45), `impact-flow` fix (#44) merged (2026-10-17).
 
 ## Now
 
-- **Current step (4.7.63):** key dates to the phone calendar: a deal's contract and key dates, and task due dates,
-  go to Calendar as an .ics file through the share sheet (all-day dates that never move with the time zone;
-  reminders a week and a day before). The 1031 dates are not an event source yet (follow-up). From the feature study
-  (#87). The Back button (#88), the deal fee record (#86), F6/F7 (#85) and earlier are merged. Built, waiting their
-  turn: the rent schedule with rent ÷ price per period (in designer review), the Underwrite tab (W1), the bridge
-  logic (7.9 B1), listing copy (13.1), R1 (stale cached results), the "-$0" sites and the CSV separators fix.
-  Next: the tenant credit record (owner approvals owed), the confidential tag, OM red flags, F8 then F9, the UW
-  Filler PRs R2-R7, the football field, the strict CSP, the skills PR, the Monal rename proposal, the security
-  triage. The master plan (`ZLATURA_MASTER_PROMPT_v2.md`) stays in force; the history of earlier
+- **Current step (4.7.66):** the conformance check (2026-10-29) found two Part 21.2 breaches in shipped code and both
+  are fixed here (PR opening): the rent schedule's rent ÷ price column now uses only a price the broker typed (never
+  one worked out from the cap rate, which returned the cap rate back), and commission tiers whose limits do not
+  rise give no figure ("Tier limits must rise") instead of counting a band twice. The file-name fix (#93), rent
+  schedule (#91), calendar (#89), Back button (#88), fee record (#86) and earlier are merged. Built, reviewed or in
+  review: the confidential tag, the OM red flags (T-12 and rent-roll halves), the tenant credit record, the
+  Underwrite tab (W1), the bridge logic, listing copy, R1, the "-$0" sites, the CSV separators fix and the skills
+  PR. Next: the conformance docs PR, Documents hub D1, Recently deleted, the Monal rename proposal, the UI
+  revamp addendum (customisable workspace, tutorial). The master plan (`ZLATURA_MASTER_PROMPT_v2.md`) stays in
+  force; the history of earlier
   steps is in `CHANGELOG.md` and the "Last updated" line above.
 - **Lost edit (since 4.7.3), fixed in 4.7.7:** `app/focuskeep.js` held the
   whole change handler, the save included, until Tab's focus landed, so
@@ -56,14 +57,14 @@ Last updated: 4.7.63; key dates to the phone calendar as an .ics file (PR openin
   5. [x] F1, money rounding: the before/after table shown and approved
      (2026-10-15); `t12.js`, `omstatement.js`, `om.js` and `template.js` use
      `toCents`; the T-12 months-vs-year flag (4.7.14, #32).
-  6. [x] F2 (old CSVs, Windows-1252; 4.7.15, merged #33), F5 (CI audit, pinned actions), F6/F7
-     (hostile-text pack, timezones) and F10 (stolen-laptop and
-     disaster-recovery plans), one PR each.
+  6. [x] F2 (old CSVs, Windows-1252; 4.7.15, merged #33), F5 (CI audit, pinned actions) and F6/F7
+     (hostile-text pack, timezones; 4.7.60), one PR each. F10 (stolen-laptop and
+     disaster-recovery plans) is not done and stays open below.
   7. T-12 multi-format import (`docs/proposals/t12-multiformat.md`). `.xls`
      only if SheetJS can be fetched and its license is Apache-2.0 or MIT,
      then pinned and vendored with a `THIRD_PARTY.md` entry; otherwise
      skipped, and the owner told.
-  8. F3 (the Back button), F4 (strict CSP), F8 ("Recently deleted", 30
+  8. [x] F3 (the Back button, 4.7.62), F4 (strict CSP), F8 ("Recently deleted", 30
      days, approved) and F9 (an optional backup password with a clear
      lost-password warning, approved), one PR each.
   9. OM red-flag check, then the pro forma vs T-12 bridge as an interactive
@@ -98,13 +99,13 @@ Last updated: 4.7.63; key dates to the phone calendar as an .ics file (PR openin
   each PR; no polling check-ins; short reports; on a usage limit, write a
   short state note here first.
 - **Questions for the owner:** where the master plan and the later
-  instructions differ, at the end of this file.
+  instructions differ, see "Owner additions and changes to the plan" below.
 
 ## Counts
 
 | Group | Done | Partial | In progress | Not started | Blocked | Items |
 |---|---|---|---|---|---|---|
-| The owner's directive | 22 | 2 | 0 | 16 | 0 | 40 |
+| The owner's directive | 27 | 3 | 0 | 19 | 0 | 49 |
 | Rules and process (Parts 0, 1.3, 22, 23, 24) | 19 | 7 | 1 | 0 | 0 | 27 |
 | The 15 pillars (Part 2) | 1 | 8 | 0 | 6 | 0 | 15 |
 | Phase 0: audit and baseline | 9 | 0 | 0 | 0 | 0 | 9 |
@@ -117,7 +118,7 @@ Last updated: 4.7.63; key dates to the phone calendar as an .ics file (PR openin
 | Phase 7: workspaces and integrations | 1 | 4 | 0 | 9 | 0 | 14 |
 | Phase 8: final audit | 1 | 2 | 0 | 7 | 1 | 11 |
 | Real-world validation | 0 | 0 | 0 | 0 | 5 | 5 |
-| **All** | **115** | **122** | **1** | **150** | **8** | **396** |
+| **All** | **120** | **123** | **1** | **153** | **8** | **405** |
 
 The pillars are counted on their own as well as through the items of the
 phases that build them.
@@ -197,6 +198,40 @@ Behind the "New look" toggle, after 2b.
 - [ ] Clean-up of existing screens
 - [ ] Feature map, and a test that no feature is lost
 
+### Owner additions and changes to the plan
+The master plan is not edited. Each item gives the date, the source, the plan
+part it extends or contradicts, and its status.
+- [ ] Monal rename (owner, 2026-10-29, conformance check). Contradicts Part 0
+  rule 8 and Part 1.1 (the name is Zlatura). The owner overrides rule 8 in
+  intent. A proposal comes first (name clearance, storage-key and IndexedDB
+  migration like 4.0.0, manifest, repo and URL as a hosting gate, logo
+  concepts); the build waits for its approval. Not implemented.
+- [ ] Platform expansion (owner, 2026-10-29; `docs/proposals/platform-expansion.md`,
+  #90). Extends Part 17.5 and Part 4. X0 and X1 are approved to design and
+  build when reached; later phases wait. Not implemented.
+- [ ] Lead finder (licensed people-data, public records, the owner's own
+  Instagram account; owner, 2026-10-29). Not in the plan. Last, behind legal
+  review (permissible purpose, cost, security, data retention). Not implemented.
+- [ ] Documents hub (owner, 2026-10-29; `docs/proposals/documents-hub.md`, #92).
+  A section under Tools, not a top-level tab; extends Part 12. Not implemented.
+- [ ] UI revamp with user-selectable modules and a tutorial (owner). Extends
+  the "UI revamp" list above and Part 20. Not implemented.
+- [ ] A full improvement run on every feature (owner): each touched feature
+  gets better, and none is removed. Partially implemented, item by item.
+- [x] Time-zone change (4.7.60) acknowledged (owner, 2026-10-29): `termLeft`
+  moved by under 0.001 years on US-zone devices; all 618 saved results match
+  in every zone. Tested with synthetic fixtures only.
+- [x] Work order follows the owner's approved phases and order, not Part 22's
+  list (owner, 2026-10-29). Standing rule 6 in `docs/NOW.md` is superseded
+  by the later approvals.
+- [x] Feature study (`docs/proposals/feature-ideas.md`, #87): ideas 1 (net
+  lease rent schedule, 4.7.64) and 2 (.ics key dates, 4.7.63) approved
+  2026-10-28; idea 3 (tenant credit record) approved with a designer note
+  (2026-10-28), schema 6 approved 2026-10-29.
+- Open decisions: negative payments on the fee record (allow only as an
+  explicit refund, or refuse); committing `underwriting-workspace.md`, which
+  `platform-expansion.md` relies on but main does not hold.
+
 ### Other standing instructions
 - [x] Data QC panel (4.7.35, #59: T-12 and rent roll checks in one panel)
 - [x] Character-by-character typing tests for every input type:
@@ -220,11 +255,11 @@ in the order of the build order above:
 - [x] F2 old CSVs: every text file read through `app/textfile.js`; a
   Windows-1252 fallback, with a note saying how each file was read (4.7.15,
   PR open)
-- [ ] F3 the phone's Back button returns to the last screen
+- [x] F3 the phone's Back button returns to the last screen (4.7.62)
 - [ ] F4 a strict Content-Security-Policy, with `script-src`
 - [x] F5 dependency audit in CI, and actions pinned to commit SHAs (4.7.17, merged #35; the owner turns on GitHub security alerts)
-- [ ] F6 hostile-text pack (apostrophes, emoji, right-to-left, formulas);
-  F7 tests run in other timezones
+- [x] F6 hostile-text pack (apostrophes, emoji, right-to-left, formulas);
+  F7 tests run in other timezones (4.7.60; `npm run test:tz`)
 - [ ] F8 "Recently deleted" for 30 days (approved)
 - [ ] F9 an optional password on backups, with a clear lost-password
   warning (approved)
@@ -521,14 +556,15 @@ here, where most of the money logic is built, and is checked on every PR.*
   configured benchmarks
 - [~] 6.3.4 Tax not reassessed for the price: a question on every deal with
   a price or taxes (`assessment`); no jurisdiction rules (7.6)
-- [ ] 6.3.5 Management fee, reserves or payroll missing or low (mentioned
-  only in the light-expenses question)
+- [~] 6.3.5 Management fee, reserves or payroll missing or low (T-12 half
+  built in 4.7.67; the OM-statement half waits on a stored field)
 - [ ] 6.3.6 Rent roll rent above the lease abstract; expirations that differ
   between documents (needs 6.6)
-- [ ] 6.3.7 Free rent, abatements and concessions not reflected in stated
-  income
-- [ ] 6.3.8 Physical against economic occupancy (the rent roll's leased SF
-  is compared with the OM's occupancy, `rentRollOcc`)
+- [~] 6.3.7 Free rent, abatements and concessions not reflected in stated
+  income (leases against the T-12, 4.7.67; OM-statement half waits)
+- [~] 6.3.8 Physical against economic occupancy (the rent roll's leased SF
+  is compared with the OM's occupancy, `rentRollOcc`; against the T-12's
+  collected rent, 4.7.67)
 - [~] 6.3.9 Tenant risks: rent expiring within two years, vacant space,
   short term left, the guarantor (questions); concentration shown in the
   rent roll; no co-tenancy, termination-option, go-dark or above-market

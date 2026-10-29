@@ -100,6 +100,9 @@ await settle();
 f = await fee();
 check('the tiers are stored as typed, the flat rate is cleared to null', f.flatPct === null && JSON.stringify(f.tiers) === JSON.stringify([{ upTo: 1000000, pct: 6 }, { upTo: 5000000, pct: 4 }, { upTo: null, pct: 2 }]), JSON.stringify([f.flatPct, f.tiers]));
 check('tiers: 6% of the first $1M, 4% of the next $4M, 2% of the last $250k', /Expected fee.*\$225,000\.00/.test(await txt('#fee-expected')), (await txt('#fee-expected')).slice(0, 80));
+await enter('tier 1 limit above tier 2', '#fee-tier-up-1', '6000000', '6,000,000');
+check('falling tier limits: no expected fee, "Tier limits must rise"', /Tier limits must rise/.test(await txt('#fee-expected')) && !/Expected fee/.test(await txt('#fee-expected')), (await txt('#fee-expected')).slice(0, 80));
+await enter('tier 1 limit back', '#fee-tier-up-1', '1000000', '1,000,000');
 check('with the shares not entered there is no split (a blank is not 0)', /Enter all three shares/.test(await txt('#fee-expected')) && !/Agent/.test(await txt('#fee-expected')));
 await enter('the co-broker share', '#fee-co', '50', '50');
 await enter('the referral share', '#fee-ref', '0', '0');
@@ -125,8 +128,8 @@ await enter('payment 2 date', '#fee-pay-on-2', '5/2/26', '05/02/2026');
 await settle();
 check('two payments: paid to date and what is outstanding', /Paid to date.*\$150,000\.50/.test(await txt('#fee-owed')) && /Outstanding\s*\$74,999\.50/.test(await txt('#fee-owed')), (await txt('#fee-owed')).slice(0, 160));
 f = await fee();
-check('stored on the deal as typed: cents, ISO dates, schema 5', f.price === 5250000 && f.invoiced.amount === 225000 && f.invoiced.on === '2026-03-01' && f.invoiced.ref === 'INV-101'
-  && JSON.stringify(f.paid) === JSON.stringify([{ amount: 100000, on: '2026-04-01', ref: '' }, { amount: 50000.5, on: '2026-05-02', ref: '' }]) && (await deals())[0].schema === 5, JSON.stringify(f));
+check('stored on the deal as typed: cents, ISO dates, schema 6', f.price === 5250000 && f.invoiced.amount === 225000 && f.invoiced.on === '2026-03-01' && f.invoiced.ref === 'INV-101'
+  && JSON.stringify(f.paid) === JSON.stringify([{ amount: 100000, on: '2026-04-01', ref: '' }, { amount: 50000.5, on: '2026-05-02', ref: '' }]) && (await deals())[0].schema === 6, JSON.stringify(f));
 
 /* ------------------------------------------------------- reload and Undo */
 await page.reload({ waitUntil: 'load' });
@@ -165,7 +168,7 @@ const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }
 const bfile = `${SHOTS}fee-backup.json`;
 await dl.saveAs(bfile);
 const bj = JSON.parse(fs.readFileSync(bfile, 'utf8'));
-check('the backup carries the fee record on the deal, as backup version 2', bj.version === 2 && bj.deals.length === 1 && bj.deals[0].schema === 5 && bj.deals[0].fee.paid.length === 2 && bj.deals[0].fee.invoiced.ref === 'INV-101', JSON.stringify([bj.version, bj.deals[0].schema]));
+check('the backup carries the fee record on the deal, as backup version 2', bj.version === 2 && bj.deals.length === 1 && bj.deals[0].schema === 6 && bj.deals[0].fee.paid.length === 2 && bj.deals[0].fee.invoiced.ref === 'INV-101', JSON.stringify([bj.version, bj.deals[0].schema]));
 const before = await fee();
 await page.evaluate(() => new Promise((res) => { localStorage.clear(); const r = indexedDB.deleteDatabase('zlatura'); r.onsuccess = res; r.onerror = res; r.onblocked = res; }));
 await page.goto(`${BASE}#settings`, { waitUntil: 'load' });

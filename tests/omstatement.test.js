@@ -373,7 +373,7 @@ test('a 4.7.4 backup: its OM deals are kept as saved, not read again, and need o
   assert.equal(b.deals.length, 2);
   for (const d of b.deals) {
     assert.equal(d.omRead, undefined);
-    assert.deepEqual(pending(d).map((s) => s.id), ['rr-pdf-source', 'fee-record'], `${d.name}: no step for the statement fields; only the markers for the lease source kind and the fee record`);
+    assert.deepEqual(pending(d).map((s) => s.id), ['rr-pdf-source', 'fee-record', 'credit-record'], `${d.name}: no step for the statement fields; only the markers for the lease source kind, the fee record and the credit record`);
     for (const s of Object.values(d.sources || {})) assert.equal(s.col, undefined, 'sources from before Bug B have no column');
     assert.equal(basisText(d.sources.noi), `p.${d.sources.noi.page} · ${d.sources.noi.confidence}`, 'its page and confidence in words; no column is made up');
     assert.deepEqual(heldFields(d.omRead), []);
