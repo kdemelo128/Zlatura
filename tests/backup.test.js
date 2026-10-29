@@ -3,6 +3,7 @@
  * newer work on the device. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import { buildBackup, readBackup, planRestore, encodeValue, decodeValue, KV_KEYS } from '../app/backup.js';
 
 const deal = (id, updatedAt, extra = {}) => ({ id, name: id, updatedAt, figures: { price: 1e6 }, visit: { photos: [], audio: [] }, ...extra });
@@ -314,6 +315,110 @@ for (const file of ['backup-4.7.50-before-research.json', 'backup-4.7.36-before-
     }
   });
 }
+
+/* ------------------------------------------- quick underwritings (uw.scratch) */
+
+const quick = (id, o = {}) => ({ v: 1, id, name: `Quick ${id}`, createdAt: NOW - 10 * DAYMS, updatedAt: NOW - 10 * DAYMS, figures: { price: 2400000, noi: 156000 }, loan: { ltv: 65, rate: 6.5 }, live: {}, targets: { cap: 7, irr: 15 }, ...o });
+
+test('W1: a round trip carries the quick underwritings (cleanKv would drop an unlisted key)', async () => {
+  assert.ok(KV_KEYS.includes('uw.scratch'));
+  const b = await buildBackup({ kv: { 'uw.scratch': [quick('ua')] } });
+  assert.equal(b.counts.quickUnderwritings, 1);
+  const r = readBackup(JSON.stringify(b));
+  assert.deepEqual(r.kv['uw.scratch'].map((x) => x.id), ['ua']);
+  assert.equal(r.dropped.other, 0);
+  assert.deepEqual(planRestore(r, EMPTY, 'merge', NOW).kv['uw.scratch'].map((x) => x.id), ['ua']);
+  assert.ok(!('quickUnderwritings' in (await buildBackup({ kv: {} })).counts), 'a backup with none counts none');
+});
+
+test('W1: a merge adds the missing, keeps the newer updatedAt, and says what it did', () => {
+  const backup = { deals: [], local: {}, session: null, kv: { 'uw.scratch': [
+    quick('same', { updatedAt: NOW - 1, name: 'from backup' }), quick('older', { updatedAt: NOW - 50 * DAYMS, name: 'from backup' }), quick('new'),
+  ] } };
+  const device = { ...EMPTY, kv: { 'uw.scratch': [quick('same', { name: 'on device' }), quick('older', { name: 'on device' })] } };
+  const p = planRestore(backup, device, 'merge', NOW);
+  assert.deepEqual(Object.fromEntries(p.kv['uw.scratch'].map((x) => [x.id, x.name])), { same: 'from backup', older: 'on device', new: 'Quick new' });
+  assert.match(p.summary.join(' '), /Quick underwritings: 1 added, 1 updated\./);
+  assert.doesNotThrow(() => planRestore({ ...backup, kv: { 'uw.scratch': 'x' } }, device, 'merge', NOW));
+  assert.doesNotThrow(() => planRestore(backup, { ...EMPTY, kv: { 'uw.scratch': 'x' } }, 'merge', NOW));
+});
+
+test('W1: a record on the device made by a newer version is not overwritten by a backup copy', () => {
+  const future = { ...quick('f'), v: 2, updatedAt: 1, name: 'future' };
+  const p = planRestore({ deals: [], local: {}, session: null, kv: { 'uw.scratch': [quick('f', { updatedAt: NOW })] } }, { ...EMPTY, kv: { 'uw.scratch': [future] } }, 'merge', NOW);
+  assert.ok(!p.kv['uw.scratch'], 'nothing to write');
+});
+
+test('W1: unreadable quick underwritings in a backup are left out and counted, in merge and replace', () => {
+  const kv = { 'uw.scratch': [quick('ok'), { id: 'BAD ID' }, quick('nan', { figures: { price: NaN } }), 'junk'] };
+  for (const mode of ['merge', 'replace']) {
+    const p = planRestore({ deals: [], local: {}, session: null, kv }, EMPTY, mode, NOW);
+    assert.deepEqual(p.kv['uw.scratch'].map((x) => x.id), ['ok'], mode);
+    assert.match(p.summary.join(' '), /3 quick underwritings in this backup could not be read and were left out\./, mode);
+  }
+});
+
+test('W1: a replace restore names the quick underwritings it would remove from the device', () => {
+  const device = { ...EMPTY, kv: { 'uw.scratch': [quick('x'), quick('y'), quick('z')] } };
+  const withKey = planRestore({ deals: [], local: {}, session: null, kv: { 'uw.scratch': [quick('a')] } }, device, 'replace', NOW);
+  assert.deepEqual(withKey.kv['uw.scratch'].map((x) => x.id), ['a']);
+  assert.match(withKey.summary.join(' '), /Quick underwritings on this device are replaced by the 1 in the backup\./);
+  const without = planRestore({ deals: [], local: {}, session: null, kv: {} }, device, 'replace', NOW);
+  assert.ok(without.removeKv.includes('uw.scratch'));
+  assert.match(without.summary.join(' '), /3 quick underwritings on this device will be deleted\./);
+  assert.ok(!/quick underwriting/.test(planRestore({ deals: [], local: {}, session: null, kv: {} }, EMPTY, 'replace', NOW).summary.join(' ')), 'no line when the device has none');
+});
+
+test('W1: a merge that leaves more than 100 says new ones are refused until some are deleted', () => {
+  const many = (p, n) => Array.from({ length: n }, (_, i) => quick(`${p}${i}`));
+  const p = planRestore({ deals: [], local: {}, session: null, kv: { 'uw.scratch': many('b', 60) } }, { ...EMPTY, kv: { 'uw.scratch': many('d', 60) } }, 'merge', NOW);
+  assert.equal(p.kv['uw.scratch'].length, 120, 'the device’s own are never dropped');
+  assert.match(p.summary.join(' '), /120 quick underwritings, over the 100 the app keeps/);
+});
+
+// every fixture, from 3.1.0 to 4.7.56, restores to the plan 4.7.56 (2ac22a1) gave: nothing about sets or quick underwritings, nothing else changed
+const canon = (v) => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v);
+// main's schema steps 5 (fee record) and 6 (credit record) came after 4.7.56, so the "brought up to date" line names them; the rest of the line and plan is held to the old plan
+const stepsSince4756 = (l) => { const t = l.replace(/(:|,) ready for the (fee|credit) record \(\d+\)/g, (m, c) => (c === ':' ? ':' : '')).replace(/restored:,/, 'restored:').replace(/restored: ?\./, 'restored:'); return /restored:$/.test(t) || /restored:\s*$/.test(t) ? '' : t; };
+const fingerprint = (p) => crypto.createHash('sha256').update(JSON.stringify(canon(JSON.parse(JSON.stringify({ put: p.deals.put, kv: p.kv, local: p.local, removeDeals: p.removeDeals, removeKv: p.removeKv, session: p.session, summary: p.summary.map(stepsSince4756).filter(Boolean) }))))).digest('hex');
+test('W1: every backup fixture restores to the same plan as 4.7.56 (2ac22a1), in merge and replace, and brings no quick underwritings', () => {
+  const snap = JSON.parse(fs.readFileSync(new URL('./fixtures/restore-plans-2ac22a1.json', import.meta.url), 'utf8'));
+  const files = fs.readdirSync(new URL('./fixtures/', import.meta.url)).filter((f) => /^backup-.*\.json$/.test(f));
+  assert.ok(files.includes('backup-4.7.56-before-uw-workspace.json') && files.length >= 12);
+  assert.deepEqual(files.sort(), Object.keys(snap.plans).sort(), 'the snapshot covers every fixture: regenerate it with tests/tools/make-backup-4.7.56-uw.mjs');
+  for (const f of files) {
+    if (snap.plans[f].refusedByOldCode) {
+      // 4.7.56 cannot read it (a newer deal schema), so there is no old plan to hold to; it must still bring no quick underwritings
+      assert.match(snap.plans[f].refusedByOldCode, /newer version/, f);
+      assert.ok(!('uw.scratch' in readBackup(fs.readFileSync(new URL(`./fixtures/${f}`, import.meta.url), 'utf8')).kv), f);
+      continue;
+    }
+    for (const [dn, dev] of Object.entries(snap.devices)) {
+      for (const mode of ['merge', 'replace']) {
+        const backup = readBackup(fs.readFileSync(new URL(`./fixtures/${f}`, import.meta.url), 'utf8'));
+        assert.ok(!('uw.scratch' in backup.kv));
+        const p = planRestore(backup, structuredClone(dev), mode, snap.now);
+        assert.equal(fingerprint(p), snap.plans[f][dn][mode], `${f} on ${dn} (${mode})`);
+        assert.ok(!('uw.scratch' in p.kv));
+      }
+    }
+  }
+});
+
+test('W1: a 4.7.56 backup restores into a device that has quick underwritings, and leaves them alone (merge)', () => {
+  const backup = readBackup(fs.readFileSync(new URL('./fixtures/backup-4.7.56-before-uw-workspace.json', import.meta.url), 'utf8'));
+  const p = planRestore(backup, { ...EMPTY, kv: { 'uw.scratch': [quick('mine')] } }, 'merge', NOW);
+  assert.ok(!('uw.scratch' in p.kv));
+  assert.ok(!p.removeKv.includes('uw.scratch'));
+  assert.ok(!/quick underwriting/.test(p.summary.join(' ')));
+});
+
+test('W1: a replace restore says it also deletes quick underwritings made by a newer version, which it does not show', () => {
+  const device = { ...EMPTY, kv: { 'uw.scratch': [quick('x'), { ...quick('f'), v: 2 }] } };
+  const p = planRestore({ deals: [], local: {}, session: null, kv: { 'uw.scratch': [quick('a')] } }, device, 'replace', NOW);
+  assert.match(p.summary.join(' '), /1 quick underwriting on this device made by a newer version of Zlatura is not shown and will be deleted too\./);
+  assert.ok(!/newer version of Zlatura is not shown/.test(planRestore({ deals: [], local: {}, session: null, kv: {} }, { ...EMPTY, kv: { 'uw.scratch': [quick('x')] } }, 'replace', NOW).summary.join(' ')));
+});
 
 /* ----------------------------------------------------------- the fee record */
 
