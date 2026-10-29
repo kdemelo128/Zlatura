@@ -94,7 +94,6 @@ export const NOT_CALCULATED = {
   'figures.renovated': 'shown on the deal screen only',
   'figures.stories': 'shown on the deal screen only',
   'figures.parking': 'shown on the deal screen only',
-  'figures.options': 'shown on the deal screen only',
 };
 
 /* ---------------------------------------------------- the deal analysis */
@@ -300,6 +299,9 @@ export const DEAL_SHEET_SECTIONS = {
 };
 for (const [r, [label, reads]] of Object.entries(DEAL_SHEET_ROWS)) node(`xlsx.deal.B${r}`, { group: 'export', file: 'Deal workbook', sheet: 'Deal Analysis', label: `${label} (B${r})`, reads });
 for (const [k, [label, reads]] of Object.entries(DEAL_SHEET_SECTIONS)) node(`xlsx.deal.${k}`, { group: 'export', file: 'Deal workbook', sheet: 'Deal Analysis', label, reads });
+/** What the net lease rent schedule (lease.js rentSchedule) reads: the rent periods, SF, free rent, the price, lease type and options. */
+const RENT_SCHEDULE_READS = ['lease.rent', 'lease.sf', 'lease.status', 'lease.unit', 'lease.tenant', 'lease.leaseStart', 'lease.abatements', 'lease.options', 'leases', 'fig.price', 'figures.lease_type', { path: 'figures.options', when: 'single-tenant, lease has no options' }];
+node('xlsx.deal.rentSchedule', { group: 'export', file: 'Deal workbook', sheet: 'Rent Schedule', label: 'Rent Schedule', reads: RENT_SCHEDULE_READS, rr: true });
 node('xlsx.deal.omRentRoll', { group: 'export', file: 'Deal workbook', sheet: 'Rent Roll', label: 'Rent Roll (the OM’s table)', reads: [{ path: 'rentRoll', when: 'only for a deal with no rent roll of its own' }] });
 
 /** The rent roll tabs (rrbook.js), in the rent roll workbook and the deal workbook alike. */
@@ -325,6 +327,7 @@ export const BRIEF_SECTIONS = {
   financing: ['Financing', ['loan.ltv', 'loan.rate', 'loan.io', 'loan.amort', 'fig.loan', 'fig.debtService', 'fig.debtYield', 'fig.cashFlow', 'fig.equity', 'fig.breakEven', 'fig.breakEvenBasis', 'fig.maxLoan']],
   comps: ['Against the sale comps', ['comps', 'fig.vsWeighted', 'fig.valueAtWeighted', 'fig.valueAtMedianCap']],
   ladder: ['Value across cap rates', ['fig.ladder']],
+  rentSchedule: ['Rent schedule', RENT_SCHEDULE_READS],
   checks: ['What doesn’t add up', ALL_CHECKS],
   questions: ['Questions to ask', [...ALL_CHECKS, 'questions']],
   visit: ['Site visit', ['visit']],
@@ -332,10 +335,10 @@ export const BRIEF_SECTIONS = {
 };
 /** The brief's section headings, and the section each starts. */
 export const BRIEF_HEADINGS = [
-  [/^The property$/, 'property'], [/^Income$/, 'income'], [/^Financing/, 'financing'], [/^Against \d+ sale comps$/, 'comps'], [/^Value across cap rates$/, 'ladder'],
+  [/^The property$/, 'property'], [/^Income$/, 'income'], [/^Financing/, 'financing'], [/^Against \d+ sale comps$/, 'comps'], [/^Value across cap rates$/, 'ladder'], [/^Rent schedule$/, 'rentSchedule'],
   [/^What doesn’t add up$/, 'checks'], [/^Questions to ask$/, 'questions'], [/^Site visit$/, 'visit'], [/^Scenarios/, 'scenarios'],
 ];
-for (const [k, [label, reads]] of Object.entries(BRIEF_SECTIONS)) node(`brief.${k}`, { group: 'document', file: 'Deal brief', label, reads });
+for (const [k, [label, reads]] of Object.entries(BRIEF_SECTIONS)) node(`brief.${k}`, { group: 'document', file: 'Deal brief', label, reads, ...(k === 'rentSchedule' ? { rr: true } : {}) });
 node('summary', {
   group: 'document', file: 'Copy summary', label: 'The five-line summary',
   reads: ['figures.address', 'figures.city', 'figures.state', 'figures.zip', 'name', 'figures.ptype', 'figures.bsf', 'figures.units', 'figures.year', 'figures.zoning',
