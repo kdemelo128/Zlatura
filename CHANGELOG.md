@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.7.72: Code scanning alert 12, second fix: the download link is set in one step (on the development branch; not merged or deployed)
+
+CodeQL alert 12 (js/xss-through-dom, high) stayed open after 4.7.65. Reproduced locally with CodeQL 2.27.3: it follows a deal name typed on the page into the calendar file's text, then into the download link built from that file.
+
+- **What the alert is:** the link points to a file the browser itself made (a `blob:` address) and the file name is already cleaned, so no script address can reach the link: a false positive in substance. CodeQL does not know that.
+- **Change:** `handOver` in `app/kit.js` sets the link's address and file name together with `Object.assign`. Nothing else changes: same link, same file, same name.
+- **Checked:** the same CodeQL query run on main before this change gives 1 result (app/kit.js, the link); after it, 0. No test can see this difference (the app behaves the same); calendar and download flows pass unchanged. Saved results and figures unchanged (golden identical).
+- **Not verified:** that GitHub's own CodeQL (a different version) clears alert 12; the alert stays open until its next scan on main says so, and it is not dismissed.
+
 ## 4.7.70: Merge, reorder, split and extract PDF pages on your phone (on the development branch; not merged or deployed)
 
 Tools has a new Documents group with **PDF pages**: add PDFs, see every page, move, turn or delete pages, then save the lot as one PDF, a set of pages ("1-3, 7"), or one file for each range in a zip.
