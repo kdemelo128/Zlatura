@@ -1,5 +1,26 @@
 # Changelog
 
+## 4.7.63: Key dates and task due dates go to the iPhone calendar (on the development branch; not merged or deployed)
+
+A deal's key dates had nowhere to go except by hand into Calendar.
+
+- **Add to calendar…** on the Key dates heading, and a calendar button on each date, open a sheet: tick the dates and tasks, optionally add the 1031 day 45 and day 180 dates from the deal's one Closing date, choose whether titles show the deal name (with a warning for shared calendars), and make a `.ics` file.
+- **All-day events**, ending on the next day, with stable ids so adding again updates the same events; a reminder at 9 a.m. a week before and the day before (tasks: the day before). Blank, invalid and done dates are left out and counted; nothing is set to today.
+- **Safe text**: line breaks and special characters in titles are escaped, and lines fold at 75 bytes without splitting a character.
+- **Sharing**: the home-screen app uses the share sheet and checks the real file type; elsewhere it downloads. `canShareFiles` now tests the type it is given (it only tested Excel before).
+- Nothing is fetched or stored except the "show deal name" choice on this device. Not yet tried on an iPhone.
+- Tested: `tests/ics.test.js` (exact file text, folding with emoji and Arabic, injection, date rollovers, three time zones), `tests/e2e/calendar-flow.mjs`. Saved results unchanged.
+
+## 4.7.62: The phone's Back button returns to the last screen and never closes the app (on the development branch; not merged or deployed)
+
+Back used to leave the app, because switching screens rewrote the address instead of adding to it.
+
+- **Each screen is a step Back walks through.** Opening a screen or a deal (`#deal/<id>`) adds one history entry; choosing the screen already shown adds none. Back returns to the last screen or deal, Forward goes on, and a reload on a deal's address reopens that deal.
+- **Sheets and the command menu close first.** An open sheet holds its own entry, so Back closes it and stays on the same screen; closing it with its own button leaves no extra Back press.
+- **Back from the first screen stays in the app.** A guard entry under the first screen (added on the first tap or key, because Chrome skips entries a page adds without one) sends Back straight forward again.
+- **Not changed:** the sections inside a deal (Overview, Rent roll and so on) are not history steps. No stored data, saved result or backup changed.
+- **Tested:** `tests/e2e/back-flow.mjs` at phone and desktop size, with axe; each check was run against the old code and fails there. Not yet tried on a real phone's Back gesture (Playwright calls `history.back()`).
+
 ## 4.7.61: A fee record on each deal, and a Fees CSV (on the development branch; not merged or deployed)
 
 Until now the commission calculator in Tools worked out a fee and kept nothing: a broker could not record what a deal's fee was meant to be, what had been invoiced or what had been paid.
