@@ -23,7 +23,7 @@ import { openImpact, affectsButton } from './impactui.js';
 import * as store from './store.js';
 import { undoState, inverseOf, mediaRefs, withBytes, applyChanges, placeOf, snapshotData, restoreInto, diffDeal, SNAPSHOTS } from './history.js';
 import { renderDealBrief, dealSummaryText, placeLine } from './brief.js';
-import { project, rentRollSummary, dealSchedules, leaseName } from './lease.js';
+import { project, rentRollSummary, dealSchedules, typedPrice, leaseName } from './lease.js';
 import { scheduleCells, scheduleTsv } from './rentschedule.js';
 import { projectionNow, projectionLater, projectionSync, projectionError } from './projector.js';
 import { legacyRows, omRollRecord, applyHeldRows, addOcrRows, ocrReading, rollOffers, withoutRollFigures, ROLL_TOOL } from './rentroll.js';
@@ -1739,7 +1739,7 @@ function renderRentSchedule(m) {
   h.appendChild(cp);
   box.appendChild(h);
   if (n === 1) {
-    const list = dealSchedules(deal, m.price);
+    const list = dealSchedules(deal, typedPrice(m));
     cp.disabled = list.some(({ S }) => S.errors.length);
     fillRentSchedules(box, list);
     return;
@@ -1792,7 +1792,7 @@ function fillRentSchedules(host, list) {
 }
 
 async function copyRentSchedule(m) {
-  const list = dealSchedules(deal, m ? m.price : metrics().m.price);
+  const list = dealSchedules(deal, typedPrice(m || metrics().m));
   if (!list.length || list.some(({ S }) => S.errors.length)) { toast('This rent schedule has problems to fix in the rent roll first.'); return; }
   const { copyText } = await import('./kit.js');
   toast((await copyText(scheduleTsv(list))) ? 'Rent schedule copied.' : 'The browser blocked copying here.');

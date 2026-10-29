@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.7.66: Two honest-figure fixes: rent schedule price and fee tier limits (on the development branch; not merged or deployed)
+
+The rent schedule divided rent by a price the app had itself worked out from NOI and the stated cap rate, so it echoed the cap back as "Cap rate". The commission calculator counted a band twice when tier limits did not rise ($5M with limits $2M then $1M gave $200,000, not $160,000).
+
+- **Rent ÷ price uses only a typed price.** With only a derived price, the schedule card, copied text, brief and workbook sheet show "—", the note "No price entered", and never the label "Cap rate".
+- **Tier limits must rise.** `commission()` returns no result for falling or repeated limits; the Tools calculator and the fee card say "Tier limits must rise" and the fee card shows no expected fee.
+- Tested with Node tests (`tests/rentschedule.test.js`, `tests/calc.test.js`) and the rent-schedule, fee and tools flows. Saved deal results and displayed figures are unchanged (golden).
+
 ## 4.7.65: File names handed to the phone are made safe first (code scanning alert 12) (on the development branch; not merged or deployed)
 
 CodeQL alert 12 (js/xss-through-dom, high) flagged `app/kit.js` `handOver`: a file name built from text typed on the page (a deal name) went to the download link and the share sheet unchanged. The name is not HTML, but a name with path separators, control or right-to-left characters, quotes or angle brackets should not reach a download link, so it is cleaned at the one place every file passes through.

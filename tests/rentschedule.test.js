@@ -183,3 +183,43 @@ test('years labels come from the month difference and still need real anniversar
   assert.equal(r('2027-03-16', '2028-03-14'), null);
   assert.equal(r('2026-03-15', '2028-03-20'), null);
 });
+
+test('a price worked out from NOI and the cap is not a typed price: no rent ÷ price, no "Cap rate" label, in the card, the workbook and the brief', async () => {
+  globalThis.document ||= { addEventListener() {}, dispatchEvent() {} };
+  const { analyze } = await import('../app/deal.js');
+  const { analysisInput } = await import('../app/impact.js');
+  const { typedPrice } = await import('../app/lease.js');
+  const deal = { name: 'Test', figures: { noi: 100000, cap: 6.5, lease_type: 'Absolute NNN' }, loan: {}, sources: {}, rr: { settings: { asOf: '2026-01-01' }, leases: [lease([P('2026-01-01', '2030-12-31', 100000)])] } };
+  const m = analyze(analysisInput(deal), null);
+  assert.equal(m.derived.price, true, 'the fixture has only a derived price');
+  assert.equal(typedPrice(m), null);
+  const S = dealSchedules(deal, typedPrice(m))[0].S;
+  assert.equal(S.rows[0].onPrice, null); assert.equal(S.priced, false);
+  assert.notEqual(S.priceLabel, 'Cap rate (rent ÷ price)');
+  assert.match(S.notes.join('|'), /No price entered/);
+  assert.equal(scheduleCells(S).rows[0].at(-2), '—');
+  // a typed price still works
+  const m2 = analyze(analysisInput({ ...deal, figures: { ...deal.figures, price: 2000000 } }), null);
+  assert.equal(typedPrice(m2), 2000000);
+  assert.equal(dealSchedules(deal, typedPrice(m2))[0].S.rows[0].onPrice, 5);
+  // the workbook sheet
+  const ExcelJS = (await import('exceljs')).default;
+  const fflate = await import('fflate');
+  const { buildDealWorkbook } = await import('../app/workbook.js');
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(await buildDealWorkbook(ExcelJS, fflate, { deal, metrics: m, comps: null }));
+  const ws = wb.getWorksheet('Rent Schedule');
+  let first = null; let head = null;
+  ws.eachRow((row, r) => { if (!first && row.getCell(1).value === 'From') { first = r + 1; head = row.getCell(8).value; } });
+  assert.notEqual(head, 'Cap rate (rent ÷ price)');
+  assert.equal(ws.getCell(`H${first}`).value, '—', 'no formula against the derived price');
+  // the brief
+  const { fakeDocument } = await import('./impact-cases.js');
+  const { renderDealBrief } = await import('../app/brief.js');
+  const box = fakeDocument().createElement('div');
+  renderDealBrief(box, { deal, m, comps: null });
+  const all = []; const walk = (n) => { all.push(n.textContent || n.own || ''); (n.children || []).forEach(walk); };
+  walk(box);
+  assert.ok(all.some((t) => t === 'Rent schedule') && all.some((t) => /No price entered/.test(t)));
+  assert.ok(!all.some((t) => /Cap rate \(rent/.test(t)));
+});

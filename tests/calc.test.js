@@ -239,3 +239,13 @@ test('feeSummary: no fee price means no expected fee (never guessed), and a fee 
   assert.equal(feeSummary({ invoiced: { amount: 5 }, paid: 'x' }).outstanding, null, 'payments that cannot be read are not 0');
   assert.equal(feeSummary({ invoiced: { amount: 5 }, paid: [{ amount: 2 }, { amount: null }] }).paidToDate, null, 'a payment with no amount yet is not a payment of 0');
 });
+
+test('commission: tier limits that do not rise give no result (a band would be counted twice); the fee summary agrees', () => {
+  const tiers = [{ upTo: 2e6, pct: 6 }, { upTo: 1e6, pct: 4 }, { pct: 2 }];
+  assert.equal(commission({ price: 5e6, tiers }), null);
+  assert.equal(commission({ price: 5e6, tiers: [{ upTo: 1e6, pct: 4 }, { upTo: 1e6, pct: 4 }, { pct: 2 }] }), null, 'equal limits too');
+  assert.equal(commission({ price: 5e6, tiers: [{ upTo: 1e6, pct: 4 }, { upTo: 2e6, pct: 6 }, { pct: 2 }] }).total, 160000, 'rising limits still work');
+  const s = feeSummary({ price: 5e6, tiers });
+  assert.equal(s.expected, null); assert.equal(s.tierRise, true);
+  assert.equal(feeSummary({ price: 5e6, tiers: [{ upTo: 1e6, pct: 4 }, { upTo: 2e6, pct: 6 }, { pct: 2 }] }).tierRise, false);
+});
