@@ -6,7 +6,7 @@
  * typed value lands on a lease, so the screen, the Excel export and the deal
  * analysis all read the same thing. */
 
-import { inPlace, monthlyAmount, leaseId, dayOf, DEFAULT_SETTINGS, rentRollSummary, fromOmRows } from './lease.js';
+import { inPlace, leaseMonths, monthlyAmount, leaseId, dayOf, DEFAULT_SETTINGS, rentRollSummary, fromOmRows } from './lease.js';
 import { rentRollQc } from './reconcile.js';
 import { blockingChecks } from './dataqc.js';
 import { rentRoll as readRentRollTable } from './omroll.js';
@@ -185,6 +185,13 @@ export function legacyRows(rr) {
   });
 }
 
+/** Free rent the lease documents in the 12 months from the as-of month, whole cents; projected abatements (renewals, lease-up) are left out. Null with no as-of date. */
+function free12(L, asOf) {
+  if (L.vacant || dayOf(asOf) === null) return null;
+  const doc = { ...L, abatements: (L.abatements || []).filter((a) => a.source !== 'projected') };
+  return toCents(leaseMonths(doc, `${String(asOf).slice(0, 7)}-01`, 12).reduce((s, m) => s + m.abatement, 0));
+}
+
 /** What the roll checks read of each lease (engine/figures.js, K20-K33): never stored. `annual` is the contract rent
  * in force on the as-of date, a year (0 when none is); `rent` is 'blank' when no period has a rent at all. */
 export function rollFacts(rr) {
@@ -194,7 +201,7 @@ export function rollFacts(rr) {
     const rated = (L.periods || []).filter((p) => ok(p.rate) && dayOf(p.start) !== null);
     const first = rated.length ? rated.map((p) => p.start).sort()[0] : null;
     return { unit: L.unit || '', tenant: L.vacant ? '' : (L.tenant || ''), sf: pos(L.sf) ? L.sf : null, vacant: !!L.vacant, mtm: !!L.mtm, holdover: /holdover/i.test(L.status || ''), recovery: (L.recovery && L.recovery.method) || 'none',
-      start: L.leaseStart || null, rentStart: L.rentStart || first, end: L.leaseEnd || null, rent: L.vacant ? null : rated.length ? 'set' : 'blank', annual: L.vacant || !rated.length ? null : ip.monthly * 12 };
+      start: L.leaseStart || null, rentStart: L.rentStart || first, end: L.leaseEnd || null, rent: L.vacant ? null : rated.length ? 'set' : 'blank', annual: L.vacant || !rated.length ? null : ip.monthly * 12, free12: free12(L, asOf) };
   });
 }
 

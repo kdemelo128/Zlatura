@@ -14,7 +14,7 @@ import { debtService, sizeLoan } from './debt.js';
 import { walt } from './walt.js';
 import { breakEvenOccupancy } from './breakeven.js';
 import { NOI_GAP, conv } from './conventions.js';
-import { matchLabel } from '../t12.js';
+import { matchLabel, CATEGORY } from '../t12.js';
 import { isoDay, calDay } from '../pipeline.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
@@ -316,6 +316,19 @@ rule('rollRecoveriesTwice', 'Recoveries on the rent roll that may be counted twi
   const o = oi[0];
   C.push({ level: 'warn', text: `The rent roll's other income “${o.name}” (${usd(o.annual)}) looks like expense recoveries, and ${n(rec.length, 'lease')} already ${rec.length === 1 ? 'recovers' : 'recover'} expenses: the roll's EGI may count them twice. Remove one of them. No figure has been changed.` });
 });
+// 6.3.7: free rent the leases document in the 12 months after the as-of date. Silent when the OM's rent line says it is net of
+// free rent, or the T-12 has a concession line; with no T-12 to compare, a question only. Projected abatements are left out (rentroll.js free12).
+rule('rollFreeRent', 'Free rent on the rent roll against the statement’s concessions', [RF('abatements', 'rent', 'sf', 'status', 'unit', 'tenant'), 'd.t12', 'd.rentLine', ...AS_OF], (m, { d, today }, C, Q) => {
+  const rs = occ(d).filter((r) => pos(r.free12));
+  if (!rs.length || /\bnet of (free|abate|concession)/i.test(d.rentLine || '')) return;
+  const t = d.t12;
+  if (t && ((t.cats || {}).concessions || t.open)) return;
+  const tot = rs.reduce((a, r) => a + r.free12, 0);
+  const at = rollDay(d, today);
+  const said = `The rent roll has ${usd(tot)} of free rent in the 12 months after ${at} (${list(rs)})`;
+  if (!t) Q.push(`${said}: does the OM's income net it out, or is it counted in full?`);
+  else C.push({ level: 'warn', text: `${said}; the T-12 has no concession line. Is it counted in full? No figure has been changed.` });
+});
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const h = s.length >> 1; return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2; };
 rule('rollPsfBand', 'Median rent per SF a year outside the usual band (monthly against annual)', [RF('rent', 'sf', 'status', 'asOf'), { path: 'd.ptype', when: 'with the band set in Settings (conventions rr.psf.*)' }], (m, { d }, C) => {
   const psf = occ(d).filter((r) => pos(r.annual) && pos(r.sf)).map((r) => r.annual / r.sf);
@@ -441,6 +454,39 @@ rule('noiOmRentRoll', 'OM NOI against the rent roll’s forward-looking year 1 (
   noiPair(C, { v: d.t12OmNoi, k: 'om' }, { v: d.rrNoi1, k: 'rr' },
     (x, obj) => (x.k === 'om' ? `The OM’s NOI (${usd(x.v)})` : `${obj ? 'the' : 'The'} rent roll’s forward-looking year 1 (${usd(x.v)})`),
     () => 'The rent roll’s year 1 is a projection, not an actual.');
+});
+
+/* ------------------------------------ T-12 management, payroll and occupancy (red flags 6.3.5, 6.3.8) */
+
+// the OM's own statement is not kept on a saved deal, so these read the T-12 only; a $0 line is a low fee, never a missing one.
+// Every input is read before any early return, so the map lists exactly what can change a rule.
+const netLease = (d) => /nnn|net|absolute/i.test(d.lease_type || '');
+const mfUnits = (d) => (/multi|apartment|residential/i.test(d.ptype || '') && pos(d.units) ? d.units : 0);
+rule('t12MissingLines', 'A T-12 with no management or payroll line', ['d.t12', 'd.lease_type', 'd.ptype', 'd.units'], (m, { d }, C) => {
+  const t = d.t12; const net = netLease(d); const units = mfUnits(d);
+  if (!t || t.open || net) return;
+  const cats = t.cats || {};
+  const n = Object.entries(cats).reduce((a, [k, v]) => a + (CATEGORY[k] && CATEGORY[k].side === 'expense' ? v : 0), 0);
+  if (n < conv('om.items.min')) return;
+  if (!cats.management) C.push({ level: 'warn', text: `The T-12 lists ${n} expenses and none is a management fee. Self-managed, or left out? No figure has been changed.` });
+  if (!cats.payroll && units >= conv('om.payroll.units') && units > 0) C.push({ level: 'warn', text: `The T-12 lists ${n} expenses and none is payroll, on ${units} units. Is the on-site staff paid by the owner, or left out? No figure has been changed.` });
+});
+rule('t12LowLines', 'A T-12 management fee or payroll that looks low', ['d.t12', 'd.ptype', 'd.units'], (m, { d }, C) => {
+  const t = d.t12; const units = mfUnits(d);
+  if (!t || t.open) return;
+  const cats = t.cats || {}; const by = t.by || {};
+  if (cats.management && pos(t.egi) && by.management / t.egi * 100 < conv('om.mgmt.low')) C.push({ level: 'info', text: `The T-12's management fee is ${pct1(by.management / t.egi * 100)} of EGI, below the ${conv('om.mgmt.low').toFixed(1)}% set in Settings. Is it the going rate? No figure has been changed.` });
+  if (cats.payroll && t.months === 12 && units && by.payroll / units < conv('om.payroll.low')) C.push({ level: 'info', text: `The T-12's payroll is ${usd(by.payroll / units)} per unit a year, below the ${usd(conv('om.payroll.low'))} set in Settings. No figure has been changed.` });
+});
+// 6.3.8: an occupancy that says neither "physical" nor "economic", where the two measures differ. Economic = rent after vacancy and concessions ÷ rent (the T-12).
+rule('occBasis', 'Occupancy that does not say physical or economic', ['d.occLine', 'leases', 'd.t12'], (m, { d }, C) => {
+  const t = d.t12; const line = d.occLine; const phys = m.leases && ok(m.leases.occupancy) ? m.leases.occupancy : null;
+  if (!line || /physical|economic/i.test(line) || !t || t.open || phys === null) return;
+  const by = t.by || {};
+  if (!pos(by.rent)) return;
+  const econ = (by.rent + (by.vacancy || 0) + (by.concessions || 0)) / by.rent * 100;
+  if (Math.abs(phys - econ) <= conv('om.occ.gap')) return;
+  C.push({ level: 'info', text: `The OM states occupancy without saying physical or economic: the rent roll is ${pct1(phys)} leased by SF; the T-12 collects ${pct1(econ)} of potential rent. No figure has been changed.` });
 });
 
 /* ------------------------------------------------------------ evaluation */

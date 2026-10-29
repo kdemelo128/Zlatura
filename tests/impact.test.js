@@ -292,12 +292,52 @@ test('a deal holding a partial T-12 as a year: the warning, and what moves it, a
   for (const x of ['t12', 'figures.noi', 'figures.gross', 'figures.opex', 'figures.taxes']) assert.ok((seenMoving.get('check.t12PartialAsYear') || new Set()).has(x), `check.t12PartialAsYear moved by ${x}`);
 });
 
+// OM red flags 6.3.5/6.3.8 (T-12 side): a multifamily T-12 with four expense lines and no management or payroll line, an occupancy line
+// that says neither physical nor economic. Each input a rule reads is changed in turn and must be on the map.
+export const flagDeal = () => { const d = t12Deal(); Object.assign(d.figures, { ptype: 'Multifamily', units: 120 }); d.sources = { occ: { line: 'Occupancy 92%' } }; return d; };
+// the same statement with a management fee and payroll far below the going rate
+export const lowDeal = () => {
+  const d = flagDeal();
+  const rows = [...T12_ROWS, ...[['Property Management Fee', 100], ['Payroll', 100]].map(([n, v], i) => ({ r: 20 + i, cells: [n, ...Array(12).fill(v), v * 12] }))];
+  d.t12 = importStatement(rows, { file: 'invented.xlsx' });
+  return d;
+};
+const flagChanges = (deal, extra) => [
+  ...changesFor(deal, { leases: 2 }).filter((ch) => /^(t12|figures\.(ptype|units))$/.test(ch.input)),
+  { input: 'figures.lease_type', label: 'lease type set to NNN', apply: (d) => { d.figures.lease_type = 'NNN'; } },
+  ...extra,
+];
+test('the T-12 red flags: what changes them is on the map', async () => {
+  const text = (d) => analyze(analysisInput(d), null).checks.map((c) => c.text).join('|');
+  assert.match(text(flagDeal()), /none is a management fee/);
+  assert.match(text(flagDeal()), /none is payroll, on 120 units/);
+  assert.match(text(flagDeal()), /without saying physical or economic/);
+  assert.match(text(flagDeal()), /of free rent in the 12 months after 2026-06-30 \(110 \(Coffee Co\)\); the T-12 has no concession line/);
+  assert.match(text(lowDeal()), /management fee is 0\.1% of EGI, below the 2\.0%/);
+  assert.match(text(lowDeal()), /payroll is \$10 per unit a year/);
+  const missing = [];
+  for (const [deal, extra] of [
+    [flagDeal(), [
+      { input: 'sources', label: 'occupancy line says physical', apply: (d) => { d.sources.occ.line = 'Physical occupancy 92%'; } },
+      { input: 'sources', label: 'rent line says net of free rent', apply: (d) => { d.sources.rent_inplace = { line: 'Base rent, net of free rent' }; } }]],
+    [lowDeal(), []],
+  ]) {
+    for (const ch of flagChanges(deal, extra)) {
+      const r = await tryChange(deal, ch, {});
+      for (const k of r.missing) missing.push(`changing ${ch.label} moved ${k}, but the map doesn't say so`);
+      for (const k of r.moved) { if (!seenMoving.has(k)) seenMoving.set(k, new Set()); seenMoving.get(k).add(ch.input); }
+    }
+  }
+  assert.deepEqual([...new Set(missing)], []);
+  for (const id of ['t12MissingLines', 't12LowLines', 'occBasis', 'rollFreeRent']) assert.ok(seenMoving.has(`check.${id}`), `check.${id} moved by something`);
+});
+
 test('each formula’s declared reads are each read on some deal, and each input it reads is seen to move it', () => {
   const traced = new Map();
   const rr = richRentRoll();
   const more = [{ d: { price: 9e6, noi: 6e5, bsf: 32000, rentRoll: [{ sf: 1000, annual: 50000, end: '2030-01-01T00:00:00.000Z' }], rentRollAsOf: rr.settings.asOf } },
     { d: analysisInput(t12Deal(), { project: (r, o) => projectionSummary(project(r, o)) }) },
-    { d: analysisInput(partialDeal()) },
+    { d: analysisInput(partialDeal()) }, { d: analysisInput(flagDeal()) }, { d: analysisInput(lowDeal()) },
     { d: analysisInput(messyDeal()) }, { d: analysisInput(messyDeal(null)) }, { d: analysisInput(camDeal('g')) }]; // the second has no as-of date: the rules read today
   for (const c of [...ALL, ...more]) for (const [id, s] of traceAnalysis(c.d, c.comps || null).reads) { if (!traced.has(id)) traced.set(id, new Set()); for (const p of s) traced.get(id).add(p); }
   const unread = [];
