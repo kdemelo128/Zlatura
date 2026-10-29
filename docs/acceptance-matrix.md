@@ -1,7 +1,7 @@
 # Acceptance matrix: Zlatura (from Comp Loader 3.3.0)
 
 Baseline: `main` at the merge of pull request #3 (content identical to commit
-`8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.70 (rows for 4.7.52 to 4.7.64 added in the conformance drift fix). This
+`8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.73 (rows for 4.7.52 to 4.7.64 added in the conformance drift fix). This
 file tracks every feature in the master plan, `ZLATURA_MASTER_PROMPT_v2.md`
 in the repository root (the "brief" below), as its Part 23 asks. In 4.7.2 it
 was checked against the master plan section by section: rows it was missing
