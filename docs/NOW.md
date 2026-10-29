@@ -129,7 +129,8 @@ section with grep, never in full.
   (`docs/proposals/security-robustness-triage.md`), then fixes, at most two
   security PRs open at once.
 - **Conformance fixes (4.7.66, merged #94):** the rent schedule uses only a typed price; commission tiers that do not rise give no figure.
-- **OM red flags (4.7.67, PR opening):** the checks ask about a missing or low management fee, payroll, free rent and unstated occupancy; questions only, no figure changes.
+- **OM red flags (4.7.67, merged #95):** the checks ask about a missing or low management fee, payroll, free rent and unstated occupancy; questions only, no figure changes.
+- **Tenant credit record (4.7.68, merged #96):** schema 6, a credit card per deal (ratings, guarantor, go-dark, store sales); checks only, no calculation changes; ratings and store sales never leave the device in exports.
 - **Documents hub D1 (4.7.70, PR opening):** Tools → Documents → PDF pages: merge, split, reorder, rotate, extract; on the device, nothing stored; `@cantoo/pdf-lib` 2.11.1 vendored with licence and checksum. Next: D2 conversions, D3 due-diligence registry.
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the

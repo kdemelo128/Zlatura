@@ -114,3 +114,11 @@ test('a fee record in a shape the app does not know is passed over without an er
     assert.doesNotThrow(() => quantizeDeal({ figures: {}, fee }));
   }
 });
+
+test('a deal’s credit record keeps store sales in whole cents, and passes over a shape it does not know', () => {
+  const d = { figures: {}, credit: { v: 1, sales: { annual: 1234567.891, year: '2025', source: '' } } };
+  const { changes } = quantizeDeal(d);
+  assert.equal(d.credit.sales.annual, 1234567.89);
+  assert.deepEqual(changes.map((c) => c.path), ['credit.sales.annual']);
+  for (const credit of ['x', 7, [], { sales: 'x' }, { sales: null }]) assert.doesNotThrow(() => quantizeDeal({ figures: {}, credit }));
+});
