@@ -7,7 +7,7 @@
  * proration, abatements, rollover) is the app's own arithmetic and goes in as
  * values, labelled so. */
 
-import { XL, colLetter } from './workbook.js';
+import { XL, colLetter, markConfidential } from './workbook.js';
 import { cleanPackage } from './package.js';
 import { project, rentRollSummary, monthlyAmount, inPlace, dayOf, UNITS } from './lease.js';
 
@@ -20,6 +20,7 @@ export async function buildRentRollWorkbook(ExcelJS, fflate, { deal, rr, app = '
   wb.created = new Date();
   wb.calcProperties = { fullCalcOnLoad: true };
   addRentRollTabs(wb, deal, rr);
+  if (deal.confidential) markConfidential(wb);
   wb.views = [{ activeTab: 0, firstSheet: 0, visibility: 'visible' }];
   return cleanPackage(fflate, await wb.xlsx.writeBuffer(), { charts: null });
 }
@@ -34,7 +35,7 @@ export function addRentRollTabs(wb, deal, rr) {
 
   // --- the rent roll
   const ws = sheet(wb, 'Rent Roll', [10, 28, 10, 11, 12, 12, 13, 11, 11, 10, 12, 30], 'FF0F766E');
-  title(ws, 1, 12, `Rent Roll — ${name}`, `As of ${asOf}. Rent in force on that date, before free rent. Blue figures are inputs; totals and shares are live formulas. ${deal.example ? 'FICTIONAL SAMPLE: not a real property.' : ''}`);
+  title(ws, 1, 12, `Rent Roll — ${name}`, `As of ${asOf}. Rent in force on that date, before free rent. Blue figures are inputs; totals and shares are live formulas. ${deal.example ? 'FICTIONAL SAMPLE: not a real property.' : ''}${deal.confidential ? ' CONFIDENTIAL: do not copy or forward.' : ''}`);
   label(ws, 'A3', 'As of');
   v(ws, 'B3', serial(asOf), DATE, { input: true });
   headerRow(ws, 5, ['Unit', 'Tenant', 'SF', 'Status', 'Lease start', 'Lease end', 'Annual rent', 'Rent / SF', '% of SF', '% of rent', 'Years left', 'Source']);

@@ -1103,7 +1103,7 @@ dialog.sheet[open] { animation: up .26s var(--ease); }
 }
 .action-sheet { max-width: 460px; }
 .action-sheet .sheet-card::before { display: none; }
-.action-sheet .sheet-card { border-radius: var(--r-lg); margin: 0 10px; padding-bottom: 0; overflow: hidden; }
+.action-sheet .sheet-card { border-radius: var(--r-lg); margin: 0 10px; padding-bottom: 0; overflow: hidden; max-height: calc(100dvh - 24px - 72px - env(safe-area-inset-bottom, 0px)); }
 .action-title { text-align: left; font: 600 var(--t-13)/1.35 var(--ui); color: var(--muted); padding: var(--s4) 18px 6px; }
 .action-list { display: grid; padding: 4px 6px 6px; overflow-y: auto; min-height: 0; }
 .action-info { display: grid; gap: 2px; padding: 8px 12px; border-top: 1px solid var(--line); }
@@ -1299,6 +1299,7 @@ dialog.sheet[open] { animation: up .26s var(--ease); }
 .review-acts label.check { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; font-size: var(--t-14); }
 .review-bulk { padding: 0 var(--s4) var(--s3); }
 .review-group .card-head { flex-wrap: wrap; gap: 8px; }
+.btn[aria-disabled="true"] { opacity: .55; }
 
 /* ====================================================== Documents: PDF pages */
 .docs-pages { display: grid; gap: var(--s3); align-content: start; }

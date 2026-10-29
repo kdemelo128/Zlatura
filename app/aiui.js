@@ -75,7 +75,7 @@ export async function openAiSettings(api) {
     status.textContent = 'Checking…';
     await ai.saveSettings({ ...current(), enabled: true });
     try {
-      const h = await ai.health();
+      const h = await ai.health({ health: true });
       status.textContent = `Connected. Document reading and the assistant: ${h.ai ? `on (${h.model})` : 'off (the server has no API key)'}. Transcription: ${h.transcription ? 'on' : 'off (no speech service set up)'}.${useToday(h.budget)}`;
     } catch (e) { status.textContent = e.message; }
     await ai.saveSettings(current());
@@ -88,7 +88,9 @@ export const cents = (c) => `$${Math.floor(c / 100)}.${String(c % 100).padStart(
 const useToday = (b) => (b && Number.isInteger(b.usedCents) && Number.isInteger(b.capCents)
   ? ` Today on this device: ${cents(b.usedCents)} of ${cents(b.capCents)}, ${b.requests} of ${b.requestLimit} requests.` : '');
 
-export async function ready(api) {
+export async function ready(api, scope) {
+  const why = await ai.blocked(scope);
+  if (why) { toast(why, null, 7000); return null; }
   const s = await ai.getSettings();
   if (ai.isReady(s)) return s;
   const v = await actionSheet('AI is off', [{ label: 'AI settings…', sub: 'Your firm’s AI server address and access token', value: 'go', primary: true }]);
@@ -109,7 +111,7 @@ export async function pdfText(api, bytes) {
  * Choose documents, confirm the send, then review what came back.
  */
 export async function readWithAi(h, files) {
-  const s = await ready(h.api);
+  const s = await ready(h.api, { deal: h.deal() });
   if (!s) return;
   files = [...files];
   if (!files.length) return;
@@ -142,7 +144,7 @@ export async function readWithAi(h, files) {
   body.appendChild(el('p', 'hint', 'This can take a minute for a long OM.'));
   let out;
   try {
-    out = await ai.extract(docs, h.fields.map(({ key, label, kind }) => ({ key, label, kind })));
+    out = await ai.extract({ deal: h.deal() }, docs, h.fields.map(({ key, label, kind }) => ({ key, label, kind })));
   } catch (e) {
     body.textContent = '';
     body.appendChild(el('p', 'warn-text', e.message));
@@ -251,7 +253,7 @@ function reviewExtraction(h, out, meta) {
 
 /** h: { api, deal(), fields, context() -> { m, scenario, rrSum, comps, issues }, touch() } */
 export async function openAssistant(h) {
-  const s = await ready(h.api);
+  const s = await ready(h.api, { deal: h.deal() });
   if (!s) return;
   const d = h.deal();
   d.aiChat ||= [];
@@ -301,7 +303,7 @@ export async function openAssistant(h) {
     const history = d.aiChat.filter((t) => !t.error).slice(-4).flatMap((t) => [{ role: 'user', content: t.q }, { role: 'assistant', content: t.answer }]);
     const turn = { q, at: Date.now() };
     try {
-      const r = await ai.assist(q, facts, history);
+      const r = await ai.assist({ deal: h.deal() }, q, facts, history);
       turn.answer = r.answer;
       turn.cited = (r.citations || []).map((id) => facts.find((f) => f.id === id)).filter(Boolean);
       turn.unknown = r.unknown || [];
@@ -323,7 +325,7 @@ const clock = (t) => (ok(t) ? `${Math.floor(t / 60)}:${String(Math.floor(t % 60)
 
 /** Transcribe a voice note, after confirming the send; then open the transcript. */
 export async function transcribeNote(h, note) {
-  const s = await ready(h.api);
+  const s = await ready(h.api, { deal: h.deal() });
   if (!s) return;
   const go = await actionSheet(`Send “${note.name}” for transcription?`, [
     { label: 'Send and transcribe', sub: `The recording goes to ${host(s)} and the speech service it uses. The transcript comes back for you to check and correct.`, value: 'yes', primary: true },
@@ -333,7 +335,7 @@ export async function transcribeNote(h, note) {
   try {
     const bytes = new Uint8Array(await note.blob.arrayBuffer());
     if (bytes.length > MAX_SEND) throw new Error('This recording is too long to send in one piece.');
-    const r = await ai.transcribe({ name: `${note.name}.${/webm/.test(note.blob.type) ? 'webm' : /ogg/.test(note.blob.type) ? 'ogg' : 'm4a'}`, mediaType: note.blob.type, data: ai.toBase64(bytes) });
+    const r = await ai.transcribe({ deal: h.deal() }, { name: `${note.name}.${/webm/.test(note.blob.type) ? 'webm' : /ogg/.test(note.blob.type) ? 'ogg' : 'm4a'}`, mediaType: note.blob.type, data: ai.toBase64(bytes) });
     note.transcript = { text: r.text, segments: r.segments || [], language: r.language, at: Date.now(), edited: false, reviewed: false };
     h.touch();
     toast('Transcript ready: check it against the recording.');
@@ -346,6 +348,7 @@ export function openTranscript(h, note) {
   const save = btn('btn-gray', 'Save');
   const notesBtn = btn('', 'Make notes');
   notesBtn.id = 'ai-make-notes';
+  if (h.deal().confidential) notesBtn.setAttribute('aria-disabled', 'true'); // stays focusable; the tap says why
   const body = h.api.sheetOpen({ eyebrow: 'Voice note', title: note.name, sub: `Transcribed ${niceDate(t.at)}${t.edited ? ', corrected by hand' : ''}. Recognition makes mistakes, above all with figures and names: correct them here.`, foot: [save, notesBtn] });
   const au = el('audio');
   au.controls = true;
@@ -375,10 +378,12 @@ export function openTranscript(h, note) {
   const keep = () => { if (ta.value !== t.text) { t.text = ta.value; t.edited = true; } t.reviewed = true; h.touch(); };
   save.addEventListener('click', () => { keep(); toast('Transcript saved.'); h.api.sheetClose(); });
   notesBtn.addEventListener('click', async () => {
+    const why = await ai.blocked({ deal: h.deal() });
+    if (why) { toast(why, null, 7000); return; }
     keep();
     notesBtn.disabled = true;
     try {
-      const r = await ai.meeting(t.text, h.fields.map(({ key, label }) => ({ key, label })));
+      const r = await ai.meeting({ deal: h.deal() }, t.text, h.fields.map(({ key, label }) => ({ key, label })));
       note.notes = { ...r, at: Date.now() };
       h.touch();
       openNotes(h, note);
@@ -465,7 +470,7 @@ export function openNotes(h, note) {
     toast(`${chosen.length} figure${chosen.length === 1 ? '' : 's'} applied from the call, marked as said on “${note.name}”.`);
   });
   copy.addEventListener('click', async () => {
-    const text = [n.summary, '', ...(n.decisions || []).map((x) => `Decision: ${x}`), ...(n.actionItems || []).map((a) => `To do: ${a.task}${a.owner ? ` (${a.owner})` : ''}${a.due ? `, by ${a.due}` : ''}`), ...(n.questions || []).map((q) => `To confirm: ${q}`)].join('\n');
+    const text = [...(h.deal().confidential ? ['CONFIDENTIAL: do not forward', ''] : []), n.summary, '', ...(n.decisions || []).map((x) => `Decision: ${x}`), ...(n.actionItems || []).map((a) => `To do: ${a.task}${a.owner ? ` (${a.owner})` : ''}${a.due ? `, by ${a.due}` : ''}`), ...(n.questions || []).map((q) => `To confirm: ${q}`)].join('\n');
     toast((await copyText(text)) ? 'Notes copied.' : 'The browser blocked copying here.');
   });
 }

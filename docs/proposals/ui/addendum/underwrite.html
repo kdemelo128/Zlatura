@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Underwrite, Cash flow, addendum mockup</title>
+<link rel="stylesheet" href="addendum.css">
+<style>
+.top h1 { margin-right: auto; }
+.top .wordmark { display: none; }
+.pick { display: flex; align-items: center; gap: var(--s3); justify-content: space-between; }
+.pick .deal { font: 600 var(--fs-h3)/1.2 var(--serif); }
+.pick .s { font-size: var(--fs-small); color: var(--muted); }
+.cf th, .cf td { padding: 0 var(--s2); }
+.cf tbody th { white-space: normal; min-width: 7rem; max-width: 7rem; line-height: 1.25; padding: var(--s2) var(--s2) var(--s2) 0; }
+.cf td { min-width: 5.1rem; }
+.cf thead th.pin { text-align: left; padding-left: 0; }
+.cf tr.dscr > * { color: var(--muted); border-top: 0 !important; height: 34px; }
+.cf td { position: relative; }
+.cf sup { position: absolute; right: 0; top: 9px; font-size: .7em; color: var(--muted); }
+.cf .fc { display: block; font-weight: 400; margin-top: 2px; }
+.note { font-size: var(--fs-small); color: var(--muted); display: flex; gap: var(--s2); }
+.note b { color: var(--ink); font-weight: 600; }
+.swipe { font-size: var(--fs-cap); color: var(--muted); text-align: right; }
+.toolbar { display: flex; gap: var(--s2); align-items: center; justify-content: space-between; }
+.seg { display: inline-flex; border: 1px solid var(--edge); border-radius: var(--r-ctl); padding: 2px; gap: 2px; }
+.seg button { min-height: 44px; padding: 0 var(--s4); border: 0; border-radius: 6px; background: none; color: var(--muted); font: 600 var(--fs-small)/1 var(--sans); cursor: pointer; }
+.seg [aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+#cap1 .src { display: inline; font-size: inherit; color: inherit; white-space: normal; }
+#cap1 .src::before { display: inline-block; margin-right: 6px; vertical-align: 1px; }
+.side { display: block; margin-top: var(--s8); }
+@media (min-width: 960px) {
+  .swipe { display: none; }
+  .cf tbody th { min-width: 12.5rem; max-width: none; white-space: nowrap; }
+  .cf td { min-width: 6.5rem; }
+  .side { max-width: 34rem; }
+}
+@media (min-width: 1400px) {
+  .layout { display: grid; grid-template-columns: 1fr 16.5rem; gap: var(--s8); align-items: start; }
+  .side { margin-top: 0; }
+  .cf tbody th { min-width: 12.5rem; max-width: none; white-space: nowrap; }
+  .cf td { min-width: 5.9rem; }
+}
+.side dl { margin: 0; }
+.side .r { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--hair); font-size: var(--fs-small); }
+.side dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.side .r dd.w { grid-column: 1 / -1; text-align: left; font-weight: 400; }
+.side .g { margin: 0; font-weight: 600; font-size: var(--fs-small); padding: var(--s4) 0 var(--s1); }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="Main"></nav>
+  <header class="top">
+    <h1>Underwrite</h1>
+    <button class="ib" type="button" aria-label="Search deals, contacts and tools" data-i="search"></button>
+    <button class="ib" type="button" aria-label="Help" data-i="help"></button>
+  </header>
+  <main>
+    <nav class="chips" aria-label="Underwrite sections">
+      <a href="#">Quick</a><a href="#">Sets</a><a href="#" aria-current="page">Cash flow</a><a href="#">Development</a>
+    </nav>
+    <div class="layout">
+      <section aria-labelledby="cft" style="display:grid;gap:var(--s4)">
+        <div class="pick">
+          <div><div class="deal" id="cft">Linden Court Offices</div><div class="s">14 leases, 42,800 SF, five-year hold</div></div>
+          <button class="btn" type="button">Change deal</button>
+        </div>
+        <div class="toolbar"><div class="seg" role="group" aria-label="Rows"><button type="button" aria-pressed="true">By year</button><button type="button" aria-pressed="false">By lease</button></div><button class="btn quiet" type="button" aria-pressed="false">$ thousands</button></div>
+        <p class="small muted" id="cap1">Cash flow in US dollars, by calendar year, from the rent roll and the leasing assumptions. <span class="src p">Every year is a forecast.</span></p>
+        <p class="swipe" aria-hidden="true">Swipe the table for 2030 and 2031</p>
+        <div class="scroller" tabindex="0" role="region" aria-labelledby="cap1">
+          <table class="cf" aria-labelledby="cft cap1">
+            
+            <thead><tr><th class="pin" scope="col">Line</th><th scope="col">2027</th><th scope="col">2028</th><th scope="col">2029</th><th scope="col">2030</th><th scope="col">2031</th></tr></thead>
+            <tbody>
+              <tr><th class="pin" scope="row">Potential rent</th><td>$1,161,200</td><td>$1,196,036</td><td>$1,231,917</td><td>$1,268,875</td><td>$1,306,941</td></tr>
+              <tr><th class="pin" scope="row">Vacancy and credit loss</th><td>−69,672</td><td>−71,762</td><td>−132,078<sup>a</sup></td><td>−76,133</td><td>−78,416</td></tr>
+              <tr><th class="pin" scope="row">Expense recoveries</th><td>214,300</td><td>219,657</td><td>225,149</td><td>230,778</td><td>236,547</td></tr>
+              <tr class="sub"><th class="pin" scope="row">Effective gross income</th><td>1,305,828</td><td>1,343,931</td><td>1,324,988</td><td>1,423,520</td><td>1,465,072</td></tr>
+              <tr><th class="pin" scope="row">Operating expenses</th><td>−640,928</td><td>−660,156</td><td>−679,961</td><td>−700,359</td><td>−721,370</td></tr>
+              <tr class="sub"><th class="pin" scope="row">Net operating income</th><td>$664,900</td><td>$683,775</td><td>$645,027</td><td>$723,161</td><td>$743,702</td></tr>
+              <tr><th class="pin" scope="row">Tenant improvements</th><td>−24,000</td><td>−24,000</td><td>−155,600<sup>a</sup></td><td>−24,000</td><td>−92,000</td></tr>
+              <tr><th class="pin" scope="row">Leasing commissions</th><td>0</td><td>0</td><td>−50,408<sup>a</sup></td><td>0</td><td>−33,800</td></tr>
+              <tr><th class="pin" scope="row">Capital reserves</th><td>−10,700</td><td>−10,700</td><td>−10,700</td><td>−10,700</td><td>−10,700</td></tr>
+              <tr class="sub"><th class="pin" scope="row">Cash flow before debt service</th><td>630,200</td><td>649,075</td><td>428,319</td><td>688,461</td><td>607,202</td></tr>
+              <tr><th class="pin" scope="row">Debt service</th><td>−480,576</td><td>−480,576</td><td>−480,576</td><td>−480,576</td><td>−480,576</td></tr>
+              <tr class="total"><th class="pin" scope="row">Cash flow after debt service</th><td>$149,624</td><td>$168,499</td><td>−$52,257</td><td>$207,885</td><td>$126,626</td></tr>
+              <tr class="dscr"><th class="pin" scope="row">DSCR</th><td>1.38x</td><td>1.42x</td><td>1.34x</td><td>1.50x</td><td>1.55x</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note"><b>a</b><span>Wexley Optics' lease (9,400 SF) ends in March 2029. The Office, standard profile weighs a renewal (70%) against 9 months empty and a new lease at market (30%); the 2029 figures carry both. <a class="tap" href="#">Open the lease</a></span></p>
+      </section>
+
+      <aside class="side sec" aria-labelledby="asm">
+        <h2 id="asm">Assumptions</h2>
+        <h3 class="g">Office, standard (13 leases)</h3><dl>
+          <div class="r"><dt>Chance of renewal</dt><dd>70%</dd><dd class="w"><span class="src a">Assumption</span></dd></div>
+          <div class="r"><dt>Market rent</dt><dd>$27.50 per SF a year</dd><dd class="w"><span class="src a">Assumption</span></dd></div>
+          <div class="r"><dt>Months empty before a new lease</dt><dd>9</dd><dd class="w"><span class="src a">Assumption</span></dd></div>
+          <div class="r"><dt>Improvements, new lease</dt><dd>$28.00 per SF</dd><dd class="w"><span class="src a">Assumption</span></dd></div>
+          </dl><h3 class="g">Expenses</h3><dl>
+          <div class="r"><dt>Growth</dt><dd>3.0% a year</dd><dd class="w"><span class="src a">Assumption</span></dd></div>
+          <div class="r"><dt>Year 1</dt><dd>$640,928</dd><dd class="w"><a class="src" href="#">T-12, normalised</a></dd></div>
+        </dl>
+        <p style="margin-top:var(--s4)"><a class="tap small" href="#">Edit the profiles</a></p>
+      </aside>
+    </div>
+  </main>
+  <nav class="bar" aria-label="Main"></nav>
+</div>
+<script src="shell.js"></script>
+<script>shell('underwrite');</script>
+</body>
+</html>

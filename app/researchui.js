@@ -32,7 +32,7 @@ const INFERRED = { registered_agent: 'registered agent', mailing_address: 'maili
 
 /** The sheet that starts a brief. pre: { company } (the contact's company; never a contact name). */
 export async function startResearch(pre = {}) {
-  const s = await ready(api);
+  const s = await ready(api, { research: { company: pre.company || '', dealIds: pre.dealIds || [] } });
   if (!s) return;
   const sources = []; // { name, kind, pages, chars, sha256, scanned, texts, doc, bytes }
   const go = btn('', 'Research');
@@ -125,6 +125,8 @@ export async function startResearch(pre = {}) {
   go.addEventListener('click', async () => {
     const subject = { name: company.value.trim(), state: state.value.trim() || null };
     const n = sources.length;
+    const why = await ai.blocked({ research: { company: subject.name, dealIds: pre.dealIds || [] } });
+    if (why) { status.textContent = why; return; }
     const v = await actionSheet(`Send ${plural(n, 'source', 'sources')} to ${host(s)}?`, [
       { label: 'Send and research', sub: `The company name${subject.state ? ', the state' : ''} and ${n === 1 ? 'the 1 file or pasted text' : `the ${n} files and pasted texts`}, in full, go to your firm’s AI server and on to Anthropic’s API. Nothing is fetched from the web. Contact names on this device are not sent.`, value: 'yes', primary: true },
     ]);
@@ -136,7 +138,7 @@ export async function startResearch(pre = {}) {
     const note = el('p', 'hint', 'This can take a minute. The brief is saved as sending; you can close this and find it under Research briefs.');
     wait.appendChild(note);
     try {
-      const out = await ai.research(requestBody(subject, sources.map((x) => x.doc)));
+      const out = await ai.research({ research: { company: subject.name, dealIds: pre.dealIds || [] } }, requestBody(subject, sources.map((x) => x.doc)));
       brief = receive(brief, out, sources.map((x) => x.texts));
       await saveBrief(brief);
       changed();
