@@ -69,3 +69,50 @@ export function encryptedPdf() {
   ];
   return assemble(objs, '/Encrypt 4 0 R /ID [<00112233445566778899aabbccddeeff> <00112233445566778899aabbccddeeff>] ');
 }
+
+const page = (contents, extra = '') => `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contents} 0 R ${extra} >>`;
+const frame = (...rest) => ['<< /Type /Catalog /Pages 2 0 R >>', `<< /Type /Pages /Count ${rest.pages ?? 1} /Kids [4 0 R] >>`, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
+
+/** A contents page ("TOC") whose links, a go-to action and a form field's widgets all lead to page 2, which says SECRET2,
+ *  and whose page-2 widget carries a script and a launch action. Extracting page 1 must leave page 2 behind entirely. */
+export function tocPdf() {
+  const objs = [
+    '<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Count 2 /Kids [4 0 R 6 0 R] >>', '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    page(5, '/Annots [7 0 R 8 0 R 9 0 R]'), content('TOC'),
+    page(10, '/Annots [11 0 R]'),
+    '<< /Type /Annot /Subtype /Link /Rect [0 0 50 50] /Border [0 0 0] /Dest [6 0 R /Fit] /P 6 0 R >>',
+    '<< /Type /Annot /Subtype /Link /Rect [60 0 110 50] /Border [0 0 0] /A << /S /GoTo /D [6 0 R /Fit] >> >>',
+    '<< /Type /Annot /Subtype /Widget /FT /Btn /Rect [0 60 20 80] /Parent 12 0 R /P 4 0 R >>',
+    content('SECRET2'),
+    '<< /Type /Annot /Subtype /Widget /FT /Btn /Rect [0 60 20 80] /Parent 12 0 R /P 6 0 R /A << /S /JavaScript /JS (app.alert\\(9\\)) >> /AA << /E << /S /Launch /F (calc.exe) >> >> >>',
+    '<< /FT /Btn /T (f) /Kids [9 0 R 11 0 R] >>',
+  ];
+  return assemble(objs);
+}
+
+/** One page whose link action runs `n` steps (harmless web addresses chained with /Next) and then a script. */
+export function chainPdf(n) {
+  const objs = [...frame(), page(5, '/Annots [6 0 R]'), content('C1'), '<< /Type /Annot /Subtype /Link /Rect [0 0 50 50] /Border [0 0 0] /A 7 0 R >>'];
+  for (let k = 0; k < n; k++) {
+    const last = k === n - 1;
+    objs.push(last ? '<< /S /JavaScript /JS (app.alert\\(5\\)) >>' : `<< /S /URI /URI (http://example.com/${k}) /Next ${8 + k} 0 R >>`);
+  }
+  return assemble(objs);
+}
+
+/** A complete file whose last page names a content object that is not there (what a file cut between objects, then closed up, looks like). */
+export function lostContentPdf() {
+  return assemble([...frame(), page(99), ]);
+}
+
+/** A file cut off just before the last page's content object. */
+export function cutBeforeContentPdf() {
+  const b = plainPdf('K', 2);
+  const text = new TextDecoder().decode(b);
+  return b.slice(0, text.lastIndexOf('7 0 obj'));
+}
+
+/** Page 1 holds a reference to page 2 in a key no cleaning knows ("/Foo"): the last line of defence has to catch it. */
+export function strayPdf() {
+  return assemble([...frame({ pages: 2 }).map((x, i) => (i === 1 ? '<< /Type /Pages /Count 2 /Kids [4 0 R 6 0 R] >>' : x)), page(5, '/Foo 6 0 R'), content('P1'), page(7), content('SECRET4')]);
+}

@@ -68,16 +68,17 @@ export function openPdfPages(api) {
   });
   body.classList.add('docs-pages');
 
-  body.appendChild(el('p', 'hint-sm', 'The pages are copied unchanged. Bookmarks, attachments, scripts and form fields are not kept, and a digital signature on the original will no longer verify.'));
+  body.appendChild(el('p', 'hint-sm', 'The pages are copied unchanged. Bookmarks, attachments, scripts and form fields are not kept, links to other pages or files are cut, web links are kept, and a digital signature on the original will no longer verify.'));
 
-  const add = el('label', 'btn btn-primary docs-add', 'Add PDFs…');
+  const add = el('button', 'btn btn-primary docs-add', 'Add PDFs…');
+  add.type = 'button';
   const input = el('input');
   input.type = 'file';
   input.id = 'docs-file';
   input.accept = 'application/pdf,.pdf';
   input.multiple = true;
   input.hidden = true;
-  add.htmlFor = input.id;
+  add.addEventListener('click', () => input.click());
   const addRow = el('div', 'docs-row');
   addRow.append(add, input);
   body.appendChild(addRow);
@@ -228,7 +229,7 @@ export function openPdfPages(api) {
     list.toggleAttribute('inert', busy);
     const none = !pages.length;
     for (const b of [save, extract, split, range, name]) b.disabled = none || busy;
-    add.classList.toggle('disabled', busy);
+    add.disabled = busy;
     input.disabled = busy;
     if (none) say(live().length ? 'Every page was deleted. Add a PDF to begin again.' : 'Add one or more PDFs to begin.');
   }
@@ -292,6 +293,7 @@ export function openPdfPages(api) {
     busy = false;
     problems(bad);
     draw();
+    if (document.activeElement === document.body) add.focus();
     if (pages.length) say(`${pages.length} ${pages.length === 1 ? 'page' : 'pages'} from ${live().length} ${live().length === 1 ? 'file' : 'files'}.`);
   });
 
@@ -422,7 +424,7 @@ function thumbnails(scroller) {
     open(f, file) {
       docs.set(f, (async () => {
         const pdfjs = await getPdfjs();
-        const doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()), verbosity: 0 }).promise;
+        const doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()), verbosity: 0, isEvalSupported: false }).promise;
         return doc;
       })());
       docs.get(f).catch(() => {});

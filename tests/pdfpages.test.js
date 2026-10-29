@@ -8,7 +8,7 @@ import {
   checkAdd, problemText, pagesOf, overPages, move, rotate, remove, pageLabel, parseRanges, orderFor, withPdf, partName,
   MAX_FILES, MAX_PAGES, MAX_BYTES,
 } from '../app/pdfpages.js';
-import { plainPdf, hostilePdf, damagedPdf, encryptedPdf } from './tools/docpdfs.mjs';
+import { plainPdf, hostilePdf, damagedPdf, encryptedPdf, tocPdf, chainPdf, lostContentPdf, cutBeforeContentPdf, strayPdf } from './tools/docpdfs.mjs';
 
 const pdfjs = await import('../vendor/pdf-4.7.76-legacy.min.js');
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf-4.7.76-legacy.worker.min.js', import.meta.url).href;
@@ -121,7 +121,7 @@ test('every way a PDF can fail has its own words', () => {
 function startWorker() {
   const lib = fs.readFileSync(new URL('../vendor/pdf-lib-cantoo-2.11.1.min.js', import.meta.url), 'utf8');
   const posted = [];
-  const ctx = vm.createContext({ console, TextEncoder, TextDecoder, setTimeout, clearTimeout });
+  const ctx = vm.createContext({ console, TextEncoder, TextDecoder, setTimeout, clearTimeout, crypto: globalThis.crypto });
   ctx.self = ctx;
   ctx.importScripts = () => vm.runInContext(lib, ctx);
   ctx.postMessage = (m) => posted.push(m);
@@ -205,4 +205,62 @@ test('a password-protected file, a file cut short and a page tree that lost page
   assert.deepEqual([lost.ok, lost.kind], [false, 'invalid']);
   const junk = await w.ask({ id: 9, type: 'inspect', file: blob(new TextEncoder().encode('%PDF-1.4\nnot really')) });
   assert.equal(junk.ok, false);
+});
+
+/* ------------------------------------------------- what review found */
+
+const leaks = (out) => ['JavaScript', '/JS', 'Launch', 'calc.exe', 'app.alert'].filter((k) => raw(out).includes(k));
+
+test('extracting page 1 of a contents page leaves the other page out of the file: its text, its widget and its scripts', async () => {
+  const w = startWorker();
+  const src = raw(tocPdf());
+  assert.ok(src.includes('SECRET2') && src.includes('JavaScript') && src.includes('Launch'));
+  const r = await w.ask({ id: 20, type: 'build', files: [blob(tocPdf())], outputs: [[{ f: 0, p: 0, rot: 0 }]] });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.ok(!raw(r.files[0]).includes('SECRET2'), 'the unpicked page\'s text is not in the bytes');
+  assert.deepEqual(leaks(r.files[0]), [], 'and neither is the widget\'s script or launch action');
+  assert.deepEqual((await readBack(r.files[0])).map((p) => p.text), ['TOC']);
+  const both = await w.ask({ id: 21, type: 'build', files: [blob(tocPdf())], outputs: [[{ f: 0, p: 0, rot: 0 }, { f: 0, p: 1, rot: 0 }]] });
+  assert.deepEqual(leaks(both.files[0]), [], 'picking both pages still drops the script and launch action');
+});
+
+test('a link action chained nine, ten or twelve steps deep to a script is still cut; running out of depth counts as unsafe', async () => {
+  const w = startWorker();
+  for (const n of [9, 10, 12]) {
+    assert.ok(raw(chainPdf(n)).includes('JavaScript'));
+    const r = await w.ask({ id: 30 + n, type: 'build', files: [blob(chainPdf(n))], outputs: [[{ f: 0, p: 0, rot: 0 }]] });
+    assert.equal(r.ok, true, JSON.stringify(r));
+    assert.deepEqual(leaks(r.files[0]), [], `a ${n}-step chain`);
+  }
+});
+
+test('a file cut between objects, or closed up with a page\'s content missing, is refused rather than copied as a blank page', async () => {
+  const w = startWorker();
+  const cut = await w.ask({ id: 40, type: 'inspect', file: blob(cutBeforeContentPdf()) });
+  assert.deepEqual([cut.ok, cut.kind], [false, 'invalid']);
+  const lost = await w.ask({ id: 41, type: 'inspect', file: blob(lostContentPdf()) });
+  assert.deepEqual([lost.ok, lost.kind], [false, 'invalid']);
+  const noEnd = plainPdf('E', 1);
+  const trimmed = noEnd.slice(0, new TextDecoder().decode(noEnd).lastIndexOf('%%EOF'));
+  assert.deepEqual([(await w.ask({ id: 42, type: 'inspect', file: blob(trimmed) })).kind], ['invalid'], 'no end marker');
+});
+
+test('a real password-protected PDF, made by the library, is called password protected and not damaged', async () => {
+  const w = startWorker();
+  const mk = vm.createContext({ console, TextEncoder, TextDecoder, setTimeout, clearTimeout, crypto: globalThis.crypto });
+  vm.runInContext(fs.readFileSync(new URL('../vendor/pdf-lib-cantoo-2.11.1.min.js', import.meta.url), 'utf8'), mk);
+  mk.out = null;
+  const bytes = await vm.runInContext(`(async () => { const d = await PDFLib.PDFDocument.create(); d.addPage(); d.encrypt({ userPassword: 'u', ownerPassword: 'o' }); return await d.save(); })()`, mk);
+  const r = await w.ask({ id: 50, type: 'inspect', file: blob(new Uint8Array(bytes)) });
+  assert.deepEqual([r.ok, r.kind], [false, 'encrypted']);
+  const b = await w.ask({ id: 51, type: 'build', files: [blob(plainPdf('A', 1)), blob(new Uint8Array(bytes))], outputs: [[{ f: 0, p: 0, rot: 0 }, { f: 1, p: 0, rot: 0 }]] });
+  assert.deepEqual([b.ok, b.kind, b.file], [false, 'encrypted', 1]);
+});
+
+test('if a picked page still leads to one that was not picked, by a route nothing cuts, nothing is written', async () => {
+  const w = startWorker();
+  const r = await w.ask({ id: 60, type: 'build', files: [blob(strayPdf())], outputs: [[{ f: 0, p: 0, rot: 0 }]] });
+  assert.equal(r.ok, false);
+  assert.equal(r.files, undefined);
+  assert.match(r.message, /not picked/);
 });

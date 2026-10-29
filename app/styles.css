@@ -1300,7 +1300,6 @@ dialog.sheet[open] { animation: up .26s var(--ease); }
 .docs-row { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .docs-pages .btn, .docs-pages .docs-icon, .docs-pages .field input { min-height: 44px; }
 .docs-pages .docs-icon { min-width: 44px; }
-.docs-add.disabled { opacity: .45; pointer-events: none; }
 .docs-files, .docs-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
 .docs-files li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
 .docs-fname { font-weight: 600; overflow-wrap: anywhere; min-width: 0; flex: 1 1 8em; }
