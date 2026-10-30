@@ -6,8 +6,7 @@
  * from them: in-place rent, expirations, concentration, and the projection
  * through NOI. Every change goes through `onChange`, which saves the deal. */
 
-import { cellValue, csvRows, unreadable, isCsv } from './sheetread.js';
-import { checkUpload } from './filekind.js';
+import { cellValue, csvRows, unreadable, isCsv, loadXlsx } from './sheetread.js';
 import { readText } from './textfile.js';
 import { calDay } from './pipeline.js';
 import { waltMethod } from './engine/walt.js';
@@ -844,14 +843,7 @@ async function readTable(file) {
   const no = unreadable(file, 'rent roll');
   if (no) throw new Error(no);
   if (isCsv(file)) { const { text, note } = await readText(file); return { ...parseCsv(text), note }; }
-  const { ExcelJS, fflate } = await getXlsx();
-  const NOT_XLSX = 'That file could not be opened as an Excel workbook. It may be damaged, password protected or not really .xlsx.';
-  // size, kind and the zip's real sizes are checked before ExcelJS sees the bytes (filekind.js)
-  const up = await checkUpload(file, { getFflate: async () => fflate });
-  if (up.refuse) throw new Error(up.refuse);
-  if (up.kind !== 'xlsx') throw new Error(NOT_XLSX);
-  const wb = new ExcelJS.Workbook();
-  try { await wb.xlsx.load(up.buffer); } catch { throw new Error(NOT_XLSX); }
+  const wb = await loadXlsx(file, getXlsx); // size, kind and the zip's real sizes are checked before ExcelJS sees the bytes
   let best = null;
   wb.eachSheet((ws) => {
     if (ws.state && ws.state !== 'visible') return;

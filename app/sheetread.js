@@ -92,6 +92,23 @@ export function guardedBuffer(buffer, fflate) {
 }
 
 /**
+ * An ExcelJS workbook from an upload, after its size, kind and zip sizes were
+ * checked (filekind.js): `up` is checkUpload's result, or it is run here.
+ * Throws the reason when the file is refused or can't be opened.
+ */
+export async function loadXlsx(file, getXlsx, up = null) {
+  const { ExcelJS, fflate } = await getXlsx();
+  const NOT_XLSX = 'That file could not be opened as an Excel workbook. It may be damaged, password protected or not really .xlsx.';
+  up = up || await checkUpload(file, { getFflate: async () => fflate });
+  if (up.refuse) throw new Error(up.refuse);
+  if (up.kind !== 'xlsx') throw new Error(NOT_XLSX);
+  const buffer = up.guarded ? up.buffer : guardedBuffer(up.buffer || await file.arrayBuffer(), fflate);
+  const wb = new ExcelJS.Workbook();
+  try { await wb.xlsx.load(buffer); } catch { throw new Error(NOT_XLSX); }
+  return wb;
+}
+
+/**
  * Every visible sheet of a workbook (or the one table of a text file) as rows
  * of values: [{ sheet, hidden, rows: [{ r (1-based row number), cells: [] }] }],
  * empty rows left out, at most `maxRows` rows a sheet. What the file is comes
@@ -112,10 +129,7 @@ export async function readGrids(file, getXlsx, { maxRows = 400, includeHidden = 
     const rows = csvRows(skipFirst ? text.replace(/^[^\r\n]*\r?\n?/, '') : text, { delimiter }).map((cells, i) => ({ r: i + 1 + (skipFirst ? 1 : 0), cells })).filter((x) => x.cells.some((v) => String(v).trim()));
     return [{ sheet: 'CSV', hidden: false, rows, delimiter, encoding, note, macros: false }];
   }
-  const { ExcelJS, fflate } = await getXlsx();
-  const wb = new ExcelJS.Workbook();
-  const buffer = up.guarded ? up.buffer : guardedBuffer(up.buffer || await file.arrayBuffer(), fflate);
-  try { await wb.xlsx.load(buffer); } catch { throw new Error('That file could not be opened as an Excel workbook. It may be damaged, password protected or not really .xlsx.'); }
+  const wb = await loadXlsx(file, getXlsx, up);
   return gridsOf(wb, { maxRows, includeHidden }).map((g) => ({ ...g, macros: !!up.macros }));
 }
 

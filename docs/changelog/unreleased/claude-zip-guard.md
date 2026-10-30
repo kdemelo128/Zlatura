@@ -14,8 +14,13 @@ the earlier size checks only read what the file said about itself.
   compression and that copy is what ExcelJS reads: same workbook, same
   figures.
 - **Every user-file site is covered:** the T-12 and sheet import
-  (`checkUpload`, `readGrids`), the rent roll import (which now also checks
-  size and kind first) and templates (`app/template.js`).
+  (`checkUpload`, `readGrids`), the rent roll import and templates
+  (`app/template.js`). **The rent roll import now also enforces the 25 MB
+  workbook limit and the file-kind check**, as the T-12 import already did
+  (it read any size before).
+- **Zip64 workbooks still open** (sizes read from the zip64 fields, same
+  caps); parts that share bytes, or a part header that isn't one, are
+  refused; a refusal names the file.
 - **Tested:** `tests/zip-guard.test.js` (a 60 MB part declared at 1,000
   bytes, over-cap, too many parts, ratio, nested zip, short and stored size
   mismatches, damaged and password-protected, a normal workbook read
