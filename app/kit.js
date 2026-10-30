@@ -298,7 +298,9 @@ export function downloadName(name) {
   const dot = n.lastIndexOf('.');
   const ext = dot > 0 && n.length - dot <= 8 ? n.slice(dot) : '';
   const stem = (ext ? n.slice(0, dot) : n).trim();
-  n = `${stem.slice(0, 120 - ext.length).trim() || 'file'}${ext}`;
+  let cut = stem.slice(0, 120 - ext.length);
+  if (/[\ud800-\udbff]$/.test(cut)) cut = cut.slice(0, -1); // not in the middle of an emoji
+  n = `${cut.trim() || 'file'}${ext}`;
   return n;
 }
 

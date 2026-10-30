@@ -322,7 +322,7 @@ export function docxText(bytes, fflate, name = 'That document') {
   const xml = dropFallback(new TextDecoder().decode(raw));
   // one pass, no backtracking over the whole body: a text run is what lies between <w:t> and the next '<'
   const parts = [];
-  for (const m of xml.matchAll(/<w:t(?:[ \t\r\n][^<>]{0,300})?>([^<]*)<\/w:t>|<w:tab\s{0,5}\/>|<w:br\s{0,5}\/>|<w:cr\s{0,5}\/>|<\/w:p>|<\/w:tc>|<\/w:tr>/g)) {
+  for (const m of xml.matchAll(/<w:t(?:[ \t\r\n][^<>]{0,300})?>([^<]*)<\/w:t>|<w:tab\s{0,5}\/>|<w:br(?:\s[^<>]{0,200})?\/>|<w:cr\s{0,5}\/>|<\/w:p>|<\/w:tc>|<\/w:tr>/g)) {
     const t = m[0];
     const last = parts.length - 1;
     if (m[1] !== undefined) parts.push(entity(m[1]));
@@ -341,9 +341,11 @@ export function docxText(bytes, fflate, name = 'That document') {
 const PLAIN_NUMBER = /^-?(0|[1-9]\d{0,14})(\.\d{1,14})?$/;
 const isPlainNumber = (s) => PLAIN_NUMBER.test(s) && !/^-0(\.0+)?$/.test(s) && s.replace(/\D/g, '').length <= 15;
 /** 1.250 or 1.250.000: a thousands separator in one country and a decimal point in another. */
-const DOTTED_THOUSANDS = /^-?\d{1,3}(\.\d{3})+$/;
-/** 1,25: a decimal comma. */
-const DECIMAL_COMMA = /^-?\d+,\d+$/;
+const DOTTED_THOUSANDS = /^-?[1-9]\d{0,2}(\.\d{3})+$/;
+/** 1,25: a decimal comma. A comma and exactly three digits (1,234) is a thousands comma in one country and a decimal comma in another, so it proves nothing. */
+const DECIMAL_COMMA = /^-?\d+,(\d{1,2}|\d{4,})$/;
+/** Signs of a file that writes 1,234.50: a dot decimal that is not three digits (12.5, 0.5), or a thousands comma before a dot decimal. */
+const US_NUMBER = /^-?(\d*\.(\d{1,2}|\d{4,})|\d{1,3}(,\d{3})+\.\d+)$/;
 
 /** The rows of a CSV text, trailing empty rows dropped. */
 function tableRows(text, delimiter) {
@@ -361,11 +363,14 @@ export function csvToCells(text, delimiter, name = 'That file') {
   const width = rows.reduce((m, r) => Math.max(m, r.length), 0);
   if (rows.length * width > SHEET_CELLS) throw new Error(`${name} has ${rows.length} rows of up to ${width} columns, more than ${SHEET_CELLS / 1e6} million cells. Split it first.`);
   // a file that writes decimals with a comma (or separates fields with ;) reads 1.250 as one thousand two hundred fifty: not decided here
-  const euro = delimiter === ';' || rows.some((r) => r.some((v) => DECIMAL_COMMA.test(v)));
+  const cells = rows.flat();
+  const euro = delimiter === ';' || cells.some((v) => DECIMAL_COMMA.test(v));
+  const us = cells.some((v) => US_NUMBER.test(v));
+  const hold = euro || !us; // 1.250 is a thousand two hundred fifty unless the file shows it writes dot decimals
   let numbers = 0; let ambiguous = 0;
   const out = rows.map((r) => r.map((v) => {
     if (v === '') return null;
-    if (euro && DOTTED_THOUSANDS.test(v)) { ambiguous++; return v; }
+    if (hold && DOTTED_THOUSANDS.test(v)) { ambiguous++; return v; }
     if (isPlainNumber(v)) { numbers++; return Number(v); }
     return v;
   }));
@@ -380,8 +385,12 @@ export function sheetName(s) {
   out = out.trim() || 'Sheet1';
   return /^history$/i.test(out) ? `${out} 1` : out;
 }
-/** `s` cut to at most `n` characters, never inside an emoji. */
-export const clip = (s, n) => Array.from(String(s)).slice(0, n).join('');
+/** `s` cut to at most `n` UTF-16 units (what file systems and kit.js's downloadName count), never inside an emoji. */
+export function clip(s, n) {
+  let out = '';
+  for (const ch of String(s)) { if (out.length + ch.length > n) break; out += ch; }
+  return out;
+}
 
 /**
  * Names for the entries of a zip: each made safe by `safe` (the file-name cleaner, which cuts a long name) and then
@@ -392,11 +401,15 @@ export function zipKeys(names, safe) {
   const used = new Set();
   return names.map((n) => {
     let k = safe(n);
+    const d = k.lastIndexOf('.');
+    const ext = d > 0 && k.length - d <= 8 ? k.slice(d) : '';
+    const stem = clip(ext ? k.slice(0, d) : k, 100);
     for (let i = 2; used.has(k.toLowerCase()); i++) {
-      const d = k.lastIndexOf('.');
-      const ext = d > 0 ? k.slice(d) : '';
-      k = safe(`${clip(ext ? k.slice(0, d) : k, 100)} (${i})${ext}`);
+      // a safety net: a cleaner that keeps cutting the number off must not loop for ever
+      k = i > 1000 ? `file ${used.size + 1}${ext}` : safe(`${stem} (${i})${ext}`);
+      if (i > 1000) break;
     }
+    while (used.has(k.toLowerCase())) k = `file ${used.size + 1}${ext}`;
     used.add(k.toLowerCase());
     return k;
   });
@@ -433,7 +446,7 @@ export function unsafeNumber(text) {
       const m = /^-?\d+(\.\d+)?([eE][+-]?\d+)?/.exec(text.slice(i, i + 400));
       if (!m) continue;
       const digits = m[0].replace(/[eE].*$/, '').replace(/\D/g, '').replace(/^0+/, '');
-      if (digits.length > 15 || Math.abs(Number(m[0])) >= 1e21) return m[0];
+      if (Math.abs(Number(m[0])) >= 1e21 || (digits.length > 15 && String(Number(m[0])) !== m[0])) return m[0];
       i += m[0].length - 1;
     }
   }

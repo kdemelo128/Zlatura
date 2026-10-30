@@ -303,7 +303,8 @@ test('zip entries: three pages of a long-named file give three different names, 
   const sheets = zipKeys([`${'y'.repeat(105)} - Sheet A.csv`, `${'y'.repeat(105)} - Sheet B.csv`], safe120);
   assert.equal(new Set(sheets).size, 2);
   assert.deepEqual(zipKeys(['a.csv', 'A.csv'], (n) => n), ['a.csv', 'A (2).csv']);
-  assert.equal(clip('😀😀😀', 2), '😀😀');
+  assert.equal(clip('😀😀😀', 4), '😀😀');
+  assert.equal(clip('😀😀😀', 3), '😀', 'cut between characters, counting UTF-16 units');
 });
 
 test('Word to text: a hostile 1 MB body finishes in well under a second', () => {
@@ -332,7 +333,8 @@ test('CSV to Excel: with decimal commas or ; fields, 1.250 stays text and is cou
   assert.equal(eu.rows[1][0], '1.250');
   assert.equal(eu.ambiguous, 1);
   assert.equal(csvToCells('a,b\n1.250,"1,5"\n', ',', 'r.csv').rows[1][0], '1.250', 'a decimal comma in a quoted field is enough');
-  assert.equal(csvToCells('a,b\n1.250,2\n', ',', 'r.csv').rows[1][0], 1.25, 'no sign of decimal commas: a plain number');
+  assert.equal(csvToCells('a,b\n1.250,2\n', ',', 'r.csv').rows[1][0], '1.250', 'nothing shows which way it is meant: kept as text');
+  assert.equal(csvToCells('a,b\n1.250,0.5\n', ',', 'r.csv').rows[1][0], 1.25, 'a dot decimal elsewhere shows dots are decimals');
   assert.equal(eu.rows[1][1], '1,5');
 });
 
@@ -369,4 +371,67 @@ test('formula guard: a plain negative number is left alone, other text starting 
   const { sheets, notes } = workbookToCsvs(wb);
   assert.equal(sheets[0].csv, '﻿-1200,-12.50,\'-cmd,\'=1+1,\'+5,\'@x,\'- 5,"\'-1,200"\r\n');
   assert.match(notes.join(' '), /6 text cells starting with = \+ @ tab or return, or with - \(unless a plain number like -1200\)/);
+});
+
+const realName = async () => {
+  globalThis.document ||= { createElement: () => ({}), addEventListener() {}, documentElement: { style: {} }, querySelector: () => null, body: {} };
+  globalThis.window ||= globalThis;
+  globalThis.navigator ||= { userAgent: 'node' };
+  return (await import('../app/kit.js')).downloadName;
+};
+
+test('zip names with the real file-name cleaner and emoji: finishes, all different, page numbers kept', async () => {
+  const downloadName = await realName();
+  for (const base of ['😀'.repeat(100), `x${'😀'.repeat(70)}`, '🏢'.repeat(90)]) {
+    const t0 = Date.now();
+    const pages = [1, 2, 3, 4].map((i) => `${clip(base, 80)} page ${String(i).padStart(2, '0')}.png`);
+    const keys = zipKeys(pages, downloadName);
+    assert.ok(Date.now() - t0 < 1000);
+    assert.equal(new Set(keys.map((k) => k.toLowerCase())).size, 4, keys.join('|'));
+    assert.ok(keys.every((k, i) => k.includes(` page 0${i + 1}`)), 'page numbers survive');
+    const sheets = zipKeys([`${clip(base, 80)} - Rent.csv`, `${clip(base, 80)} - Roll.csv`], downloadName);
+    assert.equal(new Set(sheets).size, 2);
+    // even names the cleaner cuts hard still end up different, and never loop
+    const raw = zipKeys([`${base}.png`, `${base}.png`, `${base}.png`], downloadName);
+    assert.equal(new Set(raw.map((k) => k.toLowerCase())).size, 3);
+  }
+});
+
+test('zipKeys cannot loop for ever, even with a cleaner that keeps cutting the number off', () => {
+  const keys = zipKeys(['a.png', 'a.png', 'a.png'], () => 'same.png');
+  assert.equal(new Set(keys).size, 3);
+});
+
+test('downloadName never leaves half an emoji at the cut', async () => {
+  const downloadName = await realName();
+  for (const n of ['😀'.repeat(100), `x${'😀'.repeat(100)}.pdf`]) {
+    const out = downloadName(n);
+    assert.ok(out.length <= 120 && !/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/.test(out), out);
+  }
+});
+
+test('CSV to Excel: a tab file with only 1.250 and 12.500 keeps them as text (European thousands); a US file converts', () => {
+  const eu = csvToCells('a\tb\n1.250\t12.500\n', '\t', 'r.tsv');
+  assert.deepEqual(eu.rows[1], ['1.250', '12.500']);
+  assert.equal(eu.ambiguous, 2);
+  const us = csvToCells('a,b,c,d\n"1,234.50",12.5,0.5,1.250\n', ',', 'r.csv');
+  assert.deepEqual(us.rows[1], [ '1,234.50', 12.5, 0.5, 1.25 ]);
+  assert.equal(us.ambiguous, 0);
+  assert.equal(csvToCells('a\n0.250\n', '\t').rows[1][0], 0.25, '0.250 is plainly a decimal');
+});
+
+test('CSV to Excel: a quoted US 1,234 is not a sign of decimal commas', () => {
+  const r = csvToCells('a,b\n"1,234",5.5\n', ',', 'r.csv');
+  assert.equal(r.rows[1][1], 5.5);
+  assert.equal(csvToCells('a,b\n"1,234",1.250\n', ',', 'r.csv').rows[1][1], '1.250', 'but 1.250 beside it is still ambiguous: no dot decimal proves US');
+});
+
+test('Word to text: a page break does not join the words around it', () => {
+  const x = '<w:document><w:body><w:p><w:r><w:t>Page</w:t></w:r><w:r><w:br w:type="page"/></w:r><w:r><w:t>next page</w:t></w:r></w:p></w:body></w:document>';
+  assert.equal(docxText(fflate.zipSync({ 'word/document.xml': fflate.strToU8(x) }), fflate, 'B.docx'), 'Page\nnext page');
+});
+
+test('JSON numbers that survive a round trip are accepted (0.30000000000000004), others are refused', () => {
+  assert.equal(unsafeNumber('[{"a": 0.30000000000000004}]'), '');
+  assert.equal(unsafeNumber('[{"a": 12345678901234567890}]'), '12345678901234567890');
 });
