@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.74 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.76 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -138,6 +138,7 @@ section with grep, never in full.
 - **Underwrite tab, W1 (4.7.73, merged #103):** a dedicated Underwrite tab: a quick underwriting that needs no saved deal (kept on the device, carried by backups), then "make it a deal".
 - **Confidential tag (4.7.71, PR opening):** one boolean per deal that blocks every AI call for it and marks its exports; the file name and printed pages say CONFIDENTIAL.
 - **Cash flow A1 (4.7.74, PR opening):** recoveries, percentage rent and the sale at exit each live in one function in `app/engine/`; no figure changes (the Percentage rent tool can differ in the last digit only). Clean-room rule added to `docs/working-rules.md`. Next: A1b (the three approved edge-case fixes), A2 read-only cash-flow view.
+- **Excel zip-bomb guard (4.7.76, PR opening):** a workbook's real unpacked size is checked as it unpacks (not only the size it declares); applies to the rent roll, T-12, templates and the sheet reader; zip64 workbooks still open. Security fix with its own tests.
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
   owner says to continue.
