@@ -29,11 +29,12 @@ compared byte for byte on 2026-10-15.
 | `vendor/ocr/eng-4.0.0-best-int/eng.traineddata.gz` | [@tesseract.js-data/eng](https://www.npmjs.com/package/@tesseract.js-data/eng) (`4.0.0_best_int/eng.traineddata.gz`, from tesseract-ocr/tessdata_best) | 1.0.0 | package MIT; the trained data Apache-2.0 (the package ships no license file) | the OCR language model | identical |
 | `vendor/pdf-lib-cantoo-2.11.1.min.js` | [@cantoo/pdf-lib](https://github.com/cantoo-scribe/pdf-lib) (`dist/pdf-lib.min.js`, the UMD build; its dependencies culori, fflate, node-html-better-parser and tslib are bundled inside: MIT, MIT, MIT and 0BSD) | 2.11.1 | MIT | writes PDFs: merge, split, reorder, turn and extract pages (Documents > PDF pages), in a Web Worker | edited: map comment removed, one control byte escaped |
 | `fonts/public-sans-latin-{400,600,700}-normal.woff2` | [Public Sans](https://public-sans.digital.gov/) via `@fontsource/public-sans` | 5.1.0 | OFL-1.1 (a font license; it lets the fonts ship inside any app, proprietary included) | the app's type | identical |
+| `fonts/source-serif-4-latin-{400,600}-normal.woff2` | [Source Serif 4](https://github.com/adobe-fonts/source-serif) (Adobe) via `@fontsource/source-serif-4` (tarball SHA-256 `54b7898afa20cf4b2d807bbf2b5a2f865e28a83db8a5fcc563dafce5ecb5e7c8`) | 5.3.1 | OFL-1.1 | titles and headline figures in the New look only (loaded as "Zlatura Serif") | identical (the package's latin subset, 20,088 and 21,532 bytes) |
 
 The license texts in `vendor/licenses/`, taken from the published packages:
 `exceljs-4.4.0.LICENSE`, `fflate-0.8.3.LICENSE`, `pdf-lib-cantoo-2.11.1.LICENSE.md`, `pdfjs-4.7.76.LICENSE`,
 `tesseract.js-7.0.0.LICENSE.md`, `tesseract.js-core-7.0.0.LICENSE` and
-`public-sans-5.1.0.OFL-1.1.LICENSE`. None of these packages ships a NOTICE
+`public-sans-5.1.0.OFL-1.1.LICENSE` and `source-serif-4-5.3.1.OFL-1.1.LICENSE`. None of these packages ships a NOTICE
 file.
 
 SHA-256 of each shipped file:
@@ -50,6 +51,8 @@ c58b46a4c796c0b8afccf77591d5b875b6896b45d402bbce8caa6f5362447b38  vendor/ocr/tes
 9707fd1d120b6fd56804438c1c0879cee23233534149a1a4a7782ca1f40121ad  fonts/public-sans-latin-400-normal.woff2
 7f8f1af2c80ddaff95380a7fcd78d2564187591f70e9fecc3a10c79bdb1bf05f  fonts/public-sans-latin-600-normal.woff2
 39dc2fced2b7f9aaf2fa1f16aa992228c61569efabde0ce0b78a17d088c22d4e  fonts/public-sans-latin-700-normal.woff2
+02194deb92d3975dd30e11a3824a1f1db32b48c93654e60560cb81ce8e7b5f95  fonts/source-serif-4-latin-400-normal.woff2
+f2b7e1cf1d277b7608231868135648f8ad8e2b58d8e97ca088bee15dc357bee7  fonts/source-serif-4-latin-600-normal.woff2
 a492ff478806a19b0dd2b106ad8e636ae5c4fabbffeb0de1cf67dc548ea50d00  vendor/pdf-lib-cantoo-2.11.1.min.js
 ```
 

@@ -127,11 +127,21 @@ interface Credit {
   ratings: CreditRating[]; sales: { annual: Usd; year: string; source: string } | null; goDark: { state: 'yes' | 'no' | null; note: string };
 }
 
+/** A deal's due-diligence document list (deal.dd). The files themselves are never stored: a Doc is a record of one. */
+interface DdDoc {
+  id: string; type: string | null; typeBy: 'reader' | 'content' | 'broker' | null; name: string;
+  kind: 'pdf' | 'xlsx' | 'csv' | 'docx' | 'image' | 'text' | 'other'; size: number; sha256: string | null; pages: number | null;
+  addedAt: string; asOf: IsoDate | null; status: 'received' | 'read' | 'reviewed' | 'superseded'; supersededBy: string | null;
+  read: { reader: 'om' | 'rrpdf' | 'rrsheet' | 't12' | 'ocr'; at: string; target: 'omRead' | 'rr' | 't12'; checks: { pass: number; warn: number; fail: number } } | null;
+  note: string;
+}
+interface Dd { v: 1; preset: 'office' | 'retail' | 'netlease' | 'multifamily' | 'industrial' | null; na: Record<string, { reason: string; at: string }>; docs: DdDoc[] }
+
 interface Deal {
-  id: string; name?: string; figures: Figures; loan: Loan; rr?: RentRoll | null; rentRoll?: OmRentRow[]; fee?: Fee; credit?: Credit;
+  id: string; name?: string; figures: Figures; loan: Loan; rr?: RentRoll | null; rentRoll?: OmRentRow[]; fee?: Fee; credit?: Credit; dd?: Dd;
   live?: ScenarioOver; scenarios?: { id: string; name: string; at?: number; over: ScenarioOver }[];
   targets?: { cap?: Pct | null; irr?: Pct | null; value?: Pct | null };
-  sources?: Record<string, { hand?: boolean; page?: number; ai?: boolean; orig?: unknown; line?: string; verified?: boolean }>;
+  sources?: Record<string, { hand?: boolean; page?: number; ai?: boolean; doc?: string; orig?: unknown; line?: string; verified?: boolean }>;
   [other: string]: unknown;
 }
 
