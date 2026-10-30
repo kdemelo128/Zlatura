@@ -438,3 +438,47 @@ test('an empty or untouched document list is no edit: History would record nothi
   D.setNa(after.dd, 'survey', 'none');
   assert.ok(historyEntry(d, after));
 });
+
+/* ------------------------------------------------- second review */
+
+test('History Undo and Redo work when the document list goes to or from empty', async () => {
+  const { historyEntry, applyChanges } = await import('../app/history.js');
+  const base = () => ({ id: 'x', figures: { price: 1 }, dd: D.newDd() });
+  const step = (before, after) => historyEntry(before, after).entry.changes;
+  // add the first document, Undo, the card draws (an empty list again), Redo
+  const b1 = base(); const a1 = structuredClone(b1);
+  D.addDoc(a1.dd, file({ type: 'rentroll', typeBy: 'reader' }), { now: NOW });
+  const c1 = step(b1, a1);
+  const live = structuredClone(a1);
+  assert.deepEqual(applyChanges(live, c1, { backwards: true }), []);
+  D.ddOf(live);
+  assert.deepEqual(applyChanges(live, c1), [], 'Redo is not refused because an empty list was made meanwhile');
+  assert.equal(live.dd.docs.length, 1);
+  // remove the last document, Undo
+  const b2 = structuredClone(a1); const a2 = structuredClone(a1);
+  D.removeDoc(a2.dd, a2.dd.docs[0].id);
+  const c2 = step(b2, a2);
+  const live2 = structuredClone(a2);
+  assert.deepEqual(applyChanges(live2, c2, { backwards: true }), []);
+  assert.equal(live2.dd.docs.length, 1);
+  // set then clear the property type, and the only n/a
+  for (const set of [(dd) => { dd.preset = 'retail'; }, (dd) => { D.setNa(dd, 'survey', 'none'); }]) {
+    const b3 = base(); const a3 = structuredClone(b3); set(a3.dd);
+    const set3 = step(b3, a3);
+    const cleared = structuredClone(a3); cleared.dd = D.newDd();
+    const clear3 = step(a3, cleared);
+    const live3 = structuredClone(cleared);
+    assert.deepEqual(applyChanges(live3, clear3, { backwards: true }), [], 'the clearing can be undone');
+    assert.deepEqual(applyChanges(live3, set3, { backwards: true }), [], 'and so can the setting');
+    assert.ok(!live3.dd || !live3.dd.preset);
+  }
+});
+
+test('a workbook with an Annual actuals sheet and a monthly Budget sheet is not typed T-12; a broker opinion of value asks', () => {
+  const monthly = [['GL', 'Jan 2026', 'Feb 2026', 'Mar 2026', 'Total'], ['Rent', 100, 100, 100, 300], ['Taxes', 10, 10, 10, 30]];
+  const v = identify({ name: 'x.xlsx', grids: [gridOf([['GL', '2024', '2025'], ['Rent', 1200, 1300], ['Taxes', 120, 130]], 'Annual'), gridOf(monthly, 'Budget')] });
+  assert.deepEqual([v.type, v.typeBy], [null, null]);
+  const bov = identify({ name: 'bov.pdf', pages: ['BROKER OPINION OF VALUE\nExecutive summary. Recommended asking price $5,000,000.\n' + 'filler text for the page. '.repeat(40)] });
+  assert.deepEqual([bov.type, bov.typeBy], [null, null]);
+  assert.ok(bov.ask.includes('om') && bov.ask.includes('appraisal'));
+});

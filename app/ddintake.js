@@ -43,12 +43,17 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
       const sc = scoreText(out.text);
       const om = sc.find((x) => x.id === 'om');
       const other = sc.find((x) => x.id !== 'om');
-      if (!(other && other.score >= 2 && other.score >= (om ? om.score : 0))) return { ...out, type: 'om', typeBy: 'reader', reader: 'om' };
+      // a broker opinion of value has no type of its own and reads like an OM: ask as well
+      const bov = /broker'?s?\s+opinion\s+of\s+value|\bBOV\b/i.test(out.text);
+      if (!bov && !(other && other.score >= 2 && other.score >= (om ? om.score : 0))) return { ...out, type: 'om', typeBy: 'reader', reader: 'om' };
       omRead = true;
     }
   } else if (grids) {
     // the T-12 import's own test: a sheet it would read as an actual statement (not a budget or projection), with month columns
-    const accepted = !pickSheet(sheetChoices(grids, { file: name })).refuse && grids.some((g) => accepts(() => layoutOf(g.rows, { sheet: g.sheet }).monthCols.length >= 3));
+    const picked = pickSheet(sheetChoices(grids, { file: name }));
+    // the month columns must be on the sheet the import would read, not on some other sheet of the workbook
+    const candidates = picked.refuse ? [] : (picked.choice ? [picked.choice] : picked.ask.filter((c) => !c.projection));
+    const accepted = candidates.some((c) => accepts(() => layoutOf(grids[c.i].rows, { sheet: grids[c.i].sheet }).monthCols.length >= 3));
     const roll = grids.some((g) => accepts(() => headerAndRows(g.rows.map((r) => r.cells), g.sheet)));
     // both readers accept it: nothing decides, so the broker is asked
     if (accepted && roll) return { ...out, ask: ['t12', 'rentroll'] };
@@ -58,7 +63,7 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
   }
   const c = classify(out.text, name);
   const top = c.scores.slice(0, 3).map((x) => x.id);
-  if (omRead) return { ...out, ask: [...new Set([...top, 'om'])].slice(0, 3) };
+  if (omRead) return { ...out, ask: [...new Set([...top.filter((x) => x !== 'om'), 'om', 'appraisal'])].slice(0, 3) };
   if (c.type && READER_TYPES.includes(c.type)) return { ...out, ask: c.type === 't12' ? ['t12', 'priorStmt', 'budget'] : c.ask.length ? c.ask : top };
   if (c.type) return { ...out, looks: c.type, ask: [c.type] };
   return { ...out, ask: c.ask };

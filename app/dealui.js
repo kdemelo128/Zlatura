@@ -449,10 +449,10 @@ async function readOmFile(file) {
     return;
   }
   const om = readOm(pages, { layouts: layouts.length === pages.length ? layouts : null, asOf: localDate() });
-  reading = null;
   if (om.chars < 200) {
     // every page a scan: the Data QC record lists them, so one can be read by OCR
     const { qc } = omRollRecord({ ...om, rentRoll: null, scanned: pages.map((_, i) => i + 1) }, { asOf: localDate(), file: file.name });
+    reading = null;
     deal = newDeal({ name: file.name.replace(/\.pdf$/i, ''), source: file.name, readAt: Date.now(), pages: om.pages, rrQc: qc });
     omFiles.set(deal.id, file);
     render();
@@ -486,8 +486,12 @@ async function readOmFile(file) {
   omFiles.set(deal.id, file);
   try { localStorage.setItem(CUR_KEY, deal.id); } catch { /* fine */ }
   const n = Object.keys(figures).length;
+  const made = deal;
   // the file it read goes in the Documents list, and the figures read from it point back at it: fingerprinted before the deal's first save, so the read is one history entry
   await recordFileRead(deal, file, { reader: 'om', target: 'omRead', type: 'om', kind: 'pdf', pages: om.pages, link: true, checks: qcCounts({ checks: [...((/** @type {any} */ (deal).omRead?.checks) || []), ...((/** @type {any} */ (deal).rrQc?.checks) || [])] }) }, () => {}).catch(() => {});
+  // `reading` stays set across the fingerprint, so a second OM is refused meanwhile; and the screen is this OM's deal
+  reading = null;
+  deal = made;
   render();
   touch();
   store.askToPersist();
@@ -828,7 +832,7 @@ function docsHost(d) {
     readPdf: async (bytes) => { const layouts = []; const pages = await api.pdfPages(await getPdfjs(), bytes, { layouts }); return { pages, layouts }; },
     ocrText: async (bytes) => (await readScannedPage(await getPdfjs(), bytes.slice(), 1)).text,
     // other deals holding a file with this fingerprint, by name: shown on this device only
-    otherDeals: async (sha) => (await listAllDeals()).filter((x) => x.id !== d.id && x.dd && Array.isArray(x.dd.docs) && x.dd.docs.some((y) => y.sha256 === sha)).map((x) => x.name || (x.figures && x.figures.address) || 'Untitled deal'),
+    otherDeals: async (sha) => (await listAllDeals()).filter((x) => x.id !== d.id && x.dd && Array.isArray(x.dd.docs) && x.dd.docs.some((y) => y && y.sha256 === sha)).map((x) => x.name || (x.figures && x.figures.address) || 'Untitled deal'),
     // the reader's own panel for a type: the rent roll workspace, the T-12 card or the figures and their checks
     openReader: (type) => {
       if (type === 'rentroll') showPane('rentroll');

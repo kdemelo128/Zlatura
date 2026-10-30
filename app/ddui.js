@@ -286,7 +286,7 @@ export function renderDocsCard(box, h) {
         say('Reading the first page…');
         const text = await h.ocrText(info.bytes);
         const c = classify(text, info.name);
-        verdict = { ...verdict, scanned: false, ask: c.ask, looks: c.type && !['om', 'rentroll', 't12'].includes(c.type) ? c.type : null };
+        verdict = { ...verdict, scanned: false, ask: c.ask.length ? c.ask : c.scores.slice(0, 3).map((x) => x.id), looks: c.type && !['om', 'rentroll', 't12'].includes(c.type) ? c.type : null };
       } catch (err) { warn(`The page couldn’t be read: ${(err && err.message) || err}`); verdict = { ...verdict, scanned: false }; }
     }
   }
