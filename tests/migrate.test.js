@@ -358,7 +358,7 @@ test('a document list survives a backup and its restore, deep-equal, with no doc
   d.dd = { v: 1, preset: 'office', na: { survey: { reason: 'Seller has none', at: '2026-10-30T00:00:00.000Z' } }, docs: [
     { id: 'dd_abc123def456', type: 'rentroll', typeBy: 'reader', name: 'Rent roll.pdf', kind: 'pdf', size: 20480, sha256: 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad', pages: 2,
       addedAt: '2026-10-30T10:00:00.000Z', asOf: null, status: 'read', supersededBy: null, read: { reader: 'rrpdf', at: '2026-10-30T10:01:00.000Z', target: 'rr', checks: { pass: 5, warn: 0, fail: 0 } }, note: '' }] };
-  const text = JSON.stringify(await buildBackup({ deals: [d], appVersion: '4.7.75' }));
+  const text = JSON.stringify(await buildBackup({ deals: [d], appVersion: '4.7.76' }));
   const back = readBackup(text);
   assert.deepEqual(back.deals[0].dd, d.dd);
   assert.deepEqual(pending(back.deals[0]), []);
