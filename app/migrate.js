@@ -151,6 +151,23 @@ export const MIGRATIONS = [
       return { rounded: [] };
     },
   },
+  {
+    id: 'dd-init',
+    field: 'schema',
+    to: 7,
+    since: '4.7.75',
+    does: 'A deal gets an empty due-diligence document list (deal.dd: which documents were received, never the files). Nothing already stored changes, and a list a newer version already wrote is left as it is. It also marks the deal as written by a version that knows the list, so an older app refuses its backup instead of dropping it.',
+    brief: 'ready for the document list',
+    silent: true,
+    kind: 'create',
+    label: () => 'Ready for the document list',
+    needed: (d) => (d.schema || 0) < 7,
+    up(d) {
+      if (!d.dd) d.dd = { v: 1, preset: null, na: {}, docs: [] };
+      d.schema = 7;
+      return { rounded: [] };
+    },
+  },
 ];
 
 /**
