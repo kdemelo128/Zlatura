@@ -13,6 +13,10 @@ changes the results in these edges on purpose.
   amount like "abc" used to count as 0. It is now flagged the same way and
   the recovery is left out. Numeric text such as "90000" still reads as a
   number. The Recovery tool says "can't tell" for it too.
+- **A blank base amount or stop per SF.** On a base-year or stop recovery a
+  blank used to count as 0, so the tenant recovered the whole pool. It is now
+  flagged and left out; a typed 0 still means 0. The Recovery tool says
+  "can't tell" for it.
 - **A negative sale cost.** The Deal screen ignored it and the DCF tool used it
   (raising the sale price), so the two disagreed. Now it is refused
   everywhere: the What-if and Underwrite fields show "Sale costs can't be

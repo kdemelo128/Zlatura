@@ -28,6 +28,9 @@ export function shareOf({ sharePct, tenantSf, buildingSf }) {
   return pos(tenantSf) && pos(buildingSf) ? /** @type {number} */ (tenantSf) / /** @type {number} */ (buildingSf) : null;
 }
 
+/** A base amount or stop: blank is unknown (null), never 0 (a blank base would recover the whole pool); a typed 0 stays 0. */
+const typedAmount = (x) => (x === undefined || x === null || x === '' ? null : amountOf(x));
+
 /**
  * One year of a tenant's recovery.
  *   pool        the year's recoverable expenses, whole building
@@ -35,15 +38,15 @@ export function shareOf({ sharePct, tenantSf, buildingSf }) {
  *   baseAmount  base_year: the pool the landlord keeps paying
  *   stopPsf     stop: $/SF of building the landlord keeps paying
  *   fixed       fixed: the amount, as it stands in this year
- * Null when the pool is not a number, the share is needed and unknown, or an
- * amount is text that is not a number.
+ * Null when the pool is not a number, the share is needed and unknown, or a
+ * base amount or stop is blank or text that is not a number.
  * @param {{ method?: string, pool: number, share: number | null, tenantSf?: number | null, buildingSf?: number | null, baseAmount?: number | string | null, stopPsf?: number | string | null, fixed?: number | string | null }} a
  * @returns {number | null}
  */
 export function recoveryAnnual({ method = 'prorata', pool, share, tenantSf, buildingSf, baseAmount, stopPsf, fixed }) {
   if (!ok(pool)) return null;
-  // typed text that is not a number ("abc") is "can't tell", not 0
-  const base = amountOf(baseAmount); const stop = amountOf(stopPsf); const fix = amountOf(fixed);
+  // typed text that is not a number ("abc"), or a blank base amount or stop, is "can't tell", not 0
+  const base = typedAmount(baseAmount); const stop = typedAmount(stopPsf); const fix = amountOf(fixed);
   if (method === 'fixed') return fix;
   if (share === null) return null;
   if (method === 'prorata') return pool * share;

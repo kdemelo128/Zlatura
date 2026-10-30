@@ -218,6 +218,24 @@ test('text that is not a number in a recovery amount is "can\'t tell", not 0; nu
   near(project(stopText).annual[0].recoveries, 25000);
 });
 
+test('a blank base amount or stop is "can\'t tell" and flagged; a typed 0 stays 0', () => {
+  assert.equal(recoveryAnnual({ method: 'base_year', pool: 100000, share: 0.25 }), null);
+  assert.equal(recoveryAnnual({ method: 'base_year', pool: 100000, share: 0.25, baseAmount: '' }), null);
+  near(recoveryAnnual({ method: 'base_year', pool: 100000, share: 0.25, baseAmount: 0 }), 25000);
+  assert.equal(recoveryAnnual({ method: 'stop', pool: 400000, share: 0.25, tenantSf: 2500, buildingSf: 10000 }), null);
+  near(recoveryAnnual({ method: 'stop', pool: 400000, share: 0.25, tenantSf: 2500, buildingSf: 10000, stopPsf: 0 }), 100000);
+  assert.equal(recovery({ expenses: 100000, tenantSf: 2500, buildingSf: 10000, method: 'base_year' }), null);
+  for (const rec of [{ method: 'base_year' }, { method: 'stop', stopPsf: null }]) {
+    const rr = rollOf({ sf: 2500, other: 7500, rent: 50000, pool: 400000, growth: 0, rec });
+    assert.equal(project(rr).annual[0].recoveries, 0, rec.method);
+    assert.match(project(rr).notes.join(' '), /is blank, so its recovery is left out/, rec.method);
+    assert.ok(validateLease(rr.leases[0]).some((x) => /is blank/.test(x.text)), rec.method);
+  }
+  const zero = rollOf({ sf: 2500, other: 7500, rent: 50000, pool: 100000, growth: 0, rec: { method: 'base_year', baseAmount: 0 } });
+  near(project(zero).annual[0].recoveries, 25000);
+  assert.deepEqual(project(zero).notes.filter((n) => /recover/i.test(n)), []);
+});
+
 test('percentage rent, natural breakpoint with a zero or blank base rent: the typed breakpoint, else "can\'t tell" (owner decision 2026-10-29)', () => {
   assert.equal(breakpointOf({ rate: 6, natural: true, baseRent: 0, breakpoint: 1000000 }), 1000000);
   assert.equal(breakpointOf({ rate: 6, natural: true, baseRent: 0 }), null);

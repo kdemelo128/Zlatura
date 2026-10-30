@@ -20,6 +20,7 @@ d.rr.settings.opex = 100000; d.rr.settings.recoverable = 100000;
 d.rr.leases = [
   L('l1', '101', 'Acme Widgets', 2000, { periods: [{ start: '2022-01-01', end: '2030-12-31', rate: 60000, unit: 'year', source: 'documented' }] }),
   L('l2', '102', 'Beta Bakery', null, { recovery: { method: 'prorata' }, periods: [{ start: '2022-01-01', end: '2030-12-31', rate: 48000, unit: 'year', source: 'documented' }] }),
+  L('l4', '104', 'Delta Deli', 1000, { recovery: { method: 'base_year' } }),
   L('l3', '103', 'Gamma Grill', 1000, { percentRent: { rate: 6, sales: 1200000, natural: true } }),
 ];
 const file = `${F}edgecases-backup.json`;
@@ -44,6 +45,7 @@ await page.waitForTimeout(500);
 if (await page.locator('#deal-rentroll .rr-issue-box summary').count()) await page.locator('#deal-rentroll .rr-issue-box summary').click();
 const issues = (await page.locator('#deal-rentroll .rr-issues').innerText()).replace(/\s+/g, ' ');
 check('names the tenant whose recovery cannot be told', /Unit 102 \(Beta Bakery\): Expense recovery can’t be worked out: no share is typed and the space has no SF/.test(issues.replace(/'/g, '’')), issues.slice(0, 300));
+check('names the base-year recovery with a blank base amount', /Unit 104 \(Delta Deli\): The recovery base amount is blank/.test(issues), issues.slice(0, 600));
 check('names the percentage rent with no breakpoint', /Unit 103 \(Gamma Grill\): Percentage rent has no breakpoint/.test(issues), issues.slice(0, 400));
 
 // 2: a negative sale cost in the What-if

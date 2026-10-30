@@ -163,6 +163,10 @@ export function recoveryProblem(L) {
   if (!Rc || !Rc.method || Rc.method === 'none') return null;
   if (Rc.method !== 'fixed' && !ok(Rc.share) && !pos(L.sf)) return 'Expense recovery can\'t be worked out: no share is typed and the space has no SF, so its recovery is left out of the projection (not counted as 0).';
   const bad = Rc.method === 'base_year' ? [['base amount', Rc.baseAmount]] : Rc.method === 'stop' ? [['stop per SF', Rc.stopPsf]] : Rc.method === 'fixed' ? [['fixed amount', Rc.amount], ['growth', Rc.growth]] : [];
+  const blank = (v) => v === undefined || v === null || v === '';
+  const need = Rc.method === 'base_year' || Rc.method === 'stop';
+  const nb = need ? bad.find(([, v]) => blank(v)) : null;
+  if (nb) return `The recovery ${nb[0]} is blank, so its recovery is left out of the projection (not counted as 0; type 0 if there is none).`;
   const b = bad.find(([, v]) => amountOf(v) === null);
   return b ? `The recovery ${b[0]} "${String(b[1])}" is not a number, so its recovery is left out of the projection (not counted as 0).` : null;
 }
