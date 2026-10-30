@@ -476,7 +476,7 @@ test('History Undo and Redo work when the document list goes to or from empty', 
 
 test('a workbook with an Annual actuals sheet and a monthly Budget sheet is not typed T-12; a broker opinion of value asks', () => {
   const monthly = [['GL', 'Jan 2026', 'Feb 2026', 'Mar 2026', 'Total'], ['Rent', 100, 100, 100, 300], ['Taxes', 10, 10, 10, 30]];
-  const v = identify({ name: 'x.xlsx', grids: [gridOf([['GL', '2024', '2025'], ['Rent', 1200, 1300], ['Taxes', 120, 130]], 'Annual'), gridOf(monthly, 'Budget')] });
+  const v = identify({ name: 'x.xlsx', grids: [gridOf([['GL', '2024', '2025', 'Total'], ['Rent', 1200, 1300, 2500], ['Taxes', 120, 130, 250]], 'Annual'), gridOf(monthly, 'Budget')] });
   assert.deepEqual([v.type, v.typeBy], [null, null]);
   const bov = identify({ name: 'bov.pdf', pages: ['BROKER OPINION OF VALUE\nExecutive summary. Recommended asking price $5,000,000.\n' + 'filler text for the page. '.repeat(40)] });
   assert.deepEqual([bov.type, bov.typeBy], [null, null]);
