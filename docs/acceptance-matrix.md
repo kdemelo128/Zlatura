@@ -151,7 +151,7 @@ the baseline; 32 flows are listed at 4.7.2).
 
 | Feature | Status | Notes |
 |---|---|---|
-| Native property-type templates (multifamily, retail, office, industrial, mixed-use, land) | Not implemented | One general model; rent roll presets differ by type. |
+| Native property-type templates (multifamily, retail, office, industrial, mixed-use, land) | Not implemented | One general model; rent roll presets differ by type; the preset is chosen only from one clear kind in the property type, else the neutral Retail set. |
 | Hospitality, self-storage, medical office templates (where a reliable model can be defined) | Not implemented | Added 4.7.2 (7.1). |
 | Template definitions (inputs, outputs, conventions, version, changelog) and copy-on-customize | Not implemented | Added 4.7.2 (7.1). |
 | Transaction, income, expense, cash flow, valuation, returns | Partially implemented | Direct cap, loan, DSCR, debt yield, cash-on-cash, hold IRR and multiple, DCF tool, cap-rate ladder, comp-based value. No line-item expense model, no monthly cash flow outside the rent roll projection. |
