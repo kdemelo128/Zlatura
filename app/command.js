@@ -14,6 +14,7 @@ import { editStages } from './home.js';
 import { setTheme } from './theme.js';
 import { STAGE_LABEL, stageOf } from './pipeline.js';
 import { openShortcuts } from './shortcuts.js';
+import { startNew } from './underwrite.js';
 
 let api = null;
 let dlg = null;
@@ -59,12 +60,13 @@ async function sources() {
   }
   for (const t of toolIndex()) items.push({ group: 'Tools', icon: 'tool', title: t.title, detail: `${t.group} · ${t.desc}`, weight: 0.2, run: () => { close(); openToolById(t.id); } });
   const go = (view, title, keywords) => ({ group: 'Go to', icon: 'go', title, keywords, weight: 0.4, run: () => { close(); api.showView(view); } });
-  items.push(go('home', 'Home', 'dashboard pipeline tasks'), go('deal', 'Deals', 'deal workspace om'), go('comps', 'Comps', 'comparable sales market'), go('tools', 'Tools', 'calculators'), go('review', 'Review', 'queue t-12 t12 unmapped ai readings check'), go('settings', 'Settings', 'preferences appearance backup'));
+  items.push(go('home', 'Home', 'dashboard pipeline tasks'), go('deal', 'Deals', 'deal workspace om'), go('underwrite', 'Underwrite', 'quick underwriting calculator what price cap rate dscr irr'), go('comps', 'Comps', 'comparable sales market'), go('tools', 'Tools', 'calculators'), go('review', 'Review', 'queue t-12 t12 unmapped ai readings check'), go('settings', 'Settings', 'preferences appearance backup'));
   const act = (title, detail, run, keywords = '') => ({ group: 'Actions', icon: 'act', title, detail, keywords, weight: 0.3, run: () => { close(); run(); } });
   items.push(
     act('Read an offering memorandum…', 'Choose an OM PDF; its figures are read on this device', () => { api.showView('deal'); document.getElementById('om-file').click(); }, 'om pdf scan new deal'),
     act('Add CoStar comp reports…', 'Choose comp report PDFs for the comp set', () => { api.showView('comps'); document.getElementById('file').click(); }, 'comps pdf'),
     act('New deal by hand', 'Start a deal and type its figures', () => { startDealByHand(); api.showView('deal'); }, 'create'),
+    act('New quick underwriting', 'Type a price, NOI and loan terms; no deal needed', () => { api.showView('underwrite'); startNew(); }, 'underwrite calculator scratch'),
     act('New task', 'Add a next step on Home', () => { api.showView('home'); setTimeout(() => { if (!document.activeElement?.matches('input, select, textarea')) document.getElementById('task-title')?.focus(); }, 350); }, 'todo follow up'),
     act('New contact', 'A person on a deal: owner, broker, lender…', () => editContact(api, {}, deals.map((d) => ({ id: d.id, name: d.name || 'Untitled deal' }))), 'person'),
     act('Back up everything', 'One file with every deal, comp set, template and contact', () => makeBackup().catch((e) => toast(`The backup could not be made: ${e.message}`)), 'export save'),
