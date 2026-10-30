@@ -1,5 +1,34 @@
 # Changelog
 
+## 4.7.76: A booby-trapped spreadsheet can no longer freeze the tab (on the development branch; not merged or deployed)
+
+The designer review of the Documents hub found that the spreadsheet reader
+(ExcelJS, through its bundled JSZip) ignores the sizes a zip declares and
+inflates whatever is really inside. A 25 MB .xlsx could ask for about 25 GB;
+the earlier size checks only read what the file said about itself.
+
+- **Sizes are checked as the file is unpacked.** `safeUnzip` and `hardenZip`
+  in `app/filekind.js` read the zip's directory, apply the caps (100 MB in
+  total, 10,000 parts, 200 to 1 per part), then inflate each part in small
+  pieces into a buffer of exactly its declared size, stopping at the first
+  overrun. A file whose parts are not the size it says is refused by name.
+- **ExcelJS gets a copy with true sizes.** The parts are packed again with no
+  compression and that copy is what ExcelJS reads: same workbook, same
+  figures.
+- **Every user-file site is covered:** the T-12 and sheet import
+  (`checkUpload`, `readGrids`), the rent roll import and templates
+  (`app/template.js`). **The rent roll import now also enforces the 25 MB
+  workbook limit and the file-kind check**, as the T-12 import already did
+  (it read any size before).
+- **Zip64 workbooks still open** (sizes read from the zip64 fields, same
+  caps); parts that share bytes, or a part header that isn't one, are
+  refused; a refusal names the file.
+- **Tested:** `tests/zip-guard.test.js` (a 60 MB part declared at 1,000
+  bytes, over-cap, too many parts, ratio, nested zip, short and stored size
+  mismatches, damaged and password-protected, a normal workbook read
+  identically by ExcelJS); each cap mutation-checked. Saved results did not
+  change.
+
 ## 4.7.75: A "New look" switch in Settings with new colors, type and solid bars (off by default) (on the development branch; not merged or deployed)
 
 UI revamp step D1. Settings > Appearance > Look now offers Classic (the default, unchanged) and New look. The New look is a first slice of the visual language in `docs/proposals/ui-revamp-addendum.md`; no figure, saved deal or backup changes.
