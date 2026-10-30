@@ -155,7 +155,7 @@ export const MIGRATIONS = [
     id: 'dd-init',
     field: 'schema',
     to: 7,
-    since: '4.7.76',
+    since: '4.7.78',
     does: 'A deal gets an empty due-diligence document list (deal.dd: which documents were received, never the files). Nothing already stored changes, and a list a newer version already wrote is left as it is. It also marks the deal as written by a version that knows the list, so an older app refuses its backup instead of dropping it.',
     brief: 'ready for the document list',
     silent: true,

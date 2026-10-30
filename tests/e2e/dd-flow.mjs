@@ -67,6 +67,16 @@ dealId = await page.evaluate(() => localStorage.getItem('zlatura.deal.current'))
 
 let d0 = (await deals())[0];
 check('a new deal has an empty document list at schema 7, written by the app, not made up', d0.schema === 7 && JSON.stringify(d0.dd) === JSON.stringify({ v: 1, preset: null, na: {}, docs: [] }), JSON.stringify(d0.dd));
+const histN = (id = dealId) => page.evaluate((did) => new Promise((res) => { const r = indexedDB.open('zlatura'); r.onsuccess = () => { const g = r.result.transaction('history').objectStore('history').getAll(IDBKeyRange.bound([did, 0], [did, Infinity])); g.onsuccess = () => { r.result.close(); res(g.result.length); }; }; }), id);
+// a deal saved before the list existed (schema 6, no dd) is opened: the silent step adds no History entry
+await page.evaluate(async (id) => { const m = await import('./app/store.js'); const x = await m.loadDeal(id); delete x.dd; x.schema = 6; await m.saveDeal(x); }, dealId);
+await settle();
+const h0 = await histN();
+await page.reload({ waitUntil: 'load' });
+await page.waitForSelector('#dd-toggle');
+await settle();
+await page.waitForTimeout(800);
+check('opening a deal saved before the document list adds nothing to its History, and the list is made', (await histN()) === h0 && (await dd()) && (await deals()).find((x) => x.id === dealId).schema === 7, `${h0} → ${await histN()}`);
 check('the Documents card is collapsed by default, and its heading is a button that says so', (await page.getAttribute('#dd-toggle', 'aria-expanded')) === 'false' && (await page.locator('#dd-body').isHidden()) && (await txt('#dd-toggle')) === 'Documents');
 await page.click('#dd-toggle');
 await page.waitForSelector('#dd-preset');
@@ -93,9 +103,13 @@ check('the same file twice is not added again, and the card says when it was add
 
 /* ------------------------------ other types: scored from the text, or asked */
 await addFiles(mem('estoppel-title.txt', 'SUBORDINATION, NON-DISTURBANCE AND ATTORNMENT AGREEMENT\nThe Lender agrees that the Tenant shall attorn to the Lender.\n'));
+await page.waitForSelector('dialog.action-sheet');
+check('text that clearly reads as an SNDA, in a file named for an estoppel and a title, says "looks like" and waits for a tap: nothing is typed by itself', /estoppel-title\.txt looks like snda\. Is that right\?/.test(await txt('dialog.action-sheet .action-title')) && (await dd()).docs.length === 2);
+await page.locator('dialog.action-sheet .action-item', { hasText: 'Yes, it is snda' }).click();
+await pause(900);
 s = await dd();
 const snda = s.docs.find((x) => x.name === 'estoppel-title.txt');
-check('content beats the file name: a file named for an estoppel and a title that reads as an SNDA is typed snda, typeBy content', snda && snda.type === 'snda' && snda.typeBy === 'content', JSON.stringify(snda));
+check('after the tap it is typed snda, typeBy broker (the file name did not decide it)', snda && snda.type === 'snda' && snda.typeBy === 'broker', JSON.stringify(snda));
 await addFiles(mem('survey.txt', 'see you tomorrow at noon'));
 await page.waitForSelector('dialog.action-sheet');
 const items = await page.locator('dialog.action-sheet .action-item .action-label').allInnerTexts();
@@ -187,9 +201,11 @@ await page.evaluate(() => {
   dt.items.add(new File(['TENANT ESTOPPEL CERTIFICATE\nThe Tenant certifies the lease is in full force and effect.\nNo defaults exist. Security deposit held.\n'], 'dropped-notes.txt', { type: 'text/plain' }));
   box.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
 });
+await page.waitForSelector('dialog.action-sheet');
+await page.locator('dialog.action-sheet .action-item', { hasText: 'Yes, it is' }).first().click();
 await page.waitForTimeout(1200);
 const dropped = (await dd()).docs.find((x) => x.name === 'dropped-notes.txt');
-check('a file dropped on the card is added as a document of this deal (typed estoppel from its text), and no OM is read', (await dd()).docs.length === before + 1 && dropped && dropped.type === 'estoppel' && dropped.typeBy === 'content' && (await page.evaluate(() => localStorage.getItem('zlatura.deal.current'))) === dealId && (await deals()).length === 1);
+check('a file dropped on the card is added as a document of this deal (estoppel, confirmed with a tap), and no OM is read', (await dd()).docs.length === before + 1 && dropped && dropped.type === 'estoppel' && dropped.typeBy === 'broker' && (await page.evaluate(() => localStorage.getItem('zlatura.deal.current'))) === dealId && (await deals()).length === 1);
 
 /* --------------------------------------------- hostile file names as text */
 await addFiles(mem('<img src=x onerror=window.__pwned=1>.txt', 'see you at noon'));
@@ -264,6 +280,8 @@ await openCard();
 const ms = await page.evaluate(() => { const sel = document.querySelector('#dd-preset'); const t = performance.now(); sel.value = 'office'; sel.dispatchEvent(new Event('change', { bubbles: true })); return performance.now() - t; });
 check('with 200 documents an edit (changing the checklist) is drawn in under 150 ms', ms < 150, `${ms.toFixed(1)} ms`);
 await addFiles(mem('one-too-many.txt', 'TENANT ESTOPPEL CERTIFICATE full force and effect no defaults'));
+if (await page.locator('dialog.action-sheet').count()) await page.locator('dialog.action-sheet .action-item', { hasText: 'Yes, it is' }).first().click();
+await pause(800);
 check('the 201st document is refused with a message', (await dd()).docs.length === 200 && /at most 200 documents/.test(await txt('#dd-alert')), await txt('#dd-alert'));
 
 /* ------------------------------------------ axe, at phone and desktop size */
@@ -297,6 +315,9 @@ const omDeal = all.find((x) => x.id !== dealId && x.dd && x.dd.docs.some((y) => 
 const omDoc = omDeal && omDeal.dd.docs.find((y) => y.name === 'om-retail.pdf');
 const linked = omDeal ? Object.entries(omDeal.sources).filter(([, v]) => v.doc) : [];
 check('reading an OM records its file as read (type om, typeBy reader) and the figures read from it point back at that record', omDoc && omDoc.type === 'om' && omDoc.typeBy === 'reader' && omDoc.status === 'read' && omDoc.read.reader === 'om' && omDoc.sha256 === sha(F + 'om-retail.pdf') && linked.length > 0 && linked.every(([, v]) => v.doc === omDoc.id), JSON.stringify([omDoc && omDoc.read, linked.length]));
+
+const omHist = omDeal ? await page.evaluate((did) => new Promise((res) => { const r = indexedDB.open('zlatura'); r.onsuccess = () => { const g = r.result.transaction('history').objectStore('history').getAll(IDBKeyRange.bound([did, 0], [did, Infinity])); g.onsuccess = () => { r.result.close(); res(g.result.map((e) => e.label)); }; }; }), omDeal.id) : [];
+check('reading an OM is one history entry: the registration is not a second one', omHist.length === 1 && !omHist.some((l) => /Documents/.test(l)), JSON.stringify(omHist));
 
 await browser.close();
 for (const [st, n, x] of R) console.log(st, '|', n, x ? `| ${x}` : '');

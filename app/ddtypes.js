@@ -51,8 +51,11 @@ export const TYPES = Object.freeze([
   T('receivables', 'Receivables (aged)', null, [/(aged )?receivables|delinquen(cy|t) (report|rent)/i, /(30|60|90)\+? days/i, /(balance due|past due)/i], [/receivable|delinq|aged/i], ['multifamily']),
 ]);
 
-export const TYPE_BY_ID = Object.freeze(Object.fromEntries(TYPES.map((t) => [t.id, t])));
-export const typeLabel = (id) => (TYPE_BY_ID[id] ? TYPE_BY_ID[id].label : 'Not typed yet');
+// no prototype: 'constructor', 'toString' or '__proto__' from a damaged backup are not type ids
+export const TYPE_BY_ID = Object.freeze(Object.assign(Object.create(null), Object.fromEntries(TYPES.map((t) => [t.id, t]))));
+/** Is this a known type id (a string that is an own key of the table)? */
+export const isType = (id) => typeof id === 'string' && Object.hasOwn(TYPE_BY_ID, id);
+export const typeLabel = (id) => (isType(id) ? TYPE_BY_ID[id].label : 'Not typed yet');
 
 export const PRESETS = Object.freeze({ office: 'Office', retail: 'Retail', netlease: 'Net lease', multifamily: 'Multifamily', industrial: 'Industrial' });
 export const PRESET_IDS = Object.freeze(Object.keys(PRESETS));
@@ -78,18 +81,21 @@ export const REQUIREMENTS = Object.freeze(Object.fromEntries(COLS.map((p, c) => 
 /**
  * The kind of property a "Property type" figure names, or null: blank or unrecognised is null, never Retail
  * (rentroll.js presetFor falls back to Retail for the rent roll's columns; a checklist must not). Net lease is read
- * only from those words; it is never guessed from a single tenant. "Mixed use" is null: the broker chooses.
+ * only from those words; it is never guessed from a single tenant. "Mixed use", or text naming more than one kind, is null: the broker chooses.
  * @param {unknown} ptype @returns {Preset | null}
  */
 export function presetOf(ptype) {
   const t = String(ptype ?? '');
-  if (/multi|apartment|residential/i.test(t)) return 'multifamily';
-  if (/industrial|warehouse|flex/i.test(t)) return 'industrial';
   if (/mixed/i.test(t)) return null;
-  if (/net[- ]?lease|\bnnn\b/i.test(t)) return 'netlease';
-  if (/office|medical/i.test(t)) return 'office';
-  if (/retail|shopping|strip|center|centre|grocery|restaurant/i.test(t)) return 'retail';
-  return null;
+  // one clear kind or nothing: "Multi-tenant office/retail" or "Retail/Office" names several, so the broker is asked
+  const hits = [
+    /multi[- ]?family|apartment|residential/i.test(t) && 'multifamily',
+    /industrial|warehouse|flex/i.test(t) && 'industrial',
+    /net[- ]?lease|\bnnn\b/i.test(t) && 'netlease',
+    /\boffice\b|medical/i.test(t) && 'office',
+    /\b(retail|grocery|restaurant|strip (mall|center|centre)|(shopping|town|lifestyle|power|neighbou?rhood) (center|centre)|shopping|supermarket)\b/i.test(t) && 'retail',
+  ].filter(Boolean);
+  return hits.length === 1 ? /** @type {Preset} */ (hits[0]) : null;
 }
 
 /** The scores of every type for this text: [{ id, score }] best first (ties keep the table's order), zeros dropped. */

@@ -79,7 +79,7 @@ export function renderDocsCard(box, h) {
   ps.addEventListener('change', () => { dd.preset = ps.value || null; h.touch({ label: `Documents: checklist for ${ps.value ? PRESETS[ps.value] : 'no property type'}` }); draw(); });
   pf.append(pl, ps);
   body.appendChild(pf);
-  if (!list.preset) body.appendChild(el('p', 'hint-sm', 'Pick one to see which documents to ask for. The list is advice: it never stops a figure.'));
+  body.appendChild(el('p', 'hint-sm dd-note', list.preset ? 'Required means expected for this property type; it is a checklist, not advice, and never stops a figure.' : 'Pick one to see which documents to expect. The list never stops a figure.'));
 
   // adding files
   const acts = el('div', 'dd-actions');
@@ -93,7 +93,7 @@ export function renderDocsCard(box, h) {
   const add = btn('btn-primary btn-sm', 'Add files', () => input.click());
   add.id = 'dd-add';
   acts.append(add, input);
-  body.append(acts, el('p', 'hint-sm', 'Drop files here too. Only a record of each file is kept (its name, size and fingerprint), never the file.'));
+  body.append(acts, el('p', 'hint-sm', 'Drop files here too. Only a record of each file is kept (its name, size and fingerprint), never the file. Fingerprinting reads the file into memory.'));
   const ai = el('div', 'dd-ai');
   body.appendChild(ai);
   body.append(status, alert);
@@ -118,10 +118,15 @@ export function renderDocsCard(box, h) {
   if (dd.docs.length) body.appendChild(el('p', 'hint-sm', 'Tap a file to open where it was read. Documents are not read automatically: use the Rent roll and T-12 imports, or the OM reader, and the file is marked as read.'));
 
   // drop zone: a drop here is documents for this deal, not an OM and not a CoStar report
-  const stop = (e) => { if ([...(e.dataTransfer?.types || [])].includes('Files')) { e.preventDefault(); e.stopPropagation(); } };
-  box.addEventListener('dragover', (e) => { stop(e); box.classList.add('dd-drop'); });
-  box.addEventListener('dragleave', () => box.classList.remove('dd-drop'));
-  box.addEventListener('drop', (e) => { stop(e); box.classList.remove('dd-drop'); const fs = [...(e.dataTransfer?.files || [])]; if (fs.length) addFiles(fs); });
+  // wired once per card (a redraw keeps the same box), and always to the newest draw's addFiles
+  box._ddAdd = addFiles;
+  if (!box._ddWired) {
+    box._ddWired = true;
+    const stop = (e) => { if ([...(e.dataTransfer?.types || [])].includes('Files')) { e.preventDefault(); e.stopPropagation(); } };
+    box.addEventListener('dragover', (e) => { stop(e); box.classList.add('dd-drop'); });
+    box.addEventListener('dragleave', () => box.classList.remove('dd-drop'));
+    box.addEventListener('drop', (e) => { stop(e); box.classList.remove('dd-drop'); const fs = [...(e.dataTransfer?.files || [])]; if (fs.length) box._ddAdd(fs); });
+  }
 
   /* ------------------------------------------------------------ rows */
   function missingRow(r) {
@@ -259,7 +264,7 @@ export function renderDocsCard(box, h) {
       if (r.error) { warn(r.error); say(''); continue; }
       const where = info.sha256 ? await h.otherDeals(info.sha256).catch(() => []) : [];
       h.touch({ label: `Documents: added ${r.doc.name}${type ? ` as ${typeLabel(type)}` : ''}` });
-      say(`Added ${r.doc.name}${type ? ` as ${typeLabel(type)}` : ' with no type'}.${where.length ? ` It is also in ${where.slice(0, 3).join(', ')}.` : ''}${info.sha256 ? '' : ' It could not be fingerprinted on this connection.'}`);
+      say(`Added ${r.doc.name}${type ? ` as ${typeLabel(type)}` : ' with no type'}.${where.length ? ` It is also in ${where.slice(0, 3).join(', ')}.` : ''}${info.sha256 ? '' : file.size > LIMITS.pdf ? ' It is too large to fingerprint, so adding it again will not be spotted.' : ' This browser cannot fingerprint files here, so adding it again will not be spotted.'}`);
       draw();
     }
   }
@@ -268,19 +273,20 @@ export function renderDocsCard(box, h) {
     let verdict = info.verdict;
     for (;;) {
       const scanned = verdict.scanned && info.bytes && h.ocrText;
+      const lead = verdict.looks;
       const items = [
-        ...(scanned ? [{ label: 'Read its first page (OCR)', sub: 'on this device; nothing is sent', value: 'ocr', primary: true }] : []),
-        ...typeItems(verdict.ask.length ? verdict.ask : verdict.suggest ? [verdict.suggest] : []),
+        ...(lead ? [{ label: `Yes, it is ${typeLabel(lead).toLowerCase()}`, sub: 'what its text reads as', value: lead, primary: true }] : []),
+        ...(scanned ? [{ label: 'Read its first page (OCR)', sub: 'on this device; nothing is sent', value: 'ocr', primary: !lead }] : []),
+        ...typeItems(verdict.ask.length ? verdict.ask : verdict.suggest ? [verdict.suggest] : []).filter((x) => x.value !== lead),
         '-', { label: 'Add it with no type', sub: 'you can set it later', value: 'none' },
       ];
-      const v = await actionSheet(`What is ${info.name}?${verdict.ask.length ? '' : ' The text did not say.'}`, items);
+      const v = await actionSheet(lead ? `${info.name} looks like ${typeLabel(lead).toLowerCase()}. Is that right?` : `What is ${info.name}?${verdict.ask.length ? '' : ' The text did not say.'}`, items);
       if (v !== 'ocr') return v;
       try {
         say('Reading the first page…');
         const text = await h.ocrText(info.bytes);
         const c = classify(text, info.name);
-        verdict = { ...verdict, scanned: false, ask: c.ask };
-        if (c.type) return c.type;
+        verdict = { ...verdict, scanned: false, ask: c.ask, looks: c.type && !['om', 'rentroll', 't12'].includes(c.type) ? c.type : null };
       } catch (err) { warn(`The page couldn’t be read: ${(err && err.message) || err}`); verdict = { ...verdict, scanned: false }; }
     }
   }

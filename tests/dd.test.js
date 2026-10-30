@@ -59,6 +59,15 @@ test('the Property type is never defaulted: blank or unrecognised is null, not R
   assert.equal(T.presetOf('Garden Apartments'), 'multifamily');
   assert.equal(T.presetOf('Warehouse / Flex'), 'industrial');
   assert.equal(T.presetOf('Single-tenant NNN'), 'netlease', 'only the words net lease or NNN say it; a single tenant never does');
+  assert.equal(T.presetOf('NNN'), 'netlease');
+  assert.equal(T.presetOf('Net Lease'), 'netlease');
+  for (const x of ['Data center', 'Mixed use', 'mixed-use retail/office', 'Retail/Office', 'Single-tenant NNN retail']) assert.equal(T.presetOf(x), null, `${x} asks`);
+  assert.deepEqual(['Multi-tenant office', 'Multi-tenant retail', 'Multi-tenant industrial', 'Multi-tenant office building'].map(T.presetOf), ['office', 'retail', 'industrial', 'office'], 'multi-tenant is not multifamily');
+  assert.equal(T.presetOf('Multi-tenant office/retail/industrial'), null, 'three kinds: asks');
+  assert.equal(T.presetOf('Multi-family'), 'multifamily');
+  assert.equal(T.presetOf('Multifamily'), 'multifamily');
+  assert.equal(T.presetOf('Neighborhood Shopping Center'), 'retail');
+  assert.equal(T.presetOf('Office'), 'office');
   assert.equal(T.presetOf('Single tenant retail'), 'retail');
   assert.equal(D.presetFor({ figures: { ptype: '' } }), null);
   assert.equal(D.presetFor({ figures: { ptype: 'Retail' }, dd: { preset: 'office' } }), 'office', 'the broker’s choice wins');
@@ -72,7 +81,7 @@ test('the checklist is derived from the Docs and the broker’s n/a, and counts 
   assert.equal(c.have, 0);
   assert.equal(c.missing.length, 13, 'missing, never assumed received');
   D.addDoc(d.dd, file({ type: 'rentroll', typeBy: 'reader' }), { now: NOW });
-  D.addDoc(d.dd, file({ name: 'a.txt', kind: 'text', type: 'om', typeBy: 'content', sha256: SHA }), { now: NOW });
+  D.addDoc(d.dd, file({ name: 'a.txt', kind: 'text', type: 'om', typeBy: 'broker', sha256: SHA }), { now: NOW });
   D.setNa(d.dd, 'survey', 'Seller has none', { now: NOW });
   c = D.checklist(d);
   assert.equal(c.have, 1);
@@ -268,7 +277,7 @@ test('a workbook the T-12 reader accepts is a T-12, one the rent roll reader acc
   const both = identify({ name: 'both.xlsx', grids: [T12, ROLL] });
   assert.deepEqual([both.type, both.typeBy, both.ask], [null, null, ['t12', 'rentroll']], 'both readers accept it: nothing decides, so ask');
   const neither = identify({ name: 'estoppel.xlsx', grids: [gridOf([['Tenant estoppel certificate'], ['Full force and effect'], ['No defaults']])] });
-  assert.deepEqual([neither.type, neither.typeBy], ['estoppel', 'content']);
+  assert.deepEqual([neither.type, neither.typeBy, neither.looks], [null, null, 'estoppel']);
   const none = identify({ name: 'rent-roll.xlsx', grids: [gridOf([['hello'], ['world']])] });
   assert.deepEqual([none.type, none.typeBy], [null, null]);
   assert.equal(none.ask[0], 'rentroll', 'the file name only leads the question');
@@ -283,7 +292,7 @@ test('property: a random file name never sets a type or typeBy; the broker, a re
   }), { numRuns: 200 });
 });
 
-test('property: typeBy reader only when a reader accepts the file; a clear score is "content"; close scores always ask', () => {
+test('property: typeBy is reader only when a reader accepts the file; the text alone never sets a type; close scores always ask', () => {
   const word = fc.constantFrom('Tenant', 'Landlord', 'lease', 'estoppel certificate', 'full force and effect', 'ALTA', 'survey', 'rent roll', 'Jan 2025', 'Feb 2025', 'Mar 2025', 'Total', 'Unit', 'SF', 'Lender', 'attornment', 'Schedule B', 'x', '1', '42', 'budget', 'insured', 'premium');
   const cells = fc.array(fc.array(word, { minLength: 1, maxLength: 6 }), { minLength: 1, maxLength: 12 });
   fc.assert(fc.property(cells, fc.string({ maxLength: 20 }), (rows, name) => {
@@ -291,11 +300,11 @@ test('property: typeBy reader only when a reader accepts the file; a clear score
     const v = identify({ name, grids: [g] });
     const t12 = (() => { try { return layoutOf(g.rows, { sheet: g.sheet }).monthCols.length >= 3; } catch { return false; } })();
     const roll = !!headerAndRows(rows, g.sheet);
-    if (v.typeBy === 'reader') assert.ok(t12 !== roll, 'exactly one reader accepted it');
-    if (t12 && roll) assert.equal(v.type, null);
-    if (v.typeBy === 'content') { const sc = T.scoreText(v.text); assert.ok(sc[0].score >= 2 && sc[0].score - (sc[1] ? sc[1].score : 0) >= 2); }
+    if (v.typeBy === 'reader') assert.ok(v.type === 't12' ? t12 : roll, 'the reader that named it accepts it');
+    assert.ok(v.typeBy === 'reader' || v.type === null, 'the text alone never sets a type');
+    if (v.looks) { const sc = T.scoreText(v.text); assert.ok(sc[0].score >= 2 && sc[0].score - (sc[1] ? sc[1].score : 0) >= 2); }
     const sc = T.scoreText(v.text);
-    if (!v.reader && sc.length && (sc[0].score < 2 || sc[0].score - (sc[1] ? sc[1].score : 0) < 2) && !(t12 && roll)) assert.equal(v.type, null, 'close scores ask');
+    if (!v.reader && sc.length && (sc[0].score < 2 || sc[0].score - (sc[1] ? sc[1].score : 0) < 2)) assert.equal(v.looks, null, 'close scores ask');
   }), { numRuns: 300 });
 });
 
@@ -307,7 +316,7 @@ test('a PDF’s kind comes from the rent roll reader’s docKind: an OM or a ren
   const scan = identify({ name: 'scan.pdf', pages: ['  '] });
   assert.ok(scan.scanned && scan.type === null);
   const snda = identify({ name: 'x.pdf', pages: ['SUBORDINATION, NON-DISTURBANCE AND ATTORNMENT AGREEMENT\n'.repeat(3) + 'The Lender and the Tenant agree to this long document. '.repeat(10)] });
-  assert.deepEqual([snda.type, snda.typeBy], ['snda', 'content']);
+  assert.deepEqual([snda.type, snda.typeBy, snda.looks], [null, null, 'snda'], 'the text only says what it looks like');
 });
 
 /* ------------------------------------------------- no figure depends on it */
@@ -326,4 +335,106 @@ test('deal.dd is not an input to any calculation: the analysis input, and the im
   assert.equal(JSON.stringify(analysisInput(d)), bare);
   assert.ok('dd' in NOT_CALCULATED, 'listed as an input nothing calculates from');
   assert.deepEqual(inputOfPath(['dd', 'docs']), { input: 'dd' });
+});
+
+/* ------------------------------------------------- review fixes */
+
+test('a budget workbook, an annual-only statement and text that reads as a T-12 are never typed by a reader or by their text: they ask', () => {
+  const months = [['GL', 'Jan 2026', 'Feb 2026', 'Mar 2026', 'Total'], ['Rent', 100, 100, 100, 300], ['Taxes', 10, 10, 10, 30]];
+  const budget = identify({ name: 'x.xlsx', grids: [gridOf([['Operating budget 2026'], ...months], 'Budget 2026')] });
+  assert.deepEqual([budget.type, budget.typeBy], [null, null], 'the T-12 import refuses a budget, so it is not a T-12');
+  const annual = identify({ name: 'x.xlsx', grids: [gridOf([['GL', 'Annual'], ['Rent', 1200], ['Taxes', 120]])] });
+  assert.deepEqual([annual.type, annual.typeBy], [null, null]);
+  const pdf = identify({ name: 'x.pdf', pages: ['TRAILING 12 OPERATING STATEMENT\nNet operating income\nTotal operating expenses\nEffective gross income\n'.repeat(3) + 'text '.repeat(80)] });
+  assert.deepEqual([pdf.type, pdf.typeBy, pdf.looks], [null, null, null]);
+  assert.deepEqual(pdf.ask, ['t12', 'priorStmt', 'budget']);
+});
+
+test('an appraisal that also trips the OM test is asked about, not typed OM', () => {
+  const text = 'APPRAISAL REPORT\nUSPAP compliant. Market value conclusion. Highest and best use. Sales comparison approach.\nThe asking price and the cap rate are discussed in the executive summary.\n' + 'filler text for the page. '.repeat(40);
+  const v = identify({ name: 'x.pdf', pages: [text] });
+  assert.deepEqual([v.type, v.typeBy], [null, null]);
+  assert.ok(v.ask.includes('appraisal') && v.ask.includes('om'));
+  const om = identify({ name: 'om.pdf', pages: ['OFFERING MEMORANDUM\nInvestment highlights. Asking price $5,000,000. Cap rate 6.5%.\n' + 'filler text for the page. '.repeat(40)] });
+  assert.deepEqual([om.type, om.typeBy], ['om', 'reader']);
+});
+
+test('zero-width and control characters are no reason', () => {
+  const dd = D.newDd();
+  for (const r of ['\u200b\u200b', '\u2060', '\ufeff \u200d', '\u0007\u0000']) assert.match(D.setNa(dd, 'survey', r).error, /reason is needed/);
+  assert.deepEqual(dd.na, {});
+});
+
+test('a damaged or hostile document list is made safe: nothing throws, bad values are null, 200 Docs at most', () => {
+  const hostile = {
+    v: 1, preset: { x: 1 }, na: { unitMix: null, constructor: { reason: 'x' }, __proto__: { reason: 'y' }, survey: { reason: 5 }, title: { reason: ' ok ', at: 7 }, toString: { reason: 'z' } },
+    docs: [null, 7, 'x', [], { id: 5, name: { a: 1 }, type: 'constructor', typeBy: 'filename', kind: 'exe', size: -1, sha256: 'ZZ', pages: 'x', addedAt: 99, asOf: 'today', status: 'x', read: 'x', note: 'n'.repeat(900) },
+      { id: 'dup', type: '__proto__', name: 'a' }, { id: 'dup', name: 'b' }, { id: 'hasOwnProperty', type: 'toString', read: { reader: 'x', target: 'rr', checks: 5 } }, ...Array.from({ length: 300 }, (_, i) => ({ id: `d${i}`, name: `f${i}` }))],
+  };
+  const d = { figures: { ptype: 'Retail' }, dd: hostile };
+  assert.doesNotThrow(() => D.checklist(d));
+  const dd = D.ddOf(d);
+  assert.equal(d.dd, dd);
+  assert.deepEqual(Object.keys(dd.na), ['title']);
+  assert.deepEqual(dd.na.title, { reason: 'ok', at: '' });
+  assert.equal(dd.preset, null);
+  assert.equal(dd.docs.length, 200);
+  assert.ok(dd.docs.every((x) => x.type === null && x.typeBy === null && x.addedAt === '' && x.asOf === null && x.note.length <= 500 && x.read === null));
+  assert.equal(dd.docs.filter((x) => x.id === 'dup').length, 1);
+  assert.equal(dd.docs[0].kind, 'other');
+  assert.equal(dd.docs[0].size, 0);
+  assert.ok(typeof dd.docs[0].name === 'string' && /^dd_/.test(dd.docs[0].id));
+  assert.deepEqual(D.ddOf(d), dd, 'cleaning is stable');
+  assert.doesNotThrow(() => D.checklist(d));
+  for (const bad of ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf']) {
+    assert.equal(T.isType(bad), false);
+    assert.ok(D.setNa(D.newDd(), bad, 'x').error, bad);
+    assert.equal(D.addDoc(D.newDd(), file({ type: bad, typeBy: 'broker' }), { now: NOW }).doc.type, null);
+    const w = D.newDd();
+    const { doc } = D.addDoc(w, file(), { now: NOW });
+    assert.equal(D.retype(w, doc.id, bad), false);
+  }
+  // a Doc with no addedAt does not break the duplicate message
+  const e = D.newDd();
+  e.docs.push({ ...D.addDoc(D.newDd(), file({ sha256: SHA }), { now: NOW }).doc, addedAt: 12 });
+  assert.doesNotThrow(() => D.addDoc(D.ddOf({ dd: e }) && e, file({ sha256: SHA }), { now: NOW }));
+});
+
+test('a hostile backup restores through readBackup and the deal still draws its checklist', async () => {
+  const fs = await import('node:fs');
+  const { readBackup, planRestore } = await import('../app/backup.js');
+  const raw = JSON.parse(fs.readFileSync(new URL('./fixtures/backup-4.7.73-before-dd.json', import.meta.url), 'utf8'));
+  raw.deals[0].dd = { v: 1, na: { unitMix: null }, docs: [null, { id: 1, addedAt: {}, type: 'constructor' }] };
+  raw.deals[0].schema = 7;
+  const b = readBackup(JSON.stringify(raw));
+  const put = planRestore(b, { deals: [], kv: {}, session: null, local: {} }).deals.put;
+  const d = put.find((x) => x.id === raw.deals[0].id);
+  assert.doesNotThrow(() => D.checklist(d));
+  assert.equal(D.ddOf(d).docs.length, 1);
+});
+
+test('an empty or untouched document list is no edit: History would record nothing for any fixture deal', async () => {
+  const fs = await import('node:fs');
+  const { readBackup } = await import('../app/backup.js');
+  const { migrateDeal } = await import('../app/migrate.js');
+  const { historyEntry, recordable } = await import('../app/history.js');
+  for (const f of fs.readdirSync(new URL('./fixtures/', import.meta.url)).filter((x) => /^backup-.*\.json$/.test(x))) {
+    let deals;
+    try { deals = readBackup(fs.readFileSync(new URL(`./fixtures/${f}`, import.meta.url), 'utf8')).deals; } catch { continue; }
+    for (const d of deals) {
+      migrateDeal(d, { today: '2026-10-10' });
+      const stored = structuredClone(d);
+      delete stored.dd;
+      assert.equal(historyEntry(stored, d), null, `${f}: ${d.name}`);
+      const after = structuredClone(d);
+      D.ddOf(after);
+      assert.equal(historyEntry(d, after), null);
+      assert.ok(!('dd' in recordable(d)));
+    }
+  }
+  // but a real change is recorded
+  const d = { id: 'x', figures: {}, dd: D.newDd() };
+  const after = structuredClone(d);
+  D.setNa(after.dd, 'survey', 'none');
+  assert.ok(historyEntry(d, after));
 });

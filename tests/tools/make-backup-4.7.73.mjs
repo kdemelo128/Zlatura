@@ -1,8 +1,8 @@
 /* Make tests/fixtures/backup-4.7.73-before-dd.json with the real 4.7.73
- * code, taken from git (8207a97): two invented deals saved at schema 6, one with
+ * backup code, taken from git (8207a97), from hand-built deals: two invented deals saved at schema 6, one with
  * a rent roll of two leases, a saved scenario and a fee record, one with an empty rent roll. The first also has a tenant credit record (schema 6)
  * and a figure read from an OM page, so the test can show the step touches neither.
- * 4.7.76 adds schema step 7 ("dd-init") for deal.dd; the step must leave
+ * 4.7.78 adds schema step 7 ("dd-init") for deal.dd; the step must leave
  * these deals exactly as saved, apart from the version field and the empty list. Every name and
  * figure is made up.
  *

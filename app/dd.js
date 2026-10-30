@@ -10,7 +10,7 @@
  * deal.dd is not an input to any calculation (impact.js NOT_CALCULATED). */
 
 import { downloadName } from './kit.js';
-import { TYPE_BY_ID, PRESET_IDS, presetOf, requirementsFor } from './ddtypes.js';
+import { TYPE_BY_ID, isType, PRESET_IDS, presetOf, requirementsFor } from './ddtypes.js';
 
 export const MAX_DOCS = 200;
 export const MAX_NAME = 200;
@@ -18,7 +18,9 @@ export const MAX_NOTE = 500;
 export const MAX_REASON = 200;
 export const KINDS = ['pdf', 'xlsx', 'csv', 'docx', 'image', 'text', 'other'];
 export const STATUSES = ['received', 'read', 'reviewed', 'superseded'];
-export const TYPE_BY = ['reader', 'content', 'broker'];
+export const TYPE_BY = ['reader', 'broker'];
+const READERS = ['om', 'rrpdf', 'rrsheet', 't12', 'ocr'];
+const TARGETS = ['omRead', 'rr', 't12'];
 
 /** An empty registry. */
 export const newDd = () => ({ v: 1, preset: null, na: {}, docs: [] });
@@ -36,13 +38,51 @@ const rid = () => {
   return `dd_${[...bytes].map((b) => (b % 36).toString(36)).join('')}`;
 };
 
-/** The deal's registry, made whole if a damaged backup left parts out. Creates it when the deal has none. */
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const count = (v) => (Number.isInteger(v) && v >= 0 ? v : 0);
+const normDoc = (x) => {
+  const type = isType(x.type) ? x.type : null;
+  const rd = isObj(x.read) && READERS.includes(x.read.reader) && TARGETS.includes(x.read.target) ? x.read : null;
+  const ck = rd && isObj(rd.checks) ? rd.checks : {};
+  return {
+    id: typeof x.id === 'string' && x.id ? cutText(x.id, 40) : rid(), type, typeBy: type && TYPE_BY.includes(x.typeBy) ? x.typeBy : null,
+    name: cleanName(typeof x.name === 'string' ? x.name : ''), kind: KINDS.includes(x.kind) ? x.kind : 'other',
+    size: count(x.size), sha256: typeof x.sha256 === 'string' && /^[0-9a-f]{64}$/.test(x.sha256) ? x.sha256 : null,
+    pages: Number.isInteger(x.pages) && x.pages > 0 ? x.pages : null,
+    addedAt: typeof x.addedAt === 'string' ? cutText(x.addedAt, 40) : '', asOf: isoDay(x.asOf) ? x.asOf : null,
+    status: STATUSES.includes(x.status) ? x.status : 'received', supersededBy: typeof x.supersededBy === 'string' ? cutText(x.supersededBy, 40) : null,
+    read: rd ? { reader: rd.reader, at: typeof rd.at === 'string' ? cutText(rd.at, 40) : '', target: rd.target, checks: { pass: count(ck.pass), warn: count(ck.warn), fail: count(ck.fail) } } : null,
+    note: cutText(typeof x.note === 'string' ? x.note : '', MAX_NOTE),
+  };
+};
+/**
+ * A clean copy of whatever is stored as a deal's registry, however a damaged or hostile backup left it: containers
+ * made whole, every Doc coerced field by field (a bad value is null, 0 or unknown, never invented), Docs that are
+ * not records dropped, repeated ids dropped, at most 200 Docs kept, n/a only for known types with a text reason.
+ * @param {any} raw
+ */
+export function normDd(raw) {
+  const r = isObj(raw) ? raw : {};
+  const na = {};
+  if (isObj(r.na)) for (const [id, v] of Object.entries(r.na)) if (isType(id) && isObj(v) && typeof v.reason === 'string' && v.reason.trim()) na[id] = { reason: cutText(v.reason.trim(), MAX_REASON), at: typeof v.at === 'string' ? cutText(v.at, 40) : '' };
+  const seen = new Set();
+  const docs = [];
+  if (Array.isArray(r.docs)) for (const x of r.docs) {
+    if (docs.length >= MAX_DOCS) break;
+    if (!isObj(x)) continue;
+    const doc = normDoc(x);
+    if (seen.has(doc.id)) continue;
+    seen.add(doc.id);
+    docs.push(doc);
+  }
+  return { v: 1, preset: typeof r.preset === 'string' && PRESET_IDS.includes(r.preset) ? r.preset : null, na, docs };
+}
+
+/** The deal's registry, cleaned in place when it needs it (see normDd), and made when the deal has none. */
 export function ddOf(d) {
-  const dd = d.dd && typeof d.dd === 'object' ? d.dd : (d.dd = newDd());
-  if (!Array.isArray(dd.docs)) dd.docs = [];
-  if (!dd.na || typeof dd.na !== 'object' || Array.isArray(dd.na)) dd.na = {};
-  if (dd.preset !== null && !PRESET_IDS.includes(dd.preset)) dd.preset = null;
-  return dd;
+  const n = normDd(d.dd);
+  if (!isObj(d.dd) || JSON.stringify(n) !== JSON.stringify(d.dd)) d.dd = n;
+  return d.dd;
 }
 
 /** The Doc's kind from what checkUpload (filekind.js) found in the bytes. */
@@ -61,8 +101,8 @@ export function addDoc(dd, f, { now = new Date().toISOString() } = {}) {
   if (dd.docs.length >= MAX_DOCS) return { error: `A deal keeps at most ${MAX_DOCS} documents. Remove one before adding another.` };
   const sha = typeof f.sha256 === 'string' && /^[0-9a-f]{64}$/.test(f.sha256) ? f.sha256 : null;
   const dup = sha ? dd.docs.find((x) => x.sha256 === sha) : null;
-  if (dup) return { error: `${dup.name} was already added on ${dup.addedAt.slice(0, 10)}.`, dup };
-  const type = f.type && TYPE_BY_ID[f.type] ? f.type : null;
+  if (dup) return { error: `${dup.name} was already added${typeof dup.addedAt === 'string' && dup.addedAt ? ` on ${dup.addedAt.slice(0, 10)}` : ''}.`, dup };
+  const type = isType(f.type) ? f.type : null;
   const doc = {
     id: f.id || rid(), type, typeBy: type && TYPE_BY.includes(f.typeBy) ? f.typeBy : null,
     name: cleanName(f.name), kind: KINDS.includes(f.kind) ? f.kind : 'other',
@@ -87,7 +127,7 @@ export function restoreDoc(dd, { doc, index }) { if (!dd.docs.some((x) => x.id =
 /** The broker names a Doc's type. */
 export function retype(dd, id, type) {
   const doc = dd.docs.find((x) => x.id === id);
-  if (!doc || (type !== null && !TYPE_BY_ID[type])) return false;
+  if (!doc || (type !== null && !isType(type))) return false;
   doc.type = type;
   doc.typeBy = type ? 'broker' : null;
   return true;
@@ -111,8 +151,9 @@ export function setAsOf(dd, id, iso) {
 
 /** Not applicable, with a reason (1 to 200 characters once trimmed); { error } when there is none. */
 export function setNa(dd, type, reason, { now = new Date().toISOString() } = {}) {
-  if (!TYPE_BY_ID[type]) return { error: 'That is not a document type.' };
-  const r = cutText(String(reason ?? '').trim(), MAX_REASON);
+  if (!isType(type)) return { error: 'That is not a document type.' };
+  // text with nothing visible in it (zero-width or control characters only) is no reason
+  const r = cutText(String(reason ?? '').replace(/[\u0000-\u001f\u007f\u00ad\u200b-\u200f\u2060\u2028-\u202e\u2066-\u2069\ufeff]/g, '').trim(), MAX_REASON);
   if (!r) return { error: 'Say why it does not apply; a reason is needed.' };
   dd.na[type] = { reason: r, at: now };
   return { ok: true };
@@ -146,7 +187,7 @@ export function recordRead(dd, f, { now = new Date().toISOString() } = {}) {
 export const hasPercentRent = (d) => !!(d.rr && Array.isArray(d.rr.leases) && d.rr.leases.some((L) => L && L.percentRent));
 
 /** The kind of property the checklist is for: the broker's choice, else the Property type figure's, else null (ask). */
-export const presetFor = (d) => ((d.dd && d.dd.preset) || presetOf(d.figures && d.figures.ptype)) || null;
+export const presetFor = (d) => ((d.dd && PRESET_IDS.includes(d.dd.preset) && d.dd.preset) || presetOf(d.figures && d.figures.ptype)) || null;
 
 /**
  * The checklist, derived (nothing here is stored): { preset, missing, found, optional, na, required, have }.
@@ -156,10 +197,8 @@ export const presetFor = (d) => ((d.dd && d.dd.preset) || presetOf(d.figures && 
  * a required type marked n/a leaves both counts.
  */
 export function checklist(d) {
-  const dd = d.dd && typeof d.dd === 'object' ? d.dd : newDd();
-  const docs = Array.isArray(dd.docs) ? dd.docs : [];
-  const na = dd.na && typeof dd.na === 'object' ? dd.na : {};
-  const preset = presetFor(d);
+  const { docs, na, preset: chosen } = normDd(d.dd);
+  const preset = chosen || presetOf(d.figures && d.figures.ptype) || null;
   const rows = requirementsFor(preset, { percentRent: hasPercentRent(d) });
   const has = (id) => docs.some((x) => x.type === id && x.status !== 'superseded');
   const missing = []; const optional = []; const naRows = []; let required = 0; let have = 0;
@@ -169,7 +208,7 @@ export function checklist(d) {
     if (r.need === 'R') { required += 1; missing.push(r); } else optional.push(r);
   }
   // an n/a for a type outside this kind of property's list is still shown
-  for (const [id, v] of Object.entries(na)) if (TYPE_BY_ID[id] && !rows.some((r) => r.id === id) && !has(id)) naRows.push({ id, label: TYPE_BY_ID[id].label, need: null, reason: v.reason, at: v.at });
+  for (const [id, v] of Object.entries(na)) if (!rows.some((r) => r.id === id) && !has(id)) naRows.push({ id, label: TYPE_BY_ID[id].label, need: null, reason: v.reason, at: v.at });
   return { preset, missing, found: docs, optional, na: naRows, required, have };
 }
 

@@ -233,6 +233,9 @@ export function recordable(d) {
   const out = { ...d };
   for (const k of SKIP_TOP) delete out[k];
   if (out.rr && Array.isArray(out.rr.leases)) delete out.rentRoll;
+  // an empty document list (what the dd-init step and a first look at the card make) is bookkeeping, not an edit
+  const dd = out.dd;
+  if (dd && typeof dd === 'object' && !(Array.isArray(dd.docs) && dd.docs.length) && !(dd.na && Object.keys(dd.na).length) && !dd.preset) delete out.dd;
   return out;
 }
 

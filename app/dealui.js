@@ -486,10 +486,10 @@ async function readOmFile(file) {
   omFiles.set(deal.id, file);
   try { localStorage.setItem(CUR_KEY, deal.id); } catch { /* fine */ }
   const n = Object.keys(figures).length;
+  // the file it read goes in the Documents list, and the figures read from it point back at it: fingerprinted before the deal's first save, so the read is one history entry
+  await recordFileRead(deal, file, { reader: 'om', target: 'omRead', type: 'om', kind: 'pdf', pages: om.pages, link: true, checks: qcCounts({ checks: [...((/** @type {any} */ (deal).omRead?.checks) || []), ...((/** @type {any} */ (deal).rrQc?.checks) || [])] }) }, () => {}).catch(() => {});
   render();
   touch();
-  // the file it read goes in the Documents list, and the figures read from it point back at it
-  fileRead(deal, file, { reader: 'om', target: 'omRead', type: 'om', kind: 'pdf', pages: om.pages, link: true, checks: qcCounts({ checks: [...((/** @type {any} */ (deal).omRead?.checks) || []), ...((/** @type {any} */ (deal).rrQc?.checks) || [])] }) }).catch(() => {});
   store.askToPersist();
   const held = qc && qc.held ? qc.held.length : 0;
   const stHeld = stmt.omRead ? heldFields(stmt.omRead).length : 0;

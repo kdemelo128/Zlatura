@@ -129,7 +129,7 @@ interface Credit {
 
 /** A deal's due-diligence document list (deal.dd). The files themselves are never stored: a Doc is a record of one. */
 interface DdDoc {
-  id: string; type: string | null; typeBy: 'reader' | 'content' | 'broker' | null; name: string;
+  id: string; type: string | null; typeBy: 'reader' | 'broker' | null; name: string;
   kind: 'pdf' | 'xlsx' | 'csv' | 'docx' | 'image' | 'text' | 'other'; size: number; sha256: string | null; pages: number | null;
   addedAt: string; asOf: IsoDate | null; status: 'received' | 'read' | 'reviewed' | 'superseded'; supersededBy: string | null;
   read: { reader: 'om' | 'rrpdf' | 'rrsheet' | 't12' | 'ocr'; at: string; target: 'omRead' | 'rr' | 't12'; checks: { pass: number; warn: number; fail: number } } | null;
