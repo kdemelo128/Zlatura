@@ -222,6 +222,9 @@ part it extends or contradicts, and its status.
   - UI revamp addendum written, awaiting approval
     (`docs/proposals/ui-revamp-addendum.md`, mockups in
     `docs/proposals/ui/addendum/`).
+- [ ] Underwriting EVOLVE: gap map and build order written, awaiting approval
+  (owner, 2026-10-30; `docs/proposals/underwriting-evolve.md`). Extends Parts
+  6, 7, 8, 12 and 18. Not implemented.
 - [ ] A full improvement run on every feature (owner): each touched feature
   gets better, and none is removed. Partially implemented, item by item.
 - [x] Time-zone change (4.7.60) acknowledged (owner, 2026-10-29): `termLeft`

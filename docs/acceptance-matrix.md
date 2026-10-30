@@ -1,7 +1,7 @@
 # Acceptance matrix: Zlatura (from Comp Loader 3.3.0)
 
 Baseline: `main` at the merge of pull request #3 (content identical to commit
-`8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.72 (rows for 4.7.52 to 4.7.64 added in the conformance drift fix). This
+`8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.74 (rows for 4.7.52 to 4.7.64 added in the conformance drift fix). This
 file tracks every feature in the master plan, `ZLATURA_MASTER_PROMPT_v2.md`
 in the repository root (the "brief" below), as its Part 23 asks. In 4.7.2 it
 was checked against the master plan section by section: rows it was missing
@@ -78,7 +78,7 @@ the baseline; 32 flows are listed at 4.7.2).
 
 | Feature | Status | Notes |
 |---|---|---|
-| Primary workspaces | Partially implemented | 5 of 12: Home, Deals (the deal workspace), Comps, Tools, Settings. Underwriting, rent roll, what-if and site visit are tabs inside a deal. The others are not built; per the brief they stay out of navigation until they work. |
+| Primary workspaces | Partially implemented | 6 of 12: Home, Deals (the deal workspace), Underwrite (quick underwriting with no deal; sets and combined figures are later PRs, `docs/proposals/underwriting-workspace.md`), Comps, Tools, Settings. Rent roll, what-if and site visit are tabs inside a deal. The others are not built; per the brief they stay out of navigation until they work. Underwrite tested in Chromium at phone and desktop sizes only (`underwrite-flow`); not in Safari or on a real phone. |
 | Command palette (Cmd/Ctrl+K) | Implemented and verified | `shell-flow`: deals, contacts, tools, screens and actions from the keyboard. Documents, notes and comps are not indexed. |
 | Global search across documents, tasks, notes, comps | Partially implemented | Deals, contacts and tools only. |
 | Documents hub, step D1: PDF pages (merge, split, reorder, turn, delete, extract) | Tested with synthetic fixtures only | Tools > Documents > PDF pages (`app/pdfpagesui.js`, `pdfpages.js`, the worker `pdfpages-worker.js`, `@cantoo/pdf-lib` 2.11.1 vendored, 617 KB, cached for offline). On the device: no file is uploaded or stored. A password-protected or damaged file is refused by name; nothing is guessed. The output is a new document: page actions, script and launch links, attachments and the open action are cut. Limits: 20 files, 500 pages, 50 MB a file, 150 MB in all (60 MB on iPhone). Tested on invented PDFs read back with pdf.js (`pdfpages.test.js` with mutation checks; `documents-flow`: keyboard, announcements, 44 px targets, axe at phone and desktop size, Cancel, offline). Chromium only: **not tried on Safari or an iPhone**, memory on a big file there is unmeasured. Known limits: the watchdog is a flat 60 s; a cut file is spotted by a missing `%%EOF` in its last 1 KB; hidden (optional-content) layers are not carried over and may show; a page that uses a pattern, a soft mask, a Type 3 font, a form with no resources or an undecodable content keeps its resources whole, which can carry pictures from other pages of the same file (and the screen says so after saving). Not done in D1: dragging pages, converting images or other files to PDF (D2), the due-diligence checklist (D3). |

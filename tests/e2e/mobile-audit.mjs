@@ -13,8 +13,9 @@ for (const width of [320, 375, 390, 430]) {
   await page.waitForSelector('#deal-tiles .tile');
   await page.setInputFiles('#photo-file', [F + 'photo0.jpg', F + 'photo1.jpg']);
   await page.waitForTimeout(1500);
-  for (const v of ['home', 'comps', 'deal', 'tools', 'settings']) {
-    await page.click(`.tab[data-view="${v}"] >> visible=true`);
+  for (const v of ['home', 'comps', 'deal', 'underwrite', 'tools', 'settings']) {
+    // Settings is the top-bar gear on a phone; the others are tabs
+    await page.click(`${v === 'settings' ? '.appbar ' : '.tab'}[data-view="${v}"] >> visible=true`);
     await page.waitForTimeout(300);
     const res = await page.evaluate(() => {
       const vw = document.documentElement.clientWidth;
