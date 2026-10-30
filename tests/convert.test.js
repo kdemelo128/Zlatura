@@ -435,3 +435,27 @@ test('JSON numbers that survive a round trip are accepted (0.30000000000000004),
   assert.equal(unsafeNumber('[{"a": 0.30000000000000004}]'), '');
   assert.equal(unsafeNumber('[{"a": 12345678901234567890}]'), '12345678901234567890');
 });
+
+/* ------------------------------------------------------------------ the shared zip guard */
+
+test('Excel to CSV: a workbook that lies about its sizes is refused by name; an honest one converts unchanged', async () => {
+  const enc = (t) => new TextEncoder().encode(t);
+  const parts = { '[Content_Types].xml': enc('<x/>'), 'xl/workbook.xml': enc('<workbook/>'), 'xl/worksheets/sheet1.xml': new Uint8Array(40e6) };
+  const z = Uint8Array.from(fflate.zipSync(Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, [v, { level: 6 }]]))));
+  const dv = new DataView(z.buffer);
+  for (let i = 0; i < z.length - 46; i++) {
+    if (dv.getUint32(i, true) === 0x02014b50 && new TextDecoder().decode(z.subarray(i + 46, i + 46 + dv.getUint16(i + 28, true))) === 'xl/worksheets/sheet1.xml') {
+      dv.setUint32(i + 24, 1000, true);
+      const lo = dv.getUint32(i + 42, true); dv.setUint32(lo + 22, 1000, true);
+    }
+  }
+  const c = await classify(file('Lying.xlsx', z), { getFflate });
+  assert.ok(c.refuse, 'refused');
+  assert.match(c.refuse, /^Lying\.xlsx: .*(not the size|bomb)/);
+  const ok = await classify(file('Book.xlsx', await xlsxBytes()), { getFflate });
+  assert.equal(ok.kind, 'xlsx');
+  assert.equal(ok.guarded, true);
+  const { loadXlsx } = await import('../app/sheetread.js');
+  const wb = await loadXlsx(file('Book.xlsx', await xlsxBytes()), async () => ({ ExcelJS, fflate }), ok);
+  assert.match(workbookToCsvs(wb).sheets[0].csv, /^﻿Unit,Rent,Start,Flag\r\nA1,1200,2026-01-31,TRUE\r\n/);
+});

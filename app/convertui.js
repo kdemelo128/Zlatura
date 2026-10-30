@@ -11,6 +11,7 @@ import {
   classify, targetsFor, notPossible, MATRIX, NOT_OFFERED, baseName, imageSize, exifOrientation, pageScale, textPdfProblem,
   docxText, clip, zipKeys, csvToCells, csvToJson, jsonToCsv, workbookToCsvs, sheetName, MAX_IMAGE_PIXELS, IMAGE_PAGES,
 } from './convert.js';
+import { loadXlsx } from './sheetread.js';
 import { WATCHDOG_MS, MAX_PAGES, problemText } from './pdfpages.js';
 import { pdfPages } from './pdftext.js';
 
@@ -284,9 +285,8 @@ export function openConvert(api) {
       return { files: [one(new TextEncoder().encode(docxText(new Uint8Array(info.buffer), fflate, name)))], note: 'Pictures, headers, footers and footnotes are not in the text.' };
     }
     if (m.id === 'xlsx-csv') {
-      const { ExcelJS } = await getXlsx();
-      const wb = new ExcelJS.Workbook();
-      try { await wb.xlsx.load(info.buffer); } catch { throw new Error(`${name} could not be opened as an Excel workbook. It may be damaged or not really .xlsx.`); }
+      let wb;
+      try { wb = await loadXlsx(file, getXlsx, info); } catch (e) { throw new Error(String(e.message).startsWith(name) ? e.message : `${name}: ${e.message}`); }
       stopped(ctl);
       const { sheets, notes } = workbookToCsvs(wb);
       if (!sheets.length) throw new Error(`${name} has no visible sheet to convert.${notes.length ? ` ${notes.join(' ')}` : ''}`);

@@ -5,7 +5,7 @@
  * nothing is converted by guessing, and no file is kept. */
 
 import { sniff, zipKind, oleKind, LIMITS } from './filekind.js';
-import { csvRows, detectDelimiter, cellValue } from './sheetread.js';
+import { csvRows, detectDelimiter, cellValue, guardedBuffer } from './sheetread.js';
 import { decodeText } from './textfile.js';
 import { cell as csvCell } from './exporters.js';
 
@@ -139,7 +139,7 @@ const HEIC_BRANDS = new Set(['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'mi
  * once, so `text` is its words (a CSV also has its `delimiter`).
  * @param {{ name: string, size: number, slice: (a: number, b: number) => { arrayBuffer: () => Promise<ArrayBuffer> }, arrayBuffer: () => Promise<ArrayBuffer> }} file
  * @param {{ getFflate?: () => Promise<any> }} [opts]
- * @returns {Promise<{ kind: string, label: string, refuse: string|null, note: string, text?: string, delimiter?: string, macros?: boolean, buffer?: ArrayBuffer }>}
+ * @returns {Promise<{ kind: string, label: string, refuse: string|null, note: string, text?: string, delimiter?: string, macros?: boolean, buffer?: ArrayBuffer, guarded?: boolean }>}
  */
 export async function classify(file, { getFflate } = {}) {
   const name = file.name || 'That file';
@@ -176,7 +176,11 @@ export async function classify(file, { getFflate } = {}) {
   if (!fflate) return bad('zip');
   const z = zipKind(bytes, fflate.unzipSync);
   if (z.refuse) return out('zip', `${name}: ${z.refuse}`);
-  if (z.kind === 'xlsx' || z.kind === 'docx') return out(z.kind, null, { macros: z.macros, buffer });
+  if (z.kind === 'xlsx') {
+    // the declared sizes passed; now the parts are inflated in small pieces and checked against them (ExcelJS would inflate whatever is there)
+    try { return out('xlsx', null, { macros: z.macros, buffer: guardedBuffer(buffer, fflate), guarded: true }); } catch (e) { return out('zip', `${name}: ${e.message}`); }
+  }
+  if (z.kind === 'docx') return out('docx', null, { macros: z.macros, buffer });
   return bad('zip');
 }
 
