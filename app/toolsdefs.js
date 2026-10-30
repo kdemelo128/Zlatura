@@ -314,7 +314,7 @@ export const MORE_TOOLS = [
     inputs: [['expenses', 'Recoverable expenses, $ a year', 'money'], ['tenantSf', 'Tenant SF', 'num'], ['buildingSf', 'Building SF', 'num'], ['sharePct', 'Pro-rata share % (blank = SF share)', 'pct0'],
       ['method', 'Method', 'select', [['prorata', 'Pro rata (NNN)'], ['base_year', 'Over base year'], ['stop', 'Over an expense stop'], ['fixed', 'Fixed amount']]], ['baseYear', 'Base-year expenses', 'money'], ['stopPsf', 'Expense stop $/SF', 'money2'], ['fixed', 'Fixed recovery $', 'money']],
     fromDeal: (d) => ({ expenses: d.figures.opex, buildingSf: d.figures.bsf }),
-    run: (v) => { const r = recovery(v); return r ? { lines: [['Annual recovery', money0(r.annual), true], ['Monthly', money0(r.monthly)], ['Per SF', money2(r.psf)], ['Share', pct(r.share, 2)]] } : { lines: [['Enter the expenses and the tenant’s share', '—']] }; },
+    run: (v) => { if (v.method === 'base_year' && !ok(v.baseYear)) return { lines: [['Enter the base-year expenses (a blank is not 0: type 0 if there is none)', '—']] }; if (v.method === 'stop' && !ok(v.stopPsf)) return { lines: [['Enter the expense stop per SF (a blank is not 0: type 0 if there is none)', '—']] }; const r = recovery(v); return r ? { lines: [['Annual recovery', money0(r.annual), true], ['Monthly', money0(r.monthly)], ['Per SF', money2(r.psf)], ['Share', pct(r.share, 2)]] } : { lines: [['Enter the expenses and the tenant’s share', '—']] }; },
   },
   {
     id: 'absorption', group: 'Leasing', title: 'Lease-up and absorption', color: '#DB2777', icon: '<path d="M4 20V10M9 20V6M14 20v-9M19 20V4"/>',

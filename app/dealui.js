@@ -23,7 +23,7 @@ import { openImpact, affectsButton } from './impactui.js';
 import * as store from './store.js';
 import { undoState, inverseOf, mediaRefs, withBytes, applyChanges, placeOf, snapshotData, restoreInto, diffDeal, SNAPSHOTS } from './history.js';
 import { renderDealBrief, dealSummaryText, placeLine } from './brief.js';
-import { project, rentRollSummary, dealSchedules, typedPrice, leaseName } from './lease.js';
+import { project, recoveryProblem, pctRentProblem, rentRollSummary, dealSchedules, typedPrice, leaseName } from './lease.js';
 import { scheduleCells, scheduleTsv } from './rentschedule.js';
 import { projectionNow, projectionLater, projectionSync, projectionError } from './projector.js';
 import { legacyRows, omRollRecord, applyHeldRows, addOcrRows, ocrReading, rollOffers, withoutRollFigures, ROLL_TOOL } from './rentroll.js';
@@ -207,7 +207,7 @@ function scenarioLines(m) {
       return spec ? `${spec[1].replace(/, % change| %|, years/g, '').toLowerCase()} ${scnShow(spec[2], v)}` : null;
     }).filter(Boolean).join(', ');
     return `${name} (${changed}): price ${money0(r.inputs.price)}, NOI ${money0(r.m.noi)}, cap ${pct(r.m.capCalc)}, DSCR ${times(r.m.dscr)}, `
-      + `levered IRR ${pct(r.returns?.leveredIrr, 1)} over ${r.inputs.hold} years at a ${pct(r.inputs.exitCap)} exit`;
+      + `levered IRR ${r.returns ? pct(r.returns.leveredIrr, 1) : ok(r.inputs.saleCost) && r.inputs.saleCost < 0 ? '— (sale costs can’t be negative, so returns are left out)' : pct(null, 1)} over ${r.inputs.hold} years at a ${pct(r.inputs.exitCap)} exit`;
   };
   const out = (deal.scenarios || []).map((sc) => line(sc.name, sc.over));
   if (deal.live && Object.keys(deal.live).length) out.unshift(line('Working scenario, unsaved', deal.live));
@@ -1367,7 +1367,19 @@ export const scnRead = (kind, raw) => {
   return parsePct(raw);
 };
 /** True when `raw` is a negative sale cost, which is refused rather than used. */
-export const scnRefused = (kind, raw) => { if (kind !== 'cost') return false; const v = parsePct(raw, { fraction: false }); return ok(v) && /** @type {number} */ (v) < 0; };
+export const scnRefused = (kind, raw) => {
+  if (kind !== 'cost') return false;
+  // a leading minus is refused as soon as it is typed ("-", "-2.", "-2.5"), so the message holds steady while typing
+  if (/^\s*[-−–(]/.test(String(raw))) return true;
+  const v = parsePct(raw, { fraction: false });
+  return ok(v) && /** @type {number} */ (v) < 0;
+};
+/** Show or clear a refusal beside its field: the message, linked to the field, and announced politely. */
+export function setRefusal(input, box, on, text) {
+  box.textContent = on ? text : '';
+  box.setAttribute('role', 'status');
+  if (on) { input.setAttribute('aria-invalid', 'true'); input.setAttribute('aria-describedby', box.id); } else { input.removeAttribute('aria-invalid'); input.removeAttribute('aria-describedby'); }
+}
 
 function scenarioCard() {
   deal.live ||= {};
@@ -1472,7 +1484,7 @@ function renderScenario(m) {
       const er = el('div', 'hint-sm warn-text');
       er.id = `scn-err-${key}`;
       i.addEventListener('change', () => {
-        er.textContent = scnRefused(kind, i.value) ? SALE_COST_NEGATIVE : '';
+        setRefusal(i, er, scnRefused(kind, i.value), `${SALE_COST_NEGATIVE} The deal’s own sale cost is used instead.`);
         const v = scnRead(kind, i.value);
         if (v === null) delete deal.live[key]; else deal.live[key] = v;
         touch();
@@ -1506,6 +1518,10 @@ function renderScenario(m) {
     $('scn-answers').textContent = '';
     renderSavedScenarios(m);
     return;
+  }
+  if (deal.live.noiBasis === 'rentroll' && deal.rr && deal.rr.leases) {
+    const n = deal.rr.leases.filter((L) => !L.vacant && (recoveryProblem(L) || pctRentProblem(L))).length;
+    if (n) run.notes.push(`${n} lease${n === 1 ? '' : 's'} on the rent roll ${n === 1 ? 'is' : 'are'} flagged and left out of its NOI, so these returns are understated until fixed (see the rent roll’s checks).`);
   }
   for (const t of run.notes) { const p = el('p', 'hint-sm', t); p.style.padding = '0 16px 8px'; nb.appendChild(p); }
 

@@ -228,12 +228,46 @@ test('a blank base amount or stop is "can\'t tell" and flagged; a typed 0 stays 
   for (const rec of [{ method: 'base_year' }, { method: 'stop', stopPsf: null }]) {
     const rr = rollOf({ sf: 2500, other: 7500, rent: 50000, pool: 400000, growth: 0, rec });
     assert.equal(project(rr).annual[0].recoveries, 0, rec.method);
-    assert.match(project(rr).notes.join(' '), /is blank, so its recovery is left out/, rec.method);
+    assert.match(project(rr).notes.join(' '), /is blank \(a blank is not 0; type 0 if there is none\), so its recovery is left out/, rec.method);
     assert.ok(validateLease(rr.leases[0]).some((x) => /is blank/.test(x.text)), rec.method);
   }
   const zero = rollOf({ sf: 2500, other: 7500, rent: 50000, pool: 100000, growth: 0, rec: { method: 'base_year', baseAmount: 0 } });
   near(project(zero).annual[0].recoveries, 25000);
   assert.deepEqual(project(zero).notes.filter((n) => /recover/i.test(n)), []);
+});
+
+test('more recovery inputs that cannot be told: spaces, negative, a stop with no SF, a share stored as text, text growth', async () => {
+  const left = /left out, and projected recoveries and NOI are understated until it is fixed/;
+  const flagged = (rec, sf = 2500, re) => {
+    const rr = rollOf({ sf, other: 7500, rent: 50000, pool: 400000, growth: 0, rec });
+    const P = project(rr);
+    assert.equal(P.annual[0].recoveries, 0, JSON.stringify(rec));
+    assert.match(P.notes.join(' '), re || left, JSON.stringify(rec));
+    assert.ok(validateLease(rr.leases[0]).some((x) => x.level === 'warn' && (re || left).test(x.text)), JSON.stringify(rec));
+  };
+  flagged({ method: 'base_year', baseAmount: '  ' });
+  flagged({ method: 'base_year', baseAmount: -5000 }, 2500, /base amount is negative/);
+  flagged({ method: 'stop', stopPsf: -1 }, 2500, /stop per SF is negative/);
+  flagged({ method: 'stop', stopPsf: 30, share: 25 }, 0, /stop recovery needs the space's SF/);
+  flagged({ method: 'prorata', share: '30' }, 2500, /share "30" is stored as text/);
+  flagged({ method: 'fixed', amount: 12000, growth: 'abc' }, 2500, /growth "abc" is not a number/);
+  assert.equal(recoveryAnnual({ method: 'stop', pool: 400000, share: 0.25, tenantSf: 0, buildingSf: 10000, stopPsf: 30 }), null);
+  assert.equal(recoveryAnnual({ method: 'stop', pool: 400000, share: 0.25, tenantSf: 2500, stopPsf: 30 }), null);
+  assert.equal(recoveryAnnual({ method: 'base_year', pool: 100000, share: 0.25, baseAmount: -5 }), null);
+  // the Recovery tool names what is missing instead of asking for the expenses and share
+  globalThis.window ||= {};
+  const { MORE_TOOLS } = await import('../app/toolsdefs.js');
+  const tool = MORE_TOOLS.find((t) => t.id === 'recovery');
+  const out = tool.run({ expenses: 100000, tenantSf: 2500, buildingSf: 10000, method: 'base_year', baseYear: null }, {});
+  assert.match(out.lines[0][0], /Enter the base-year expenses/);
+  assert.match(tool.run({ expenses: 100000, tenantSf: 2500, buildingSf: 10000, method: 'stop', stopPsf: null }, {}).lines[0][0], /Enter the expense stop/);
+  assert.equal(tool.run({ expenses: 100000, tenantSf: 2500, buildingSf: 10000, method: 'base_year', baseYear: 0 }, {}).lines[0][0], 'Annual recovery');
+});
+
+test('a typed $0 breakpoint on percentage rent raises a light warning (the figure is unchanged)', () => {
+  const rr = rollOf({ sf: 1000, other: 1000, rent: 1000, pool: 0, growth: 0, pct: { rate: 6, sales: 1200000, breakpoint: 0 } });
+  assert.ok(validateLease(rr.leases[0]).some((x) => /breakpoint of \$0/.test(x.text)));
+  near(project(rr).annual[0].pctRent, 72000);
 });
 
 test('percentage rent, natural breakpoint with a zero or blank base rent: the typed breakpoint, else "can\'t tell" (owner decision 2026-10-29)', () => {

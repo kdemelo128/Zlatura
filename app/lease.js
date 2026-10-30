@@ -35,7 +35,7 @@
 
 import { walt } from './engine/walt.js';
 import { toCents, toRate } from './engine/money.js';
-import { recoveryAnnual, shareOf, amountOf } from './engine/recovery.js';
+import { recoveryAnnual, shareOf, amountOf, isBlank } from './engine/recovery.js';
 import { breakpointOf, overageOf } from './engine/pctrent.js';
 
 const DAY = 86400000;
@@ -161,14 +161,18 @@ export function generateSteps({ start, end, rate, unit = 'year', escalation = nu
 export function recoveryProblem(L) {
   const Rc = L.recovery;
   if (!Rc || !Rc.method || Rc.method === 'none') return null;
-  if (Rc.method !== 'fixed' && !ok(Rc.share) && !pos(L.sf)) return 'Expense recovery can\'t be worked out: no share is typed and the space has no SF, so its recovery is left out of the projection (not counted as 0).';
+  const left = 'so its recovery is left out, and projected recoveries and NOI are understated until it is fixed';
+  if (Rc.method !== 'fixed' && typeof Rc.share === 'string' && !isBlank(Rc.share)) return `The recovery share "${Rc.share}" is stored as text, not a number, ${left}.`;
+  if (Rc.method !== 'fixed' && !ok(Rc.share) && !pos(L.sf)) return `Expense recovery can't be worked out: no share is typed and the space has no SF, ${left}.`;
+  if (Rc.method === 'stop' && !pos(L.sf)) return `The stop recovery needs the space's SF, ${left}.`;
   const bad = Rc.method === 'base_year' ? [['base amount', Rc.baseAmount]] : Rc.method === 'stop' ? [['stop per SF', Rc.stopPsf]] : Rc.method === 'fixed' ? [['fixed amount', Rc.amount], ['growth', Rc.growth]] : [];
-  const blank = (v) => v === undefined || v === null || v === '';
   const need = Rc.method === 'base_year' || Rc.method === 'stop';
-  const nb = need ? bad.find(([, v]) => blank(v)) : null;
-  if (nb) return `The recovery ${nb[0]} is blank, so its recovery is left out of the projection (not counted as 0; type 0 if there is none).`;
+  const nb = need ? bad.find(([, v]) => isBlank(v)) : null;
+  if (nb) return `The recovery ${nb[0]} is blank (a blank is not 0; type 0 if there is none), ${left}.`;
   const b = bad.find(([, v]) => amountOf(v) === null);
-  return b ? `The recovery ${b[0]} "${String(b[1])}" is not a number, so its recovery is left out of the projection (not counted as 0).` : null;
+  if (b) return `The recovery ${b[0]} "${String(b[1])}" is not a number, ${left}.`;
+  const neg = need ? bad.find(([, v]) => /** @type {number} */ (amountOf(v)) < 0) : null;
+  return neg ? `The recovery ${neg[0]} is negative, ${left}.` : null;
 }
 
 /** The first documented rent period's annual rent, or null (no period, or per-SF with no SF). */
@@ -188,7 +192,8 @@ function breakpointFor(L) {
 export function pctRentProblem(L) {
   const P = L.percentRent;
   if (!P || !pos(P.rate) || !ok(P.sales) || breakpointFor(L) !== null) return null;
-  return P.natural ? 'Percentage rent has no breakpoint: the natural breakpoint needs a base rent above zero, and none is typed, so it is left out of the projection (not charged on every dollar of sales).' : 'Percentage rent has no breakpoint typed, so it is left out of the projection (not charged on every dollar of sales).';
+  const left = 'so it is left out (not charged on every dollar of sales), and projected percentage rent and NOI are understated until it is fixed';
+  return P.natural ? `Percentage rent has no breakpoint: the natural breakpoint needs a base rent above zero, and none is typed, ${left}.` : `Percentage rent has no breakpoint typed, ${left}.`;
 }
 
 /**
@@ -232,6 +237,7 @@ export function validateLease(L) {
   if (L.recovery && L.recovery.method === 'prorata' && ok(L.recovery.share) && (L.recovery.share < 0 || L.recovery.share > 100)) add('error', 'The pro-rata share is outside 0-100%.');
   if (L.percentRent && pos(L.percentRent.rate) && !ok(L.percentRent.sales)) add('warn', 'Percentage rent has a rate but no sales figure, so it earns nothing.');
   for (const why of [recoveryProblem(L), pctRentProblem(L)]) if (why) add('warn', why);
+  if (L.percentRent && pos(L.percentRent.rate) && ok(L.percentRent.sales) && breakpointFor(L) === 0) add('warn', 'Percentage rent has a breakpoint of $0, so it is charged on every dollar of sales. Check that is intended.');
   return out;
 }
 

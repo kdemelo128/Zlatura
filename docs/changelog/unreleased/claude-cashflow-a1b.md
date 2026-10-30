@@ -1,35 +1,47 @@
-# Three quiet numbers now say "can't tell": a tenant with no share, a negative sale cost, percentage rent with no breakpoint
+# Quiet numbers now say "can't tell": a tenant with no share, a blank base amount, a negative sale cost, percentage rent with no breakpoint
 
-Cash flow step A1b, the three edge cases the owner approved on 2026-10-29. A1
+Cash flow step A1b, the edge cases the owner approved on 2026-10-29. A1
 (4.7.74) moved each calculation into one function and changed nothing; this
-changes the results in these edges on purpose.
+changes the results in these edges on purpose. A flagged lease is left out of
+the figure, so the projected recoveries (or percentage rent) and NOI are
+**understated until it is fixed**; the rent roll's checks say so.
 
-- **A tenant with an expense recovery but no typed share and no SF.** The
-  projection used to count a 0% share. Now the rent roll's "things to check"
-  names the unit ("no share is typed and the space has no SF"), the projection
-  leaves that lease's recovery out and says so in its notes, and nothing is
-  counted as 0. Type a share, or the SF, and it counts again.
-- **Recovery amounts typed as text.** A base amount, stop per SF or fixed
-  amount like "abc" used to count as 0. It is now flagged the same way and
-  the recovery is left out. Numeric text such as "90000" still reads as a
-  number. The Recovery tool says "can't tell" for it too.
-- **A blank base amount or stop per SF.** On a base-year or stop recovery a
-  blank used to count as 0, so the tenant recovered the whole pool. It is now
-  flagged and left out; a typed 0 still means 0. The Recovery tool says
-  "can't tell" for it.
-- **A negative sale cost.** The Deal screen ignored it and the DCF tool used it
-  (raising the sale price), so the two disagreed. Now it is refused
-  everywhere: the What-if and Underwrite fields show "Sale costs can't be
-  negative" and keep nothing; the DCF, hold returns, sensitivity and residual
-  land tools show the message instead of an answer; and a saved negative
-  value leaves the returns out with the same note.
-- **Percentage rent, natural breakpoint, zero or blank base rent.** The
-  projection set the breakpoint to $0 and charged the rate on every dollar of
-  sales. It now uses the breakpoint you typed (as the Percentage rent tool
-  does); with none typed it is flagged and left out. The same holds when the
-  base rent can't be told (a per-SF rent on a space with no SF).
+| Case | Before | After |
+|---|---|---|
+| Base-year recovery, base amount left blank | 25,000 (the whole pool) | 0, flagged |
+| Base-year recovery, base amount typed as text such as "1,000" or "abc" | 25,000 or 0 | 0, flagged |
+| Base-year or stop recovery, base amount or stop negative, or only spaces | whole pool or a wrong figure | 0, flagged |
+| Stop recovery with no tenant SF | 0, no flag | 0, flagged |
+| No share typed and no SF | 0, no flag | 0, flagged |
+| Share stored as text ("30") | its SF share, no flag | 0, flagged (the lease editor now shows the stored text) |
+| Lease ending 2026-06 with a renewal and a blank base amount | 20,833 | 0, flagged |
+| Natural breakpoint, $0 base rent, none typed (6% of $1.2m sales) | 72,000 | 0, flagged |
+| Natural breakpoint, $0 base rent, breakpoint $1,000,000 typed | 72,000 | 12,000 (the typed breakpoint, as the tool does) |
+| Hold returns with sale cost -2 | 8.87% IRR (cost treated as 0) | "—" with a note saying why |
+| DCF tool with sale cost -2 | sale price raised | refused with a message |
 
-Tested: `tests/engine-shared.test.js` (the pinned edges are now the intended
-behaviour; each fails on 4.7.74, with a mutation check per rule),
-`tests/e2e/edgecases-flow.mjs`. Golden: 646 displayed figures, 0 changed;
-`analyze-golden` (618 saved results) passes unchanged. No data-format change.
+- **A negative sale cost** is refused everywhere: the What-if and Underwrite
+  fields show the message (linked to the field and announced to screen
+  readers) and keep nothing; the DCF, hold returns, sensitivity and residual
+  land tools show it instead of an answer; a quick underwriting or deal saved
+  with a negative value opens with the message, the Levered IRR row gives that
+  as its reason, and the deal brief and workbook scenario lines say why the
+  IRR is "—". Rent-roll-based What-if returns note when flagged leases are
+  left out.
+- **The Recovery tool** asks for the base-year expenses or the expense stop by
+  name when it is blank, and says a blank is not 0.
+- **Beyond the approved list** (small, and flagged here so they are not a
+  surprise): percentage rent that is not natural and has no breakpoint typed
+  is now flagged (the figure is unchanged, it was already left out); a fixed
+  recovery whose growth is text flags the lease and drops the whole fixed
+  amount (before, year 1 counted and later years were 0); a typed breakpoint
+  of $0 gets a light warning, because it charges every dollar of sales
+  (the figure is unchanged).
+- Known gap: a fixed recovery with a blank amount still counts 0 (there is
+  nothing to recover); it is not flagged.
+
+Tested: `tests/engine-shared.test.js` (each case fails on the head before,
+with mutation checks), `tests/e2e/edgecases-flow.mjs` (including typing a
+minus one character at a time and a record saved with -2). Golden: 646
+displayed figures, 0 changed; `analyze-golden` (618 saved results) passes
+unchanged. No data-format change.

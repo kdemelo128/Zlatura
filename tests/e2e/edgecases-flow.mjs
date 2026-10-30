@@ -45,7 +45,7 @@ await page.waitForTimeout(500);
 if (await page.locator('#deal-rentroll .rr-issue-box summary').count()) await page.locator('#deal-rentroll .rr-issue-box summary').click();
 const issues = (await page.locator('#deal-rentroll .rr-issues').innerText()).replace(/\s+/g, ' ');
 check('names the tenant whose recovery cannot be told', /Unit 102 \(Beta Bakery\): Expense recovery can’t be worked out: no share is typed and the space has no SF/.test(issues.replace(/'/g, '’')), issues.slice(0, 300));
-check('names the base-year recovery with a blank base amount', /Unit 104 \(Delta Deli\): The recovery base amount is blank/.test(issues), issues.slice(0, 600));
+check('names the base-year recovery with a blank base amount', /Unit 104 \(Delta Deli\): The recovery base amount is blank/.test(issues) && /understated until it is fixed/.test(issues), issues.slice(0, 600));
 check('names the percentage rent with no breakpoint', /Unit 103 \(Gamma Grill\): Percentage rent has no breakpoint/.test(issues), issues.slice(0, 400));
 
 // 2: a negative sale cost in the What-if
@@ -67,6 +67,30 @@ await page.fill('#uw-saleCost', '-2');
 check('Underwrite refuses a negative sale cost with a message', /can’t be negative/.test((await page.locator('#uw-err-saleCost').textContent({ timeout: 1000 }).catch(() => '')) || ''));
 await page.fill('#uw-saleCost', '2');
 check('and clears it for a valid one', ((await page.locator('#uw-err-saleCost').textContent({ timeout: 1000 }).catch(() => '')) || '') === '');
+
+// typing a minus first, one character at a time: the field keeps what is typed and the message holds steady
+await page.focus('#uw-saleCost');
+await page.keyboard.press('ControlOrMeta+a'); await page.keyboard.press('Backspace');
+const steps = [];
+for (const ch of ['-', '2', '.', '5']) {
+  await page.keyboard.type(ch);
+  steps.push([await page.inputValue('#uw-saleCost'), ((await page.locator('#uw-err-saleCost').textContent()) || '').length > 0, await page.getAttribute('#uw-saleCost', 'aria-describedby'), await page.getAttribute('#uw-saleCost', 'aria-invalid')]);
+}
+check('typing -2.5 one character at a time: the field keeps it and the message never flickers', steps.every((x, i) => x[0] === ['-', '-2', '-2.', '-2.5'][i] && x[1] && x[2] === 'uw-err-saleCost' && x[3] === 'true'), JSON.stringify(steps));
+
+// a quick underwriting saved with a negative sale cost (4.7.73 accepted it) opens with the refusal and the right IRR reason
+await page.evaluate(async () => {
+  const st = await import('./app/uwstore.js');
+  const u = st.newScratch({ now: 1 }); u.name = 'Saved with -2'; u.figures = { price: 10000000, noi: 650000 }; u.loan = { ltv: 60, rate: 6, amort: 30 }; u.live = { exitCap: 7, saleCost: -2 };
+  await st.saveScratch(u);
+});
+await page.reload({ waitUntil: 'load' });
+await page.waitForSelector('#uw-card');
+await page.waitForTimeout(500);
+const notes = (await page.locator('#uw-notes').innerText()).replace(/\s+/g, ' ');
+const irrRow = (await page.locator('#uw-results li.strong', { hasText: 'Levered IRR' }).innerText()).replace(/\s+/g, ' ');
+check('a record saved with -2 shows the refusal on open, beside the field and in the results', /can’t be negative/.test(notes) && /can’t be negative/.test((await page.locator('#uw-err-saleCost').textContent()) || ''), notes);
+check('and the IRR row gives the real reason, not "needs a price, NOI and an exit cap"', /sale costs can’t be negative/.test(irrRow) && !/needs a price/.test(irrRow), irrRow);
 
 // the DCF tool
 await page.evaluate(() => { location.hash = '#tools'; });
