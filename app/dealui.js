@@ -102,7 +102,8 @@ const show = (kind, v) => {
   return String(v);
 };
 
-function loanDefaults() {
+/** The loan terms a new deal starts from: the last ones typed, else the app's. */
+export function loanDefaults() {
   try { return { ...LOAN_DEFAULTS, ...JSON.parse(localStorage.getItem(LOAN_KEY) || '{}') }; } catch { return { ...LOAN_DEFAULTS }; }
 }
 function rememberLoan(L) {
@@ -268,6 +269,24 @@ export function startDealByHand() { flushDeal(); deal = newDeal(); try { localSt
 export async function showDeal(id) { await openDeal(id); api.showView('deal'); }
 export { openDeal }; // the Back button reopens a deal without a view change of its own (ui.js route)
 export const currentDealId = () => (deal ? deal.id : null);
+/** A new deal from fields made elsewhere (a quick underwriting), saved through the path every deal takes. Resolves to the deal; throws when storage refuses it. */
+export async function createDeal(fields, label) {
+  const d = newDeal(fields);
+  touch(d, { label });
+  if (!(await flushDeal())) { dropPending(d); opened.delete(d.id); throw new Error('storage is full or blocked'); }
+  return d;
+}
+/** Delete a deal by id (kept 30 days in the trash, as the deal menu's Delete does); closes it if it is open. */
+export async function discardDeal(id) {
+  const gone = opened.get(id) || (deal && deal.id === id ? deal : null) || await store.loadDeal(id);
+  if (gone) dropPending(gone);
+  clearRecovery(id, Infinity);
+  opened.delete(id);
+  deleted.add(id);
+  const done = await store.deleteDeal(id);
+  if (deal && deal.id === id) { deal = null; closeDeal(); }
+  return done;
+}
 export const currentDealName = () => (deal && hasFigures() ? (deal.name || deal.figures.address || 'Untitled deal') : null);
 const hasFigures = () => deal && Object.values(deal.figures).some((v) => v !== null && v !== undefined && v !== '');
 
@@ -1339,7 +1358,7 @@ const scnShow = (kind, v) => {
   if (kind === 'delta') return `${v > 0 ? '+' : ''}${dec(v, 2)}%`;
   return `${dec(v, 2)}%`;
 };
-const scnRead = (kind, raw) => {
+export const scnRead = (kind, raw) => {
   if (kind === 'money') return parseNum(raw);
   if (kind === 'int') { const v = parseNum(raw); return ok(v) && v >= 1 && v <= 30 ? Math.round(v) : null; }
   if (kind === 'delta') { const v = parseNum(raw); return ok(v) && v > -100 && v < 1000 ? v : null; }
@@ -2627,13 +2646,7 @@ async function dealMenu() {
   else if (v === 'close') closeDeal();
   else if (v === 'delete') {
     const gone = deal;
-    dropPending(gone);
-    clearRecovery(gone.id, Infinity);
-    opened.delete(gone.id);
-    deleted.add(gone.id);
-    await store.deleteDeal(gone.id);
-    deal = null;
-    closeDeal();
+    await discardDeal(gone.id);
     toast('Deal deleted.', { label: 'Undo', run: async () => { deleted.delete(gone.id); await store.saveDeal(gone); openDeal(gone.id); } });
   }
 }

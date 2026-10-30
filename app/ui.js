@@ -37,6 +37,7 @@ import {
 } from './kit.js';
 import { initDeal, dealForWorkbook, currentDealName, currentDealId, openTemplates, openDeal } from './dealui.js';
 import { initTools } from './toolsui.js';
+import { initUnderwrite } from './underwrite.js';
 import { initHome } from './home.js';
 import { initSettings } from './settings.js';
 import { initCommand } from './command.js';
@@ -67,7 +68,7 @@ const monthsAgo = (c) => (c.date ? (Date.now() - new Date(c.date).getTime()) / 8
 
 /* ------------------------------------------------------------- the shell */
 
-const VIEWS = ['home', 'comps', 'deal', 'tools', 'review', 'settings'];
+const VIEWS = ['home', 'comps', 'deal', 'underwrite', 'tools', 'review', 'settings'];
 let currentView = 'home';
 /* The phone's Back button walks the screens the broker has been through: each
  * screen (and each deal, as #deal/<id>) is one history entry, and Back never
@@ -80,7 +81,7 @@ function showView(name, { push = true } = {}) {
   if (!VIEWS.includes(name)) name = 'home';
   currentView = name;
   for (const v of VIEWS) $(`view-${v}`).hidden = v !== name;
-  document.querySelectorAll('.tab[data-view]').forEach((t) => {
+  document.querySelectorAll('[data-view]').forEach((t) => {
     if (t.dataset.view === name) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
   });
   $('view-name').textContent = $(`view-${name}`).dataset.title;
@@ -90,7 +91,7 @@ function showView(name, { push = true } = {}) {
   window.scrollTo({ top: 0 });
   document.dispatchEvent(new CustomEvent('viewchange', { detail: name }));
 }
-document.querySelectorAll('.tab[data-view]').forEach((t) => t.addEventListener('click', () => showView(t.dataset.view)));
+document.querySelectorAll('[data-view]').forEach((t) => t.addEventListener('click', () => showView(t.dataset.view)));
 document.querySelectorAll('a.brand').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); showView('home'); }));
 /** Show what the address says: a screen, or a deal (#deal/<id>). */
 async function route() {
@@ -1512,6 +1513,7 @@ const compsApi = {
 };
 initDeal(compsApi);
 initTools(compsApi);
+initUnderwrite(compsApi);
 initHome(compsApi);
 initSettings(compsApi);
 initCommand(compsApi);

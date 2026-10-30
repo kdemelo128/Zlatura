@@ -10,6 +10,28 @@ UI revamp step D1. Settings > Appearance > Look now offers Classic (the default,
 - **Choice kept on this device** in `localStorage` (`zlatura.look`), applied before first paint like the theme. It is not stored in a deal or a backup.
 - **Tested.** New Node test (contrast of every pair, Classic token snapshot, fonts, bars), new browser flow `ui-d1-flow` (axe at phone and desktop, light and dark, on five screens; solid bars; switching back to Classic). Golden: 646 figures, 0 changed.
 
+## 4.7.73: A new Underwrite tab: type a price, NOI and loan terms and see the answer, with no deal (on the development branch; not merged or deployed)
+
+The first step of the Underwriting workspace (`docs/proposals/underwriting-workspace.md`, approved by the owner 2026-10-23). Sets, combined figures and shared assumptions are later PRs.
+
+- **Underwrite tab**, after Deals. A quick underwriting card takes a price, NOI, building SF, units, property type, loan terms (loan to value, rate, amortization, closing costs, lender minimums, interest only) and hold assumptions, and shows cap rate, price per SF, per unit, loan, DSCR, debt yield, cash-on-cash, equity, the largest loan and what limits it, levered and unlevered IRR, equity multiple, and the price for a target cap rate and a target levered IRR. Every figure comes from the same engine the deal page uses (`analyze`, `runScenario`, `irr`, `scenarioAnswers`), with the deal page's labels. A blank is absent, never 0; a blank hold, growth, exit cap or sale cost uses the engine's default, shown in grey. Gross income less expenses is offered as NOI with a "Use as NOI" tap, never filled in.
+- **Saved as you type**, on this device: new saved key `uw.scratch` (newest first, at most 100; the 101st is refused, never trimmed). Money is kept in whole cents. A record from a newer version is kept as it is, not shown, never rewritten. `KV_MIGRATIONS` (empty) is added to `app/migrate.js` for later changes to such records.
+- **Save as a deal** makes a deal through the existing deal path (figures marked as typed by hand, history "Created from a quick underwriting"), then removes the quick underwriting, with a toast Undo that removes the deal and brings the quick underwriting back. Delete has an Undo too.
+- **Navigation (decision 7, Classic):** the phone bar is Home, Deals, Underwrite, Comps, Tools (and Review while something waits); **Settings moved to a gear in the top bar**. The desktop sidebar gains Underwrite and keeps Settings. The new look is not built yet; its phone bar (Home, Deals, Underwrite, Comps, More, with Tools under More) is recorded in `docs/proposals/ui-revamp.md`. The search menu gains "Underwrite" and "New quick underwriting".
+- **Deviation from the proposal's record shape:** `loan.minDy` (lender minimum debt yield) is also stored. Without it the card's "Largest loan" would differ from the saved deal's, because a deal defaults it to 8.
+- **Backups** carry `uw.scratch`: a merge restore adds the missing ones and keeps the newer `updatedAt`; a replace restore says how many on the device would be deleted; unreadable records are left out and counted. `BACKUP_VERSION`, `SCHEMA`, the database version and the deal record are unchanged. An older app drops the key with its existing "left out" line.
+- **Tested:** `tests/uwstore.test.js`, new cases in `tests/backup.test.js` (including every backup fixture, 3.1.0 to 4.7.56, restoring to the plan 4.7.56 gave: new fixture `backup-4.7.56-before-uw-workspace.json`, made by `tests/tools/make-backup-4.7.56-uw.mjs`) and the browser flow `underwrite-flow` (phone and desktop, typing key by key, figures equal to a deal page, reload, Save as a deal and Undo, Settings and Tools reachable, axe, 150 ms per edit). `shell-flow` and `mobile-audit` follow the moved Settings button.
+- **Saved results:** unchanged (618 saved deal results and 646 displayed figures identical).
+
+## 4.7.72: Code scanning alert 12, second fix: the download link is set in one step (on the development branch; not merged or deployed)
+
+CodeQL alert 12 (js/xss-through-dom, high) stayed open after 4.7.65. Reproduced locally with CodeQL 2.27.3: it follows a deal name typed on the page into the calendar file's text, then into the download link built from that file.
+
+- **What the alert is:** the link points to a file the browser itself made (a `blob:` address) and the file name is already cleaned, so no script address can reach the link: a false positive in substance. CodeQL does not know that.
+- **Change:** `handOver` in `app/kit.js` sets the link's address and file name together with `Object.assign`. Nothing else changes: same link, same file, same name.
+- **Checked:** the same CodeQL query run on main before this change gives 1 result (app/kit.js, the link); after it, 0. No test can see this difference (the app behaves the same); calendar and download flows pass unchanged. Saved results and figures unchanged (golden identical).
+- **Not verified:** that GitHub's own CodeQL (a different version) clears alert 12; the alert stays open until its next scan on main says so, and it is not dismissed.
+
 ## 4.7.71: A deal can be marked confidential: AI stays off it and its exports say so (on the development branch; not merged or deployed)
 
 Plan 19.2 asked for a confidential tag. A deal's menu now has **Confidential**; a marked deal shows a "Confidential" chip and a "(Confidential)" badge in lists and the pipeline.

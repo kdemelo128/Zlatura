@@ -24,7 +24,8 @@
 
 import { FORMATS, PRODUCT, renameKey } from './brand.js';
 import { retentionEnd } from './claims.js';
-import { MIGRATIONS, pending, tooNew, migrateDeal } from './migrate.js';
+import { MIGRATIONS, pending, tooNew, migrateDeal, kvTooNew } from './migrate.js';
+import { cleanScratch, MAX_SCRATCH, KEY as SCRATCH } from './uwstore.js';
 
 export const BACKUP_FORMAT = FORMATS.backup.write;
 export const BACKUP_VERSION = 2;
@@ -35,7 +36,7 @@ const LOCAL_MAX = 262144;
 /** The settings key that never travels in a backup. */
 const NEVER = 'ai.settings';
 /** The kv keys the app writes and a backup may carry (tests/backup.test.js checks this list against every kvSet in app/). */
-export const KV_KEYS = ['tpl.library', 'crm.tasks', 'crm.contacts', 'crm.activity', 'crm.stages', 'tools.scenarios', 't12.labels', 'rr.layouts', 'conventions', 'template', 'output', 'backup.last', 'research.briefs'];
+export const KV_KEYS = ['tpl.library', 'crm.tasks', 'crm.contacts', 'crm.activity', 'crm.stages', 'tools.scenarios', 't12.labels', 'rr.layouts', 'conventions', 'template', 'output', 'backup.last', 'research.briefs', 'uw.scratch'];
 const KV_SET = new Set(KV_KEYS);
 
 /**
@@ -98,6 +99,7 @@ export async function buildBackup({ deals = [], kv = {}, session = null, local =
     counts: {
       deals: deals.length, templates: (kv['tpl.library'] || []).length, tasks: (kv['crm.tasks'] || []).length, contacts: (kv['crm.contacts'] || []).length,
       ...(Array.isArray(kv['research.briefs']) ? { briefs: kv['research.briefs'].length } : {}),
+      ...(Array.isArray(kv[SCRATCH]) ? { quickUnderwritings: kv[SCRATCH].length } : {}),
       ...(history ? { historyEntries: Object.values(history).reduce((a, l) => a + l.length, 0) } : {}),
       ...(snapshots ? { snapshots: Object.values(snapshots).reduce((a, l) => a + l.length, 0) } : {}),
     },
@@ -129,6 +131,10 @@ const briefCount = (v) => asArray(v).length;
 /** The briefs in a backup that are still within their retention (a missing retainUntil counts from createdAt). */
 const briefObjects = (v) => asArray(v).filter((b) => b && typeof b === 'object');
 const liveBriefs = (v, now) => briefObjects(v).filter((b) => retentionEnd(b) >= now);
+/** The line saying a restore left more quick underwritings than the app keeps, or ''. */
+const scratchLimitLine = (n) => (n > MAX_SCRATCH ? `This leaves ${n} quick underwritings, over the ${MAX_SCRATCH} the app keeps: new ones are refused until some are deleted.` : '');
+/** The line saying how many quick underwritings in a backup could not be read, or ''. */
+const scratchDroppedLine = (n) => (n ? `${n} quick underwriting${n === 1 ? '' : 's'} in this backup could not be read and ${n === 1 ? 'was' : 'were'} left out.` : '');
 /** The line saying a restore left more briefs than the app keeps, or ''. */
 const briefLimitLine = (n) => (n > 200 ? `This leaves ${n} research briefs, over the 200 the app keeps: new briefs are refused until some are deleted.` : '');
 const newer = (a, b) => (a.updatedAt || a.createdAt || 0) > (b.updatedAt || b.createdAt || 0);
@@ -180,6 +186,8 @@ export function planRestore(backup, current, mode = 'merge', now = Date.now()) {
     // the AI settings on this device stay exactly as they are: the backup carries none and removeKv never lists them
     const kv = { ...backup.kv };
     if ('research.briefs' in kv) kv['research.briefs'] = liveBriefs(kv['research.briefs'], now);
+    const qu = cleanScratch(kv[SCRATCH]);
+    if (SCRATCH in kv) kv[SCRATCH] = qu.list;
     const keepIds = new Set(backup.deals.map((d) => d.id));
     const removeDeals = current.deals.filter((d) => !keepIds.has(d.id)).map((d) => d.id);
     summary.push(`${backup.deals.length} deal${backup.deals.length === 1 ? '' : 's'} restored; ${removeDeals.length} deal${removeDeals.length === 1 ? '' : 's'} on this device not in the backup will be deleted.`);
@@ -188,6 +196,12 @@ export function planRestore(backup, current, mode = 'merge', now = Date.now()) {
     const lost = briefCount(current.kv['research.briefs']);
     if (lost && !(kv['research.briefs'] || []).length) summary.push(`${lost} research brief${lost === 1 ? '' : 's'} on this device will be deleted.`);
     else if (lost) summary.push(`Research briefs on this device are replaced by the ${kv['research.briefs'].length} in the backup.`);
+    const lostAhead = asArray(current.kv[SCRATCH]).filter((r) => kvTooNew(SCRATCH, r)).length;
+    if (lostAhead) summary.push(`${lostAhead} quick underwriting${lostAhead === 1 ? '' : 's'} on this device made by a newer version of Zlatura ${lostAhead === 1 ? 'is' : 'are'} not shown and will be deleted too.`);
+    const lostQu = asArray(current.kv[SCRATCH]).length;
+    if (lostQu && !qu.list.length) summary.push(`${lostQu} quick underwriting${lostQu === 1 ? '' : 's'} on this device will be deleted.`);
+    else if (lostQu) summary.push(`Quick underwritings on this device are replaced by the ${qu.list.length} in the backup.`);
+    for (const line of [scratchDroppedLine(qu.dropped), scratchLimitLine(qu.list.length)]) if (line) summary.push(line);
     const hs = historyPlan(backup, keepIds);
     if (hs.line) summary.push(hs.line);
     const up = upgradeLine(backup.deals);
@@ -212,6 +226,15 @@ export function planRestore(backup, current, mode = 'merge', now = Date.now()) {
     const m = mergeById(briefObjects(current.kv['research.briefs']), liveBriefs(backup.kv['research.briefs'], now));
     if (m.added || m.updated) { kv['research.briefs'] = m.list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); summary.push(`Research briefs: ${m.added} added${m.updated ? `, ${m.updated} updated` : ''}.`); }
     const over = briefLimitLine(m.list.length); if (over) summary.push(over);
+  }
+  // quick underwritings: the newer updatedAt wins; one made by a newer version is never overwritten
+  if (backup.kv[SCRATCH] !== undefined) {
+    const there = cleanScratch(backup.kv[SCRATCH]);
+    const here = asArray(current.kv[SCRATCH]).filter((r) => r && typeof r === 'object');
+    const ahead = new Set(here.filter((r) => kvTooNew(SCRATCH, r)).map((r) => r.id));
+    const m = mergeById(here, there.list.filter((r) => !ahead.has(r.id)));
+    if (m.added || m.updated) { kv[SCRATCH] = m.list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); summary.push(`Quick underwritings: ${m.added} added${m.updated ? `, ${m.updated} updated` : ''}.`); }
+    for (const line of [scratchDroppedLine(there.dropped), scratchLimitLine(m.list.length)]) if (line) summary.push(line);
   }
   if (kv['crm.activity']) kv['crm.activity'].sort((a, b) => a.at - b.at);
   if (backup.kv['tools.scenarios']) {
@@ -248,7 +271,7 @@ export function planRestore(backup, current, mode = 'merge', now = Date.now()) {
   }
   // anything else (settings, layouts) only where the device has none
   for (const [k, v] of Object.entries(backup.kv)) {
-    if (k in kv || ['tpl.library', 'crm.tasks', 'crm.contacts', 'crm.activity', 'tools.scenarios', 't12.labels', 'research.briefs'].includes(k)) continue;
+    if (k in kv || ['tpl.library', 'crm.tasks', 'crm.contacts', 'crm.activity', 'tools.scenarios', 't12.labels', 'research.briefs', SCRATCH].includes(k)) continue;
     if (!(k in current.kv) || current.kv[k] === null) kv[k] = v;
   }
   const session = current.session ? null : backup.session;
