@@ -4,6 +4,7 @@
 
 const KEY = 'zlatura.theme';
 const BAR = { light: '#F7F6F3', dark: '#0F1012' };
+const BAR_NEW = { light: '#F4F5F7', dark: '#111316' }; // the New look's page colours
 
 export function getTheme() {
   try { const t = localStorage.getItem(KEY); return t === 'light' || t === 'dark' ? t : 'system'; } catch { return 'system'; }
@@ -27,9 +28,10 @@ export function sync() {
   const mode = getTheme();
   document.querySelectorAll('[data-theme-set]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.themeSet === mode)));
   const eff = effectiveTheme();
+  const bars = document.documentElement.dataset.look === 'new' ? BAR_NEW : BAR;
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
     // with a fixed choice both tags show it; with "system" each keeps its own media query
-    m.setAttribute('content', mode === 'system' ? (m.media.includes('dark') ? BAR.dark : BAR.light) : BAR[eff]);
+    m.setAttribute('content', mode === 'system' ? (m.media.includes('dark') ? bars.dark : bars.light) : bars[eff]);
   });
 }
 
