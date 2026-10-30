@@ -9,6 +9,7 @@
  * Everything here is pure except load/save/delete, which take the storage as an argument (default: the app's
  * kv store), as research.js does. */
 
+import { PRODUCT } from './brand.js';
 import * as store from './store.js';
 import { quantizeDeal } from './engine/money.js';
 import { analyze, scenarioAnswers } from './deal.js';
@@ -132,7 +133,7 @@ export async function loadScratch(s) {
 export async function saveScratch(rec, s) {
   const list = await loadRaw(s);
   const at = list.findIndex((b) => b.id === rec.id);
-  if (at >= 0 && kvTooNew(KEY, list[at])) throw new Error('That quick underwriting was made by a newer version of Zlatura and is kept as it is.');
+  if (at >= 0 && kvTooNew(KEY, list[at])) throw new Error(`That quick underwriting was made by a newer version of ${PRODUCT} and is kept as it is.`);
   if (at < 0 && list.length >= MAX_SCRATCH) throw new Error(`There are ${MAX_SCRATCH} quick underwritings on this device: delete one first.`);
   quantizeDeal(rec);
   if (at >= 0) list[at] = rec; else { list.push(rec); list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); }

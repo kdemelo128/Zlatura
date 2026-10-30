@@ -18,6 +18,33 @@ export const PRODUCT = 'Zlatura';
 export const TAGLINE = 'Every source. Every assumption. Every number.';
 export const ABOUT_NAME = 'Zlatura joins two words for wealth: zlato, gold in Serbian and Croatian, and fartura, abundance in Brazilian Portuguese.';
 
+/** The line under the name in the sidebar. */
+export const DESCRIPTOR = 'Brokerage workspace';
+/**
+ * The mark, drawn once. installBrand() puts it in the page as one <symbol> and every place that shows
+ * it (the sidebar, the top bar) is a <use> of that symbol, so a new mark is a change to this record.
+ * Strokes are currentColor: the .brand-mark box sets the colour. The same name and mark are what
+ * the manifest, the <title> and the home-screen name say (tests/brand.test.js checks they agree).
+ */
+export const MARK = { viewBox: '0 0 24 24', stroke: 2.4, body: '<path d="M6.5 6h11l-11 12h11M8.75 12h6.5"/>' };
+
+/** Draw the mark once and fill every [data-brand-mark], [data-brand-name] and [data-brand-sub] in the page. */
+export function installBrand(doc = document) {
+  if (!doc.getElementById('brand-sprite')) {
+    const sp = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    sp.id = 'brand-sprite';
+    sp.setAttribute('aria-hidden', 'true');
+    sp.setAttribute('width', '0');
+    sp.setAttribute('height', '0');
+    sp.style.position = 'absolute';
+    sp.innerHTML = `<symbol id="brand-mark" viewBox="${MARK.viewBox}" fill="none" stroke="currentColor" stroke-width="${MARK.stroke}" stroke-linecap="round" stroke-linejoin="round">${MARK.body}</symbol>`;
+    doc.body.prepend(sp);
+  }
+  for (const m of doc.querySelectorAll('[data-brand-mark]')) m.innerHTML = '<svg width="17" height="17" aria-hidden="true"><use href="#brand-mark"/></svg>';
+  for (const n of doc.querySelectorAll('[data-brand-name]')) n.textContent = PRODUCT;
+  for (const n of doc.querySelectorAll('[data-brand-sub]')) n.textContent = DESCRIPTOR;
+}
+
 export const OLD_PRODUCT = 'Comp Loader';
 export const KEY_PREFIX = 'zlatura.';
 export const OLD_KEY_PREFIX = 'comp-loader.';

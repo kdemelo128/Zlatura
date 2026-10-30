@@ -6,6 +6,7 @@
  * history cover it. Typing is read when a field is left, and only the checks
  * are redrawn. The record is in backups and on this screen; it is on no export. */
 
+import { PRODUCT } from './brand.js';
 import { el, parseNum, toast, localDate } from './kit.js';
 import { dateInput } from './dateinput.js';
 import { mendCredit, newCredit, creditChecks, readRating, ratingGap, ratingLine, clip, AGENCIES, partyLabel, MAX_TEXT, MAX_LONG } from './credit.js';
@@ -23,7 +24,7 @@ export function renderCreditCard(box, h) {
   head.appendChild(el('h2', null, 'Credit'));
   box.appendChild(head);
   if (!d.credit) {
-    box.appendChild(el('p', 'hint credit-hint', 'Record who pays the rent and who guarantees it. Zlatura never looks a rating up.'));
+    box.appendChild(el('p', 'hint credit-hint', `Record who pays the rent and who guarantees it. ${PRODUCT} never looks a rating up.`));
     const add = el('button', 'btn btn-primary btn-sm', 'Add a credit record');
     add.type = 'button';
     add.id = 'credit-add';

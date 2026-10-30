@@ -5,6 +5,7 @@
  * doesn't add up, the questions to ask, and what was seen on site. The text
  * summary is the same in five lines, for a text or a Teams message. */
 
+import { PRODUCT } from './brand.js';
 import { waltMethod } from './engine/walt.js';
 import { scheduleCells } from './rentschedule.js';
 import { dealSchedules, typedPrice, leaseName } from './lease.js';
@@ -179,6 +180,6 @@ export function renderDealBrief(box, { deal, m, comps, photos = [], preparedBy =
   }
   box.appendChild(h(doc, 'p', 'ps-foot',
     'Figures read from the offering memorandum and checked against each other; "derived" figures were worked out from the others. '
-    + 'Verify against the leases, the operating statements and the title before relying on any of them. Compiled with Zlatura.'));
+    + `Verify against the leases, the operating statements and the title before relying on any of them. Compiled with ${PRODUCT}.`));
   if (deal.confidential) box.appendChild(h(doc, 'p', 'ps-foot', 'CONFIDENTIAL. Prepared for the named recipient only; do not copy, forward or post.'));
 }

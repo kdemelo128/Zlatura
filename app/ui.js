@@ -15,7 +15,8 @@
  * starts them and lends them the comp set. */
 
 // first: moves settings kept under the old name before any module reads them
-import { PRODUCT } from './brand.js';
+import { PRODUCT, installBrand } from './brand.js';
+import { hydrateIcons } from './icons.js';
 import { isPriced } from './engine/comps.js';
 import { toCents } from './engine/money.js';
 import { setConventions } from './engine/conventions.js';
@@ -31,7 +32,7 @@ import { VERSION, compsCsv, tsvCell, renderCompSheet, fullAddress } from './expo
 import { compBasis } from './deal.js';
 import { dateInput } from './dateinput.js';
 import {
-  $, el, svg, IN_ARTIFACT, XLSX, parseNum, parsePct, int, dec, money2, pct, localDate, toast,
+  $, el, icon, IN_ARTIFACT, XLSX, parseNum, parsePct, int, dec, money2, pct, localDate, toast,
   openSheet, closeSheet, backdropCloses, backClosesSheet, actionSheet, getPdfjs, getXlsx, getFflate, idle,
   isIOS, isStandalone, canShareFiles, deliver, deliveryError, printed, copyText, pdfProblem,
 } from './kit.js';
@@ -48,6 +49,8 @@ import { initReview } from './reviewui.js';
 import { initResearch } from './researchui.js';
 
 window.__zlaturaReady = true;
+installBrand();
+hydrateIcons();
 
 const state = {
   docs: [],          // [{ name, pages }] every report read, in the order added
@@ -282,9 +285,9 @@ const MKT_HEAD = [
   ['$/SF', 'r'], ['Cap %', 'r'], ['Occ %', 'r'], ['Zoning', ''], ['Lot SF', 'r'], ['', 'r'],
 ];
 
-const ICON_MOVE = svg('<path d="M7 7h11l-3-3M17 17H6l3 3"/>', 17);
-const ICON_INFO = svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>', 17);
-const ICON_DEL = svg('<path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/>', 17);
+const ICON_MOVE = icon('swap', 17);
+const ICON_INFO = icon('info', 17);
+const ICON_DEL = icon('trash', 17);
 
 function textInput(c, field, label, onEdit) {
   const i = el('input');
@@ -673,7 +676,7 @@ function restoreSnapshot(s) {
 function queueItem(name) {
   const li = el('li');
   const icon = el('span', 'chev');
-  icon.innerHTML = svg('<path d="M14 3H7a2.5 2.5 0 0 0-2.5 2.5v13A2.5 2.5 0 0 0 7 21h10a2.5 2.5 0 0 0 2.5-2.5V8.5z"/><path d="M14 3v5.5h5.5"/>', 16);
+  icon.innerHTML = icon('file-text', 16);
   li.appendChild(icon);
   li.appendChild(el('span', 'name', name));
   const st = el('span', 'state', 'waiting…');
@@ -1250,11 +1253,11 @@ async function mapTemplate(first = false) {
 
 async function templateMenu() {
   const v = await actionSheet(state.template.name, [
-    { label: 'Change columns', value: 'map', icon: '<path d="M4 6h16M4 12h16M4 18h10"/>' },
-    { label: 'Replace template…', value: 'replace', icon: '<path d="M12 16V4m0 0L8 8m4-4l4 4M5 20h14"/>' },
-    { label: 'Download blank template', value: 'download', icon: '<path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/>' },
+    { label: 'Change columns', value: 'map', icon: 'menu' },
+    { label: 'Replace template…', value: 'replace', icon: 'upload' },
+    { label: 'Download blank template', value: 'download', icon: 'export' },
     '-',
-    { label: 'Remove template', value: 'remove', danger: true, icon: '<path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/>' },
+    { label: 'Remove template', value: 'remove', danger: true, icon: 'trash' },
   ]);
   if (v === 'map') mapTemplate();
   else if (v === 'replace') $('tpl-file').click();
@@ -1326,16 +1329,16 @@ $('comps-more').addEventListener('click', async () => {
   const n = state.sales.filter(included).length + state.market.filter(included).length;
   const any = state.sales.length + state.market.length > 0 || state.docs.length > 0;
   const v = await actionSheet(null, [
-    ...(canShareFiles() ? [{ label: 'Share workbook…', sub: 'Mail, Messages, Files, Teams', value: 'share', disabled: !n, icon: '<path d="M12 15V3m0 0L8 7m4-4l4 4M6 11H5a1 1 0 00-1 1v8a1 1 0 001 1h14a1 1 0 001-1v-8a1 1 0 00-1-1h-1"/>' }] : []),
-    ...(IN_ARTIFACT ? [] : [{ label: 'Comp sheet', sub: 'one page to print or save as PDF', value: 'print', disabled: !n, icon: '<path d="M7 9V3h10v6M7 17H5a2 2 0 01-2-2v-4a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2h-2M7 14h10v7H7z"/>' }]),
-    { label: 'CSV', sub: 'for a CRM or Google My Maps', value: 'csv', disabled: !n, icon: '<path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5M8 13h8M8 17h5"/>' },
-    { label: 'Copy comp table', sub: 'to paste into an email', value: 'copy', disabled: !n, icon: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/>' },
+    ...(canShareFiles() ? [{ label: 'Share workbook…', sub: 'Mail, Messages, Files, Teams', value: 'share', disabled: !n, icon: 'share' }] : []),
+    ...(IN_ARTIFACT ? [] : [{ label: 'Comp sheet', sub: 'one page to print or save as PDF', value: 'print', disabled: !n, icon: 'print' }]),
+    { label: 'CSV', sub: 'for a CRM or Google My Maps', value: 'csv', disabled: !n, icon: 'file-text' },
+    { label: 'Copy comp table', sub: 'to paste into an email', value: 'copy', disabled: !n, icon: 'copy' },
     '-',
-    { label: 'Template library…', sub: 'your firm’s workbooks, mapped and filled for a deal', value: 'library', icon: '<path d="M4 5h16v14H4zM4 10h16M10 10v9"/>' },
-    { label: 'Save project file', sub: 'the whole comp set, to reopen anywhere', value: 'save', disabled: !any, icon: '<path d="M5 3h11l3 3v13a2 2 0 01-2 2H7a2 2 0 01-2-2z"/><path d="M8 3v5h7M8 21v-6h8v6"/>' },
-    { label: 'Open project file…', value: 'open', icon: '<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>' },
+    { label: 'Template library…', sub: 'your firm’s workbooks, mapped and filled for a deal', value: 'library', icon: 'table' },
+    { label: 'Save project file', sub: 'the whole comp set, to reopen anywhere', value: 'save', disabled: !any, icon: 'save' },
+    { label: 'Open project file…', value: 'open', icon: 'folder' },
     '-',
-    { label: 'Clear all comps', value: 'reset', danger: true, disabled: !any, icon: '<path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/>' },
+    { label: 'Clear all comps', value: 'reset', danger: true, disabled: !any, icon: 'trash' },
   ]);
   if (v === 'share') exportWorkbook({ share: true });
   else if (v === 'print') printSheet();

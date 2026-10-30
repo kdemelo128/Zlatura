@@ -31,7 +31,7 @@ import { affectsButton } from './impactui.js';
 import { dateInput } from './dateinput.js';
 import { redrawKeepingFocus } from './focuskeep.js';
 import {
-  el, svg, parseNum, parsePct, int, dec, money0, money2, pct, short, yrs, toast, actionSheet, getXlsx, deliver, XLSX,
+  el, icon, parseNum, parsePct, int, dec, money0, money2, pct, short, yrs, toast, actionSheet, getXlsx, deliver, XLSX,
   getPdfjs, pdfProblem, localDate,
 } from './kit.js';
 
@@ -265,13 +265,13 @@ export function renderRentRollWorkspace(box, deal, compsApi, onChange, hooks = {
       const act = el('td', 'rr-act');
       const sched = el('button', 'iconbtn');
       sched.type = 'button';
-      sched.innerHTML = svg('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M7 14h4M7 17h7"/>', 16);
+      sched.innerHTML = icon('calendar', 16);
       sched.setAttribute('aria-label', `Lease schedule: unit ${L.unit || ri + 1}`);
       sched.title = 'Lease schedule';
       sched.addEventListener('click', () => scheduleSheet(rr, L, changed));
       const menu = el('button', 'iconbtn');
       menu.type = 'button';
-      menu.innerHTML = svg('<circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/>', 16);
+      menu.innerHTML = icon('more', 16);
       menu.setAttribute('aria-label', `More for unit ${L.unit || ri + 1}`);
       menu.addEventListener('click', async () => {
         const v = await actionSheet(`Unit ${L.unit || ''} ${L.tenant ? `· ${L.tenant}` : ''}`, [
@@ -650,7 +650,7 @@ function settingsForm(deal, rr, changed) {
     n.addEventListener('change', () => { o.name = n.value; changed(false); });
     const a = el('input', 'input n'); a.inputMode = 'decimal'; a.value = ok(o.annual) ? int(o.annual) : ''; a.setAttribute('aria-label', `${o.name || 'Other income'}, a year`);
     a.addEventListener('change', () => { o.annual = parseNum(a.value); changed(); });
-    const x = el('button', 'iconbtn'); x.type = 'button'; x.innerHTML = svg('<path d="M6 6l12 12M18 6L6 18"/>', 14); x.setAttribute('aria-label', 'Remove');
+    const x = el('button', 'iconbtn'); x.type = 'button'; x.innerHTML = icon('close', 14); x.setAttribute('aria-label', 'Remove');
     x.addEventListener('click', () => { s.otherIncome.splice(i, 1); changed(); });
     row.append(n, a, x);
     oi.appendChild(row);
@@ -682,13 +682,13 @@ function columnsSheet(rr, changed) {
       for (const [v, l] of [[80, 'S'], [120, 'M'], [180, 'L'], [260, 'XL']]) { const o = el('option', null, l); o.value = String(v); w.appendChild(o); }
       w.value = String([80, 120, 180, 260].reduce((a, b) => (Math.abs(b - (c.width || 120)) < Math.abs(a - (c.width || 120)) ? b : a)));
       w.addEventListener('change', () => { c.width = Number(w.value); changed(); });
-      const up = el('button', 'iconbtn'); up.type = 'button'; up.innerHTML = svg('<path d="M6 15l6-6 6 6"/>', 15); up.setAttribute('aria-label', `Move ${c.label} up`); up.disabled = i === 0;
+      const up = el('button', 'iconbtn'); up.type = 'button'; up.innerHTML = icon('up', 15); up.setAttribute('aria-label', `Move ${c.label} up`); up.disabled = i === 0;
       up.addEventListener('click', () => { rr.columns.splice(i - 1, 0, rr.columns.splice(i, 1)[0]); changed(); draw(); });
-      const dn = el('button', 'iconbtn'); dn.type = 'button'; dn.innerHTML = svg('<path d="M6 9l6 6 6-6"/>', 15); dn.setAttribute('aria-label', `Move ${c.label} down`); dn.disabled = i === rr.columns.length - 1;
+      const dn = el('button', 'iconbtn'); dn.type = 'button'; dn.innerHTML = icon('down', 15); dn.setAttribute('aria-label', `Move ${c.label} down`); dn.disabled = i === rr.columns.length - 1;
       dn.addEventListener('click', () => { rr.columns.splice(i + 1, 0, rr.columns.splice(i, 1)[0]); changed(); draw(); });
       row.append(cb, name, w, up, dn);
       if (c.custom) {
-        const x = el('button', 'iconbtn'); x.type = 'button'; x.innerHTML = svg('<path d="M6 6l12 12M18 6L6 18"/>', 14); x.setAttribute('aria-label', `Delete the ${c.label} field`);
+        const x = el('button', 'iconbtn'); x.type = 'button'; x.innerHTML = icon('close', 14); x.setAttribute('aria-label', `Delete the ${c.label} field`);
         x.addEventListener('click', () => { rr.columns.splice(i, 1); changed(); draw(); toast(`${c.label} removed from the grid. Values typed in it stay with each lease.`); });
         row.appendChild(x);
       }
@@ -1241,15 +1241,15 @@ function scheduleSheet(rr, L, changed) {
       k.value = p.source || 'documented'; k.addEventListener('change', () => { p.source = k.value; edit(); });
       tdK.appendChild(k); tr.appendChild(tdK);
       const tdA = el('td', 'acts');
-      const ins = el('button', 'iconbtn'); ins.type = 'button'; ins.innerHTML = svg('<path d="M12 5v14M5 12h14"/>', 14); ins.setAttribute('aria-label', `Insert a period after period ${i + 1}`);
+      const ins = el('button', 'iconbtn'); ins.type = 'button'; ins.innerHTML = icon('plus', 14); ins.setAttribute('aria-label', `Insert a period after period ${i + 1}`);
       ins.addEventListener('click', () => {
         const start = addDays(p.end, 1);
         periods.splice(i + 1, 0, { start, end: addDays(addMonths(start, 12), -1), rate: p.rate, unit: p.unit, source: p.source || 'documented' });
         edit();
       });
-      const dup = el('button', 'iconbtn'); dup.type = 'button'; dup.innerHTML = svg('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/>', 14); dup.setAttribute('aria-label', `Duplicate period ${i + 1}`);
+      const dup = el('button', 'iconbtn'); dup.type = 'button'; dup.innerHTML = icon('copy', 14); dup.setAttribute('aria-label', `Duplicate period ${i + 1}`);
       dup.addEventListener('click', () => { periods.splice(i + 1, 0, { ...p }); edit(); toast('Duplicated: change its dates so the two don’t overlap.'); });
-      const del = el('button', 'iconbtn'); del.type = 'button'; del.innerHTML = svg('<path d="M6 6l12 12M18 6L6 18"/>', 14); del.setAttribute('aria-label', `Delete period ${i + 1}`);
+      const del = el('button', 'iconbtn'); del.type = 'button'; del.innerHTML = icon('close', 14); del.setAttribute('aria-label', `Delete period ${i + 1}`);
       del.addEventListener('click', () => { periods.splice(i, 1); edit(); });
       tdA.append(ins, dup, del); tr.appendChild(tdA);
       pt.appendChild(tr);
@@ -1307,7 +1307,7 @@ function scheduleSheet(rr, L, changed) {
       const e1 = dateInput({ value: a.end, label: `Abatement ${i + 1} to`, end: true, onCommit: (iso) => { a.end = iso; edit(); } });
       const p1 = el('input', 'n'); p1.inputMode = 'decimal'; p1.value = ok(a.pct) ? String(a.pct) : '100'; p1.setAttribute('aria-label', `Abatement ${i + 1} percent of rent`);
       p1.addEventListener('change', () => { a.pct = parsePct(p1.value, { fraction: false }); edit(); });
-      const x = el('button', 'iconbtn'); x.type = 'button'; x.innerHTML = svg('<path d="M6 6l12 12M18 6L6 18"/>', 14); x.setAttribute('aria-label', `Remove abatement ${i + 1}`);
+      const x = el('button', 'iconbtn'); x.type = 'button'; x.innerHTML = icon('close', 14); x.setAttribute('aria-label', `Remove abatement ${i + 1}`);
       x.addEventListener('click', () => { ab.splice(i, 1); edit(); });
       row.append(s1, el('span', null, 'to'), e1, p1, el('span', null, '% off'), x);
       body.appendChild(row);
@@ -1328,7 +1328,7 @@ function scheduleSheet(rr, L, changed) {
       a1.addEventListener('change', () => { o.amount = parseNum(a1.value); edit(); });
       const n1 = el('input', 'input'); n1.value = o.note || ''; n1.placeholder = 'what it is'; n1.setAttribute('aria-label', `Item ${i + 1} note`);
       n1.addEventListener('change', () => { o.note = n1.value; changed(); });
-      const x = el('button', 'iconbtn'); x.type = 'button'; x.innerHTML = svg('<path d="M6 6l12 12M18 6L6 18"/>', 14); x.setAttribute('aria-label', `Remove item ${i + 1}`);
+      const x = el('button', 'iconbtn'); x.type = 'button'; x.innerHTML = icon('close', 14); x.setAttribute('aria-label', `Remove item ${i + 1}`);
       x.addEventListener('click', () => { ot.splice(i, 1); edit(); });
       row.append(d1, a1, n1, x);
       body.appendChild(row);

@@ -4,7 +4,7 @@
 import * as crm from './crm.js';
 import * as ai from './ai.js';
 import { STAGE_LABEL, stageChoices, stageOf, taskBuckets, CONTACT_ROLES, KEY_DATE_LABELS, isoDay } from './pipeline.js';
-import { el, svg, toast, niceDate, actionSheet, openSheet, closeSheet, backdropCloses, deliver, deliveryError, isIOS, isStandalone } from './kit.js';
+import { el, icon, toast, niceDate, actionSheet, openSheet, closeSheet, backdropCloses, deliver, deliveryError, isIOS, isStandalone } from './kit.js';
 import { icsFor, dealEvents, closingOf, exchangeEvents } from './ics.js';
 import { VERSION } from './exporters.js';
 import { dateInput } from './dateinput.js';
@@ -94,12 +94,12 @@ export async function renderDealCrm(box, d, { touch, api }) {
     main.appendChild(el('span', 'task-meta', `${niceDate(`${k.date}T12:00:00`)}${!k.done && k.date < today ? ' · past' : ''}`));
     const ad = el('button', 'iconbtn');
     ad.type = 'button';
-    ad.innerHTML = svg('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>', 14);
+    ad.innerHTML = icon('calendar', 14);
     ad.setAttribute('aria-label', `Add to calendar: ${k.label}`);
     ad.addEventListener('click', () => calendarSheet(d, tasks, `kd-${k.id}`));
     const x = el('button', 'iconbtn');
     x.type = 'button';
-    x.innerHTML = svg('<path d="M6 6l12 12M18 6L6 18"/>', 14);
+    x.innerHTML = icon('close', 14);
     x.setAttribute('aria-label', `Delete key date: ${k.label}`);
     x.addEventListener('click', () => {
       const keep = d.keyDates;
@@ -146,7 +146,7 @@ export async function renderDealCrm(box, d, { touch, api }) {
     row.appendChild(contactLinks(c));
     const x = el('button', 'iconbtn');
     x.type = 'button';
-    x.innerHTML = svg('<path d="M6 6l12 12M18 6L6 18"/>', 14);
+    x.innerHTML = icon('close', 14);
     x.setAttribute('aria-label', `Remove ${c.name} from this deal`);
     x.addEventListener('click', () => crm.linkContact(c.id, d.id, false));
     row.appendChild(x);
@@ -207,7 +207,7 @@ export function taskRow(t, { overdue = false, dealName = null, onDeal = null } =
   if (meta || dealName) main.appendChild(sub);
   const x = el('button', 'iconbtn');
   x.type = 'button';
-  x.innerHTML = svg('<path d="M6 6l12 12M18 6L6 18"/>', 14);
+  x.innerHTML = icon('close', 14);
   x.setAttribute('aria-label', `Delete task: ${t.title}`);
   x.addEventListener('click', async () => {
     const gone = await crm.deleteTask(t.id);

@@ -21,6 +21,7 @@
  * XML is handled through DOMParser/XMLSerializer, injected so the tests can
  * run it outside a browser. */
 
+import { PRODUCT } from './brand.js';
 import { toCents } from './engine/money.js';
 
 const MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
@@ -944,7 +945,7 @@ function renameSheet(pkg, from, to) {
   pkg.dirty('xl/workbook.xml');
 }
 
-const AUDIT = 'Zlatura Audit';
+const AUDIT = `${PRODUCT} Audit`;
 /** The audit sheet's name before the rename: refilling such a workbook replaces it. */
 const OLD_AUDIT = 'Comp Loader Audit';
 // cut before escaping: cutting after could split an entity such as &amp; and break the XML
@@ -958,7 +959,7 @@ function addAuditSheet(pkg, log, auditTitle) {
     return `<c r="${colName(c)}${r}" t="inlineStr"><is><t xml:space="preserve">${esc(t)}</t></is></c>`;
   };
   const rows = [
-    [`Filled by Zlatura on ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC${auditTitle ? ` · ${auditTitle}` : ''}`],
+    [`Filled by ${PRODUCT} on ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC${auditTitle ? ` · ${auditTitle}` : ''}`],
     ['Only the cells below were written. Cells holding formulas were left alone. Excel recalculates when the file opens.'],
     [],
     ['Sheet', 'Cell', 'Field', 'Value written', 'Source', 'Formulas reading it'],

@@ -10,6 +10,7 @@
  *
  * parseDateText and fmtDate are pure and run in Node; dateInput builds the
  * element and touches the page only when it is called. */
+import { icon } from './icons.js';
 
 /** @typedef {string} IsoDay A calendar day as 'YYYY-MM-DD'. */
 
@@ -127,7 +128,7 @@ export function dateInput({ value = '', label = '', id = '', end = false, onComm
   pick.className = 'di-pick';
   pick.tabIndex = -1; // typing is the way in from a keyboard; the button is for a finger or a mouse
   pick.setAttribute('aria-label', label ? `Pick a date for ${label}` : 'Pick a date');
-  pick.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>';
+  pick.innerHTML = icon('calendar', 18);
   const native = document.createElement('input');
   native.type = 'date';
   native.className = 'di-native';

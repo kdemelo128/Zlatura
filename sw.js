@@ -104,6 +104,7 @@ const ASSETS = [
   'app/claims.js',
   'app/research.js',
   'app/brand.js',
+  'app/icons.js',
   'app/engine/breakeven.js',
   'app/engine/comps.js',
   'app/engine/conventions.js',

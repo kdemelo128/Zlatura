@@ -9,6 +9,7 @@
  * (UsdPerMonth) and its total for the period (UsdPerYear over 12 months; over
  * fewer months it is what those months add up to, never scaled up). */
 
+import { PRODUCT } from './brand.js';
 import { toCents } from './engine/money.js';
 import { median } from './engine/comps.js';
 import { conv } from './engine/conventions.js';
@@ -335,7 +336,7 @@ export function numberFormatOf(rows, layout, { delimiter = ',' } = {}) {
 }
 
 /** Why a statement in another currency is not read, or null for dollars. */
-export const currencyRefusal = (sign) => (sign ? `Amounts in ${sign} can’t be read as dollars. Zlatura reads dollar statements only; this file was not imported.` : null);
+export const currencyRefusal = (sign) => (sign ? `Amounts in ${sign} can’t be read as dollars. ${PRODUCT} reads dollar statements only; this file was not imported.` : null);
 
 /**
  * Read a statement from a sheet's rows ([{ r, cells }], as sheetread.js gives
@@ -705,7 +706,7 @@ export function statementNotes(t) {
   const ls = earlierFilings(t);
   if (!ls.length) return [];
   const names = [...new Set(ls.map((l) => l.label))];
-  return [{ id: 'note.earlier', kind: 'note', lineIds: ls.map((l) => l.id), text: `${ls.length} line${ls.length === 1 ? ' was' : 's were'} filed by an earlier version of Zlatura from a label you filed before or by its wording, without asking: ${names.slice(0, 4).join(', ')}${names.length > 4 ? ', …' : ''}. They are kept as they were. Zlatura now asks first; change any of them in Every line.` }];
+  return [{ id: 'note.earlier', kind: 'note', lineIds: ls.map((l) => l.id), text: `${ls.length} line${ls.length === 1 ? ' was' : 's were'} filed by an earlier version of ${PRODUCT} from a label you filed before or by its wording, without asking: ${names.slice(0, 4).join(', ')}${names.length > 4 ? ', …' : ''}. They are kept as they were. ${PRODUCT} now asks first; change any of them in Every line.` }];
 }
 /** A check marked seen (in place): it stays in the statement, and leaves the Review Queue. */
 export function markSeen(t, checkId) {

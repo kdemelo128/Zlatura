@@ -4,6 +4,7 @@
  * Both take the comps exactly as the workbook would (included, edited, in
  * $/SF order), so the three outputs never disagree. */
 
+import { PRODUCT } from './brand.js';
 import { signOf } from './numtext.js';
 import { feeSummary } from './calc.js';
 import { toCents, toRate } from './engine/money.js';
@@ -253,7 +254,7 @@ export function renderCompSheet(box, { sales, market, subject = {}, label, prepa
   table('On market, high to low asking $/SF', market, 'market');
 
   box.appendChild(h(doc, 'p', 'ps-foot',
-    'Source: CoStar comp reports, compiled with Zlatura. $/SF is price over building size. Weighted figures divide '
+    `Source: CoStar comp reports, compiled with ${PRODUCT}. $/SF is price over building size. Weighted figures divide `
     + 'total price by total size; undisclosed prices (n/d) are excluded from them. Information deemed reliable but not '
     + 'guaranteed.'));
 }
