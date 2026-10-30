@@ -62,3 +62,24 @@ test('the gitleaks allowlist names exact paths and says they are not secrets', (
   assert.match(g, /^paths = \[\n(\s+'''\^[^\n]+\$''',\n)+\]/m);
   assert.match(g, /not secrets/);
 });
+
+// Advisory exceptions: each one names an advisory, a written reason and an expiry no more than 90 days out
+// from the date it was granted (the grant date is in the comment above the entry), and the scan stays
+// unfiltered otherwise.
+test('osv-scanner.toml exceptions are time-boxed, reasoned and the scan step has no blanket ignore', () => {
+  const toml = read('osv-scanner.toml');
+  const entries = toml.split('[[IgnoredVulns]]').slice(1);
+  assert.ok(entries.length > 0);
+  for (const e of entries) {
+    assert.match(e, /^\s*id = "GHSA-[a-z0-9-]+"/m, 'ignored advisory has no id');
+    assert.match(e, /^reason = ".{40,}"/m, 'ignored advisory has no written reason');
+    const until = e.match(/^ignoreUntil = (\d{4}-\d{2}-\d{2})\s*$/m);
+    assert.ok(until, 'ignored advisory has no ignoreUntil date');
+    const granted = e.match(/from (\d{4}-\d{2}-\d{2})/);
+    assert.ok(granted, 'comment must say which date the 60 days run from');
+    const days = (Date.parse(until[1]) - Date.parse(granted[1])) / 864e5;
+    assert.ok(days > 0 && days <= 90, `ignoreUntil is ${days} days after the grant; the limit is 90`);
+  }
+  assert.doesNotMatch(wf, /osv-scanner[^\n]*\|\| true/);
+  assert.doesNotMatch(wf, /--config|--experimental-all-packages/);
+});

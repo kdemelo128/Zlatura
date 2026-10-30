@@ -96,3 +96,18 @@ itself is not installed or run. First applied by hand on 2026-10-21 (findings F1
 
 Fixes are separate PRs with a test that fails on the old code. A finding that changes a stored field, a saved result
 or hosting is an approval gate.
+
+## Time-boxed advisory exceptions
+
+`osv-scanner.toml` (repo root) lists advisories the CI `dependencies` job is allowed to skip. Each entry needs a
+written reason and an `ignoreUntil` date at most 90 days from the grant (`tests/ci-scanners.test.js` checks this).
+When the date passes, the scanner fails again on purpose: upgrade, or review and renew with a new reason.
+
+- **GHSA-g3hv-75wg-m249** (minimatch, medium, CVSS 6.9; fixed in 11.0.1), granted 2026-10-30, until 2026-12-29. Hit
+  minimatch 3.1.5 and 5.1.9 in `package-lock.json`, reached only through the devDependency chain exceljs 4.4.0,
+  archiver 5.3.2, then glob 7.2.3 and readdir-glob 1.1.3. The app ships the vendored ExcelJS file, not
+  `node_modules`; nothing in `app/`, `server/`, `sw.js` or our scripts imports minimatch or glob, and the only
+  caller is archiver's own `.glob()`, which the tests never call with outside input. Not upgraded because exceljs
+  4.4.0 is its latest release, and forcing an npm override to minimatch 11 pulls in BlueOak-1.0.0 licensed
+  packages (outside our permissive list), which needs the owner's approval. **Remove** the entry when exceljs or
+  archiver releases a version that no longer needs minimatch below 11, or if the owner approves the override.
