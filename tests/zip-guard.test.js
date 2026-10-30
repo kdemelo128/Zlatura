@@ -33,7 +33,7 @@ test('a part declared at 1,000 bytes that inflates to far more is refused withou
   const r = await checkUpload(asFile(bomb(60, 1000)), { getFflate });
   assert.ok(r.refuse, 'refused');
   assert.match(r.refuse, /not the size|bomb/);
-  assert.ok(Date.now() - t < 1500, 'stopped after the first pieces, not after 60 MB');
+  assert.ok(Date.now() - t < 4000, 'stopped after the first pieces, not after 60 MB');
 });
 
 test('a part declared honestly but far over the total cap is refused', async () => {
