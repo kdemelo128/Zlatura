@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.76 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.81 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -141,6 +141,7 @@ section with grep, never in full.
 - **UI revamp D1 (4.7.75, PR opening):** Settings > Look: Classic or New look. New look = slate neutrals + brass accent, Source Serif 4 and Public Sans, solid bars, contrast-tested tokens; Classic unchanged. The look choice is stored on the device (localStorage `zlatura.look`), not in backups. Next: D2 icons and the rename-ready brand mark.
 - **Cash flow A1 (4.7.74, PR opening):** recoveries, percentage rent and the sale at exit each live in one function in `app/engine/`; no figure changes (the Percentage rent tool can differ in the last digit only). Clean-room rule added to `docs/working-rules.md`. Next: A1b (the three approved edge-case fixes), A2 read-only cash-flow view.
 - **Excel zip-bomb guard (4.7.76, PR opening):** a workbook's real unpacked size is checked as it unpacks (not only the size it declares); applies to the rent roll, T-12, templates and the sheet reader; zip64 workbooks still open. Security fix with its own tests.
+- UI revamp D2: one icon set and a rename-ready brand mark
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
   owner says to continue.
