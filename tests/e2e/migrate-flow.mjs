@@ -42,7 +42,7 @@ const deals = async (p) => Object.fromEntries((await idb(p, 'deals')).map((d) =>
 const historyOf = (p, id) => p.evaluate((dealId) => new Promise((res) => { const r = indexedDB.open('zlatura'); r.onsuccess = () => { const g = r.result.transaction('history').objectStore('history').getAll(IDBKeyRange.bound([dealId, 0], [dealId, Infinity])); g.onsuccess = () => res(g.result); }; }), id);
 // a stored deal without what is new every time (lease ids, the time it was saved)
 // 4.7.4's step "rr-qc" only adds: a deal whose rent roll came from an OM gets a Data QC record marked
-// "read before Data QC" and schema 3, and 4.7.23's step sets schema 4 on every deal, and 4.7.61’s “fee-record” schema 5, and 4.7.68’s “credit-record” schema 6, and 4.7.78’s “dd-init” schema 7 with an empty document list. Set apart (and checked on its own below), the rest must match the old code.
+// "read before Data QC" and schema 3, and 4.7.23's step sets schema 4 on every deal, and 4.7.61’s “fee-record” schema 5, and 4.7.68’s “credit-record” schema 6, and 4.7.79’s “dd-init” schema 7 with an empty document list. Set apart (and checked on its own below), the rest must match the old code.
 const comparable = (d) => { const { rrQc, dd, ...x } = d; return JSON.parse(JSON.stringify({ ...x, schema: d.schema >= 3 ? 2 : d.schema, updatedAt: 0, rr: d.rr && { ...d.rr, leases: d.rr.leases.map(({ id, ...l }) => l) } })); };
 const fromOm = (d) => (d.rentRoll || []).length > 0;
 async function restore(p, base, file) {
