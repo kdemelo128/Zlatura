@@ -1,0 +1,212 @@
+{
+ "now": 1800000000000,
+ "devices": {
+  "empty": {
+   "deals": [],
+   "kv": {},
+   "session": null,
+   "local": {}
+  },
+  "newer": {
+   "deals": [
+    {
+     "id": "d4756a",
+     "name": "Invented Mews (fictional) edited here",
+     "createdAt": 1792203277340,
+     "updatedAt": 1792203999000,
+     "source": null,
+     "readAt": null,
+     "pages": 0,
+     "figures": {
+      "address": "Invented Mews (fictional) edited here",
+      "price": 1850000,
+      "noi": 120250
+     },
+     "sources": {},
+     "rentRoll": [],
+     "unpriced": false,
+     "loan": {
+      "ltv": 65,
+      "rate": 6.75,
+      "amort": 30,
+      "io": false,
+      "closing": 2,
+      "minDscr": 1.25,
+      "minDy": 8
+     },
+     "qDone": {},
+     "myQuestions": [],
+     "live": {},
+     "scenarios": [],
+     "targets": {
+      "cap": null,
+      "irr": 15,
+      "value": null
+     },
+     "visit": {
+      "at": null,
+      "items": {},
+      "notes": "",
+      "photos": [],
+      "audio": []
+     },
+     "moneyVersion": 1,
+     "schema": 4
+    }
+   ],
+   "kv": {
+    "crm.contacts": [
+     {
+      "id": "c1",
+      "name": "Jane Example",
+      "company": "Example Holdings LLC",
+      "updatedAt": 1792203999000
+     },
+     {
+      "id": "c9",
+      "name": "Dana Local",
+      "company": "Local Co",
+      "updatedAt": 1
+     }
+    ]
+   },
+   "session": null,
+   "local": {}
+  }
+ },
+ "plans": {
+  "backup-3.1.0-before-rent-roll.json": {
+   "empty": {
+    "merge": "3fc152a4f55369c9044f7e3d1c51d19ed8eeb411e3c18a4e66810abb46ec573b",
+    "replace": "693963802d2c186ee9caf7ab3b51a3f989dcd94bbf7b8c5f0f22a132e72024e7"
+   },
+   "newer": {
+    "merge": "9b1fe75e880ea8f8d97c416984480d024cd296e982fa5186b03629f4c412c19d",
+    "replace": "3693fe6e2e15a5071b564cea14fb3444090c21c69f90394cb50fb8a96dead4af"
+   }
+  },
+  "backup-4.7.20-before-pdf-roll.json": {
+   "empty": {
+    "merge": "b20d7669f934ea6ea08a84c4155a1d140f05321990a4ad8fb753a2d9f61562a4",
+    "replace": "4b136f966bc2d6d87b299efc72a71dd5fe2a6db7545700841478636cf0b12cad"
+   },
+   "newer": {
+    "merge": "953811b86d2da0aa933eaab372b5accc98b8f3c129afa6444f6b6e4c15d234d9",
+    "replace": "e56b1d36222267550bcf3b4d954c47c53c84aa33abaa6fe47bf462e522e282b7"
+   }
+  },
+  "backup-4.7.27-before-t12-formats.json": {
+   "empty": {
+    "merge": "f3a2854ab53325295711cca682b4b030933d68850ac3cf8a28aaa81ce7831216",
+    "replace": "84bba1a4827899984d39714f73e2d7d59c54f8f5deafcf7b638642d80417818c"
+   },
+   "newer": {
+    "merge": "fac2214d20846d1f98265ac183ac9bd2079780deb201a03327756dccaea40ca3",
+    "replace": "815af5b13333b8a2a72bf60309d8c6d75d86410dbf1277d899dbba8d9251eae8"
+   }
+  },
+  "backup-4.7.3-before-data-qc.json": {
+   "empty": {
+    "merge": "8bbcdc4a296a9721007cc18c67cba20dcdbcdb72840473b75193c2ee9d1896ac",
+    "replace": "665bb7001622b7b26ceff0c0166b69a904bf40dfac9928757c25e5aaf6ed9eba"
+   },
+   "newer": {
+    "merge": "973ff00df2e6caccb44bf98806a30ee4f5a59f212323ff8a23c80746896af13b",
+    "replace": "01a88650472fbc8d697235f1e85824bdef2f4ea2d1c718bc150e8d1962157cd0"
+   }
+  },
+  "backup-4.7.33-before-t12-suggestions.json": {
+   "empty": {
+    "merge": "f3cae2428d3d3eca48cf33a22b4f6d3f629e17351aa418363469629060d59e01",
+    "replace": "937d919ffb788df7f16543abae336fb1b179984b10620b341d3f1a172c9583d6"
+   },
+   "newer": {
+    "merge": "22c4889166a352ea1505141543e34123c8335dbf2e7411a9c1cb905f555e5546",
+    "replace": "43a042bcc175de7d737ce95418324e79fa5f7e4e0d37bf4d97e56c2b374eefcb"
+   }
+  },
+  "backup-4.7.34-before-t12-periods.json": {
+   "empty": {
+    "merge": "7555378ba0fd4c5656fa825733d6b04dea0a69024caff551608998f7ecd99861",
+    "replace": "5bf7e7edbaba2de242cf531b7d4bdc926f4a947b9d085a1cda5e70ba876d3e33"
+   },
+   "newer": {
+    "merge": "90498a2bc5f514e81120c20bbfe3ebcf5476be034104eceaf79c2893f425b514",
+    "replace": "c663f3784c36e3557048ec26b1dfb76ba4443ea60400ff4614a264979bd393cb"
+   }
+  },
+  "backup-4.7.35-before-t12-values.json": {
+   "empty": {
+    "merge": "c0b56b4e29d4e2f66895f3f81a2e69c35cf47bc5b0797360e98efa68d01dd3c6",
+    "replace": "097b4192466c7948bfe70d3e9f20b874e0839b4d4a678bf43f1326a331e525ce"
+   },
+   "newer": {
+    "merge": "01e09f531aa3763686d52c9bb29321ba7aba0858b35143eae58f19111dd52173",
+    "replace": "ce0c62c2739562724abf6109bf61f239ded62af8a3a8200548cb668ee80ef90c"
+   }
+  },
+  "backup-4.7.36-before-underwriting.json": {
+   "empty": {
+    "merge": "a07ad6d4d3cb444646b3873f0cee5a9094f6383712251730b97ca1b0341169fd",
+    "replace": "e78161c353a877098b566ef3a9158692783318625bb3acbfb8608dc02c87021e"
+   },
+   "newer": {
+    "merge": "558f134368a302f4401c9b3f2c15fe324b0703f0779120ff7c5e890a6640fd2e",
+    "replace": "ce04a85a3f17d320edd00ce645f44691a6eb63787af310450210761eb133ba94"
+   }
+  },
+  "backup-4.7.4-before-om-statement.json": {
+   "empty": {
+    "merge": "d32de9ee5964209caa5b822bf4126451837b94242cc4cf44ae016e3814dd6d8a",
+    "replace": "c85285764b1fed659ef5abd0c012d35ea0468ff5666e602153eb51ccec730c3b"
+   },
+   "newer": {
+    "merge": "d25288a926a83444e1e40c2f199159557fc69f9a73fb4cd3f3842016a69ea2bd",
+    "replace": "e12040355fca8b7de4038683b11e85fecab7d315babec2b7cf0526ea5b961e76"
+   }
+  },
+  "backup-4.7.50-before-research.json": {
+   "empty": {
+    "merge": "76071c64893721ed64e92d04110202a48fbb6e95402660879a764a8bed437293",
+    "replace": "1c5217d3e6b590e147e7bbfbe3de8bf2454d88cf7709aafc924b029d78c5cf43"
+   },
+   "newer": {
+    "merge": "5c39e955c73488fd5598877e828dc577dc30720b87a33910a53721ef83c7b893",
+    "replace": "86d21ff89994af67442e4fb2293f07c2c288c4e43991dc586d789dedf2b83dc6"
+   }
+  },
+  "backup-4.7.56-before-fee-record.json": {
+   "empty": {
+    "merge": "cddcc52bc4dacdbf138f726c6d7f22c7d831e677d81ca5b78b3ca9645fe6f311",
+    "replace": "f9efb9efb3d4c02fef650949927177a85d963c819d4d18639171fbf953503eb4"
+   },
+   "newer": {
+    "merge": "2a678198e885aa8edac9b454a787b2ab8506a6a4ea0163645987291cd51d57cc",
+    "replace": "9dc9b733bbbe6f17bc5d620e24edee39341d39e0cf3d550924a01cf7463eac17"
+   }
+  },
+  "backup-4.7.56-before-uw-workspace.json": {
+   "empty": {
+    "merge": "95b78aa85e13122d029e14516315f1a59fdf253e3634fab18d6aa74758da680b",
+    "replace": "2f2cfbc5be4ae4eb4f4d3dc8d2dd9aeea3084238870c44786f1be153026acd09"
+   },
+   "newer": {
+    "merge": "7b313e3bab3bb2af323d45f24ead54333d64299422ef47e3ee6f47846acb991c",
+    "replace": "2f2cfbc5be4ae4eb4f4d3dc8d2dd9aeea3084238870c44786f1be153026acd09"
+   }
+  },
+  "backup-4.7.64-before-credit.json": {
+   "refusedByOldCode": "This backup holds 2 deals saved by a newer version of Zlatura (“Invented Plaza (fictional)”, “Invented Court (fictional)”): update the app first. Nothing was restored."
+  },
+  "backup-comp-loader-3.3.0.json": {
+   "empty": {
+    "merge": "3467709135f71e795d85f035b25b1be0be7f8bf40648ce0b867c93097b0bac63",
+    "replace": "428e1b61bbefd85ed2c2f24e4bae7077905052ab390390601b781ac7e31d76b8"
+   },
+   "newer": {
+    "merge": "5cbc860371799e6719b7eeebdeec718906b36f91065710dc54f3aee3814e1e74",
+    "replace": "f7371f93f9de5cb6dd02b406cc7a84eaccf8e64dae520be3105793d6a398554b"
+   }
+  }
+ }
+}

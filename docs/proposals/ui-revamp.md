@@ -55,6 +55,8 @@ Four rules that every phase follows:
 
 ### 2.1 Phone: bottom bar, five items
 
+> **Changed 2026-10-23 (Underwriting workspace, owner decision 7):** the slots become Home, Deals, Underwrite, Comps, More, and Tools moves under More on the phone (the Underwrite page keeps a Calculators row that opens Tools). The table below is the slot list as first approved. In Classic, as built in W1, Settings moved to a gear in the top bar.
+
 Today the phone bar has five items and grows to six when Review has work
 (`index.html` lines 301–306), which squeezes each item to 65 px at 390 px wide.
 The new look keeps it at five, always:

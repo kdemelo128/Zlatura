@@ -1,0 +1,153 @@
+{
+ "format": "zlatura-backup",
+ "version": 2,
+ "app": "4.7.56",
+ "createdAt": "2026-10-23T02:11:55.855Z",
+ "counts": {
+  "deals": 2,
+  "templates": 0,
+  "tasks": 1,
+  "contacts": 2,
+  "briefs": 1
+ },
+ "deals": [
+  {
+   "id": "d4756a",
+   "name": "Invented Mews (fictional)",
+   "createdAt": 1792203277340,
+   "updatedAt": 1792203290000,
+   "source": null,
+   "readAt": null,
+   "pages": 0,
+   "figures": {
+    "address": "Invented Mews (fictional)",
+    "price": 1850000,
+    "noi": 120250
+   },
+   "sources": {},
+   "rentRoll": [],
+   "unpriced": false,
+   "loan": {
+    "ltv": 65,
+    "rate": 6.75,
+    "amort": 30,
+    "io": false,
+    "closing": 2,
+    "minDscr": 1.25,
+    "minDy": 8
+   },
+   "qDone": {},
+   "myQuestions": [],
+   "live": {},
+   "scenarios": [],
+   "targets": {
+    "cap": null,
+    "irr": 15,
+    "value": null
+   },
+   "visit": {
+    "at": null,
+    "items": {},
+    "notes": "",
+    "photos": [],
+    "audio": []
+   },
+   "moneyVersion": 1,
+   "schema": 4
+  },
+  {
+   "id": "d4756b",
+   "name": "Invented Yard (fictional)",
+   "createdAt": 1792203277340,
+   "updatedAt": 1792203291000,
+   "source": null,
+   "readAt": null,
+   "pages": 0,
+   "figures": {
+    "address": "Invented Yard (fictional)",
+    "price": 1850000,
+    "noi": 120250
+   },
+   "sources": {},
+   "rentRoll": [],
+   "unpriced": false,
+   "loan": {
+    "ltv": 65,
+    "rate": 6.75,
+    "amort": 30,
+    "io": false,
+    "closing": 2,
+    "minDscr": 1.25,
+    "minDy": 8
+   },
+   "qDone": {},
+   "myQuestions": [],
+   "live": {},
+   "scenarios": [],
+   "targets": {
+    "cap": null,
+    "irr": 15,
+    "value": null
+   },
+   "visit": {
+    "at": null,
+    "items": {},
+    "notes": "",
+    "photos": [],
+    "audio": []
+   },
+   "moneyVersion": 1,
+   "schema": 4
+  }
+ ],
+ "kv": {
+  "crm.contacts": [
+   {
+    "id": "c1",
+    "name": "Jane Example",
+    "company": "Example Holdings LLC",
+    "updatedAt": 1792203280000
+   },
+   {
+    "id": "c2",
+    "name": "Sam Sample",
+    "company": "Sample Partners",
+    "updatedAt": 1792203280000
+   }
+  ],
+  "crm.tasks": [
+   {
+    "id": "t1",
+    "text": "Call Jane Example",
+    "done": false
+   }
+  ],
+  "crm.activity": [
+   {
+    "id": "a1",
+    "at": 1792203285000,
+    "text": "Spoke with Sam Sample"
+   }
+  ],
+  "crm.stages": {
+   "d4756a": "Underwriting"
+  },
+  "research.briefs": [
+   {
+    "id": "rb4756a",
+    "v": 1,
+    "subject": {
+     "name": "Invented Holdings LLC",
+     "state": null
+    },
+    "status": "ready",
+    "createdAt": 1799913600000,
+    "updatedAt": 1799913600000,
+    "retainUntil": 1825920000000,
+    "claims": []
+   }
+  ]
+ },
+ "session": null,
+ "local": {}
+}

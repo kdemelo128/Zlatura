@@ -135,6 +135,7 @@ section with grep, never in full.
 - **Documents hub D1 (4.7.70, PR opening):** Tools → Documents → PDF pages: merge, split, reorder, rotate, extract; on the device, nothing stored; `@cantoo/pdf-lib` 2.11.1 vendored with licence and checksum. Next: D2 conversions, D3 due-diligence registry.
 - **Confidential tag (4.7.71, merged #100):** one boolean per deal that blocks every AI call for it and marks its exports; the file name and printed pages say CONFIDENTIAL.
 - **Code scanning alert 12, second fix (4.7.72, merged #102):** reproduced with CodeQL 2.27.3 run locally; the download link is set in one step; 1 result before, 0 after locally. The alert stays open until GitHub's next scan says otherwise.
+- **Underwrite tab, W1 (4.7.73, merged #103):** a dedicated Underwrite tab: a quick underwriting that needs no saved deal (kept on the device, carried by backups), then "make it a deal".
 - **Confidential tag (4.7.71, PR opening):** one boolean per deal that blocks every AI call for it and marks its exports; the file name and printed pages say CONFIDENTIAL.
 - **Cash flow A1 (4.7.74, PR opening):** recoveries, percentage rent and the sale at exit each live in one function in `app/engine/`; no figure changes (the Percentage rent tool can differ in the last digit only). Clean-room rule added to `docs/working-rules.md`. Next: A1b (the three approved edge-case fixes), A2 read-only cash-flow view.
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
