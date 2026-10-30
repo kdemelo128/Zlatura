@@ -24,6 +24,8 @@
     var t = localStorage.getItem('zlatura.theme') || localStorage.getItem('comp-loader.theme');
     if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
   } catch (e) { /* storage blocked: follow the system */ }
+  /* The look the person chose (Settings > Appearance): Classic unless they turned the New look on. */
+  try { if (localStorage.getItem('zlatura.look') === 'new') document.documentElement.dataset.look = 'new'; } catch (e) { /* Classic */ }
 </script>
 <title>Zlatura</title>
 <meta name="description" content="Zlatura, a commercial real estate brokerage workspace. Every source. Every assumption. Every number. Offering memoranda read and underwritten, comps, rent rolls, your firm's Excel models and the calculators a deal needs, on your device.">

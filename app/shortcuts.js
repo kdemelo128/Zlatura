@@ -41,7 +41,7 @@ export const SHORTCUTS = [
   { group: 'In the rent roll', keys: [['Esc']], does: 'Put the cell back as it was', src: ['rentrollui.js'], listen: ['Escape'] },
   { group: 'In a date field', keys: [['Enter']], does: 'Keep the date (or a setting’s number) you typed', src: ['dateinput.js', 'settings.js'], listen: ['Enter'] },
   { group: 'In a date field', keys: [['Esc']], does: 'Put back the last date (or setting)', src: ['dateinput.js', 'settings.js'], listen: ['Escape'] },
-  { group: 'Settings', keys: [['←'], ['→']], does: 'Choose the theme, once the theme control has the focus', src: ['theme.js'], listen: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'] },
+  { group: 'Settings', keys: [['←'], ['→']], does: 'Choose the theme or the look, once that control has the focus', src: ['theme.js', 'look.js'], listen: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'] },
 ];
 
 /** A key as it is shown: ⌘ or Ctrl for 'Mod', ⇧ or Shift. */
