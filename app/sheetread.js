@@ -2,7 +2,7 @@
  * the rent roll import and the T-12 import both start here. Pure apart from
  * readGrids(), which loads ExcelJS when a workbook needs it. */
 import { readText } from './textfile.js';
-import { checkUpload } from './filekind.js';
+import { checkUpload, hardenZip } from './filekind.js';
 
 /** A cell's value as text, a number or an ISO date (YYYY-MM-DD): formulas give their cached result. */
 export function cellValue(v) {
@@ -84,6 +84,30 @@ export function unreadable(file, what) {
 }
 export const isCsv = (file) => /\.csv$/i.test(file.name) || file.type === 'text/csv';
 
+/** A workbook's bytes with sizes checked (filekind.js hardenZip), for ExcelJS; throws the reason when refused. */
+export function guardedBuffer(buffer, fflate) {
+  const safe = hardenZip(new Uint8Array(buffer), fflate);
+  if (safe.refuse) throw new Error(safe.refuse);
+  return safe.buffer;
+}
+
+/**
+ * An ExcelJS workbook from an upload, after its size, kind and zip sizes were
+ * checked (filekind.js): `up` is checkUpload's result, or it is run here.
+ * Throws the reason when the file is refused or can't be opened.
+ */
+export async function loadXlsx(file, getXlsx, up = null) {
+  const { ExcelJS, fflate } = await getXlsx();
+  const NOT_XLSX = 'That file could not be opened as an Excel workbook. It may be damaged, password protected or not really .xlsx.';
+  up = up || await checkUpload(file, { getFflate: async () => fflate });
+  if (up.refuse) throw new Error(up.refuse);
+  if (up.kind !== 'xlsx') throw new Error(NOT_XLSX);
+  const buffer = up.guarded ? up.buffer : guardedBuffer(up.buffer || await file.arrayBuffer(), fflate);
+  const wb = new ExcelJS.Workbook();
+  try { await wb.xlsx.load(buffer); } catch { throw new Error(NOT_XLSX); }
+  return wb;
+}
+
 /**
  * Every visible sheet of a workbook (or the one table of a text file) as rows
  * of values: [{ sheet, hidden, rows: [{ r (1-based row number), cells: [] }] }],
@@ -105,9 +129,7 @@ export async function readGrids(file, getXlsx, { maxRows = 400, includeHidden = 
     const rows = csvRows(skipFirst ? text.replace(/^[^\r\n]*\r?\n?/, '') : text, { delimiter }).map((cells, i) => ({ r: i + 1 + (skipFirst ? 1 : 0), cells })).filter((x) => x.cells.some((v) => String(v).trim()));
     return [{ sheet: 'CSV', hidden: false, rows, delimiter, encoding, note, macros: false }];
   }
-  const { ExcelJS } = await getXlsx();
-  const wb = new ExcelJS.Workbook();
-  try { await wb.xlsx.load(up.buffer || await file.arrayBuffer()); } catch { throw new Error('That file could not be opened as an Excel workbook. It may be damaged, password protected or not really .xlsx.'); }
+  const wb = await loadXlsx(file, getXlsx, up);
   return gridsOf(wb, { maxRows, includeHidden }).map((g) => ({ ...g, macros: !!up.macros }));
 }
 
