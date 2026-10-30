@@ -5,7 +5,8 @@
 
 import { $, el, svg, parseNum, parsePct, int, dec, money0, money2, pct, times, short, niceDate, toast } from './kit.js';
 import { quantizeDeal, toCents } from './engine/money.js';
-import { createDeal, discardDeal, showDeal, loanDefaults, scnRead } from './dealui.js';
+import { SALE_COST_NEGATIVE } from './deal.js';
+import { createDeal, discardDeal, showDeal, loanDefaults, scnRead, scnRefused } from './dealui.js';
 import { newScratch, work, dealFields, loadScratch, saveScratch, deleteScratch, MAX_SCRATCH } from './uwstore.js';
 
 let api = null;
@@ -31,7 +32,7 @@ const LOAN = [
   ['loan', 'closing', 'Closing costs %', 'pct0'], ['loan', 'minDscr', 'Lender minimum DSCR', 'num'], ['loan', 'minDy', 'Lender minimum debt yield %', 'pct'],
 ];
 const HOLD = [
-  ['live', 'hold', 'Hold, years', 'hold'], ['live', 'growth', 'NOI growth a year %', 'delta'], ['live', 'exitCap', 'Exit cap rate %', 'pct'], ['live', 'saleCost', 'Sale costs %', 'pct0'],
+  ['live', 'hold', 'Hold, years', 'hold'], ['live', 'growth', 'NOI growth a year %', 'delta'], ['live', 'exitCap', 'Exit cap rate %', 'pct'], ['live', 'saleCost', 'Sale costs %', 'cost'],
 ];
 
 /** What was typed, as the deal page reads the same kind of field (null when it can't be read: a blank is absent, never 0). */
@@ -104,7 +105,10 @@ function field(parent, part, key, label, kind, inputs) {
   i.autocomplete = 'off';
   if (kind !== 'text') i.inputMode = 'decimal';
   i.value = show(kind, cur[part][key]);
+  const er = el('div', 'hint-sm warn-text');
+  er.id = `uw-err-${key}`;
   const apply = () => {
+    er.textContent = scnRefused(kind, i.value) ? SALE_COST_NEGATIVE : '';
     const v = read(kind, i.value);
     if (v === null || v === undefined) delete cur[part][key]; else cur[part][key] = v;
     touched();
@@ -113,7 +117,7 @@ function field(parent, part, key, label, kind, inputs) {
   i.addEventListener('input', apply);
   i.addEventListener('change', () => { apply(); i.value = show(kind, cur[part][key]); flush(); });
   inputs.set(`${part}.${key}`, i);
-  fd.append(lab, i);
+  fd.append(lab, i, er);
   parent.appendChild(fd);
 }
 

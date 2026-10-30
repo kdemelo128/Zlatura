@@ -16,7 +16,7 @@ import { waltMethod } from './engine/walt.js';
 import { conv } from './engine/conventions.js';
 import { strictOpen, strictWords } from './review.js';
 import { quantizeDeal } from './engine/money.js';
-import { analyze, runScenario, scenarioAnswers } from './deal.js';
+import { analyze, runScenario, scenarioAnswers, SALE_COST_NEGATIVE } from './deal.js';
 import { DEAL_SECTIONS } from './dealfields.js';
 import { analysisInput, fieldContext, inputOfPath, hasRentRoll, LEASE_FIELDS, RR_SETTINGS } from './impact.js';
 import { openImpact, affectsButton } from './impactui.js';
@@ -1348,7 +1348,7 @@ const SCN = [
   ['price', 'Purchase price', 'money'], ['noi', 'NOI', 'money'],
   ['rentChange', 'Rents, % change', 'delta'], ['occ', 'Occupancy %', 'pct'], ['expenseChange', 'Expenses, % change', 'delta'],
   ['rate', 'Interest rate %', 'pct'], ['ltv', 'Loan to value %', 'pct'],
-  ['exitCap', 'Exit cap rate %', 'pct'], ['hold', 'Hold, years', 'int'], ['growth', 'NOI growth a year %', 'delta'], ['saleCost', 'Sale costs %', 'pct0'],
+  ['exitCap', 'Exit cap rate %', 'pct'], ['hold', 'Hold, years', 'int'], ['growth', 'NOI growth a year %', 'delta'], ['saleCost', 'Sale costs %', 'cost'],
 ];
 const HOLD_KEYS = ['exitCap', 'hold', 'growth', 'saleCost', 'noiBasis'];
 const scnShow = (kind, v) => {
@@ -1363,8 +1363,11 @@ export const scnRead = (kind, raw) => {
   if (kind === 'int') { const v = parseNum(raw); return ok(v) && v >= 1 && v <= 30 ? Math.round(v) : null; }
   if (kind === 'delta') { const v = parseNum(raw); return ok(v) && v > -100 && v < 1000 ? v : null; }
   if (kind === 'pct0') return parsePct(raw, { fraction: false });
+  if (kind === 'cost') return scnRefused(kind, raw) ? null : parsePct(raw, { fraction: false });
   return parsePct(raw);
 };
+/** True when `raw` is a negative sale cost, which is refused rather than used. */
+export const scnRefused = (kind, raw) => { if (kind !== 'cost') return false; const v = parsePct(raw, { fraction: false }); return ok(v) && /** @type {number} */ (v) < 0; };
 
 function scenarioCard() {
   deal.live ||= {};
@@ -1466,13 +1469,16 @@ function renderScenario(m) {
       lab.htmlFor = i.id;
       i.inputMode = 'decimal';
       i.autocomplete = 'off';
+      const er = el('div', 'hint-sm warn-text');
+      er.id = `scn-err-${key}`;
       i.addEventListener('change', () => {
+        er.textContent = scnRefused(kind, i.value) ? SALE_COST_NEGATIVE : '';
         const v = scnRead(kind, i.value);
         if (v === null) delete deal.live[key]; else deal.live[key] = v;
         touch();
         renderDerived();
       });
-      fd.append(lab, i, affectsButton(`What changing the What-if’s ${label.replace(/[,%].*$/, '').trim().toLowerCase()} affects`, () => showImpact([`live.${key}`])));
+      fd.append(lab, i, er, affectsButton(`What changing the What-if’s ${label.replace(/[,%].*$/, '').trim().toLowerCase()} affects`, () => showImpact([`live.${key}`])));
       fd.classList.add('has-affects');
       g.appendChild(fd);
     }

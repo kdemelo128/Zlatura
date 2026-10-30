@@ -35,7 +35,7 @@
 
 import { walt } from './engine/walt.js';
 import { toCents, toRate } from './engine/money.js';
-import { recoveryAnnual, shareOf } from './engine/recovery.js';
+import { recoveryAnnual, shareOf, amountOf } from './engine/recovery.js';
 import { breakpointOf, overageOf } from './engine/pctrent.js';
 
 const DAY = 86400000;
@@ -154,6 +154,40 @@ export function generateSteps({ start, end, rate, unit = 'year', escalation = nu
 /* ------------------------------------------------------------ validation */
 
 /**
+ * Why a lease's expense recovery can't be worked out, or null. No typed share
+ * and no SF is "can't tell" (never a 0% share); so is an amount typed as text
+ * that is not a number. The recovery is then left out of the projection.
+ */
+export function recoveryProblem(L) {
+  const Rc = L.recovery;
+  if (!Rc || !Rc.method || Rc.method === 'none') return null;
+  if (Rc.method !== 'fixed' && !ok(Rc.share) && !pos(L.sf)) return 'Expense recovery can\'t be worked out: no share is typed and the space has no SF, so its recovery is left out of the projection (not counted as 0).';
+  const bad = Rc.method === 'base_year' ? [['base amount', Rc.baseAmount]] : Rc.method === 'stop' ? [['stop per SF', Rc.stopPsf]] : Rc.method === 'fixed' ? [['fixed amount', Rc.amount], ['growth', Rc.growth]] : [];
+  const b = bad.find(([, v]) => amountOf(v) === null);
+  return b ? `The recovery ${b[0]} "${String(b[1])}" is not a number, so its recovery is left out of the projection (not counted as 0).` : null;
+}
+
+/** The first documented rent period's annual rent, or null (no period, or per-SF with no SF). */
+function baseRentOf(L) {
+  const firstRent = (L.periods || []).find((p) => p.source !== 'projected');
+  const m = firstRent ? monthlyAmount(firstRent.rate, firstRent.unit, L.sf) : null;
+  return m === null ? null : m * 12;
+}
+
+/** A lease's percentage-rent breakpoint, typed or natural; null when it can't be told. */
+function breakpointFor(L) {
+  const P = L.percentRent;
+  return breakpointOf({ rate: P.rate, natural: P.natural, baseRent: baseRentOf(L), breakpoint: P.breakpoint });
+}
+
+/** Why a lease's percentage rent can't be worked out (no breakpoint), or null. */
+export function pctRentProblem(L) {
+  const P = L.percentRent;
+  if (!P || !pos(P.rate) || !ok(P.sales) || breakpointFor(L) !== null) return null;
+  return P.natural ? 'Percentage rent has no breakpoint: the natural breakpoint needs a base rent above zero, and none is typed, so it is left out of the projection (not charged on every dollar of sales).' : 'Percentage rent has no breakpoint typed, so it is left out of the projection (not charged on every dollar of sales).';
+}
+
+/**
  * What is wrong with a lease, as messages a broker can act on. `level` is
  * 'error' (the numbers can't be trusted) or 'warn' (worth a look).
  */
@@ -193,6 +227,7 @@ export function validateLease(L) {
   }
   if (L.recovery && L.recovery.method === 'prorata' && ok(L.recovery.share) && (L.recovery.share < 0 || L.recovery.share > 100)) add('error', 'The pro-rata share is outside 0-100%.');
   if (L.percentRent && pos(L.percentRent.rate) && !ok(L.percentRent.sales)) add('warn', 'Percentage rent has a rate but no sales figure, so it earns nothing.');
+  for (const why of [recoveryProblem(L), pctRentProblem(L)]) if (why) add('warn', why);
   return out;
 }
 
@@ -534,8 +569,9 @@ export function project(rr, { asOf: asOfArg, years: yearsArg } = {}) {
     // percentage rent: the part of annual sales above the breakpoint, earned monthly while occupied
     const P = L.percentRent;
     if (P && pos(P.rate) && ok(P.sales)) {
-      const firstRent = (L.periods || []).find((p) => p.source !== 'projected');
-      const bp = breakpointOf({ rate: P.rate, natural: P.natural, baseRent: firstRent ? monthlyAmount(firstRent.rate, firstRent.unit, L.sf) * 12 : null, breakpoint: P.breakpoint });
+      const bp = breakpointFor(L);
+      const why = pctRentProblem(L);
+      if (why && !L.vacant) notes.push(`Unit ${L.unit || L.tenant || '?'}: ${why}`);
       months.forEach((m, k) => {
         if (!m.occupied || bp === null) return;
         const sales = P.sales * (1 + (P.growth || 0) / 100) ** Math.floor(k / 12);
@@ -544,15 +580,16 @@ export function project(rr, { asOf: asOfArg, years: yearsArg } = {}) {
     }
     // expense recoveries
     const Rc = L.recovery;
-    if (Rc && Rc.method && Rc.method !== 'none') {
-      // (old code coerced a text amount like '90000' to a number; Number() keeps that)
-      // an unknown share is 0 here (a blank rent-roll row recovers nothing); the Recovery tool says "can't tell"
-      const share = shareOf({ sharePct: Rc.share, tenantSf: L.sf, buildingSf: totalSf }) ?? 0;
+    const rcWhy = recoveryProblem(L);
+    if (rcWhy && !L.vacant) notes.push(`Unit ${L.unit || L.tenant || '?'}: ${rcWhy}`);
+    if (Rc && Rc.method && Rc.method !== 'none' && !rcWhy) {
+      // a numeric text amount like '90000' reads as a number; other text is flagged above, never 0
+      const share = shareOf({ sharePct: Rc.share, tenantSf: L.sf, buildingSf: totalSf });
       months.forEach((m, k) => {
         if (!m.occupied) return;
         const g = (1 + (s.expenseGrowth || 0) / 100) ** Math.floor(k / 12);
         const pool = (ok(s.recoverable) ? s.recoverable : ok(s.opex) ? s.opex : 0) * g;
-        const annual = recoveryAnnual({ method: Rc.method, pool, share, tenantSf: L.sf, buildingSf: totalSf || L.sf, baseAmount: Number(Rc.baseAmount || 0), stopPsf: Number(Rc.stopPsf || 0), fixed: (Rc.amount || 0) * (1 + (Rc.growth || 0) / 100) ** Math.floor(k / 12) }) ?? 0;
+        const annual = recoveryAnnual({ method: Rc.method, pool, share, tenantSf: L.sf, buildingSf: totalSf || L.sf, baseAmount: Rc.baseAmount, stopPsf: Rc.stopPsf, fixed: /** @type {number} */ (amountOf(Rc.amount)) * (1 + /** @type {number} */ (amountOf(Rc.growth)) / 100) ** Math.floor(k / 12) }) ?? 0;
         rows[k].recoveries += (annual / 12) * m.occupied;
       });
     }

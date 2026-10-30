@@ -209,7 +209,7 @@ the baseline; 32 flows are listed at 4.7.2).
 
 | Feature | Status | Notes |
 |---|---|---|
-| Units, tenants, rent types, periods, steps, % bumps, free rent, recoveries, percentage rent, one-time items, renewals, lease-up, market rent | Implemented and verified | `lease.test.js` known answers worked by hand; `rentroll-flow`. |
+| Units, tenants, rent types, periods, steps, % bumps, free rent, recoveries, percentage rent, one-time items, renewals, lease-up, market rent | Implemented and verified | `lease.test.js` known answers worked by hand; `rentroll-flow`. Edge cases (cash flow A1b): a recovery with no share and no SF, a non-numeric recovery amount, and percentage rent with no breakpoint are flagged and left out of the projection, never counted as 0; a negative sale cost is refused in the Deal and the Tools (`engine-shared.test.js`, `edgecases-flow`). |
 | TI and LC on re-leasing, rollover downtime, custom fields | Implemented and verified | Added 4.7.2 (9.1), as its own row. `lease.js` re-leasing; `lease.test.js` known answers; `rentroll-flow` (custom field). |
 | Ground lease as its own rent type; custom billing periods | Not implemented | Added 4.7.2 (9.1). |
 | CPI-linked increases (index, floor, cap, lag) | Not implemented | |

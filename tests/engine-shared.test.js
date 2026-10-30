@@ -7,12 +7,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import fc from 'fast-check';
-import { shareOf, recoveryAnnual } from '../app/engine/recovery.js';
+import { shareOf, recoveryAnnual, amountOf } from '../app/engine/recovery.js';
 import { breakpointOf, overageOf } from '../app/engine/pctrent.js';
 import { reversion } from '../app/engine/returns.js';
-import { recovery, percentageRent, dcf } from '../app/calc.js';
-import { holdReturns } from '../app/deal.js';
-import { project, DEFAULT_SETTINGS } from '../app/lease.js';
+import { recovery, percentageRent, dcf, residualLand, holdWithFees } from '../app/calc.js';
+import { holdReturns, runScenario } from '../app/deal.js';
+import { project, validateLease, validateRentRoll, DEFAULT_SETTINGS } from '../app/lease.js';
 import { toCents } from '../app/engine/money.js';
 
 const near = (a, b, tol = 1e-6) => assert.ok(Math.abs(a - b) <= tol, `${a} vs ${b}`);
@@ -75,13 +75,29 @@ test('the DCF tool and the hold returns sell for the same price', () => {
   near(d.reversion, 100000 * 1.05 ** 5 / 0.07 * 0.98, 1e-6); // year-6 NOI, 7%, 2% costs
 });
 
-test('a negative sale cost: the two screens still differ, as before this change (owner question)', () => {
-  // Deal screen: a negative cost is ignored. DCF tool: it is applied, raising the price. Kept as it was;
-  // which one is right is reported to the owner, not decided here.
-  const h = holdReturns({ price: 1400000, noi: 100000, growth: 0, hold: 5, exitCap: 7, saleCost: -2 });
-  near(h.saleCosts, 0);
-  const d = dcf({ noi: 100000, growth: 0, years: 5, discount: 8, exitCap: 7, saleCost: -2 });
-  near(d.reversion, 100000 / 0.07 * 1.02, 1e-6);
+test('a negative sale cost is refused the same way everywhere (owner decision 2026-10-29)', () => {
+  assert.equal(reversion({ basisNext: 105000, exitCap: 7, saleCostPct: -2 }), null);
+  assert.equal(holdReturns({ price: 1400000, noi: 100000, growth: 0, hold: 5, exitCap: 7, saleCost: -2 }), null);
+  assert.equal(dcf({ noi: 100000, growth: 0, years: 5, discount: 8, exitCap: 7, saleCost: -2 }), null);
+  assert.equal(holdWithFees({ price: 1400000, noi: 100000, hold: 5, exitCap: 7, saleCost: -2 }), null);
+  assert.equal(residualLand({ gdv: 5000000, hardCost: 2000000, saleCostPct: -2 }), null);
+  // zero and blank still work, and the two copies still agree
+  assert.ok(dcf({ noi: 100000, growth: 0, years: 5, discount: 8, exitCap: 7, saleCost: 0 }));
+  assert.ok(holdReturns({ price: 1400000, noi: 100000, growth: 0, hold: 5, exitCap: 7 }));
+});
+
+test('a negative sale cost: the Tools say so and the What-if leaves returns out with a note', async () => {
+  globalThis.window ||= {}; // kit.js reads window.claude when it loads; the tools only need its formatters
+  const { MORE_TOOLS } = await import('../app/toolsdefs.js');
+  for (const [id, v] of [['dcf', { noi: 1e6, discount: 8, exitCap: 7, saleCost: -2, years: 10 }], ['hold', { price: 1.4e7, noi: 1e6, exitCap: 7, saleCost: -2, hold: 5, ltv: 65, rate: 6, amort: 30 }], ['residual', { gdv: 5e6, hardCost: 2e6, saleCostPct: -2 }]]) {
+    const t = MORE_TOOLS.find((x) => x.id === id || (id === 'hold' && x.inputs.some((i) => i[0] === 'acqFeePct')));
+    const out = t.run(v, {});
+    assert.match(out.warnings.join(' '), /can’t be negative/, id);
+    assert.ok(out.lines.every((l) => l[1] === '—'), id);
+  }
+  const run = runScenario({ price: 1.4e7, noi: 1e6, gross: 1.5e6, opex: 5e5, loan: { ltv: 65, rate: 6, amort: 30 } }, { noi: 1e6 }, { exitCap: 7, saleCost: -2 });
+  assert.equal(run.returns, null);
+  assert.match(run.notes.join(' '), /can’t be negative/);
 });
 
 /* ------------------------------------- the projection and the Tools agree */
@@ -164,19 +180,65 @@ test('the DCF tool\'s sale price is still gross x (1 - cost%), on a grid', () =>
   }
 });
 
-test('kept edges, pinned as they are today (A1b may change them on purpose)', () => {
-  // projection: a tenant with no SF and no typed share recovers 0 (the tool says "can't tell")
+test('unknown tenant share: the projection leaves the recovery out and flags the lease, never 0 silently (owner decision 2026-10-29)', () => {
   const none = rollOf({ sf: 0, other: 1000, rent: 50000, pool: 100000, growth: 0, rec: { method: 'prorata' } });
-  assert.equal(project(none).annual[0].recoveries, 0);
-  // tool: a zero base rent is not a natural-breakpoint base; the typed breakpoint is used
-  assert.equal(percentageRent({ sales: 1200000, rate: 6, natural: true, baseRent: 0, breakpoint: 1000000 }).breakpoint, 1000000);
-  // projection: text amounts are read as numbers, as before
+  const P = project(none);
+  assert.equal(P.annual[0].recoveries, 0);
+  assert.match(P.notes.join(' '), /Unit 1: Expense recovery can't be worked out: no share is typed and the space has no SF/);
+  assert.ok(validateLease(none.leases[0]).some((x) => x.level === 'warn' && /no share is typed and the space has no SF/.test(x.text)));
+  assert.ok(validateRentRoll(none).some((x) => x.unit === '1' && /can't be worked out/.test(x.text)));
+  // a typed share, or an SF, is enough: no flag, and the dollars are there
+  const typed = rollOf({ sf: 0, other: 1000, rent: 50000, pool: 100000, growth: 0, rec: { method: 'prorata', share: 30 } });
+  near(project(typed).annual[0].recoveries, 30000);
+  assert.deepEqual(project(typed).notes.filter((n) => /recover/i.test(n)), []);
+  assert.equal(validateLease(typed.leases[0]).filter((x) => /recover/i.test(x.text)).length, 0);
+  // a fixed recovery needs no share
+  const fixed = rollOf({ sf: 0, other: 1000, rent: 50000, pool: 100000, growth: 0, rec: { method: 'fixed', amount: 12000 } });
+  near(project(fixed).annual[0].recoveries, 12000);
+});
+
+test('text that is not a number in a recovery amount is "can\'t tell", not 0; numeric text still reads as a number', () => {
+  assert.equal(amountOf('abc'), null); assert.equal(amountOf(''), 0); assert.equal(amountOf(undefined), 0); assert.equal(amountOf('90000'), 90000); assert.equal(amountOf(NaN), null);
+  assert.equal(recoveryAnnual({ method: 'base_year', pool: 100000, share: 0.25, baseAmount: 'abc' }), null);
+  assert.equal(recoveryAnnual({ method: 'stop', pool: 400000, share: 0.25, tenantSf: 2500, buildingSf: 10000, stopPsf: 'abc' }), null);
+  assert.equal(recovery({ expenses: 100000, tenantSf: 2500, buildingSf: 10000, method: 'base_year', baseYear: 'abc' }), null);
+  for (const rec of [{ method: 'base_year', baseAmount: 'abc' }, { method: 'stop', stopPsf: 'abc' }, { method: 'fixed', amount: 'abc' }]) {
+    const rr = rollOf({ sf: 2500, other: 7500, rent: 50000, pool: 400000, growth: 0, rec });
+    const P = project(rr);
+    assert.equal(P.annual[0].recoveries, 0, rec.method);
+    assert.match(P.notes.join(' '), /"abc" is not a number/, rec.method);
+    assert.ok(validateLease(rr.leases[0]).some((x) => /"abc" is not a number/.test(x.text)), rec.method);
+  }
+  // numeric text is read as a number, as before
   const asText = rollOf({ sf: 2500, other: 7500, rent: 50000, pool: 100000, growth: 0, rec: { method: 'base_year', baseAmount: '90000' } });
   const asNumber = rollOf({ sf: 2500, other: 7500, rent: 50000, pool: 100000, growth: 0, rec: { method: 'base_year', baseAmount: 90000 } });
   near(project(asText).annual[0].recoveries, 2500); // (100,000 - 90,000) x 25%
   assert.equal(project(asText).annual[0].recoveries, project(asNumber).annual[0].recoveries);
   const stopText = rollOf({ sf: 2500, other: 7500, rent: 50000, pool: 400000, growth: 0, rec: { method: 'stop', stopPsf: '30' } });
   near(project(stopText).annual[0].recoveries, 25000);
+});
+
+test('percentage rent, natural breakpoint with a zero or blank base rent: the typed breakpoint, else "can\'t tell" (owner decision 2026-10-29)', () => {
+  assert.equal(breakpointOf({ rate: 6, natural: true, baseRent: 0, breakpoint: 1000000 }), 1000000);
+  assert.equal(breakpointOf({ rate: 6, natural: true, baseRent: 0 }), null);
+  assert.equal(percentageRent({ sales: 1200000, rate: 6, natural: true, baseRent: 0, breakpoint: 1000000 }).breakpoint, 1000000);
+  // projection: a $0 base rent and a typed breakpoint of $1,000,000 charges 6% of the $200,000 above it, not of all sales
+  const typed = rollOf({ sf: 1000, other: 1000, rent: 0, pool: 0, growth: 0, pct: { rate: 6, sales: 1200000, natural: true, breakpoint: 1000000 } });
+  near(project(typed).annual[0].pctRent, 12000);
+  assert.deepEqual(project(typed).notes.filter((n) => /Percentage rent/.test(n)), []);
+  // no breakpoint typed: left out, flagged, and not 6% x 1,200,000 = 72,000
+  const none = rollOf({ sf: 1000, other: 1000, rent: 0, pool: 0, growth: 0, pct: { rate: 6, sales: 1200000, natural: true } });
+  assert.equal(project(none).annual[0].pctRent, 0);
+  assert.match(project(none).notes.join(' '), /Unit 1: Percentage rent has no breakpoint/);
+  assert.ok(validateLease(none.leases[0]).some((x) => /Percentage rent has no breakpoint/.test(x.text)));
+  // a blank base rent (a per-SF period on a space with no SF: monthlyAmount is null, and null x 12 is 0) is the same
+  const blank = rollOf({ sf: 0, other: 1000, rent: 0, pool: 0, growth: 0, pct: { rate: 6, sales: 1200000, natural: true } });
+  blank.leases[0].periods[0].unit = 'psf_year'; blank.leases[0].periods[0].rate = 40;
+  assert.equal(project(blank).annual[0].pctRent, 0);
+  assert.match(project(blank).notes.join(' '), /Percentage rent has no breakpoint/);
+  // a real base rent still works naturally
+  const natural = rollOf({ sf: 1000, other: 1000, rent: 60000, pool: 0, growth: 0, pct: { rate: 6, sales: 1200000, natural: true } });
+  near(project(natural).annual[0].pctRent, 12000);
 });
 
 test('property: a fixed recovery in the projection grows by its own rate each year', () => {
