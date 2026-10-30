@@ -19,7 +19,7 @@
  *             (an assumption: a renewal, a lease-up, a market reset). The two
  *             are never merged, and every output says which it rests on.
  *
- * Property projection, per month and per analysis year (ARGUS-style lines):
+ * Property projection, per month and per analysis year (industry-standard lines):
  *   base rent (contract, before concessions)
  *   + absorption and turnover vacancy at market rent = potential gross rent
  *   - absorption and turnover vacancy
@@ -35,6 +35,8 @@
 
 import { walt } from './engine/walt.js';
 import { toCents, toRate } from './engine/money.js';
+import { recoveryAnnual, shareOf } from './engine/recovery.js';
+import { breakpointOf, overageOf } from './engine/pctrent.js';
 
 const DAY = 86400000;
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
@@ -533,26 +535,24 @@ export function project(rr, { asOf: asOfArg, years: yearsArg } = {}) {
     const P = L.percentRent;
     if (P && pos(P.rate) && ok(P.sales)) {
       const firstRent = (L.periods || []).find((p) => p.source !== 'projected');
-      const bp = P.natural && firstRent ? (monthlyAmount(firstRent.rate, firstRent.unit, L.sf) * 12) / (P.rate / 100) : P.breakpoint;
+      const bp = breakpointOf({ rate: P.rate, natural: P.natural, baseRent: firstRent ? monthlyAmount(firstRent.rate, firstRent.unit, L.sf) * 12 : null, breakpoint: P.breakpoint });
       months.forEach((m, k) => {
-        if (!m.occupied || !ok(bp)) return;
+        if (!m.occupied || bp === null) return;
         const sales = P.sales * (1 + (P.growth || 0) / 100) ** Math.floor(k / 12);
-        rows[k].pctRent += (Math.max(0, sales - bp) * (P.rate / 100) / 12) * m.occupied;
+        rows[k].pctRent += (overageOf({ sales, rate: P.rate, breakpoint: bp }) / 12) * m.occupied;
       });
     }
     // expense recoveries
     const Rc = L.recovery;
     if (Rc && Rc.method && Rc.method !== 'none') {
-      const share = ok(Rc.share) ? Rc.share / 100 : (totalSf && pos(L.sf) ? L.sf / totalSf : 0);
+      // (old code coerced a text amount like '90000' to a number; Number() keeps that)
+      // an unknown share is 0 here (a blank rent-roll row recovers nothing); the Recovery tool says "can't tell"
+      const share = shareOf({ sharePct: Rc.share, tenantSf: L.sf, buildingSf: totalSf }) ?? 0;
       months.forEach((m, k) => {
         if (!m.occupied) return;
         const g = (1 + (s.expenseGrowth || 0) / 100) ** Math.floor(k / 12);
         const pool = (ok(s.recoverable) ? s.recoverable : ok(s.opex) ? s.opex : 0) * g;
-        let annual = 0;
-        if (Rc.method === 'prorata') annual = pool * share;
-        else if (Rc.method === 'base_year') annual = Math.max(0, pool - (Rc.baseAmount || 0)) * share;
-        else if (Rc.method === 'stop' && pos(L.sf)) annual = Math.max(0, pool / (totalSf || L.sf) - (Rc.stopPsf || 0)) * L.sf;
-        else if (Rc.method === 'fixed') annual = (Rc.amount || 0) * (1 + (Rc.growth || 0) / 100) ** Math.floor(k / 12);
+        const annual = recoveryAnnual({ method: Rc.method, pool, share, tenantSf: L.sf, buildingSf: totalSf || L.sf, baseAmount: Number(Rc.baseAmount || 0), stopPsf: Number(Rc.stopPsf || 0), fixed: (Rc.amount || 0) * (1 + (Rc.growth || 0) / 100) ** Math.floor(k / 12) }) ?? 0;
         rows[k].recoveries += (annual / 12) * m.occupied;
       });
     }

@@ -4,6 +4,7 @@
 
 import { $, el, svg, niceDate, parseNum, parsePct } from './kit.js';
 import { getTheme } from './theme.js';
+import { getLook } from './look.js';
 import * as ai from './ai.js';
 import { renderDataCard } from './backupui.js';
 import { openAiSettings } from './aiui.js';
@@ -127,6 +128,18 @@ export async function renderSettings() {
     seg.appendChild(b);
   }
   ul.appendChild(row('Theme', 'System follows your device: light by day, dark at night if it is set to switch.', [seg]));
+  const lookSeg = el('div', 'seg theme-seg wide');
+  lookSeg.setAttribute('role', 'radiogroup');
+  lookSeg.setAttribute('aria-label', 'Look');
+  for (const [v, label] of [['classic', 'Classic'], ['new', 'New look']]) {
+    const b = el('button', null, label);
+    b.type = 'button';
+    b.setAttribute('role', 'radio');
+    b.dataset.lookSet = v;
+    b.setAttribute('aria-checked', String(v === getLook()));
+    lookSeg.appendChild(b);
+  }
+  ul.appendChild(row('Look', 'Classic is the look you know. The New look has new colors, type and solid bars; nothing else changes and you can switch back at any time.', [lookSeg]));
   look.appendChild(ul);
   stack.appendChild(look);
 

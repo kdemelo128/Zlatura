@@ -26,7 +26,7 @@
  * a cache of its own, named for its version and kept across app updates: after
  * the first use it works offline too. Before that, offline, it says it needs
  * a connection once. */
-const VERSION = '4.7.73';
+const VERSION = '4.7.76';
 const CACHE = `zlatura-${VERSION}`;
 const ASSETS = [
   './',
@@ -112,10 +112,14 @@ const ASSETS = [
   'app/engine/graph.js',
   'app/engine/leasing.js',
   'app/engine/money.js',
+  'app/engine/pctrent.js',
+  'app/engine/recovery.js',
+  'app/engine/returns.js',
   'app/engine/walt.js',
   'app/backupui.js',
   'app/styles.css',
   'app/theme.js',
+  'app/look.js',
   'app/settings.js',
   'app/command.js',
   'app/dealfields.js',
@@ -140,6 +144,8 @@ const ASSETS = [
   'fonts/public-sans-latin-400-normal.woff2',
   'fonts/public-sans-latin-600-normal.woff2',
   'fonts/public-sans-latin-700-normal.woff2',
+  'fonts/source-serif-4-latin-400-normal.woff2',
+  'fonts/source-serif-4-latin-600-normal.woff2',
 ];
 
 const IMMUTABLE = /\/(vendor|fonts|icons)\//;

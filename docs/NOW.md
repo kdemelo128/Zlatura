@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.73 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.76 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -135,7 +135,12 @@ section with grep, never in full.
 - **Documents hub D1 (4.7.70, PR opening):** Tools → Documents → PDF pages: merge, split, reorder, rotate, extract; on the device, nothing stored; `@cantoo/pdf-lib` 2.11.1 vendored with licence and checksum. Next: D2 conversions, D3 due-diligence registry.
 - **Confidential tag (4.7.71, merged #100):** one boolean per deal that blocks every AI call for it and marks its exports; the file name and printed pages say CONFIDENTIAL.
 - **Code scanning alert 12, second fix (4.7.72, merged #102):** reproduced with CodeQL 2.27.3 run locally; the download link is set in one step; 1 result before, 0 after locally. The alert stays open until GitHub's next scan says otherwise.
-- **Underwrite tab, W1 (4.7.73, PR opening):** a dedicated Underwrite tab: a quick underwriting that needs no saved deal (kept on the device, carried by backups), then "make it a deal".
+- **Underwrite tab, W1 (4.7.73, merged #103):** a dedicated Underwrite tab: a quick underwriting that needs no saved deal (kept on the device, carried by backups), then "make it a deal".
+- **Confidential tag (4.7.71, PR opening):** one boolean per deal that blocks every AI call for it and marks its exports; the file name and printed pages say CONFIDENTIAL.
+- **Cash flow A1 (4.7.74, merged #104):** recoveries, percentage rent and the sale at exit each live in one function in `app/engine/`; no figure changes (the Percentage rent tool can differ in the last digit only). Clean-room rule added to `docs/working-rules.md`. Next: A1b (the three approved edge-case fixes), A2 read-only cash-flow view.
+- **UI revamp D1 (4.7.75, PR opening):** Settings > Look: Classic or New look. New look = slate neutrals + brass accent, Source Serif 4 and Public Sans, solid bars, contrast-tested tokens; Classic unchanged. The look choice is stored on the device (localStorage `zlatura.look`), not in backups. Next: D2 icons and the rename-ready brand mark.
+- **Cash flow A1 (4.7.74, PR opening):** recoveries, percentage rent and the sale at exit each live in one function in `app/engine/`; no figure changes (the Percentage rent tool can differ in the last digit only). Clean-room rule added to `docs/working-rules.md`. Next: A1b (the three approved edge-case fixes), A2 read-only cash-flow view.
+- **Excel zip-bomb guard (4.7.76, PR opening):** a workbook's real unpacked size is checked as it unpacks (not only the size it declares); applies to the rent roll, T-12, templates and the sheet reader; zip64 workbooks still open. Security fix with its own tests.
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
   owner says to continue.

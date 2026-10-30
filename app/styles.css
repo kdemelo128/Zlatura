@@ -16,6 +16,10 @@
 @font-face { font-family: "Public Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("../fonts/public-sans-latin-400-normal.woff2") format("woff2"); }
 @font-face { font-family: "Public Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url("../fonts/public-sans-latin-600-normal.woff2") format("woff2"); }
 @font-face { font-family: "Public Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("../fonts/public-sans-latin-700-normal.woff2") format("woff2"); }
+/* Source Serif 4 (OFL), the New look's serif. Named "Zlatura Serif" here so the Classic stack, which lists
+   a locally installed "Source Serif 4", never starts downloading these files. */
+@font-face { font-family: "Zlatura Serif"; font-style: normal; font-weight: 400; font-display: swap; src: url("../fonts/source-serif-4-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Zlatura Serif"; font-style: normal; font-weight: 600; font-display: swap; src: url("../fonts/source-serif-4-latin-600-normal.woff2") format("woff2"); }
 
 /* The hidden attribute has to beat any class that sets display. */
 [hidden] { display: none !important; }
@@ -110,6 +114,60 @@
   --bar: rgba(15, 16, 18, .92); --scrim: rgba(0, 0, 0, .6);
   color-scheme: dark;
 }
+
+/* ====================================================== New look tokens
+ * Only under [data-look="new"] (Settings > Appearance > Look); Classic is the
+ * rules above, untouched. Cool slate neutrals under one brass accent, solid
+ * bars, ink rules instead of shadows, two type families, six sizes
+ * (docs/proposals/ui-revamp-addendum.md 3.2-3.4). Every text pair is checked
+ * in tests/look-tokens.test.js; the dark values are set twice, as above. */
+:root[data-look="new"] {
+  /* type: our faces first, then the system's; sizes in rem so they follow the reader's text size */
+  --ui: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --display: var(--ui);
+  --serif: "Zlatura Serif", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --fs-cap: .8125rem; --fs-small: .9375rem; --fs-body: 1rem; --fs-h3: 1.1875rem; --fs-h2: 1.5rem; --fs-fig: 1.875rem;
+  --t-11: .6875rem; --t-12: .8125rem; --t-13: .8125rem; --t-14: .9375rem; --t-15: 1rem; --t-17: 1rem; --t-20: 1.1875rem; --t-24: 1.5rem; --t-30: 1.5rem; --t-36: 1.875rem;
+  /* radius by the size of the thing */
+  --r-xs: 6px; --r-sm: 8px; --r-md: 10px; --r: 14px; --r-lg: 14px;
+  --bg: #F4F5F7; --side: #FFFFFF; --surface: #FFFFFF; --surface-2: #ECEEF1; --surface-3: #E1E4E9; --fill: rgba(20, 24, 29, .06);
+  --ink: #14181D; --muted: #4E5661; --faint: #5F6773; --line: #DFE3E8; --line-strong: #868E99;
+  --primary: #8A6118; --primary-ink: #FFFFFF; --accent: #8A6118; --accent-ink: #FFFFFF; --accent-soft: #F4EEE3;
+  --brass: #8A6118; --brass-mark: #8A6118; --brass-soft: #F4EEE3;
+  --good: #0F7356; --warn: #93500A; --critical: #B42318;
+  --sale: #0072B2; --list: #B85000; --trend: #5F6570;
+  --shadow: none; --shadow-md: none; --shadow-lg: 0 8px 28px rgba(20, 24, 29, .16), 0 1px 3px rgba(20, 24, 29, .10);
+  --bar: #F4F5F7; --scrim: rgba(18, 18, 16, .38);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-look="new"]:not([data-theme="light"]) {
+    --bg: #111316; --side: #171A1E; --surface: #171A1E; --surface-2: #1F2328; --surface-3: #2A2F36; --fill: rgba(255, 255, 255, .07);
+    --ink: #E8EAED; --muted: #A9B0B9; --faint: #8F96A0; --line: #2B3037; --line-strong: #6E7682;
+    --primary: #DDB466; --primary-ink: #111316; --accent: #DDB466; --accent-ink: #111316; --accent-soft: #2A261D;
+    --brass: #DDB466; --brass-mark: #DDB466; --brass-soft: #2A261D;
+    --good: #4DCB97; --warn: #F0AB52; --critical: #FF7A70;
+    --sale: #56B4E9; --list: #E69F00; --trend: #979CA4;
+    --shadow: none; --shadow-md: none; --shadow-lg: 0 10px 32px rgba(0, 0, 0, .55);
+    --bar: #111316; --scrim: rgba(0, 0, 0, .6);
+    color-scheme: dark;
+  }
+}
+:root[data-look="new"][data-theme="dark"] {
+  --bg: #111316; --side: #171A1E; --surface: #171A1E; --surface-2: #1F2328; --surface-3: #2A2F36; --fill: rgba(255, 255, 255, .07);
+  --ink: #E8EAED; --muted: #A9B0B9; --faint: #8F96A0; --line: #2B3037; --line-strong: #6E7682;
+  --primary: #DDB466; --primary-ink: #111316; --accent: #DDB466; --accent-ink: #111316; --accent-soft: #2A261D;
+  --brass: #DDB466; --brass-mark: #DDB466; --brass-soft: #2A261D;
+  --good: #4DCB97; --warn: #F0AB52; --critical: #FF7A70;
+  --sale: #56B4E9; --list: #E69F00; --trend: #979CA4;
+  --shadow: none; --shadow-md: none; --shadow-lg: 0 10px 32px rgba(0, 0, 0, .55);
+  --bar: #111316; --scrim: rgba(0, 0, 0, .6);
+  color-scheme: dark;
+}
+/* a hovered primary button moves toward the ink, so its label keeps its contrast (toward the page it would not) */
+:root[data-look="new"] .btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--primary) 88%, var(--ink)); }
+/* solid bars: no blur, no translucency over changing content */
+:root[data-look="new"] .appbar, :root[data-look="new"] .tabbar { -webkit-backdrop-filter: none; backdrop-filter: none; }
 @media (min-width: 960px) { :root { --gutter: 32px; } }
 
 /* ================================================================== base */

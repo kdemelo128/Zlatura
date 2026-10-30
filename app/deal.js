@@ -12,6 +12,7 @@ const pos = (x) => ok(x) && x > 0;
 
 import { debtService, loanConstant, balanceAfter, sizeLoan } from './engine/debt.js';
 import { compBasis } from './engine/comps.js';
+import { reversion } from './engine/returns.js';
 import { evaluate, leaseStats, yearsLeft } from './engine/figures.js';
 
 // the loan, comp and rent roll arithmetic lives in the engine; it is re-exported here for the modules that import it from deal.js
@@ -82,8 +83,7 @@ export function holdReturns({ price, noi, growth = 0, hold = 5, exitCap, saleCos
   // years 1 .. n+1: a NOI for each year from a projection (the rent roll), or year 1 grown at one rate
   const series = Array.isArray(noiSeries) && noiSeries.length >= n + 1 && noiSeries.slice(0, n + 1).every(ok) ? noiSeries.slice(0, n + 1) : null;
   const nois = series || Array.from({ length: n + 1 }, (_, t) => noi * (1 + g) ** t);
-  const exitValue = nois[n] / (exitCap / 100);
-  const sell = ok(saleCost) && saleCost > 0 ? exitValue * saleCost / 100 : 0;
+  const { gross: exitValue, saleCosts: sell } = reversion({ basisNext: nois[n], exitCap, saleCostPct: ok(saleCost) && saleCost > 0 ? saleCost : 0 });
   const balance = L ? balanceAfter(L, loan.rate, loan.amort, n, loan.io) : 0;
   const equity = price - L + closing;
   const unlev = [-(price + closing)];

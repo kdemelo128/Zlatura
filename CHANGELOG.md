@@ -1,5 +1,54 @@
 # Changelog
 
+## 4.7.76: A booby-trapped spreadsheet can no longer freeze the tab (on the development branch; not merged or deployed)
+
+The designer review of the Documents hub found that the spreadsheet reader
+(ExcelJS, through its bundled JSZip) ignores the sizes a zip declares and
+inflates whatever is really inside. A 25 MB .xlsx could ask for about 25 GB;
+the earlier size checks only read what the file said about itself.
+
+- **Sizes are checked as the file is unpacked.** `safeUnzip` and `hardenZip`
+  in `app/filekind.js` read the zip's directory, apply the caps (100 MB in
+  total, 10,000 parts, 200 to 1 per part), then inflate each part in small
+  pieces into a buffer of exactly its declared size, stopping at the first
+  overrun. A file whose parts are not the size it says is refused by name.
+- **ExcelJS gets a copy with true sizes.** The parts are packed again with no
+  compression and that copy is what ExcelJS reads: same workbook, same
+  figures.
+- **Every user-file site is covered:** the T-12 and sheet import
+  (`checkUpload`, `readGrids`), the rent roll import and templates
+  (`app/template.js`). **The rent roll import now also enforces the 25 MB
+  workbook limit and the file-kind check**, as the T-12 import already did
+  (it read any size before).
+- **Zip64 workbooks still open** (sizes read from the zip64 fields, same
+  caps); parts that share bytes, or a part header that isn't one, are
+  refused; a refusal names the file.
+- **Tested:** `tests/zip-guard.test.js` (a 60 MB part declared at 1,000
+  bytes, over-cap, too many parts, ratio, nested zip, short and stored size
+  mismatches, damaged and password-protected, a normal workbook read
+  identically by ExcelJS); each cap mutation-checked. Saved results did not
+  change.
+
+## 4.7.75: A "New look" switch in Settings with new colors, type and solid bars (off by default) (on the development branch; not merged or deployed)
+
+UI revamp step D1. Settings > Appearance > Look now offers Classic (the default, unchanged) and New look. The New look is a first slice of the visual language in `docs/proposals/ui-revamp-addendum.md`; no figure, saved deal or backup changes.
+
+- **Tokens.** Cool slate neutrals under one brass accent, light and dark; a six-size type scale in `rem`; radius by size (8, 10, 14 px); no resting shadows and one floating shadow. Every text pair is at least 4.5:1 and every border at least 3:1, computed in `tests/look-tokens.test.js`.
+- **Type.** Source Serif 4 (400 and 600, OFL, 20,088 and 21,532 bytes) is vendored in `fonts/` with its licence and SHA-256 in `THIRD_PARTY.md`, cached by the service worker, `font-display: swap`. In the New look our own Public Sans and Source Serif come before the system fonts. Classic never loads the serif files.
+- **Solid bars.** The top and bottom bars lose the blur and the translucency in the New look; Classic keeps them.
+- **Choice kept on this device** in `localStorage` (`zlatura.look`), applied before first paint like the theme. It is not stored in a deal or a backup.
+- **Tested.** New Node test (contrast of every pair, Classic token snapshot, fonts, bars), new browser flow `ui-d1-flow` (axe at phone and desktop, light and dark, on five screens; solid bars; switching back to Classic). Golden: 646 figures, 0 changed.
+
+## 4.7.74: One calculation in one place: recoveries, percentage rent and the sale price at exit (on the development branch; not merged or deployed)
+
+The Tools and the rent-roll projection each worked out expense recoveries and percentage rent with their own copy of the arithmetic, and the Deal screen and the DCF tool each priced the sale at exit. The copies agreed, but would have drifted once caps and gross-ups arrive (phase A1 of `docs/proposals/argus-class-cashflow.md`).
+
+- **One function each:** `app/engine/recovery.js`, `app/engine/pctrent.js` and `app/engine/returns.js`. `calc.js`, `lease.js` and `deal.js` call them. Nothing changes on screen and no saved result moves: 646 figures compared, 0 changed; the 618 saved results pass. The projection is bit-for-bit what it was (same order of operations; a text amount such as '90000' is still read as a number). The one exception is the Percentage rent tool and the DCF tool's sale price, which may differ from before in the last digit of the unrounded number (no cent moved in the probes: the percentage-rent tool's order of operations now follows the projection's, and the DCF sale price keeps its own).
+- **Where the copies still differ at the edges** (kept exactly as they were, reported to the owner): an unknown tenant share is "can't tell" in the Recovery tool but 0 in the projection; a negative sale cost is ignored on the Deal screen but applied in the DCF tool; a natural breakpoint on a zero base rent is 0 in the projection but falls back to the typed breakpoint in the tool.
+- **Rule written down:** the clean-room rule (no decompiling, tracing or circumventing vendor software; no vendor formats, layouts, help text, leaked code, model files or trademarks) is now in `docs/working-rules.md` and `CLAUDE.md`. A code comment no longer names a vendor.
+- **Timing:** measured in Node on the main thread (not in the browser worker), 500 invented leases over 10 years with recoveries and percentage rent on every lease: median about 84 ms before, about 82 ms after.
+- **Tested:** `tests/engine-shared.test.js`. The hand-worked cases are the independent check; the property tests (projection against Tools) are drift guards for later phases, since both sides now share one function. Also pinned: the kept edge behaviours, a year-3 percentage rent of $267,909.38, and the DCF sale price on a grid; each fails on the previous code; nine mutations of the new functions are each caught.
+
 ## 4.7.73: A new Underwrite tab: type a price, NOI and loan terms and see the answer, with no deal (on the development branch; not merged or deployed)
 
 The first step of the Underwriting workspace (`docs/proposals/underwriting-workspace.md`, approved by the owner 2026-10-23). Sets, combined figures and shared assumptions are later PRs.
