@@ -16,6 +16,14 @@ Step D3a of `docs/proposals/underwriting-evolve.md` (section 8; the data format 
 - **Opening an older deal adds no History entry** (an empty list is not an edit), and reading an OM is one entry. A damaged backup's document list is cleaned when the deal is opened or the card is drawn (bad values null, 200 at most; `readBackup` itself does not clean it) so the deal screen always draws. Known gap: a budget whose title sits below row 5 on a sheet named Sheet1 is typed T-12 (the T-12 import's own projection check looks at the sheet name and the first five rows).
 - **Saved results:** unchanged (618 saved deal results and 646 displayed figures identical).
 
+## 4.7.87: Rent roll column layout no longer guessed from "multi" or "center" (on the development branch; not merged or deployed)
+
+The rent roll picked its starting columns from the property type's free text, and a bare "multi" or "center" misled it: "Multi-tenant office", "Multi-tenant retail" and "Multi-tenant industrial" got the apartment columns.
+
+- **Fixed:** apartment columns only for multifamily, multi-family, apartment or residential; retail only for retail, shopping or strip center, or NNN; "center" and "multi" alone name nothing.
+- **Unchanged:** blank, unrecognised or ambiguous text (more than one kind) gets the same neutral Retail columns an unknown type always got; "Mixed use" is still Mixed use. Columns stay editable.
+- **Tested:** a 33-row table in `tests/rentroll-preset.test.js` (6 rows failed on the old code), two pattern mutations caught. Saved results: 618 unchanged; displayed figures: 646 compared, 0 changed.
+
 ## 4.7.86: One icon set, and the name and mark in one place (on the development branch; not merged or deployed)
 
 Every icon in the app is now drawn to one spec, and the product's name and mark live in one file, so a later rename is a one-file change. Nothing a broker does changed, and no saved result or figure changed.
