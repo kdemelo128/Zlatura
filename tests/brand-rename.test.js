@@ -38,10 +38,18 @@ test('index.html names the product only where no module can: the title, two meta
   assert.match(html, new RegExp(`name="description" content="${PRODUCT}, `));
   assert.ok(html.includes(TAGLINE), 'the description carries the tagline');
   // everything else that says the name is a fallback panel or a script (storage keys), none shown by the app
-  const rest = html
-    .replace(/<title>.*?<\/title>/, '').replace(/<meta [^>]*>/g, '')
-    .replace(/<h2>[^<]*<\/h2>/g, '').replace(/<script[\s\S]*?<\/script>/g, '')
-    .replace(/<!--[\s\S]*?-->/g, '');
+  const cut = (s, open, close) => { // a plain scan, so no markup is ever filtered by pattern
+    let out = '';
+    for (let i = 0; ;) {
+      const a = s.toLowerCase().indexOf(open, i);
+      if (a < 0) return out + s.slice(i);
+      const b = s.toLowerCase().indexOf(close, a + open.length);
+      out += s.slice(i, a);
+      if (b < 0) return out;
+      i = b + close.length;
+    }
+  };
+  const rest = cut(cut(html.replace(/<title>.*?<\/title>/, '').replace(/<meta [^>]*>/g, '').replace(/<h2>[^<]*<\/h2>/g, ''), '<script', '</script>'), '<!--', '-->');
   const left = rest.split('\n').filter((l) => l.includes(PRODUCT));
   assert.deepEqual(left, [], 'index.html names the product somewhere not listed');
 });

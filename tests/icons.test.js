@@ -10,6 +10,19 @@ const files = fs.readdirSync(APP).filter((f) => f.endsWith('.js') && f !== 'icon
 const src = Object.fromEntries(files.map((f) => [f, fs.readFileSync(new URL(f, APP), 'utf8')]));
 const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
+/** s without every open...close stretch (a plain scan, so no markup is ever filtered by pattern). */
+function cut(s, open, close) {
+  let out = '';
+  for (let i = 0; ;) {
+    const a = s.indexOf(open, i);
+    if (a < 0) return out + s.slice(i);
+    const b = s.indexOf(close, a + open.length);
+    out += s.slice(i, a);
+    if (b < 0) return out;
+    i = b + close.length;
+  }
+}
+
 /** Every icon name the app asks for, found by the shapes a call takes. */
 function usedNames() {
   const out = new Map(); // name -> where
@@ -54,7 +67,7 @@ test('every icon is built only from path, circle and rect, with no colour, fill 
   for (const [name, body] of Object.entries(ICONS)) {
     const tags = [...body.matchAll(/<(\w+)([^>]*?)\/>/g)];
     assert.ok(tags.length > 0, `${name} has shapes`);
-    assert.equal(body.replace(/<\w+[^>]*?\/>/g, ''), '', `${name} holds only self-closed shapes`);
+    assert.equal(tags.map((m) => m[0]).join(''), body, `${name} holds only self-closed shapes`);
     for (const [, tag, attrs] of tags) {
       assert.ok(ALLOWED[tag], `${name}: <${tag}> is not allowed`);
       const names = [...attrs.matchAll(/([\w-]+)="/g)].map((m) => m[1]);
@@ -84,7 +97,7 @@ test('no icon is drawn anywhere but icons.js (and the brand mark in brand.js)', 
     const code = s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '');
     assert.ok(!/<(svg|path|circle|rect|line|symbol)\b/.test(code), `${f} draws a shape by hand: add it to icons.js`);
   }
-  assert.ok(!/<(path|circle|rect)\b/.test(html.replace(/<!--[\s\S]*?-->/g, '')), 'index.html draws a shape by hand: use <svg data-icon="name">');
+  assert.ok(!/<(path|circle|rect)\b/.test(cut(html, '<!--', '-->')), 'index.html draws a shape by hand: use <svg data-icon="name">');
   assert.ok(!/stroke-width="/.test(html), 'index.html sets a stroke weight by hand');
 });
 
