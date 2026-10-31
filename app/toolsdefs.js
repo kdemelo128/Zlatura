@@ -16,10 +16,12 @@ import {
   waterfall, commission, compareLeases, renewalVsReplacement, percentageRent, recovery, absorption, escalationSchedule,
   residualLand, yieldOnCost, drawSchedule, compSetCheck,
 } from './calc.js';
-import { holdReturns } from './deal.js';
+import { holdReturns, SALE_COST_NEGATIVE } from './deal.js';
 import { money0, money2, pct, times, int, dec, signed, short } from './kit.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
+/** A negative sale cost is refused, in every tool that sells: the answer is replaced by this message. */
+const costRefused = (cost) => (ok(cost) && cost < 0 ? { lines: [['Sale costs can’t be negative', '—']], warnings: [SALE_COST_NEGATIVE] } : null);
 const loanOf = (v) => ({ ltv: v.ltv, rate: v.rate, amort: v.amort, io: !!v.io, closing: v.closing });
 
 export const GROUPS = ['Valuation', 'Debt and financing', 'Returns and fees', 'Leasing', 'Comps and market', 'Development', 'Conversions and dates', 'Documents'];
@@ -35,6 +37,8 @@ export const MORE_TOOLS = [
     explain: 'Value = Σ (NOIₜ − reserve) ÷ (1 + r)ᵗ + [NOIₙ₊₁ ÷ exit cap × (1 − sale costs)] ÷ (1 + r)ⁿ. Annual, end-of-year cash flows.',
     fromDeal: (d) => ({ noi: d.m.noi, exitCap: d.scenario && d.scenario.inputs.exitCap, saleCost: d.scenario && d.scenario.inputs.saleCost, growth: d.scenario && d.scenario.inputs.growth }),
     run: (v, ctx) => {
+      const refused = costRefused(v.saleCost);
+      if (refused) return refused;
       const warnings = [];
       let series = null;
       if (v.useRentRoll) {
@@ -188,6 +192,8 @@ export const MORE_TOOLS = [
     fromDeal: (d) => ({ price: d.m.price, noi: d.m.noi, ltv: d.loan.ltv, rate: d.loan.rate, amort: d.loan.amort, io: d.loan.io, closing: d.loan.closing, ...(d.scenario ? { growth: d.scenario.inputs.growth, hold: d.scenario.inputs.hold, exitCap: d.scenario.inputs.exitCap, saleCost: d.scenario.inputs.saleCost } : {}) }),
     toDeal: (v) => ({ live: { hold: v.hold, growth: v.growth, exitCap: v.exitCap, saleCost: v.saleCost }, summary: `hold ${v.hold} years, growth ${dec(v.growth, 2)}%, exit cap ${pct(v.exitCap)}, sale costs ${dec(v.saleCost, 2)}% as the What-if scenario’s assumptions (not the deal’s figures)` }),
     run: (v) => {
+      const refused = costRefused(v.saleCost);
+      if (refused) return refused;
       const r = holdWithFees({ price: v.price, noi: v.noi, growth: v.growth, hold: v.hold, exitCap: v.exitCap, saleCost: v.saleCost, loan: loanOf(v) }, v);
       if (!r) return { lines: [['Enter price, NOI, hold, exit cap and loan terms', '—']] };
       const fees = r.fees.total > 0;
@@ -207,6 +213,8 @@ export const MORE_TOOLS = [
       ['noi', 'NOI, year 1', 'money'], ['growth', 'NOI growth %', 'pct', '2'], ['hold', 'Hold, years', 'int', '5'], ['saleCost', 'Sale costs %', 'pct0', '2'], ['ltv', 'LTV %', 'pct', '65'], ['rate', 'Rate %', 'pct', '6.75'], ['amort', 'Amortization, years', 'int', '30'], ['closing', 'Closing costs %', 'pct0', '2']],
     fromDeal: (d) => ({ price: d.m.price, noi: d.m.noi, ltv: d.loan.ltv, rate: d.loan.rate, amort: d.loan.amort, closing: d.loan.closing, ...(d.scenario ? { exitCap: d.scenario.inputs.exitCap, hold: d.scenario.inputs.hold, growth: d.scenario.inputs.growth, saleCost: d.scenario.inputs.saleCost } : {}) }),
     run: (v) => {
+      const refused = costRefused(v.saleCost);
+      if (refused) return refused;
       const prices = around(0, v.priceStep || 5, 2).map((s) => v.price * (1 + s / 100));
       const caps = around(v.exitCap, v.capStep || 0.25, 2);
       if (!ok(v.price) || !ok(v.noi) || !caps.length) return { lines: [['Enter price, NOI and an exit cap', '—']] };
@@ -306,7 +314,7 @@ export const MORE_TOOLS = [
     inputs: [['expenses', 'Recoverable expenses, $ a year', 'money'], ['tenantSf', 'Tenant SF', 'num'], ['buildingSf', 'Building SF', 'num'], ['sharePct', 'Pro-rata share % (blank = SF share)', 'pct0'],
       ['method', 'Method', 'select', [['prorata', 'Pro rata (NNN)'], ['base_year', 'Over base year'], ['stop', 'Over an expense stop'], ['fixed', 'Fixed amount']]], ['baseYear', 'Base-year expenses', 'money'], ['stopPsf', 'Expense stop $/SF', 'money2'], ['fixed', 'Fixed recovery $', 'money']],
     fromDeal: (d) => ({ expenses: d.figures.opex, buildingSf: d.figures.bsf }),
-    run: (v) => { const r = recovery(v); return r ? { lines: [['Annual recovery', money0(r.annual), true], ['Monthly', money0(r.monthly)], ['Per SF', money2(r.psf)], ['Share', pct(r.share, 2)]] } : { lines: [['Enter the expenses and the tenant’s share', '—']] }; },
+    run: (v) => { if (v.method === 'base_year' && !ok(v.baseYear)) return { lines: [['Enter the base-year expenses (a blank is not 0: type 0 if there is none)', '—']] }; if (v.method === 'stop' && !ok(v.stopPsf)) return { lines: [['Enter the expense stop per SF (a blank is not 0: type 0 if there is none)', '—']] }; const r = recovery(v); return r ? { lines: [['Annual recovery', money0(r.annual), true], ['Monthly', money0(r.monthly)], ['Per SF', money2(r.psf)], ['Share', pct(r.share, 2)]] } : { lines: [['Enter the expenses and the tenant’s share', '—']] }; },
   },
   {
     id: 'absorption', group: 'Leasing', title: 'Lease-up and absorption', color: '#DB2777', icon: '<path d="M4 20V10M9 20V6M14 20v-9M19 20V4"/>',
@@ -340,6 +348,8 @@ export const MORE_TOOLS = [
       ['softPct', 'Soft costs, % of hard', 'pct0', '20'], ['contingencyPct', 'Contingency %', 'pct0', '5'], ['financePct', 'Financing, % of costs', 'pct0', '6'], ['profitPct', 'Developer profit %', 'pct0', '15'],
       ['profitOn', 'Profit measured on', 'select', [['cost', 'total cost (with land)'], ['gdv', 'finished value']]], ['buildableSf', 'Buildable SF', 'num'], ['units', 'Units', 'num']],
     run: (v) => {
+      const refused = costRefused(v.saleCostPct);
+      if (refused) return refused;
       const r = residualLand(v);
       if (!r) return { lines: [['Enter the finished value (or NOI and exit cap) and hard costs', '—']] };
       return { lines: [['Residual land value', money0(r.land), true], ['Per buildable SF', money2(r.perBuildableSf)], ['Per unit', money0(r.perUnit)], ['Finished value, net of sale costs', money0(r.net)], ['Costs before land', money0(r.costs), false, `soft ${money0(r.soft)}, contingency ${money0(r.contingency)}, financing ${money0(r.finance)}`], ['Developer profit', money0(r.profit)]], warnings: r.warnings };

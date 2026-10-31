@@ -1,0 +1,5 @@
+# osv-scanner config, read by the CI `dependencies` job (osv-scanner finds it next to the scanned lock file).
+# Every entry needs a reason and an ignoreUntil date so an exception cannot become permanent.
+# Process and removal steps: docs/security-checklist.md, "Time-boxed advisory exceptions".
+
+# No exceptions are open. (GHSA-g3hv-75wg-m249 was one until minimatch was pinned to 11.0.1 in package.json overrides.)

@@ -57,6 +57,9 @@ export function irr(flows) {
   return ((lo + hi) / 2) * 100;
 }
 
+/** Sale costs are a percent that is never negative: a negative cost would raise the sale price. */
+export const SALE_COST_NEGATIVE = 'Sale costs can’t be negative: a negative cost would raise the sale price. Enter 0 or more.';
+
 /**
  * Buy, hold and sell, a year at a time.
  *
@@ -75,6 +78,7 @@ export function irr(flows) {
 export function holdReturns({ price, noi, growth = 0, hold = 5, exitCap, saleCost = 0, loan = {}, noiSeries = null }) {
   const n = Math.round(hold);
   if (!pos(price) || !ok(noi) || !pos(exitCap) || !(n >= 1 && n <= 30)) return null;
+  if (ok(saleCost) && saleCost < 0) return null; // a negative sale cost would raise the price: refused, as in the DCF tool
   const g = ok(growth) ? growth / 100 : 0;
   const closing = ok(loan.closing) && loan.closing > 0 ? price * loan.closing / 100 : 0;
   const L = pos(loan.ltv) ? price * loan.ltv / 100 : 0;
@@ -83,7 +87,7 @@ export function holdReturns({ price, noi, growth = 0, hold = 5, exitCap, saleCos
   // years 1 .. n+1: a NOI for each year from a projection (the rent roll), or year 1 grown at one rate
   const series = Array.isArray(noiSeries) && noiSeries.length >= n + 1 && noiSeries.slice(0, n + 1).every(ok) ? noiSeries.slice(0, n + 1) : null;
   const nois = series || Array.from({ length: n + 1 }, (_, t) => noi * (1 + g) ** t);
-  const { gross: exitValue, saleCosts: sell } = reversion({ basisNext: nois[n], exitCap, saleCostPct: ok(saleCost) && saleCost > 0 ? saleCost : 0 });
+  const { gross: exitValue, saleCosts: sell } = /** @type {{ gross: number, saleCosts: number }} */ (reversion({ basisNext: nois[n], exitCap, saleCostPct: ok(saleCost) ? saleCost : 0 }));
   const balance = L ? balanceAfter(L, loan.rate, loan.amort, n, loan.io) : 0;
   const equity = price - L + closing;
   const unlev = [-(price + closing)];
@@ -169,6 +173,7 @@ export function runScenario(d, m, over = {}, { noiSeries = null } = {}) {
   const s = { ...base };
   for (const [k, v] of Object.entries(over)) if (v !== null && v !== undefined && v !== '') s[k] = v;
   const notes = [];
+  if (ok(s.saleCost) && s.saleCost < 0) notes.push(`${SALE_COST_NEGATIVE} The returns are left out.`);
   let noi = base.noi;
   const canBuildUp = pos(base.gross) && ok(base.opex);
   const touchesOps = ['rentChange', 'expenseChange', 'occ'].some((k) => over[k] !== undefined && over[k] !== null && over[k] !== '');
