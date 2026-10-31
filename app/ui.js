@@ -64,6 +64,8 @@ const state = {
   busy: false,
   sort: { sale: 'ppsf', market: 'ppsf' },
   query: { sale: '', market: '' },
+  showAll: { sale: false, market: false }, // the long list is drawn in full; this session only, never stored
+  pinned: new Set(), // keys of comps added or edited this session: drawn even past the cap
   output: 'builtin', // or 'template'
   template: null,    // { name, bytes, plan, savedAt }
 };
@@ -369,6 +371,7 @@ function row(c, kind) {
   // an edit changes this row's figures and the totals, nothing else: no
   // re-render, so focus stays where the keyboard put it
   const onEdit = () => {
+    state.pinned.add(c.key);
     ppsfCell.textContent = money2(ppsf(c));
     tr.classList.toggle('off', !included(c));
     actCell.replaceChildren(chips(c), actions(c, kind));
@@ -479,6 +482,9 @@ const SORTS = {
 const matches = (c, q) => !q || [c.name, c.address, c.city, c.state, c.zoning, c.submarket, c.buyer, c.seller, c.ptype]
   .some((x) => x && String(x).toLowerCase().includes(q));
 
+/** Rows drawn at once. Drawing every row of a long list makes each edit repaint all of them (~700 ms at 1,200 comps on a desktop). */
+const ROW_CAP = 200;
+
 function renderTable(kind) {
   const all = kind === 'sale' ? state.sales : state.market;
   const comps = [...all].sort(SORTS[state.sort[kind]] || byPpsf);
@@ -496,7 +502,26 @@ function renderTable(kind) {
   thead.appendChild(htr);
   table.appendChild(thead);
   const tbody = el('tbody');
-  for (const c of shown) tbody.appendChild(row(c, kind));
+  const capped = shown.length > ROW_CAP && !state.showAll[kind];
+  // a comp just added or edited stays drawn, wherever it sits in the order
+  const drawn = capped ? shown.filter((c, i) => i < ROW_CAP || state.pinned.has(c.key)) : shown;
+  for (const c of drawn) tbody.appendChild(row(c, kind));
+  if (shown.length > ROW_CAP) {
+    const tr = el('tr');
+    const td = el('td', 'no-match cap-row');
+    td.colSpan = 11;
+    td.setAttribute('role', 'status');
+    const b = el('button', 'btn', capped ? `Show all ${int(shown.length)} comps` : `Show the first ${ROW_CAP} only`);
+    b.type = 'button';
+    b.addEventListener('click', () => {
+      state.showAll[kind] = capped;
+      renderTable(kind);
+      table.querySelector('.cap-row button')?.focus();
+    });
+    td.append(capped ? `Showing ${int(drawn.length)} of ${int(shown.length)} comps. ` : `Showing all ${int(shown.length)} comps. `, b);
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  }
   if (!shown.length && q) {
     const tr = el('tr');
     const td = el('td', 'no-match', `No ${kind === 'sale' ? 'sales' : 'listings'} match “${state.query[kind].trim()}”.`);
@@ -633,6 +658,7 @@ function addManual(kind) {
   state.manual.push(c);
   (kind === 'sale' ? state.sales : state.market).push(c);
   state.query[kind] = '';
+  state.pinned.add(c.key);
   $(kind === 'sale' ? 'sale-search' : 'market-search').value = '';
   renderAll();
   scheduleSave();
