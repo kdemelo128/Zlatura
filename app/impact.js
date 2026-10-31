@@ -63,6 +63,7 @@ input('example', 'Fictional sample (an example deal)');
 input('fee', 'The fee record (fee terms, invoice and payments)');
 input('credit', 'The tenant credit record (parties, guaranty, typed ratings, store sales)');
 input('dd', 'The due-diligence document list (which documents were received, with their fingerprints; never the files)');
+input('abstracts', 'Lease abstracts (typed lease terms, with the page and a short quote for each)');
 input('t12', 'The T-12 operating statement (its lines, their categories, its months)');
 
 /** Lease fields, as a person edits them. `status` covers vacant and month to month; `rent` the rent periods. */
@@ -98,6 +99,7 @@ export const NOT_CALCULATED = {
   'figures.parking': 'shown on the deal screen only',
   credit: 'shown on the Credit card only; kept in backups, on no export',
   dd: 'shown on the Documents card only; kept in backups; the document files are never stored',
+  abstracts: 'shown on the Lease abstracts card and its own exports only; no deal figure reads it',
 };
 
 /* ---------------------------------------------------- the deal analysis */
@@ -455,6 +457,7 @@ export function inputOfPath(steps) {
   if (a === 'fee') return { input: 'fee' };
   if (a === 'credit') return { input: 'credit' };
   if (a === 'dd') return { input: 'dd' };
+  if (a === 'abstracts') return { input: 'abstracts' };
   if (a === 'scenarios') return { input: 'scenarios' };
   if (a === 'targets') return { input: 'targets' };
   if (a === 'visit') return { input: 'visit' };

@@ -507,7 +507,7 @@ function reLease(L, s, startIso, horizonEnd, R, isLeaseUp = false) {
 }
 
 /** Calendar months from `a` to the day after `b` (inclusive end): whole months, plus a share of a part month. */
-function monthsBetween(a, b) {
+export function monthsBetween(a, b) {
   const x = new Date(dayOf(a) * DAY); const y = new Date((dayOf(b) + 1) * DAY);
   let m = (y.getUTCFullYear() - x.getUTCFullYear()) * 12 + (y.getUTCMonth() - x.getUTCMonth());
   let d = y.getUTCDate() - x.getUTCDate();

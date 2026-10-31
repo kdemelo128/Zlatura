@@ -168,6 +168,23 @@ export const MIGRATIONS = [
       return { rounded: [] };
     },
   },
+  {
+    id: 'abstracts-init',
+    field: 'schema',
+    to: 8,
+    since: '4.7.89',
+    does: 'A deal gets an empty lease-abstract list (deal.abstracts: lease terms the broker typed, each with the page it came from). Nothing already stored changes, and a list a newer version already wrote is left as it is. It also marks the deal as written by a version that knows the list, so an older app refuses its backup instead of dropping it.',
+    brief: 'ready for lease abstracts',
+    silent: true,
+    kind: 'create',
+    label: () => 'Ready for lease abstracts',
+    needed: (d) => (d.schema || 0) < 8,
+    up(d) {
+      if (!d.abstracts) d.abstracts = { v: 1, items: [] };
+      d.schema = 8;
+      return { rounded: [] };
+    },
+  },
 ];
 
 /**

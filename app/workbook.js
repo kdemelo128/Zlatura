@@ -64,7 +64,7 @@ export const colLetter = (n) => {
 
 /* ------------------------------------------------------------------ helpers */
 
-function sheet(wb, name, widths, tabColor) {
+export function sheet(wb, name, widths, tabColor) {
   const ws = wb.addWorksheet(name, {
     views: [{ showGridLines: false }],
     properties: { tabColor: { argb: tabColor || NAVY }, defaultRowHeight: 14 },

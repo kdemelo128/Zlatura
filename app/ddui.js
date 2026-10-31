@@ -175,6 +175,11 @@ export function renderDocsCard(box, h) {
     main.appendChild(el('span', 'dd-sub', sub.join(' · ')));
     main.addEventListener('click', () => { if (reader) h.openReader(doc.type); else docMenu(doc); });
     line.append(main, chip(STATUS_TEXT[doc.status] || doc.status, doc.status));
+    if ((doc.type === 'lease' || doc.type === 'amendment') && h.openAbstract) {
+      const ab = btn('btn-plain btn-sm dd-abstract', 'Abstract', () => h.openAbstract(doc), `Lease abstract for ${doc.name}`);
+      ab.dataset.id = doc.id;
+      line.appendChild(ab);
+    }
     const more = btn('btn-plain btn-sm dd-more', '…', () => docMenu(doc), `Actions for ${doc.name}`);
     line.appendChild(more);
     li.appendChild(line);

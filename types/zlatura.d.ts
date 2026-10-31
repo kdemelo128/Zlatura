@@ -137,8 +137,33 @@ interface DdDoc {
 }
 interface Dd { v: 1; preset: 'office' | 'retail' | 'netlease' | 'multifamily' | 'industrial' | null; na: Record<string, { reason: string; at: string }>; docs: DdDoc[] }
 
+/** A deal's lease abstracts (deal.abstracts): lease terms the broker typed, each with the page it came from. Sparse: a field key that is absent is unread. */
+type AbStatus = 'unread' | 'found' | 'not-found' | 'ambiguous';
+type AbBasis = 'rentable' | 'usable' | 'gross' | 'land';
+interface AbSrc { doc: string | null; page: number | null; start: null; len: null; quote: string; reader: 'typed'; ocrConf: null }
+interface AbItem { status: AbStatus; by: 'broker'; checked: false | string; confidence: null; src: AbSrc[]; supersededBy: null; note: string }
+interface AbField extends AbItem { value: unknown; unit: 'month' | 'year' | 'psf_year' | 'psf_month' | 'total' | null; basis: AbBasis | null; rel?: string }
+interface AbTerm extends AbItem { id: string; kind: 'initial' | 'renewal' | 'extension' | 'fmv' | 'opex' | null; label: string; ref: string; doc: string | null; effective: IsoDate | null; supersedes: boolean; unquantified: boolean }
+interface AbStep extends AbItem {
+  id: string; term: string | null; label: string; from: IsoDate | null; to: IsoDate | null; mFrom: number | null; mTo: number | null;
+  amounts: { month: Usd | null; year: Usd | null; psf_year: UsdPerSf | null; psf_month: UsdPerSf | null }; primary: 'month' | 'year' | 'psf_year' | 'psf_month' | null; basis: AbBasis | null;
+}
+interface AbOption extends AbItem {
+  id: string; kind: 'renewal' | 'expansion' | 'contraction' | 'termination' | 'rofr' | 'rofo' | 'purchase' | null; count: number | null; termMonths: number | null;
+  noticeMin: number | null; noticeMax: number | null; noticeUnit: 'days' | 'months' | null; relTo: 'expiration' | 'commencement' | 'other' | null;
+  reset: 'fmv' | 'fixed' | 'cpi' | 'other' | null; resetPct: number | null; resetText: string; fee: Usd | null; conditions: string;
+}
+interface AbClause extends AbItem { id: string; label: string; text: string }
+interface AbFlag { id: string; text: string; at: string }
+interface Abstract {
+  id: string; leaseId: string | null; docs: string[]; title: string; asOf: IsoDate | null; version: 1; versions: unknown[];
+  fields: Record<string, AbField>; terms: AbTerm[]; steps: AbStep[]; options: AbOption[]; clauses: AbClause[]; flags: AbFlag[]; audit: unknown[];
+  createdAt: string; updatedAt: string;
+}
+interface Abstracts { v: 1; items: Abstract[] }
+
 interface Deal {
-  id: string; name?: string; figures: Figures; loan: Loan; rr?: RentRoll | null; rentRoll?: OmRentRow[]; fee?: Fee; credit?: Credit; dd?: Dd;
+  id: string; name?: string; figures: Figures; loan: Loan; rr?: RentRoll | null; rentRoll?: OmRentRow[]; fee?: Fee; credit?: Credit; dd?: Dd; abstracts?: Abstracts;
   live?: ScenarioOver; scenarios?: { id: string; name: string; at?: number; over: ScenarioOver }[];
   targets?: { cap?: Pct | null; irr?: Pct | null; value?: Pct | null };
   sources?: Record<string, { hand?: boolean; page?: number; ai?: boolean; doc?: string; orig?: unknown; line?: string; verified?: boolean }>;

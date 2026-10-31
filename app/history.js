@@ -136,10 +136,10 @@ export function applyChanges(obj, changes, { backwards = false } = {}) {
   const stale = [];
   for (const c of list) {
     const expect = backwards ? c.new : c.old;
-    const onlyDd = c.path.length === 1 && c.path[0] === 'dd';
-    // an empty document list and none at all are the same thing to History (see recordable)
+    const isEmpty = c.path.length === 1 ? EMPTY_OK[c.path[0]] : null;
+    // an empty document or abstract list and none at all are the same thing to History (see recordable)
     const at = getPath(obj, c.path);
-    if (!deepSame(onlyDd && emptyDd(at) ? undefined : at, onlyDd && emptyDd(expect) ? undefined : expect)) stale.push(c.path);
+    if (!deepSame(isEmpty && isEmpty(at) ? undefined : at, isEmpty && isEmpty(expect) ? undefined : expect)) stale.push(c.path);
   }
   if (stale.length) return stale;
   for (const c of list) setPath(obj, c.path, copy(backwards ? c.old : c.new), c.index);
@@ -238,6 +238,7 @@ export function recordable(d) {
   if (out.rr && Array.isArray(out.rr.leases)) delete out.rentRoll;
   // an empty document list (what the dd-init step and a first look at the card make) is bookkeeping, not an edit
   if (emptyDd(out.dd)) delete out.dd;
+  if (emptyAbstracts(out.abstracts)) delete out.abstracts;
   return out;
 }
 
@@ -245,6 +246,12 @@ export function recordable(d) {
 export function emptyDd(dd) {
   return !!dd && typeof dd === 'object' && !(Array.isArray(dd.docs) && dd.docs.length) && !(dd.na && typeof dd.na === 'object' && Object.keys(dd.na).length) && !dd.preset;
 }
+
+/** A lease-abstract list with no abstracts (what the abstracts-init step and a first look at the card make): History treats it as no list. */
+export function emptyAbstracts(a) {
+  return !!a && typeof a === 'object' && !(Array.isArray(a.items) && a.items.length);
+}
+const EMPTY_OK = { dd: emptyDd, abstracts: emptyAbstracts };
 
 /** The largest change list kept in one entry; a bigger one points at the snapshot taken before it (or can't be undone). */
 export const ENTRY_MAX = 256 * 1024;

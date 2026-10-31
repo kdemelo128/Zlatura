@@ -38,6 +38,8 @@ import { renderT12Card } from './t12ui.js';
 import { renderFeeCard } from './feeui.js';
 import { renderCreditCard } from './creditui.js';
 import { renderDocsCard, recordFileRead } from './ddui.js';
+import { renderAbstractsCard, openAbstractForDoc } from './abstractui.js';
+import { ddOf } from './dd.js';
 import { openLibrary } from './libraryui.js';
 import { getSettings as getAiSettings, isReady } from './ai.js';
 import { openAiSettings, readWithAi, openAssistant, transcribeNote, openTranscript } from './aiui.js';
@@ -774,6 +776,9 @@ function renderDeal(r) {
   const docs = el('section', 'card dd-card');
   docs.id = 'deal-dd';
   main.appendChild(docs);
+  const abstracts = el('section', 'card ab-card');
+  abstracts.id = 'deal-abstracts';
+  main.appendChild(abstracts);
   const credit = el('section', 'card credit-card');
   credit.id = 'deal-credit';
   main.appendChild(credit);
@@ -816,9 +821,15 @@ function renderDeal(r) {
   renderDerived();
   // drawn once here, not with the figures: a redraw while typing would take the keyboard away
   renderDocsCard(docs, docsHost(d0));
+  renderAbstractsCard(abstracts, abstractsHost(d0));
   renderCreditCard(credit, { deal, touch: (meta) => touch(d0, meta) });
   renderFeeCard(fee, { deal, touch: (meta) => touch(d0, meta) });
   showPane(pane, { focus: false });
+}
+
+/** What the Lease abstracts card (abstractui.js) needs of this screen. */
+function abstractsHost(d) {
+  return { deal: d, touch: (meta) => touch(d, meta), stillOpen: () => deal === d, getXlsx, docs: () => ddOf(d).docs, sheetOpen: api.sheetOpen, sheetClose: api.sheetClose };
 }
 
 /** What the Documents card (ddui.js) needs of this screen. */
@@ -839,6 +850,7 @@ function docsHost(d) {
       else { showPane('overview', { focus: false }); const t = $(type === 't12' ? 'deal-t12' : 'deal-checks'); if (t) t.scrollIntoView({ block: 'start' }); }
     },
     ai: { ready: async () => isReady(await getAiSettings()), pick: chooseForAi },
+    openAbstract: (doc) => openAbstractForDoc($('deal-abstracts'), doc),
     sheetOpen: api.sheetOpen, sheetClose: api.sheetClose,
   };
 }
