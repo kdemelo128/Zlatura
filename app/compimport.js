@@ -14,6 +14,8 @@ import { LIMITS, BASES, blankComp, originText } from './compmodel.js';
 
 export const MAX_ROWS = LIMITS.rows;
 export const MAX_COLS = LIMITS.cols;
+/** Rows read from a workbook sheet: the limit plus a heading row and up to 15 rows above it, so a longer sheet is seen as too long without holding it all. */
+export const READ_ROWS = MAX_ROWS + 16;
 const ACRE = 43560;
 const clip = (v, n = LIMITS.text) => (v === null || v === undefined || typeof v === 'object' ? '' : String(v).replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').slice(0, n).trim());
 const BLANK_RE = /^(?:-+|–|—|n\/?a|undisclosed|not disclosed|withheld|confidential)$/i;
@@ -129,7 +131,8 @@ export function findHeader(grid) {
   const head = rows[idx];
   const headers = head.cells.slice(0, lastUsed(head.cells)).map((v) => clip(v));
   const n = rows.length - idx - 1;
-  if (n > MAX_ROWS) return { refuse: `This file has ${n.toLocaleString('en-US')} rows; the importer reads up to ${MAX_ROWS.toLocaleString('en-US')}. Split it and import each part.` };
+  // a text file is read whole, so its count is exact; a workbook sheet is read only up to READ_ROWS
+  if (n > MAX_ROWS) return { refuse: `This file has ${grid.delimiter === undefined ? 'more than ' : ''}${(grid.delimiter === undefined ? MAX_ROWS : n).toLocaleString('en-US')} rows; the importer reads up to ${MAX_ROWS.toLocaleString('en-US')}. Split it and import each part.` };
   const preamble = rows.slice(0, idx).map((row) => row.cells.map((v) => clip(v)).join(' ')).join(' ');
   return { idx, r: head.r, headers, preamble, noMatch };
 }
@@ -180,7 +183,6 @@ const numOf = (v) => {
   return readNumber(clip(v).replace(/%/g, '').trim());
 };
 const pctClass = (rows, i, header) => {
-  if (/%|percent/i.test(header)) return 'pct';
   let lo = 0; let hi = 0;
   for (const row of rows) {
     const s = clip(row.cells[i]);
@@ -298,7 +300,7 @@ export function addressKey(c) {
 const sameKey = (a, b) => {
   const [sa, ta] = [a.slice(0, a.lastIndexOf('|')), a.slice(a.lastIndexOf('|') + 1)];
   const [sb, tb] = [b.slice(0, b.lastIndexOf('|')), b.slice(b.lastIndexOf('|') + 1)];
-  return sa !== '' && sa === sb && (ta === tb || !ta || !tb);
+  return sa !== '' && sa === sb && !!ta && ta === tb;
 };
 const parcelSet = (c) => new Set([...(c.parcels || [])].map((p) => String(p).toUpperCase().replace(/\s+/g, '')).filter(Boolean));
 const RANK = { same: 3, possible: 2, resale: 1 };

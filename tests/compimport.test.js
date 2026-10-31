@@ -12,7 +12,7 @@ import {
 import { blankComp } from '../app/compmodel.js';
 
 const NOW = new Date(Date.UTC(2026, 9, 31, 12));
-const grid = (csv) => ({ sheet: 'CSV', rows: csvRows(csv).map((cells, i) => ({ r: i + 1, cells })).filter((x) => x.cells.some((v) => v.trim())) });
+const grid = (csv) => ({ sheet: 'CSV', delimiter: ',', rows: csvRows(csv).map((cells, i) => ({ r: i + 1, cells })).filter((x) => x.cells.some((v) => v.trim())) });
 /** Map a CSV the way the screen does; `give` answers the questions by key (or by "status:<value>"). Returns { res, qs, mapping, answers }. */
 function run(csv, give = {}, ctx = {}, remembered = null) {
   const g = typeof csv === 'string' ? grid(csv) : csv;
@@ -78,7 +78,13 @@ test('cap rate: 0.065 asks, 6.5 does not, a mix fails, a % settles it, above 25 
   const mixed = run(`${base}\n1 A St,Sold,1000000,0.065,\n2 B St,Sold,2000000,7.25,`, { cap: 'fraction' });
   assert.ok(mixed.qs.some((x) => x.fail), 'a mixed column fails');
   assert.ok(mixed.res.refuse && mixed.res.comps.length === 0);
-  assert.deepEqual(keys(run('Address,Status,Price,Cap Rate %\n1 A St,Sold,1000000,0.5').qs), [], 'a % in the heading settles it');
+  assert.deepEqual(keys(run('Address,Status,Price,Cap Rate %\n1 A St,Sold,1000000,6.5').qs), [], 'a % in the heading settles percent against fraction when values are above 1');
+  assert.deepEqual(keys(open(run('Address,Status,Price,Cap Rate %\n1 A St,Sold,1000000,0.065').qs)), ['cap'], 'but 0.065 under a % heading is asked, not stored as 0.065%');
+  const pm = run('Address,Status,Price,Cap Rate %\n1 A St,Sold,1000000,0.065\n2 B St,Sold,2000000,6.5', { cap: 'fraction' });
+  assert.ok(pm.qs.some((x) => x.fail) && pm.res.comps.length === 0, 'a mix of 0.065 and 6.5 fails even under a % heading');
+  const xg = { sheet: 'S', rows: [{ r: 1, cells: ['Address', 'Status', 'Price', 'Cap Rate %'] }, { r: 2, cells: ['1 A St', 'Sold', 5, 0.065] }] };
+  const xm = suggestMapping(xg.rows[0].cells);
+  assert.deepEqual(keys(open(questionsFor(xg, xm, startAnswers(xg, xm)))), ['cap'], 'a percent-formatted cell arrives as 0.065 and is asked');
   assert.equal(run('Address,Status,Price,Cap Rate\n1 A St,Sold,1000000,6.5%').res.comps[0].cap, 6.5);
   assert.ok(one('Address,Status,Price,Cap Rate\n1 A St,Sold,1000000,31').checks.some((c) => /above 25%/.test(c.text)));
   const x = one('Address,Status,Price,Cap Rate,NOI\n1 A St,Sold,1000000,6.5,80000');
@@ -215,7 +221,7 @@ test('dedup: same sale, 31 versus 32 days, 1% versus 1.1%, parcel only, a resale
   assert.equal(dupeOf(mk({ address: 'Elsewhere Road', parcels: new Set(['ab 12']), date: day(40) }), [withParcel]).level, 'same');
   assert.equal(dupeOf(mk({ address: 'Elsewhere Road', parcels: new Set(['ab 12']), date: day(400) }), [withParcel]).level, 'resale');
   assert.equal(lvl({ kind: 'market', date: null }), null, 'a listing is not compared with a sale');
-  const r = run(`${H}\nA,100 Example Street,,Sold,100,2026-01-01,\nB,100 Example St,,Sold,100,2026-01-05,`, { basis: 'rentable' });
+  const r = run(`${H}\nA,100 Example Street,Town,Sold,100,2026-01-01,\nB,100 Example St,Town,Sold,100,2026-01-05,`, { basis: 'rentable' });
   assert.equal(r.res.rows[1].dupe.level, 'same', 'the second row repeats the first');
   assert.equal(addressKey({ address: '5 North Main Street.', city: 'Ab' }), '5 n main st|ab');
 });
@@ -293,4 +299,13 @@ test('an .xlsx read with ExcelJS: a real date cell, formulas as results, hidden 
   assert.equal(res.refuse, null);
   assert.equal(res.comps[0].price, 1250000); assert.equal(res.comps[0].cap, 6.75);
   assert.equal(res.comps[0].date.toISOString(), '2026-03-04T00:00:00.000Z');
+});
+
+test('an address with no ZIP and no city does not match the same street elsewhere; the row cap is seen without reading the whole sheet', () => {
+  const mk = (o) => Object.assign(blankComp('sale'), { address: '100 Example Street', ...o });
+  assert.equal(dupeOf(mk({}), [mk({ city: 'Elsewhere' })]), null);
+  assert.equal(dupeOf(mk({ city: 'Town' }), [mk({})]), null);
+  assert.equal(dupeOf(mk({ city: 'town' }), [mk({ city: 'Town' })]).level, 'possible');
+  const x = { sheet: 'Comps', rows: [{ r: 1, cells: ['Address', 'City', 'Price'] }, ...Array.from({ length: MAX_ROWS + 1 }, (_, i) => ({ r: i + 2, cells: ['1 A St', 'X', 5] }))] };
+  assert.match(findHeader(x).refuse, /more than 2,000 rows/);
 });

@@ -11,7 +11,7 @@ import { LEVEL_WORD } from './dataqc.js';
 import { kvTooNew } from './migrate.js';
 import { LIMITS } from './compmodel.js';
 import {
-  FIELDS, findHeader, headerFingerprint, suggestMapping, startAnswers, questionsFor, setAnswer, readRows,
+  FIELDS, READ_ROWS, findHeader, headerFingerprint, suggestMapping, startAnswers, questionsFor, setAnswer, readRows,
   normMappings, rememberMapping, mappingRecord, templateCsv,
 } from './compimport.js';
 
@@ -30,7 +30,7 @@ export async function compSheets(file) {
     if (unreadable(file, 'comps')) return [];
     const up = await checkUpload(file, { getFflate });
     if (up.refuse) return [];
-    return (await readGrids(file, getXlsx, { maxRows: 20000, upload: up })).filter((g) => { const hd = findHeader(g); return !hd.refuse && g.rows.length - hd.idx - 1 >= 1; });
+    return (await readGrids(file, getXlsx, { maxRows: READ_ROWS, upload: up })).filter((g) => { const hd = findHeader(g); return !hd.refuse && g.rows.length - hd.idx - 1 >= 1; });
   } catch { return []; }
 }
 
@@ -50,7 +50,7 @@ export async function openCompImport(file, h) {
     up = await checkUpload(file, { getFflate });
     if (up.refuse) { toast(up.refuse); return; }
     if (up.kind !== 'text' && up.kind !== 'xlsx') { toast('That file isn’t a comp report or a spreadsheet of comps.'); return; }
-    grids = await readGrids(file, getXlsx, { maxRows: 20000, upload: up });
+    grids = await readGrids(file, getXlsx, { maxRows: READ_ROWS, upload: up });
     sha256 = await sha256Hex(await file.arrayBuffer());
   } catch (err) { toast(err.message || 'That file could not be read.'); return; }
   const usable = grids.map((g) => ({ g, hd: findHeader(g) })).filter((x) => !x.hd.refuse);
