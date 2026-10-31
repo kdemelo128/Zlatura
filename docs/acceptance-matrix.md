@@ -1,7 +1,7 @@
 # Acceptance matrix: Zlatura (from Comp Loader 3.3.0)
 
 Baseline: `main` at the merge of pull request #3 (content identical to commit
-`8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.76 (rows for 4.7.52 to 4.7.64 added in the conformance drift fix). This
+`8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.77 (rows for 4.7.52 to 4.7.64 added in the conformance drift fix). This
 file tracks every feature in the master plan, `ZLATURA_MASTER_PROMPT_v2.md`
 in the repository root (the "brief" below), as its Part 23 asks. In 4.7.2 it
 was checked against the master plan section by section: rows it was missing
@@ -209,7 +209,7 @@ the baseline; 32 flows are listed at 4.7.2).
 
 | Feature | Status | Notes |
 |---|---|---|
-| Units, tenants, rent types, periods, steps, % bumps, free rent, recoveries, percentage rent, one-time items, renewals, lease-up, market rent | Implemented and verified | `lease.test.js` known answers worked by hand; `rentroll-flow`. |
+| Units, tenants, rent types, periods, steps, % bumps, free rent, recoveries, percentage rent, one-time items, renewals, lease-up, market rent | Implemented and verified | `lease.test.js` known answers worked by hand; `rentroll-flow`. Edge cases (cash flow A1b): a recovery with no share and no SF, a blank, negative or non-numeric base amount or stop, and percentage rent with no breakpoint are flagged and left out of the projection, never counted as 0; a negative sale cost is refused in the Deal and the Tools (`engine-shared.test.js`, `edgecases-flow`). Known gap: a fixed recovery with a blank amount counts 0 and is not flagged. |
 | TI and LC on re-leasing, rollover downtime, custom fields | Implemented and verified | Added 4.7.2 (9.1), as its own row. `lease.js` re-leasing; `lease.test.js` known answers; `rentroll-flow` (custom field). |
 | Ground lease as its own rent type; custom billing periods | Not implemented | Added 4.7.2 (9.1). |
 | CPI-linked increases (index, floor, cap, lag) | Not implemented | |
