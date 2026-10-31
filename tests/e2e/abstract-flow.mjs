@@ -171,6 +171,21 @@ await settle();
 a = (await abs()).items[0];
 check('an option, an optional clause, a custom note and a flag are stored', a.options.length === 1 && a.options[0].count === 2 && a.options[0].noticeMin === 6 && a.options[0].noticeMax === 12 && a.fields.signs.value === 'Tenant may place one sign on the front.' && a.clauses.length === 1 && a.clauses[0].text === 'Four reserved spaces.' && a.flags.length === 1, JSON.stringify([a.options, a.clauses, a.flags]).slice(0, 300));
 
+/* ---------------------------------------------------- markup is only ever text */
+const evil = '<img src=x onerror=window.__pwned=1>';
+await page.evaluate(() => { window.__pwned = undefined; });
+await page.fill('#abf-tradeName', evil); await page.press('#abf-tradeName', 'Tab');
+await page.fill('#abf-cPossession', evil); await page.press('#abf-cPossession', 'Tab');
+await page.fill('#ab-flag-text', evil); await page.click('#ab-add-flag');
+await pause(500);
+check('markup typed into a text field, a clause note and a flag is shown as text and no handler fires', (await page.locator('.ab-editor img').count()) === 0 && (await page.inputValue('#abf-tradeName')) === evil && (await page.textContent('.ab-flaglist')).includes(evil) && (await page.evaluate(() => window.__pwned)) === undefined);
+await page.evaluate(() => { window.print = () => { window.__printed2 = document.getElementById('print-sheet'); }; });
+await page.click('#ab-print'); await pause(300);
+check('and in the print view too', (await page.evaluate(() => document.querySelectorAll('#print-sheet img').length)) === 0 && (await page.evaluate(() => document.getElementById('print-sheet').innerText)).includes(evil) && (await page.evaluate(() => window.__pwned)) === undefined);
+await page.fill('#abf-tradeName', ''); await page.press('#abf-tradeName', 'Tab');
+await page.fill('#abf-cPossession', ''); await page.press('#abf-cPossession', 'Tab');
+await page.locator('.ab-flaglist button').last().click(); await pause(300);
+
 /* ---------------------------------------------------- ticking */
 check('the Checked button is off for an item that is unread (with its reason read out)', await page.evaluate(() => { const b = document.querySelector('[data-key="landlord"] .ab-tick'); return b.disabled && !!document.getElementById(b.getAttribute('aria-describedby')).textContent; }));
 await page.evaluate(() => { for (const b of document.querySelectorAll('.ab-tick')) if (!b.disabled && b.getAttribute('aria-pressed') === 'false') b.click(); });

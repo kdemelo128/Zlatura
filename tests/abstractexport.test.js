@@ -242,3 +242,14 @@ test('JSON: the quotes are in, it round-trips through the normaliser, and the co
   assert.deepEqual(A.normAbstracts({ items: j.abstracts }).items, j.abstracts);
   assert.equal(JSON.parse(X.abstractJson({ ...deal, confidential: true }, [ab], VERSION)).confidential, true);
 });
+
+test('titles ExcelJS refuses (History, edge apostrophes) get safe, unique sheet names, and blank, duplicate and long titles still work', async () => {
+  const titles = ['History', 'history', "'Quoted", "Quoted'", "'", '', '', 'Same', 'Same', 'A'.repeat(31), 'A'.repeat(31), 'B'.repeat(60)];
+  const list = titles.map((t) => sample(t).ab);
+  for (const portfolio of [false, true]) {
+    const wb = await load(await build(portfolio ? list : [list[0], list[1]], { portfolio }));
+    const names = wb.worksheets.map((w) => w.name);
+    assert.equal(new Set(names.map((n) => n.toLowerCase())).size, names.length, names.join('|'));
+    assert.ok(names.every((n) => n.length <= 31 && n.length > 0 && !/[[\]:*?/\\]/.test(n) && !/^'|'$/.test(n) && n.toLowerCase() !== 'history'), names.join('|'));
+  }
+});

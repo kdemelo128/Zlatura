@@ -82,6 +82,8 @@ function normCommon(x) {
     supersededBy: null, note: cutText(str(x.note), LIMITS.note),
   };
 }
+/** A tick only stands on a found or not-found item: a hostile save cannot keep one on an unread or ambiguous item. */
+const gate = (o) => (o.status === 'found' || o.status === 'not-found' || !o.checked ? o : { ...o, checked: false });
 const status = (s) => (STATUSES.includes(s) ? s : 'unread');
 
 function normField(f, x) {
@@ -104,7 +106,7 @@ function normField(f, x) {
     status: st, ...c,
   };
   if (f.kind === 'dateRel') out.rel = rel;
-  return out;
+  return gate(out);
 }
 
 function listOf(raw, max, fn) {
@@ -125,34 +127,34 @@ const nMoney = (v) => (fin(v) && v >= 0 ? zero(toCents(v)) : null);
 const nRate = (v) => (fin(v) && v >= 0 ? zero(toRate(v)) : null);
 
 function normTerm(x) {
-  return {
+  return gate({
     id: idOf(x.id, 'tm_'), kind: TERM_KINDS.includes(x.kind) ? x.kind : null,
     label: cutText(str(x.label), LIMITS.termLabel), ref: cutText(str(x.ref), LIMITS.termRef),
     doc: typeof x.doc === 'string' && x.doc ? cutText(x.doc, LIMITS.id) : null, effective: isoDay(x.effective) ? x.effective : null,
     supersedes: x.supersedes === true, unquantified: x.unquantified === true, status: status(x.status), ...normCommon(x),
-  };
+  });
 }
 function normStep(x, termIds) {
   const am = isObj(x.amounts) ? x.amounts : {};
   const amounts = {};
   for (const u of AMOUNTS) amounts[u] = PSF.includes(u) ? nRate(am[u]) : nMoney(am[u]);
   const primary = AMOUNTS.includes(x.primary) ? x.primary : null;
-  return {
+  return gate({
     id: idOf(x.id, 'st_'), term: typeof x.term === 'string' && termIds.has(x.term) ? x.term : null, label: cutText(str(x.label), LIMITS.stepLabel),
     from: isoDay(x.from) ? x.from : null, to: isoDay(x.to) ? x.to : null, mFrom: nPos(x.mFrom), mTo: nPos(x.mTo),
     amounts, primary, basis: BASES.includes(x.basis) ? x.basis : null, status: status(x.status), ...normCommon(x),
-  };
+  });
 }
 function normOption(x) {
-  return {
+  return gate({
     id: idOf(x.id, 'op_'), kind: OPTION_KINDS.includes(x.kind) ? x.kind : null, count: nInt(x.count), termMonths: nInt(x.termMonths),
     noticeMin: nInt(x.noticeMin), noticeMax: nInt(x.noticeMax), noticeUnit: x.noticeUnit === 'days' || x.noticeUnit === 'months' ? x.noticeUnit : null,
     relTo: REL_TO.includes(x.relTo) ? x.relTo : null, reset: RESETS.includes(x.reset) ? x.reset : null,
     resetPct: fin(x.resetPct) ? zero(toRate(x.resetPct)) : null, resetText: cutText(str(x.resetText), LIMITS.resetText),
     fee: nMoney(x.fee), conditions: cutText(str(x.conditions), LIMITS.conditions), status: status(x.status), ...normCommon(x),
-  };
+  });
 }
-const normClause = (x) => ({ id: idOf(x.id, 'cl_'), label: cutText(str(x.label), LIMITS.customLabel), text: cutText(str(x.text), LIMITS.clause), status: status(x.status), ...normCommon(x) });
+const normClause = (x) => gate({ id: idOf(x.id, 'cl_'), label: cutText(str(x.label), LIMITS.customLabel), text: cutText(str(x.text), LIMITS.clause), status: status(x.status), ...normCommon(x) });
 const normFlag = (x) => ({ id: idOf(x.id, 'fl_'), text: cutText(str(x.text), LIMITS.flag), at: cutText(str(x.at), LIMITS.checked) });
 
 function normAbstract(x) {
@@ -625,7 +627,10 @@ export function checkAbstract(ab) {
     const name = L(key);
     const am = step.amounts;
     if (am.month !== null && am.year !== null && !near(am.year / 12, am.month)) add('fail', key, `${name}: monthly and annual disagree`);
-    if (s && s.basis === 'rentable' && am.year !== null && am.psf_year !== null && !near(am.year / s.sf, am.psf_year)) add('fail', key, `${name}: annual and $/SF disagree`);
+    if (s && am.year !== null && am.psf_year !== null) {
+      if (basisOf(step, ab) !== 'rentable' || s.basis !== 'rentable') add('warn', key, `${name}: annual rent and $/SF not compared, the square-foot basis differs`);
+      else if (!near(am.year / s.sf, am.psf_year)) add('fail', key, `${name}: annual and $/SF disagree`);
+    }
     if (am.psf_year !== null || am.psf_month !== null) {
       const b = basisOf(step, ab);
       const bad = b !== 'rentable' ? b || 'unstated' : s && s.basis !== 'rentable' ? s.basis || 'unstated' : null;

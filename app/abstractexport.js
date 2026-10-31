@@ -132,7 +132,9 @@ export function currentRent(ab) {
 /* ------------------------------------------------------------ the workbook */
 
 const sheetName = (title, taken) => {
-  const base = (String(title || '').replace(/[[\]:*?/\\]/g, ' ').replace(/\s+/g, ' ').trim() || 'Abstract').slice(0, 31).trim() || 'Abstract';
+  const base0 = (String(title || '').replace(/[[\]:*?/\\]/g, ' ').replace(/\s+/g, ' ').trim() || 'Abstract').slice(0, 31).trim() || 'Abstract';
+  const safe = (b) => { const t = b.replace(/^'+|'+$/g, '').trim() || 'Abstract'; return t.toLowerCase() === 'history' ? `${t.slice(0, 22)} (abstract)` : t; };
+  const base = safe(base0);
   let name = base; let n = 1;
   while (taken.has(name.toLowerCase())) { n += 1; const suffix = ` (${n})`; name = `${base.slice(0, 31 - suffix.length).trim()}${suffix}`; }
   taken.add(name.toLowerCase());

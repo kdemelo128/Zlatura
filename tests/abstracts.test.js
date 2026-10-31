@@ -543,3 +543,25 @@ test('property: normAbstracts is idempotent on random JSON, and never lets a fou
     }
   }), { numRuns: 300 });
 });
+
+test('R2 compares only when the step’s $/SF is on the rentable basis the area is measured on', () => {
+  const mk = (stepBasis) => withSteps([{ from: '2027-01-01', to: '2027-12-31', raw: { year: 51000, psf_year: 5.1 } }], { sfBasis: 'rentable', stepBasis }).ab;
+  const usable = mk('usable');
+  assert.ok(!has(usable, /annual and \$\/SF disagree/), 'a rate per usable SF is not compared to rent over rentable SF');
+  assert.ok(has(usable, /not compared, the square-foot basis differs/, 'warn'));
+  A.setChecked(usable, `step:${usable.steps[0].id}`, true);
+  assert.ok(usable.steps[0].checked, 'and it can be ticked');
+  assert.ok(has(mk('rentable'), /annual and \$\/SF disagree/, 'fail'), 'on the same basis a real difference still fails');
+});
+
+test('a hostile backup’s tick on an ambiguous or unread item is dropped, so the counts are right', () => {
+  const ab = A.normAbstracts({ items: [{ id: 'ab_1', fields: {
+    suite: { status: 'ambiguous', value: 'x', note: 'why', checked: '2026-10-31T10:00:00Z' }, floor: { status: 'unread', checked: '2026-10-31T10:00:00Z' },
+    tenant: { status: 'found', value: 'Example', checked: '2026-10-31T10:00:00Z' } },
+  terms: [{ id: 't1', status: 'ambiguous', note: 'n', checked: '2026-10-31T10:00:00Z' }] }] }).items[0];
+  assert.equal(ab.fields.suite.checked, false);
+  assert.equal(ab.fields.floor.checked, false);
+  assert.equal(ab.terms[0].checked, false);
+  assert.equal(ab.fields.tenant.checked, '2026-10-31T10:00:00Z');
+  assert.equal(A.progress(ab).checked, 1);
+});
