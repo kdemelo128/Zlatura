@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.89 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.90 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -148,6 +148,7 @@ section with grep, never in full.
 - Rent roll column presets read the property type more carefully (Multi-tenant office is no longer multifamily)
 - **Document registry, Underwriting P1 (4.7.88, PR opening):** a Documents card per deal: what was added, what each is (the reader says, or you confirm), a checklist per property type (found / missing / optional), SHA-256 fingerprints, no document bytes stored; `deal.dd` through the silent `dd-init` schema step (7). Next: Start from documents, the Reconcile view, the template safety fixes.
 - **Lease abstract creator L1 (4.7.89, PR opening):** a typed abstract per lease on the deal (page and short quote per field, status words, blank is never zero), review checks, Excel export in the firm's abstract layout (one lease and portfolio), print view, CSV/JSON; `deal.abstracts` through the silent `abstracts-init` step (schema 8). Annual rate per SF is monthly x 12 / rentable SF (owner to confirm). No reading of PDFs yet: next L2 and later.
+- **Comps table render cap (4.7.90, PR opening):** the comps table draws the first 200 rows with a "Show all N comps" button; totals, exports, sort and search still cover every comp. An edit at 1,200 comps fell from about 650 ms to about 61 ms on desktop. Next: the comp importer C1 (branch claude/comp-importer-c1) waits on this.
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
   owner says to continue.
