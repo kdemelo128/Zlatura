@@ -1,13 +1,5 @@
 # Changelog
 
-## 4.7.82: The dependency and audit checks pass again: minimatch is upgraded to the fixed version (on the development branch; not merged or deployed)
-
-Advisory GHSA-g3hv-75wg-m249 (minimatch below 11.0.1) turned both the `dependencies` and the `audit` checks red on every branch. Only the test-time ExcelJS package pulls minimatch in; it is never shipped.
-
-- **`package.json` overrides pin `minimatch` to 11.0.1.** Its licence, BlueOak-1.0.0, was approved by the owner on 2026-10-31 and is listed in `THIRD_PARTY.md`. `npm audit` and the osv scan both find nothing.
-- **The earlier dated exception is gone** from `osv-scanner.toml`; the exception process stays for future advisories (`docs/security-checklist.md`).
-- Saved results unchanged; no app code touched.
-
 ## 4.7.84: A Documents card on every deal: which due-diligence documents you have, and which are missing (on the development branch; not merged or deployed)
 
 Step D3a of `docs/proposals/underwriting-evolve.md` (section 8; the data format approved 2026-10-29: `deal.dd`, a silent migration step, no document bytes stored). It records documents and shows a checklist; it adds no reader, stores no money and changes no figure.
@@ -23,6 +15,14 @@ Step D3a of `docs/proposals/underwriting-evolve.md` (section 8; the data format 
 - **Tested** with invented files: `tests/dd.test.js` (type table, checklist per kind of property, classifier table with ambiguous cases, property tests, fingerprint vectors, caps, no bytes), `tests/migrate.test.js` on an invented backup made by the real 4.7.73 code, `tests/e2e/dd-flow.mjs` (phone size; axe at phone and desktop; typing key by key; hostile file names as text; 200 documents under 150 ms). Chromium only; not tried on Safari or an iPhone.
 - **Opening an older deal adds no History entry** (an empty list is not an edit), and reading an OM is one entry. A damaged backup's document list is cleaned when the deal is opened or the card is drawn (bad values null, 200 at most; `readBackup` itself does not clean it) so the deal screen always draws. Known gap: a budget whose title sits below row 5 on a sheet named Sheet1 is typed T-12 (the T-12 import's own projection check looks at the sheet name and the first five rows).
 - **Saved results:** unchanged (618 saved deal results and 646 displayed figures identical).
+
+## 4.7.82: The dependency and audit checks pass again: minimatch is upgraded to the fixed version (on the development branch; not merged or deployed)
+
+Advisory GHSA-g3hv-75wg-m249 (minimatch below 11.0.1) turned both the `dependencies` and the `audit` checks red on every branch. Only the test-time ExcelJS package pulls minimatch in; it is never shipped.
+
+- **`package.json` overrides pin `minimatch` to 11.0.1.** Its licence, BlueOak-1.0.0, was approved by the owner on 2026-10-31 and is listed in `THIRD_PARTY.md`. `npm audit` and the osv scan both find nothing.
+- **The earlier dated exception is gone** from `osv-scanner.toml`; the exception process stays for future advisories (`docs/security-checklist.md`).
+- Saved results unchanged; no app code touched.
 
 ## 4.7.77: Quiet numbers now say "can't tell": a tenant with no share, a blank base amount, a negative sale cost, percentage rent with no breakpoint (on the development branch; not merged or deployed)
 
