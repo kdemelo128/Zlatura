@@ -201,6 +201,19 @@
   "backup-4.7.73-before-dd.json": {
    "refusedByOldCode": "This backup holds 2 deals saved by a newer version of Zlatura (“Invented Plaza (fictional)”, “Invented Court (fictional)”): update the app first. Nothing was restored."
   },
+  "backup-4.7.88-before-abstracts.json": {
+   "refusedByOldCode": "This backup holds 2 deals saved by a newer version of Zlatura (“Invented Plaza (fictional)”, “Invented Court (fictional)”): update the app first. Nothing was restored."
+  },
+  "backup-4.7.89-before-comp-import.json": {
+   "empty": {
+    "merge": "9cde7d1679821444b72342a0b6d41d76da1eb8d015047c78ebfbaafc7a812aea",
+    "replace": "bda7393f5303c9621045caf492133543db021efd60ea265c72d30f04c0e1df73"
+   },
+   "newer": {
+    "merge": "b2516157d141e68ba36b58f16eee3e2f011f0731e9aad5a78494b033b4d6d0a5",
+    "replace": "16c4a0b40ca7476b573fa256c5e9551ad372c421342fd83eca42d3afeafd4582"
+   }
+  },
   "backup-comp-loader-3.3.0.json": {
    "empty": {
     "merge": "3467709135f71e795d85f035b25b1be0be7f8bf40648ce0b867c93097b0bac63",
@@ -210,9 +223,6 @@
     "merge": "5cbc860371799e6719b7eeebdeec718906b36f91065710dc54f3aee3814e1e74",
     "replace": "f7371f93f9de5cb6dd02b406cc7a84eaccf8e64dae520be3105793d6a398554b"
    }
-  },
-  "backup-4.7.88-before-abstracts.json": {
-   "refusedByOldCode": "This backup holds 2 deals saved by a newer version of Zlatura (“Invented Plaza (fictional)”, “Invented Court (fictional)”): update the app first. Nothing was restored."
   }
  }
 }

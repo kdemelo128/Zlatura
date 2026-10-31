@@ -168,7 +168,7 @@ export function suggestMapping(headers, remembered = null) {
   }
   out.columns = headers.map((h) => { const f = fieldsFor(h); return f.length === 1 ? f[0] : f.length ? null : 'none'; });
   const claims = new Map();
-  out.columns.forEach((f, i) => { if (f && f !== 'none') claims.set(f, [...(claims.get(f) || []), i]); });
+  out.columns.forEach((f, i) => { if (f && f !== 'none' && f !== 'rent') claims.set(f, [...(claims.get(f) || []), i]); });
   for (const idxs of claims.values()) if (idxs.length > 1) for (const i of idxs) out.columns[i] = null;
   return out;
 }
@@ -235,7 +235,7 @@ function plan(grid, mapping, answers) {
   const at = new Map();
   cols.forEach((f, i) => {
     if (f === null) qs.push(stop(`col${i}`, `Choose what “${clip(h.headers[i], 40)}” is, or set it to Not used.`));
-    else if (f !== 'none') at.set(f, [...(at.get(f) || []), i]);
+    else if (f !== 'none' && f !== 'rent') at.set(f, [...(at.get(f) || []), i]);
   });
   for (const [f, idxs] of at) if (idxs.length > 1) qs.push(stop(`dup:${f}`, `${idxs.length} columns are set to “${FIELD_BY_ID[f].label}”. Set all but one to Not used.`));
   const has = (f) => at.has(f);
@@ -359,7 +359,7 @@ export function readRows(grid, mapping, answers, ctx) {
   const scales = Object.fromEntries(['price', 'price_sale', 'price_ask', 'noi'].filter(has).map((f) => [f, scaleFor(f)]));
   const pmode = (f) => (has(f) ? (pctClass(rows, col(f), h.headers[col(f)]) === 'ask' && answers[f] === 'fraction' ? 100 : 1) : 1);
   const mult = { cap: pmode('cap'), occ: pmode('occ') };
-  if (has('rent')) fileChecks.push({ level: 'info', text: 'Rent columns are not read on sale comps.' });
+  if (mapping.columns.includes('rent')) fileChecks.push({ level: 'info', text: 'Rent columns are not read on sale comps.' });
   const out = []; const built = [];
   const priced = [];
   rows.forEach((row, n) => {
@@ -523,7 +523,7 @@ export function normMappings(raw) {
     for (const [k, v] of Object.entries(r.answers && typeof r.answers === 'object' ? r.answers : {})) if (own(ANSWERS, k) && ANSWERS[k].includes(v)) answers[k] = v;
     const statusMap = Object.fromEntries(Object.entries(r.statusMap && typeof r.statusMap === 'object' ? r.statusMap : {}).slice(0, 20)
       .filter(([k, v]) => k.length <= 100 && ['sale', 'market', 'skip'].includes(v)));
-    items[fp] = { source: clip(r.source, LIMITS.source), columns, answers, statusMap, uses: finite(r.uses, 0, 1e6), savedAt: finite(r.savedAt, 0, 1e15) };
+    items[fp] = { source: typeof r.source === 'string' ? clip(r.source, LIMITS.source) : '', columns, answers, statusMap, uses: finite(r.uses, 0, 1e6), savedAt: finite(r.savedAt, 0, 1e15) };
   }
   return { v: 1, items: capMappings(items) };
 }
