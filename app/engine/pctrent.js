@@ -4,15 +4,18 @@
  * rent ÷ rate). Annual dollars; null means "can't tell", never 0. */
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
+const pos = (x) => ok(x) && x > 0;
 
 /**
- * The breakpoint: base rent ÷ rate when natural and the base rent is known,
- * else the typed one. Null when neither is a number.
+ * The breakpoint: base rent ÷ rate when natural and the base rent is above
+ * zero, else the typed one. A zero or blank base rent is not a base: dividing
+ * it would put the breakpoint at 0 and charge on every dollar of sales. Null
+ * when neither is a number.
  * @param {{ rate: number, natural?: boolean, baseRent?: number | null, breakpoint?: number | null }} a
  * @returns {number | null}
  */
 export function breakpointOf({ rate, natural = false, baseRent, breakpoint }) {
-  const bp = natural && ok(baseRent) ? /** @type {number} */ (baseRent) / (rate / 100) : breakpoint;
+  const bp = natural && pos(baseRent) ? /** @type {number} */ (baseRent) / (rate / 100) : breakpoint;
   return ok(bp) ? /** @type {number} */ (bp) : null;
 }
 
