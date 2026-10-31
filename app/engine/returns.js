@@ -7,10 +7,11 @@
  *   basisNext    the income the buyer capitalises (the year after the sale)
  *   exitCap      %, above zero (the caller checks)
  *   saleCostPct  % of the gross price; used as given, so a caller that wants
- *                no negative costs says so before calling
- * @returns {{ gross: number, saleCosts: number, net: number }}
+ *                a negative cost is refused (null): it would raise the price
+ * @returns {{ gross: number, saleCosts: number, net: number } | null}
  */
 export function reversion({ basisNext, exitCap, saleCostPct = 0 }) {
+  if (typeof saleCostPct === 'number' && saleCostPct < 0) return null;
   const gross = basisNext / (exitCap / 100);
   const saleCosts = saleCostPct ? gross * saleCostPct / 100 : 0;
   // net is gross x (1 - cost%), the DCF tool's own order; in the last digit it is not gross - saleCosts

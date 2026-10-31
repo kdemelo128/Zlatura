@@ -1,6 +1,6 @@
 {
   "name": "zlatura",
-  "version": "4.7.80",
+  "version": "4.7.85",
   "description": "Zlatura: a commercial real estate brokerage workspace in the browser. Offering memoranda read and underwritten, CoStar comps into Excel, rent rolls, your firm's own Excel templates filled, and deal calculators. Every source. Every assumption. Every number.",
   "private": true,
   "type": "module",
@@ -26,7 +26,8 @@
     "node": ">=20"
   },
   "overrides": {
-    "uuid": "11.1.1"
+    "uuid": "11.1.1",
+    "minimatch": "11.0.1"
   },
   "author": "Kyle Alexander De Melo"
 }
