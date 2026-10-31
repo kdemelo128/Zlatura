@@ -36,7 +36,7 @@ const LOCAL_MAX = 262144;
 /** The settings key that never travels in a backup. */
 const NEVER = 'ai.settings';
 /** The kv keys the app writes and a backup may carry (tests/backup.test.js checks this list against every kvSet in app/). */
-export const KV_KEYS = ['tpl.library', 'crm.tasks', 'crm.contacts', 'crm.activity', 'crm.stages', 'tools.scenarios', 't12.labels', 'rr.layouts', 'conventions', 'template', 'output', 'backup.last', 'research.briefs', 'uw.scratch'];
+export const KV_KEYS = ['tpl.library', 'crm.tasks', 'crm.contacts', 'crm.activity', 'crm.stages', 'tools.scenarios', 't12.labels', 'rr.layouts', 'conventions', 'template', 'output', 'backup.last', 'research.briefs', 'uw.scratch', 'comps.mappings'];
 const KV_SET = new Set(KV_KEYS);
 
 /**

@@ -30,6 +30,7 @@ import * as store from './store.js';
 import { renderKpis, renderRank, renderTime } from './glance.js';
 import { VERSION, compsCsv, tsvCell, renderCompSheet, fullAddress } from './exporters.js';
 import { compBasis } from './deal.js';
+import { blankComp, originOf } from './compmodel.js';
 import { dateInput } from './dateinput.js';
 import {
   $, el, icon, IN_ARTIFACT, XLSX, parseNum, parsePct, int, dec, money2, pct, localDate, toast,
@@ -268,6 +269,7 @@ function exportComp(c) {
   if (c.origKind && c.kind !== c.origKind) {
     flags.push(`moved by hand from ${c.origKind === 'sale' ? 'Sales' : 'On Market'} to ${c.kind === 'sale' ? 'Sales' : 'On Market'}`);
   }
+  if (c.bsf_basis && c.bsf_basis !== 'rentable' && c.bsf !== null && !c.exclude) flags.push(c.bsf_basis === 'gross' ? 'gross building area, included by the broker' : 'building area basis (rentable or gross) not known, included by the broker');
   if (c.edited && c.edited.size) {
     flags.push(`edited by hand in the loader: ${[...c.edited].map((f) => FIELD_NAMES[f] || f).join(', ')}`);
   }
@@ -323,7 +325,8 @@ function numInput(c, field, kind, label, onEdit) {
 function chips(c) {
   const box = el('span', 'chips');
   if (c.example) box.appendChild(el('span', 'chip chip-plain', 'example'));
-  else if (c.manual) box.appendChild(el('span', 'chip chip-plain', 'by hand'));
+  else if (c.manual) box.appendChild(el('span', 'chip chip-plain', (originOf(c) || {}).kind === 'import' ? 'imported' : 'by hand'));
+  if (c.bsf_basis && c.bsf_basis !== 'rentable' && c.bsf !== null) box.appendChild(el('span', 'chip chip-plain', c.bsf_basis === 'gross' ? 'gross area' : 'area basis?'));
   if (c.cut && c.exclude) {
     const ch = el('span', 'chip chip-plain', `past ${MAX_COMPS}`);
     ch.title = `${c.cut}. Tick the box to include it; the workbook grows to fit.`;
@@ -622,15 +625,11 @@ let manualSeq = 0;
 function addManual(kind) {
   manualSeq += 1;
   const id = `${Date.now().toString(36)}${manualSeq}`;
-  const c = {
-    key: `manual::${id}`, manual: true, kind, origKind: kind, edited: new Set(),
-    name: kind === 'sale' ? 'New sale comp' : 'New listing', address: '', city: null, state: null, zip: null,
-    submarket: null, zoning: null, date: null, dom: null, price: null, bsf: null, cap: null, occ: null,
-    lot_sf: null, lot_ac: null, far: null, year: null, bclass: null, ptype: null, comp_id: null,
-    buyer_broker: null, listing_broker: null, notes: null, costar_notes: null, costar_ppsf: null,
-    partial: false, occ_basis: 'explicit', parcels: new Set(), portfolio: 0,
-    source: 'entered by hand', flags: ['entered by hand -- not from a CoStar report'], exclude: false,
-  };
+  const c = Object.assign(blankComp(kind), {
+    key: `manual::${id}`, name: kind === 'sale' ? 'New sale comp' : 'New listing',
+    source: 'entered by hand', flags: ['entered by hand -- not from a CoStar report'],
+    origin: { kind: 'hand', source: 'entered by hand', file: null, sha256: null, sheet: null, row: null, page: null, profile: null, importedAt: new Date().toISOString() },
+  });
   state.manual.push(c);
   (kind === 'sale' ? state.sales : state.market).push(c);
   state.query[kind] = '';
@@ -686,16 +685,42 @@ function queueItem(name) {
   return st;
 }
 
+/** A spreadsheet or CSV of comps: the mapper and preview sheet (compimportui.js, loaded when first used). */
+async function importSheet(file) {
+  const { openCompImport } = await import('./compimportui.js');
+  return openCompImport(file, compImportHooks());
+}
+function compImportHooks() {
+  return {
+    existing: () => [...state.sales, ...state.market],
+    manualCount: () => state.manual.length,
+    add(comps) {
+      // the example set gives way to real comps, as it does to reports
+      state.manual = [...state.manual.filter((c) => !c.example), ...comps.map((c) => ({ ...c, edited: new Set() }))];
+      recompute();
+      renderAll();
+      scheduleSave();
+    },
+    snapshot, restore: restoreSnapshot, deliver, sheetOpen, sheetClose,
+    kvGet: store.kvGet, kvSet: store.kvSet,
+    focusBack: () => $('comps-more').focus(),
+  };
+}
+
 async function handleFiles(fileList) {
   const files = [...fileList];
   const projects = files.filter((f) => /\.json$/i.test(f.name) || f.type === 'application/json');
   const pdfs = files.filter((f) => /\.pdf$/i.test(f.name) || f.type === 'application/pdf');
+  const sheets = files.filter((f) => !pdfs.includes(f) && !projects.includes(f) && (/\.(csv|tsv|txt|xlsx|xls|xlsm)$/i.test(f.name) || f.type === 'text/csv'));
   touched = true;
-  if (projects.length) { await openProject(projects[0]); if (!pdfs.length) return; }
+  if (projects.length) { await openProject(projects[0]); if (!pdfs.length && !sheets.length) return; }
   if (!pdfs.length) {
-    toast('Those are not PDFs. Export the comp report from CoStar as a PDF.');
+    if (!sheets.length) { toast('That file isn’t a comp report or a spreadsheet of comps.'); return; }
+    if (sheets.length > 1) toast('Import one spreadsheet at a time; the others were not read.');
+    await importSheet(sheets[0]);
     return;
   }
+  if (sheets.length) toast('Spreadsheets are imported on their own; drop the spreadsheet again after the reports are read.');
   if (state.busy) { toast('Still reading the last batch. Add these when it finishes.'); return; }
   state.busy = true;
   refreshCounts();
@@ -879,7 +904,7 @@ async function saveProject() {
   try {
     const done = await deliver(`${projectName()}.json`, new TextEncoder().encode(body), 'application/json', { map: 'none: the comp set (a deal sent to Comps as the subject is a copy made then)' });
     // the project holds the text of every report, which is licensed CoStar material
-    if (done === 'done') toast('Project saved. It contains the text of your CoStar reports, so share it only with people covered by your CoStar licence.');
+    if (done === 'done') toast('Project saved. It contains the text of your CoStar reports and any comps imported from other sources, so share it only as their licences allow.');
   } catch (err) {
     deliveryError(err);
   }
@@ -1298,11 +1323,23 @@ document.addEventListener('drop', (e) => {
   const files = e.dataTransfer?.files;
   if (!files?.length) return;
   // on the Deal screen a dropped PDF is an OM; a dropped .xlsx is a template
-  if ([...files].some((f) => /\.xlsx$|\.xlsm$/i.test(f.name))) { loadTemplate([...files].find((f) => /\.xlsx$|\.xlsm$/i.test(f.name))); return; }
+  const wb = [...files].find((f) => /\.xlsx$|\.xlsm$/i.test(f.name));
+  if (wb) { if (currentView === 'comps' && /\.xlsx$/i.test(wb.name)) dropWorkbook(wb); else loadTemplate(wb); return; }
   if (currentView === 'deal') { document.dispatchEvent(new CustomEvent('omdrop', { detail: files[0] })); return; }
   if (currentView !== 'comps') showView('comps');
   handleFiles(files);
 });
+
+/** A workbook dropped on Comps: comps to add when its first headed sheet has rows under the headings, otherwise a template as before. */
+async function dropWorkbook(file) {
+  const { compSheets } = await import('./compimportui.js');
+  if (!(await compSheets(file)).length) { loadTemplate(file); return; }
+  const v = await actionSheet(file.name, [
+    { label: 'Add these comps', sub: 'read the rows as comps and add them to the set', value: 'comps', icon: 'upload', primary: true },
+    { label: 'Use as my workbook template', sub: 'fill this workbook with the comps', value: 'template', icon: 'table' },
+  ]);
+  if (v === 'comps') importSheet(file); else if (v === 'template') loadTemplate(file);
+}
 
 $('example').addEventListener('click', () => {
   if (state.busy) return;
@@ -1337,6 +1374,7 @@ $('comps-more').addEventListener('click', async () => {
     { label: 'Template library…', sub: 'your firm’s workbooks, mapped and filled for a deal', value: 'library', icon: 'table' },
     { label: 'Save project file', sub: 'the whole comp set, to reopen anywhere', value: 'save', disabled: !any, icon: 'save' },
     { label: 'Open project file…', value: 'open', icon: 'folder' },
+    { label: 'Comp template (CSV)', sub: 'headings for a spreadsheet of comps to import', value: 'comptpl', icon: 'table' },
     '-',
     { label: 'Clear all comps', value: 'reset', danger: true, disabled: !any, icon: 'trash' },
   ]);
@@ -1347,6 +1385,7 @@ $('comps-more').addEventListener('click', async () => {
   else if (v === 'save') saveProject();
   else if (v === 'library') openTemplates();
   else if (v === 'open') $('file').click();
+  else if (v === 'comptpl') import('./compimportui.js').then((m) => m.downloadTemplate(compImportHooks())).catch(deliveryError);
   else if (v === 'reset') {
     const snap = snapshot();
     state.docs = [];

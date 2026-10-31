@@ -72,6 +72,9 @@ const CSV_COLS = [
   ['Flags', (c) => (c.flags || []).join(' | ')],
 ];
 
+/** The CSV's column headings, in order (the comp importer reads its own export back by them). */
+export const CSV_HEADINGS = CSV_COLS.map(([h]) => h);
+
 /** A text cell a spreadsheet would read as a formula gets a leading quote:
  *  "=1+1", "+1", "-1", "@SUM" and anything starting with a tab or return. */
 function safeText(s) {
