@@ -96,3 +96,14 @@ itself is not installed or run. First applied by hand on 2026-10-21 (findings F1
 
 Fixes are separate PRs with a test that fails on the old code. A finding that changes a stored field, a saved result
 or hosting is an approval gate.
+
+## Time-boxed advisory exceptions
+
+`osv-scanner.toml` (repo root) lists advisories the CI `dependencies` job is allowed to skip. Each entry needs a
+written reason and an `ignoreUntil` date at most 90 days from the grant (`tests/ci-scanners.test.js` checks this).
+When the date passes, the scanner fails again on purpose: upgrade, or review and renew with a new reason.
+
+- No exceptions are open. **GHSA-g3hv-75wg-m249** (minimatch, medium; fixed in 11.0.1) was one from 2026-10-30 until the owner
+  approved the BlueOak-1.0.0 licence and `package.json` `overrides` pinned `minimatch` to 11.0.1 (the only copies were
+  dev-only, under exceljs 4.4.0 then archiver). `npm audit` has no ignore list, so the override is the only fix that clears both
+  checks. Remove the override when exceljs or archiver no longer needs minimatch below 11.

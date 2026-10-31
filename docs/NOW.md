@@ -10,6 +10,7 @@ Read this first in every session; update it on every PR. Everything else
 section with grep, never in full.
 
 - **Version:** 4.7.77 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.82 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -142,6 +143,7 @@ section with grep, never in full.
 - **Cash flow A1 (4.7.74, PR opening):** recoveries, percentage rent and the sale at exit each live in one function in `app/engine/`; no figure changes (the Percentage rent tool can differ in the last digit only). Clean-room rule added to `docs/working-rules.md`. Next: A1b (the three approved edge-case fixes), A2 read-only cash-flow view.
 - **Excel zip-bomb guard (4.7.76, PR opening):** a workbook's real unpacked size is checked as it unpacks (not only the size it declares); applies to the rent roll, T-12, templates and the sheet reader; zip64 workbooks still open. Security fix with its own tests.
 - **Cash flow A1b (4.7.77, PR opening):** the three approved edge-case fixes: an unknown or blank recovery share/base is flagged "can't tell" and left out (NOI understated until fixed), negative sale costs are refused, percentage rent with a zero or blank base rent uses the typed breakpoint. Next: A2, the read-only cash-flow view.
+- **Dependency scan exception (4.7.82, PR opening):** a new advisory on a dev-only transitive package (minimatch via exceljs) turned the dependency check red everywhere; a time-boxed ignore (expires 2026-12-29) with reason and a test that keeps exceptions honest. Owner decision pending: allow the BlueOak-1.0.0 licence so minimatch 11 can be adopted instead.
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
   owner says to continue.

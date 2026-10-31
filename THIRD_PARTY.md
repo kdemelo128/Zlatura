@@ -151,6 +151,7 @@ SHA-256: upstream `skills/ponytail/SKILL.md` `9badd22a32e19cb884e46dfa8d3aae82bb
 |---|---|---|---|
 | `exceljs` | 4.4.0 | MIT | builds workbooks in the workbook tests, and the templates the template tests fill |
 | `fflate` | 0.8.3 | MIT | reads and writes the .xlsx packages in the tests |
+| `minimatch` (override, with its dependencies `@isaacs/nonrecursive-glob-match`, `balanced-match` 4.0.4, `brace-expansion` 5.0.12) | 11.0.1 | BlueOak-1.0.0 (approved by the owner 2026-10-31; the two others are MIT) | pinned in `package.json` overrides to clear GHSA-g3hv-75wg-m249; reached only through exceljs then archiver, never shipped |
 | `@xmldom/xmldom` | 0.9.12 | MIT | stands in for the browser's DOMParser when the template tests run in Node |
 | `axe-core` | 4.10.2 | MPL-2.0 | accessibility checks in the browser flows. Test-only and never shipped; MPL-2.0 needs the owner's approval for anything that ships |
 | `fast-check` | 4.10.2 | MIT | property tests (`tests/properties.test.js`): the money rounding, the text decoder and the CSV and paste readers over generated inputs. Pinned to 4.x because 5.x needs Node 22.12 and the repo declares Node 20 or later. Never imported by `app/`, `server/` or `sw.js` |

@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.7.82: The dependency and audit checks pass again: minimatch is upgraded to the fixed version (on the development branch; not merged or deployed)
+
+Advisory GHSA-g3hv-75wg-m249 (minimatch below 11.0.1) turned both the `dependencies` and the `audit` checks red on every branch. Only the test-time ExcelJS package pulls minimatch in; it is never shipped.
+
+- **`package.json` overrides pin `minimatch` to 11.0.1.** Its licence, BlueOak-1.0.0, was approved by the owner on 2026-10-31 and is listed in `THIRD_PARTY.md`. `npm audit` and the osv scan both find nothing.
+- **The earlier dated exception is gone** from `osv-scanner.toml`; the exception process stays for future advisories (`docs/security-checklist.md`).
+- Saved results unchanged; no app code touched.
+
 ## 4.7.77: Quiet numbers now say "can't tell": a tenant with no share, a blank base amount, a negative sale cost, percentage rent with no breakpoint (on the development branch; not merged or deployed)
 
 Cash flow step A1b, the edge cases the owner approved on 2026-10-29. A1
