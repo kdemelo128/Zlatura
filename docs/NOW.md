@@ -13,7 +13,7 @@ section with grep, never in full.
 - **Version:** 4.7.82 (development branch; GitHub Pages deploys from main).
 - **Version:** 4.7.83 (development branch; GitHub Pages deploys from main).
 - **Version:** 4.7.86 (development branch; GitHub Pages deploys from main).
-- **Version:** 4.7.85 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.87 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);

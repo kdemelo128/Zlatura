@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.7.85: Rent roll column layout no longer guessed from "multi" or "center" (on the development branch; not merged or deployed)
+## 4.7.87: Rent roll column layout no longer guessed from "multi" or "center" (on the development branch; not merged or deployed)
 
 The rent roll picked its starting columns from the property type's free text, and a bare "multi" or "center" misled it: "Multi-tenant office", "Multi-tenant retail" and "Multi-tenant industrial" got the apartment columns.
 
