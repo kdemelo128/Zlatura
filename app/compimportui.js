@@ -54,7 +54,12 @@ export async function openCompImport(file, h) {
     sha256 = await sha256Hex(await file.arrayBuffer());
   } catch (err) { toast(err.message || 'That file could not be read.'); return; }
   const usable = grids.map((g) => ({ g, hd: findHeader(g) })).filter((x) => !x.hd.refuse);
-  if (!usable.length) { toast(findHeader(grids[0] || { rows: [] }).refuse || 'No row of column headings was found.'); return; }
+  if (!usable.length) {
+    const why = findHeader(grids[0] || { rows: [] }).refuse || 'No row of column headings was found.';
+    // a file that is no table may be a report in the wrong form: say where reports go
+    toast(/^No row of column headings/.test(why) ? `${why} These are not PDFs: for a CoStar report, export it as a PDF; otherwise use a CSV or Excel file with a heading row.` : why);
+    return;
+  }
 
   const S = { sheet: usable[0], label: file.name.replace(/\.[^.]*$/, '').slice(0, LIMITS.source), mapping: null, answers: null, remember: true, skip: new Set(), rec: null, tooNew: false };
   const stored = await h.kvGet(KEY);

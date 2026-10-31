@@ -164,7 +164,8 @@ async function scenario(label, opts) {
   await page.locator('#sheet-foot .btn-primary').click();
   await page.waitForFunction(() => /rows:/.test(document.querySelector('#sheet-body [role=status]')?.textContent || ''), null, { timeout: 30000 });
   await page.locator('#sheet-foot .btn-primary').click();
-  await page.waitForFunction(() => document.querySelectorAll('#sales-table tbody tr').length >= 2000, null, { timeout: 60000 });
+  await page.waitForFunction(() => /of 2,000 comps/.test(document.querySelector('#sales-table')?.textContent || ''), null, { timeout: 60000 });
+  c('the table draws the first 200 of 2,000 imported comps with a Show all button', /Showing 200 of 2,000 comps/.test(await page.locator('#sales-table').textContent()) && (await page.locator('#sales-table button', { hasText: 'Show all 2,000 comps' }).count()) === 1);
   await page.waitForTimeout(2000);
   const price = page.locator('#sales-table tbody tr').first().locator('input[aria-label="Sale price"]');
   const before = await page.locator('#sales-table tbody tr').first().locator('.calc').first().textContent();
