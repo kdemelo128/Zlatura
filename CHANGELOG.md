@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.7.84: A Documents card on every deal: which due-diligence documents you have, and which are missing (on the development branch; not merged or deployed)
+## 4.7.88: A Documents card on every deal: which due-diligence documents you have, and which are missing (on the development branch; not merged or deployed)
 
 Step D3a of `docs/proposals/underwriting-evolve.md` (section 8; the data format approved 2026-10-29: `deal.dd`, a silent migration step, no document bytes stored). It records documents and shows a checklist; it adds no reader, stores no money and changes no figure.
 
@@ -15,6 +15,15 @@ Step D3a of `docs/proposals/underwriting-evolve.md` (section 8; the data format 
 - **Tested** with invented files: `tests/dd.test.js` (type table, checklist per kind of property, classifier table with ambiguous cases, property tests, fingerprint vectors, caps, no bytes), `tests/migrate.test.js` on an invented backup made by the real 4.7.73 code, `tests/e2e/dd-flow.mjs` (phone size; axe at phone and desktop; typing key by key; hostile file names as text; 200 documents under 150 ms). Chromium only; not tried on Safari or an iPhone.
 - **Opening an older deal adds no History entry** (an empty list is not an edit), and reading an OM is one entry. A damaged backup's document list is cleaned when the deal is opened or the card is drawn (bad values null, 200 at most; `readBackup` itself does not clean it) so the deal screen always draws. Known gap: a budget whose title sits below row 5 on a sheet named Sheet1 is typed T-12 (the T-12 import's own projection check looks at the sheet name and the first five rows).
 - **Saved results:** unchanged (618 saved deal results and 646 displayed figures identical).
+
+## 4.7.86: One icon set, and the name and mark in one place (on the development branch; not merged or deployed)
+
+Every icon in the app is now drawn to one spec, and the product's name and mark live in one file, so a later rename is a one-file change. Nothing a broker does changed, and no saved result or figure changed.
+
+- **One icon set.** `app/icons.js` holds 57 icons on a 24-unit grid with one stroke weight (1.75), round caps and joins, and the colour of the surrounding text. They replace about 100 hand-pasted shapes at five different weights (1.6 to 2.4), in both Classic and the New look. The spine icons (Home, Deals, Underwrite, Comps, Tools, Review, Settings) are the ones in the approved mockups; the rest were drawn to match. Every icon is hidden from screen readers and every icon-only button keeps its own name.
+- **One brand record.** `app/brand.js` now also holds the line under the name, and the mark, which is drawn once as a symbol and used by reference in the sidebar and the top bar (it was pasted twice). About 30 messages and workbook labels that spelled the name out now read it from `brand.js`. The saved-settings prefix `zlatura.` and the file format ids do not change.
+- **Tested.** `tests/icons.test.js` (the spec, every name used is drawn, none drawn and unused, no shape drawn by hand elsewhere) and `tests/brand-rename.test.js` (the name appears as text only in `brand.js`, the manifest and `index.html` agree with it, the mark exists once) fail on the old code; `tests/e2e/ui-d2-flow.mjs` checks icons, names and axe in the browser at phone and desktop size, light and dark. `node tests/e2e/icon-sheet.mjs` redraws the icon sheets in `docs/proposals/ui/shots/`.
+- **Saved results.** Unchanged: golden 646 figures, 0 changed; analyze-golden passes.
 
 ## 4.7.83: Convert files on your device: photos, PDFs, spreadsheets, Word and text (on the development branch; not merged or deployed)
 

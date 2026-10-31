@@ -7,6 +7,7 @@
  * proration, abatements, rollover) is the app's own arithmetic and goes in as
  * values, labelled so. */
 
+import { PRODUCT } from './brand.js';
 import { XL, colLetter, markConfidential } from './workbook.js';
 import { cleanPackage } from './package.js';
 import { project, rentRollSummary, monthlyAmount, inPlace, dayOf, UNITS } from './lease.js';
@@ -14,7 +15,7 @@ import { project, rentRollSummary, monthlyAmount, inPlace, dayOf, UNITS } from '
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const serial = (iso) => (iso && dayOf(iso) !== null ? dayOf(iso) + 25569 : null);
 
-export async function buildRentRollWorkbook(ExcelJS, fflate, { deal, rr, app = 'Zlatura' }) {
+export async function buildRentRollWorkbook(ExcelJS, fflate, { deal, rr, app = PRODUCT }) {
   const wb = new ExcelJS.Workbook();
   wb.creator = app;
   wb.created = new Date();

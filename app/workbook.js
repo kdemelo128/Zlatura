@@ -22,6 +22,7 @@
  *   Audit Trail      provenance, flags and the $/SF reconciliation
  *   CoStar Notes     the full notes behind each comp
  */
+import { PRODUCT } from './brand.js';
 import { addRentRollTabs } from './rrbook.js';
 import { dealSchedules, typedPrice, leaseName } from './lease.js';
 import { signOf } from './numtext.js';
@@ -1385,7 +1386,7 @@ function rentRollTab(wb, rows, asOf) {
 }
 
 /** A workbook holding just the deal: its analysis and its rent roll. */
-export async function buildDealWorkbook(ExcelJS, fflate, { deal, metrics, comps, app = 'Zlatura' }) {
+export async function buildDealWorkbook(ExcelJS, fflate, { deal, metrics, comps, app = PRODUCT }) {
   const wb = new ExcelJS.Workbook();
   wb.creator = app;
   wb.lastModifiedBy = app;
@@ -1455,7 +1456,7 @@ export function byPpsf(a, b) {
 
 /** Build the workbook and return it as bytes ready to download. */
 export async function buildWorkbook(ExcelJS, fflate, {
-  sales, market, subject = {}, label: setLabel, sources = [], app = 'Zlatura', preparedBy = '', manual = 0,
+  sales, market, subject = {}, label: setLabel, sources = [], app = PRODUCT, preparedBy = '', manual = 0,
   deal = null,
 }) {
   // the order is the rule, whatever order the comps arrive in

@@ -3,6 +3,7 @@
  * a finished file to the person. */
 
 import { signOf } from './numtext.js';
+import { icon } from './icons.js';
 
 export const $ = (id) => document.getElementById(id);
 export const el = (tag, cls, text) => {
@@ -15,7 +16,8 @@ export const el = (tag, cls, text) => {
   if (tag === 'div' && cls && /(^|\s)scroll(\s|$)/.test(cls)) n.tabIndex = 0;
   return n;
 };
-export const svg = (paths, size = 18, extra = '') => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"${extra}>${paths}</svg>`;
+/** An icon from the one set (icons.js). */
+export { icon };
 
 export const IN_ARTIFACT = !!(window.claude && typeof window.claude.use === 'function');
 export const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -194,7 +196,7 @@ export function actionSheet(title, items) {
       if (it.info) { const row = el('div', 'action-info'); row.appendChild(el('span', 'action-label', it.info)); if (it.sub) row.appendChild(el('span', 'action-sub', it.sub)); list.appendChild(row); continue; }
       const b = el('button', `action-item${it.danger ? ' danger' : ''}${it.primary ? ' primary' : ''}`);
       b.type = 'button';
-      if (it.icon) b.insertAdjacentHTML('beforeend', svg(it.icon, 20));
+      if (it.icon) b.insertAdjacentHTML('beforeend', icon(it.icon, 20));
       const txt = el('span', 'action-text');
       txt.appendChild(el('span', 'action-label', it.label));
       if (it.sub) txt.appendChild(el('span', 'action-sub', it.sub));

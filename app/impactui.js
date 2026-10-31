@@ -6,7 +6,7 @@
  * For a figure, the same sheet says what it is worked out from. */
 
 import { dateInput } from './dateinput.js';
-import { el, svg, toast, money0, money2, pct, times, yrs, int, dec, parseNum, parsePct, getFflate } from './kit.js';
+import { el, icon, toast, money0, money2, pct, times, yrs, int, dec, parseNum, parsePct, getFflate } from './kit.js';
 import {
   affects, nodeOf, upstream, groupOf, valuesOf, withTrial, trialKind, sameValue, hasRentRoll, scenariosOf, downstream,
 } from './impact.js';
@@ -16,13 +16,13 @@ import { workbookReach } from './template.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const GROUPS = [['Figures', 'figures'], ['Checks and questions', 'checks'], ['Scenarios', 'scenarios'], ['Exports', 'exports'], ['Documents', 'documents']];
-export const AFFECTS_ICON = '<circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="12" r="2.2"/><circle cx="6" cy="18" r="2.2"/><path d="M8 6.8l7.8 4.2M8 17.2l7.8-4.2"/>';
+export const AFFECTS_ICON = 'nodes';
 
 /** A small button that opens the sheet: `label` names the input ("What changing NOI affects"). */
 export function affectsButton(label, open) {
   const b = el('button', 'iconbtn affects-btn');
   b.type = 'button';
-  b.innerHTML = svg(AFFECTS_ICON, 15);
+  b.innerHTML = icon(AFFECTS_ICON, 15);
   b.setAttribute('aria-label', label);
   b.title = label;
   b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); open(); });

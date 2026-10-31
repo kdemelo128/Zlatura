@@ -2,7 +2,7 @@
  * opens a search over the deals, contacts and tools on this device and the
  * actions the app really has. Every result does what it says. */
 
-import { el, svg, toast, short, pct, openSheet } from './kit.js';
+import { el, icon, toast, short, pct, openSheet } from './kit.js';
 import { listAllDeals, showDeal, startDealByHand, openTemplates, impactCommands } from './dealui.js';
 import { listContacts } from './crm.js';
 import { toolIndex, openToolById } from './toolsui.js';
@@ -18,15 +18,6 @@ import { startNew } from './underwrite.js';
 
 let api = null;
 let dlg = null;
-
-const ICON = {
-  deal: '<path d="M3 21h18M5 21V8l7-5 7 5v13"/><path d="M9 21v-5h6v5"/>',
-  contact: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
-  tool: '<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/>',
-  go: '<path d="M5 12h14M13 6l6 6-6 6"/>',
-  act: '<path d="M12 5v14M5 12h14"/>',
-  theme: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>',
-};
 
 /** Every query word must appear somewhere; a match at the start of the title ranks first. */
 export function rank(items, q) {
@@ -50,18 +41,18 @@ async function sources() {
   for (const d of deals) {
     const f = d.figures || {};
     items.push({
-      group: 'Deals', icon: 'deal', title: d.name || f.address || 'Untitled deal',
+      group: 'Deals', icon: 'deals', title: d.name || f.address || 'Untitled deal',
       detail: [STAGE_LABEL[stageOf(d)], f.ptype, [f.city, f.state].filter(Boolean).join(', '), f.price ? short(f.price) : null, f.cap ? `${pct(f.cap)} cap` : null].filter(Boolean).join(' · '),
       keywords: `${f.address || ''} ${f.tenant || ''}`, run: () => { close(); showDeal(d.id); },
     });
   }
   for (const c of contacts) {
-    items.push({ group: 'Contacts', icon: 'contact', title: c.name, detail: [c.role, c.company, c.phone, c.email].filter(Boolean).join(' · '), run: () => { close(); editContact(api, c, deals.map((d) => ({ id: d.id, name: d.name || 'Untitled deal' }))); } });
+    items.push({ group: 'Contacts', icon: 'contacts', title: c.name, detail: [c.role, c.company, c.phone, c.email].filter(Boolean).join(' · '), run: () => { close(); editContact(api, c, deals.map((d) => ({ id: d.id, name: d.name || 'Untitled deal' }))); } });
   }
-  for (const t of toolIndex()) items.push({ group: 'Tools', icon: 'tool', title: t.title, detail: `${t.group} · ${t.desc}`, weight: 0.2, run: () => { close(); openToolById(t.id); } });
-  const go = (view, title, keywords) => ({ group: 'Go to', icon: 'go', title, keywords, weight: 0.4, run: () => { close(); api.showView(view); } });
+  for (const t of toolIndex()) items.push({ group: 'Tools', icon: 'tools', title: t.title, detail: `${t.group} · ${t.desc}`, weight: 0.2, run: () => { close(); openToolById(t.id); } });
+  const go = (view, title, keywords) => ({ group: 'Go to', icon: 'arrow-right', title, keywords, weight: 0.4, run: () => { close(); api.showView(view); } });
   items.push(go('home', 'Home', 'dashboard pipeline tasks'), go('deal', 'Deals', 'deal workspace om'), go('underwrite', 'Underwrite', 'quick underwriting calculator what price cap rate dscr irr'), go('comps', 'Comps', 'comparable sales market'), go('tools', 'Tools', 'calculators'), go('review', 'Review', 'queue t-12 t12 unmapped ai readings check'), go('settings', 'Settings', 'preferences appearance backup'));
-  const act = (title, detail, run, keywords = '') => ({ group: 'Actions', icon: 'act', title, detail, keywords, weight: 0.3, run: () => { close(); run(); } });
+  const act = (title, detail, run, keywords = '') => ({ group: 'Actions', icon: 'plus', title, detail, keywords, weight: 0.3, run: () => { close(); run(); } });
   items.push(
     act('Read an offering memorandum…', 'Choose an OM PDF; its figures are read on this device', () => { api.showView('deal'); document.getElementById('om-file').click(); }, 'om pdf scan new deal'),
     act('Add CoStar comp reports…', 'Choose comp report PDFs for the comp set', () => { api.showView('comps'); document.getElementById('file').click(); }, 'comps pdf'),
@@ -78,9 +69,9 @@ async function sources() {
     act('Keyboard shortcuts', 'Every key the app answers to (or press ?)', () => openShortcuts(api), 'keys keyboard help hotkeys ?'),
   );
   // the open deal: what each of its inputs affects (the dependency map)
-  for (const c of impactCommands()) items.push({ group: 'This deal', icon: 'act', title: c.title, keywords: 'affects impact depends change what if', weight: 0.6, run: () => { close(); c.run(); } });
+  for (const c of impactCommands()) items.push({ group: 'This deal', icon: 'plus', title: c.title, keywords: 'affects impact depends change what if', weight: 0.6, run: () => { close(); c.run(); } });
   for (const [v, label] of [['light', 'Light'], ['dark', 'Dark'], ['system', 'System']]) {
-    items.push({ group: 'Appearance', icon: 'theme', title: `Theme: ${label}`, keywords: 'appearance mode', weight: 0.5, run: () => { close(); setTheme(v); toast(`Theme: ${label}.`); } });
+    items.push({ group: 'Appearance', icon: 'sun', title: `Theme: ${label}`, keywords: 'appearance mode', weight: 0.5, run: () => { close(); setTheme(v); toast(`Theme: ${label}.`); } });
   }
   return items;
 }
@@ -97,7 +88,7 @@ export async function openCommand() {
   dlg.setAttribute('aria-label', 'Search and jump');
   const card = el('div', 'cmdk-card');
   const bar = el('div', 'cmdk-in');
-  bar.insertAdjacentHTML('beforeend', svg('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>', 18));
+  bar.insertAdjacentHTML('beforeend', icon('search', 18));
   const input = el('input');
   input.type = 'text';
   input.id = 'cmdk-input';
@@ -149,7 +140,7 @@ export async function openCommand() {
         n.id = `cmdk-opt-${k}`;
         n.setAttribute('role', 'option');
         const ic = el('span', 'ic');
-        ic.innerHTML = svg(ICON[it.icon] || ICON.go, 15);
+        ic.innerHTML = icon(it.icon || 'arrow-right', 15);
         const tx = el('span', 'tx');
         tx.appendChild(el('div', 't', it.title));
         if (it.detail) tx.appendChild(el('div', 'd', it.detail));

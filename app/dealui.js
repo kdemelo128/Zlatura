@@ -47,7 +47,7 @@ import { renderDealCrm } from './dealcrm.js';
 import * as crm from './crm.js';
 import { sweepResearch } from './research.js';
 import {
-  $, el, svg, IN_ARTIFACT, XLSX, printed, parseNum, parsePct, int, dec, money0, money2, pct, signed, times, yrs, short, niceDate,
+  $, el, icon, IN_ARTIFACT, XLSX, printed, parseNum, parsePct, int, dec, money0, money2, pct, signed, times, yrs, short, niceDate,
   localDate, toast, actionSheet, getPdfjs, getXlsx, getFflate, deliver, deliveryError, shareText, idle, pdfProblem,
 } from './kit.js';
 
@@ -541,10 +541,10 @@ function viewHead(title, sub, actions = []) {
   if (sub) h.appendChild(el('p', null, sub));
   return h;
 }
-const button = (cls, text, fn, iconPaths) => {
+const button = (cls, text, fn, iconName) => {
   const b = el('button', `btn ${cls}`);
   b.type = 'button';
-  if (iconPaths) b.insertAdjacentHTML('beforeend', svg(iconPaths, 17));
+  if (iconName) b.insertAdjacentHTML('beforeend', icon(iconName, 17));
   if (text) b.appendChild(el('span', null, text));
   b.addEventListener('click', fn);
   return b;
@@ -568,7 +568,7 @@ function renderReading(r) {
   r.appendChild(viewHead('Deals', null));
   const c = el('div', 'hero');
   c.style.marginTop = '14px';
-  c.appendChild(Object.assign(el('div', 'hero-icon'), { innerHTML: svg('<path d="M14 3H7a2.5 2.5 0 0 0-2.5 2.5v13A2.5 2.5 0 0 0 7 21h10a2.5 2.5 0 0 0 2.5-2.5V8.5z"/><path d="M14 3v5.5h5.5M9 13h6M9 17h4"/>', 28) }));
+  c.appendChild(Object.assign(el('div', 'hero-icon'), { innerHTML: icon('file-text', 28) }));
   c.appendChild(el('h2', null, `Reading ${reading.name}`));
   const bar = el('div', 'progress');
   bar.id = 'deal-progress';
@@ -586,7 +586,7 @@ async function renderLanding(r) {
   r.appendChild(viewHead('Deals', 'Read an offering memorandum on the spot: the key figures, checked against each other and against your comps, run through a loan, with the questions to ask before you leave.'));
   const stack = el('div', 'stack');
   const hero = el('div', 'hero drop');
-  hero.appendChild(Object.assign(el('div', 'hero-icon'), { innerHTML: svg('<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8h10M7 12h10M7 16h6"/>', 28) }));
+  hero.appendChild(Object.assign(el('div', 'hero-icon'), { innerHTML: icon('scan', 28) }));
   hero.appendChild(el('h2', null, 'Scan an offering memorandum'));
   hero.appendChild(el('p', null, 'Choose the OM’s PDF, from Mail, Files or a download. Price, NOI, cap rate, size, occupancy, the rent roll and the lease terms are read straight from it.'));
   const acts = el('div', 'hero-actions');
@@ -597,23 +597,23 @@ async function renderLanding(r) {
   acts.appendChild(button('btn-plain', 'Try a fictional example deal', () => { flushDeal(); deal = exampleDeal(); try { localStorage.setItem(CUR_KEY, deal.id); } catch { /* fine */ } render(); touch(); }));
   acts.appendChild(button('btn-lg', 'Enter figures by hand', () => { flushDeal(); deal = newDeal(); try { localStorage.setItem(CUR_KEY, deal.id); } catch { /* fine */ } render(); touch(); }));
   hero.appendChild(acts);
-  hero.appendChild(Object.assign(el('div', 'trust'), { innerHTML: `${svg('<path d="M12 3l7 3v5c0 4.5-3 8.4-7 10-4-1.6-7-5.5-7-10V6z"/>', 14)}Read on this device. The OM is never uploaded.` }));
+  hero.appendChild(Object.assign(el('div', 'trust'), { innerHTML: `${icon('shield', 14)}Read on this device. The OM is never uploaded.` }));
   stack.appendChild(hero);
 
   const what = card('What you get');
   const ul = el('ul', 'list');
   for (const [t, s, p] of [
-    ['Every figure with its page', 'tap a tag to see the line it came from, or pick another reading', '<path d="M4 6h16M4 12h10M4 18h7"/>'],
-    ['What doesn’t add up', 'a stated cap rate that isn’t the NOI over the price, a $/SF on a different SF', '<path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/>'],
-    ['Against your comps', 'premium or discount to the sale comps on the Comps tab, and value at their $/SF and cap rate', '<path d="M5 19V11M10 19V6M15 19v-9M20 19V4"/>'],
-    ['Financing and loan sizing', 'DSCR, debt yield, cash-on-cash and the largest loan it supports', '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>'],
-    ['Questions to ask', 'written from the gaps in this OM, to tick off on the walk', '<path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>'],
-    ['Site-visit notes and photos', 'kept with the deal, and on the deal brief', '<path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/>'],
+    ['Every figure with its page', 'tap a tag to see the line it came from, or pick another reading', 'menu'],
+    ['What doesn’t add up', 'a stated cap rate that isn’t the NOI over the price, a $/SF on a different SF', 'warn'],
+    ['Against your comps', 'premium or discount to the sale comps on the Comps tab, and value at their $/SF and cap rate', 'bars'],
+    ['Financing and loan sizing', 'DSCR, debt yield, cash-on-cash and the largest loan it supports', 'dollar'],
+    ['Questions to ask', 'written from the gaps in this OM, to tick off on the walk', 'check'],
+    ['Site-visit notes and photos', 'kept with the deal, and on the deal brief', 'camera'],
   ]) {
     const li = el('li');
     const ic = el('span', 'tool-icon');
 
-    ic.innerHTML = svg(p, 18);
+    ic.innerHTML = icon(p, 18);
     li.appendChild(ic);
     const m = el('div', 'li-main');
     m.appendChild(el('div', null, t)).style.fontWeight = '600';
@@ -633,14 +633,14 @@ async function renderLanding(r) {
       b.type = 'button';
       const ic = el('span', 'deal-badge');
       ic.style.cssText = 'width:36px;height:36px;border-radius:10px';
-      ic.innerHTML = svg('<path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/>', 18);
+      ic.innerHTML = icon('deals', 18);
       b.appendChild(ic);
       const m = el('div', 'li-main');
       m.appendChild(el('div', 'li-title', `${d.name || d.figures?.address || 'Untitled deal'}${d.confidential ? ' (Confidential)' : ''}`));
       const f = d.figures || {};
       m.appendChild(el('div', 'li-sub', [STAGE_LABEL[stageOf(d)], f.ptype, f.price ? short(f.price) : null, f.cap ? `${pct(f.cap)} cap` : null, f.bsf ? `${int(f.bsf)} SF` : null, `updated ${niceDate(d.updatedAt)}`].filter(Boolean).join(' · ')));
       b.appendChild(m);
-      b.insertAdjacentHTML('beforeend', svg('<path d="M9 6l6 6-6 6"/>', 16, ' class="chev"'));
+      b.insertAdjacentHTML('beforeend', icon('chev', 16, ' class="chev"'));
       b.addEventListener('click', () => openDeal(d.id));
       list.appendChild(b);
     }
@@ -654,23 +654,23 @@ async function renderLanding(r) {
 function renderDeal(r) {
   const f = deal.figures;
   const title = deal.name || f.address || 'Untitled deal';
-  const more = button('btn-gray', null, dealMenu, '<circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/>');
+  const more = button('btn-gray', null, dealMenu, 'more');
   more.setAttribute('aria-label', 'More deal actions');
   // a slim bar: the way back to every deal, and the deal's main actions
   const top = el('div', 'view-head ws-top');
-  const back = button('btn-plain btn-sm ws-back', 'All deals', closeDeal, '<path d="M15 6l-6 6 6 6"/>');
+  const back = button('btn-plain btn-sm ws-back', 'All deals', closeDeal, 'back');
   top.appendChild(back);
   const acts = el('div', 'view-actions');
   // undo and redo for this deal: each button says what it would undo or redo
-  const undoB = button('btn-gray', null, () => stepHistory('undo'), '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 010 10h-3"/>');
+  const undoB = button('btn-gray', null, () => stepHistory('undo'), 'undo');
   undoB.id = 'deal-undo';
-  const redoB = button('btn-gray', null, () => stepHistory('redo'), '<path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 000 10h3"/>');
+  const redoB = button('btn-gray', null, () => stepHistory('redo'), 'redo');
   redoB.id = 'deal-redo';
   for (const b of [undoB, redoB]) { b.disabled = true; b.setAttribute('aria-label', b === undoB ? 'Nothing to undo' : 'Nothing to redo'); b.title = b.getAttribute('aria-label'); }
   acts.append(
     undoB, redoB,
-    button('btn-primary', 'Excel', exportExcel, '<path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/>'),
-    button('', 'Share', shareSummary, '<path d="M12 15V3m0 0L8 7m4-4l4 4M6 11H5a1 1 0 00-1 1v8a1 1 0 001 1h14a1 1 0 001-1v-8a1 1 0 00-1-1h-1"/>'),
+    button('btn-primary', 'Excel', exportExcel, 'export'),
+    button('', 'Share', shareSummary, 'share'),
     more,
   );
   top.appendChild(acts);
@@ -691,7 +691,7 @@ function renderDeal(r) {
   if (deal.confidential) {
     const cc = el('button', 'chip chip-warn');
     cc.type = 'button'; cc.id = 'deal-confidential-chip';
-    cc.innerHTML = svg('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>', 13);
+    cc.innerHTML = icon('lock', 13);
     cc.append(document.createTextNode(' Confidential'));
     cc.setAttribute('aria-label', 'Confidential deal: open the confidential setting');
     cc.addEventListener('click', openConfidential);
@@ -807,10 +807,10 @@ function renderDeal(r) {
 
   const bottom = el('div', 'view-actions');
   bottom.classList.add('ws-foot');
-  bottom.appendChild(button('', 'Use as the comps subject', useAsSubject, '<path d="M5 12h14M13 6l6 6-6 6"/>'));
-  bottom.appendChild(button('', 'Fill my Excel template', openTemplates, '<path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5M9 13l2 2 4-4"/>'));
-  if (!IN_ARTIFACT) bottom.appendChild(button('', 'Deal brief', printBrief, '<path d="M7 9V3h10v6M7 17H5a2 2 0 01-2-2v-4a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2h-2M7 14h10v7H7z"/>'));
-  bottom.appendChild(button('btn-gray', 'All deals', closeDeal, '<path d="M15 6l-6 6 6 6"/>'));
+  bottom.appendChild(button('', 'Use as the comps subject', useAsSubject, 'arrow-right'));
+  bottom.appendChild(button('', 'Fill my Excel template', openTemplates, 'file-check'));
+  if (!IN_ARTIFACT) bottom.appendChild(button('', 'Deal brief', printBrief, 'print'));
+  bottom.appendChild(button('btn-gray', 'All deals', closeDeal, 'back'));
   stack.appendChild(bottom);
   r.appendChild(stack);
   renderDerived();
@@ -986,7 +986,7 @@ function renderDerived() {
     const ul = el('ul', 'checks');
     for (const c of m.checks) {
       const li = el('li', c.level);
-      li.innerHTML = svg(c.level === 'info' ? '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.5"/>' : '<path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/>', 18);
+      li.innerHTML = icon(c.level === 'info' ? 'info' : 'warn', 18);
       li.appendChild(el('span', null, c.text));
       ul.appendChild(li);
     }
@@ -1666,7 +1666,7 @@ function renderSavedScenarios(m) {
     const use = button('btn-plain btn-sm', 'Load', () => { deal.live = { ...sc.over }; touch(); render(); toast(`Loaded “${sc.name}”. The deal itself is unchanged.`); });
     const del = el('button', 'iconbtn');
     del.type = 'button';
-    del.innerHTML = svg('<path d="M6 6l12 12M18 6L6 18"/>', 15);
+    del.innerHTML = icon('close', 15);
     del.setAttribute('aria-label', `Delete scenario ${sc.name}`);
     del.addEventListener('click', () => {
       const d = deal;
@@ -2083,7 +2083,7 @@ function renderQuestions(m) {
     if (deal.myQuestions.includes(q)) {
       const x = el('button', 'iconbtn');
       x.type = 'button';
-      x.innerHTML = svg('<path d="M6 6l12 12M18 6L6 18"/>', 15);
+      x.innerHTML = icon('close', 15);
       x.setAttribute('aria-label', 'Remove this question');
       x.addEventListener('click', () => { deal.myQuestions = deal.myQuestions.filter((y) => y !== q); delete deal.qDone[q]; touch(); renderQuestions(m); });
       li.appendChild(x);
@@ -2191,7 +2191,7 @@ function renderAudio(into = null) {
   head.appendChild(el('span', 'sec-label', 'Voice notes'));
   const recording = rec && rec.d === deal;
   const recBtn = button(recording ? 'btn-sm btn-danger' : 'btn-sm', recording ? `Stop · ${clock((Date.now() - rec.start) / 1000)}` : 'Record', () => (rec ? stopRec() : startRec()),
-    recording ? '<rect x="7" y="7" width="10" height="10" rx="2"/>' : '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>');
+    recording ? 'stop' : 'mic');
   recBtn.id = 'rec-btn';
   head.appendChild(recBtn);
   const add = el('label', 'btn btn-sm btn-gray', 'Add audio file');
@@ -2220,7 +2220,7 @@ function renderAudio(into = null) {
     row.appendChild(au);
     const x = el('button', 'iconbtn');
     x.type = 'button';
-    x.innerHTML = svg('<path d="M6 6l12 12M18 6L6 18"/>', 14);
+    x.innerHTML = icon('close', 14);
     x.setAttribute('aria-label', `Delete ${a.name || 'voice note'}`);
     x.addEventListener('click', () => {
       const d = deal;
@@ -2334,7 +2334,7 @@ function renderPhotos(into = null) {
     d.appendChild(img);
     const x = el('button');
     x.type = 'button';
-    x.innerHTML = svg('<path d="M6 6l12 12M18 6L6 18"/>', 13);
+    x.innerHTML = icon('close', 13);
     x.setAttribute('aria-label', 'Delete this photo');
     x.addEventListener('click', () => {
       const d = deal;
@@ -2358,7 +2358,7 @@ function renderPhotos(into = null) {
   }
   const add = el('label', 'photo-add');
   add.htmlFor = 'photo-file';
-  add.innerHTML = svg('<path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/>', 24);
+  add.innerHTML = icon('camera', 24);
   add.title = 'Add photos';
   add.setAttribute('aria-label', 'Add site photos');
   ph.appendChild(add);
@@ -2671,23 +2671,23 @@ async function openConfidential() {
 
 async function dealMenu() {
   const v = await actionSheet(deal.name || 'Deal', [
-    { label: 'Copy summary', sub: 'five lines for a text or an email', value: 'copy', icon: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/>' },
-    ...(IN_ARTIFACT ? [] : [{ label: 'Deal brief', sub: 'print or save as PDF, with photos', value: 'brief', icon: '<path d="M7 9V3h10v6M7 17H5a2 2 0 01-2-2v-4a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2h-2M7 14h10v7H7z"/>' }]),
-    ...(dealSchedules(deal, null).length ? [{ label: 'Copy rent schedule', sub: 'tab-separated, for a spreadsheet', value: 'rentsched', icon: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M9 5v14"/>' }] : []),
-    { label: 'Fill my Excel template…', sub: 'your firm’s underwriting or rent roll workbook', value: 'template', icon: '<path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/>' },
-    { label: 'Use as the comps subject', value: 'subject', icon: '<path d="M5 12h14M13 6l6 6-6 6"/>' },
-    { label: 'History…', sub: 'every change to this deal; undo to any step', value: 'history', icon: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>' },
+    { label: 'Copy summary', sub: 'five lines for a text or an email', value: 'copy', icon: 'copy' },
+    ...(IN_ARTIFACT ? [] : [{ label: 'Deal brief', sub: 'print or save as PDF, with photos', value: 'brief', icon: 'print' }]),
+    ...(dealSchedules(deal, null).length ? [{ label: 'Copy rent schedule', sub: 'tab-separated, for a spreadsheet', value: 'rentsched', icon: 'table' }] : []),
+    { label: 'Fill my Excel template…', sub: 'your firm’s underwriting or rent roll workbook', value: 'template', icon: 'file-text' },
+    { label: 'Use as the comps subject', value: 'subject', icon: 'arrow-right' },
+    { label: 'History…', sub: 'every change to this deal; undo to any step', value: 'history', icon: 'clock' },
     '-',
-    { label: 'Confidential…', sub: deal.confidential ? 'On: marked on exports, AI is off for this deal' : 'Mark exports and keep this deal away from AI', value: 'confidential', icon: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>' },
-    { label: 'Read documents with AI…', sub: deal.confidential ? 'Off: this deal is confidential' : 'OM, rent roll, T-12 or lease: figures to check, page by page', disabled: !!deal.confidential, value: 'ai-read', icon: '<path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z"/><path d="M5 17l.9 2.1L8 20l-2.1.9L5 23l-.9-2.1L2 20l2.1-.9z"/>' },
-    { label: 'Ask about this deal…', sub: deal.confidential ? 'Off: this deal is confidential' : 'answers from this deal’s figures, with sources', disabled: !!deal.confidential, value: 'ai-ask', icon: '<path d="M21 12a8 8 0 01-11.6 7.1L4 21l1.9-5.4A8 8 0 1121 12z"/>' },
-    { label: 'AI settings…', value: 'ai-settings', icon: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>' },
-    { label: 'Open in Maps', value: 'map', disabled: !deal.figures.address, icon: '<path d="M12 21s-7-6.1-7-11a7 7 0 1114 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>' },
+    { label: 'Confidential…', sub: deal.confidential ? 'On: marked on exports, AI is off for this deal' : 'Mark exports and keep this deal away from AI', value: 'confidential', icon: 'lock' },
+    { label: 'Read documents with AI…', sub: deal.confidential ? 'Off: this deal is confidential' : 'OM, rent roll, T-12 or lease: figures to check, page by page', disabled: !!deal.confidential, value: 'ai-read', icon: 'sparkle' },
+    { label: 'Ask about this deal…', sub: deal.confidential ? 'Off: this deal is confidential' : 'answers from this deal’s figures, with sources', disabled: !!deal.confidential, value: 'ai-ask', icon: 'chat' },
+    { label: 'AI settings…', value: 'ai-settings', icon: 'settings' },
+    { label: 'Open in Maps', value: 'map', disabled: !deal.figures.address, icon: 'pin' },
     '-',
-    { label: 'Scan another OM…', value: 'new', icon: '<path d="M12 5v14M5 12h14"/>' },
-    { label: 'All deals', value: 'close', icon: '<path d="M4 6h16M4 12h16M4 18h16"/>' },
+    { label: 'Scan another OM…', value: 'new', icon: 'plus' },
+    { label: 'All deals', value: 'close', icon: 'menu' },
     '-',
-    { label: 'Delete this deal', value: 'delete', danger: true, icon: '<path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/>' },
+    { label: 'Delete this deal', value: 'delete', danger: true, icon: 'trash' },
   ]);
   if (v === 'copy') {
     const { m, comps } = metrics();
