@@ -11,6 +11,7 @@ section with grep, never in full.
 
 - **Version:** 4.7.77 (development branch; GitHub Pages deploys from main).
 - **Version:** 4.7.82 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.83 (development branch; GitHub Pages deploys from main).
 - **Version:** 4.7.85 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
@@ -145,6 +146,7 @@ section with grep, never in full.
 - **Excel zip-bomb guard (4.7.76, PR opening):** a workbook's real unpacked size is checked as it unpacks (not only the size it declares); applies to the rent roll, T-12, templates and the sheet reader; zip64 workbooks still open. Security fix with its own tests.
 - **Cash flow A1b (4.7.77, PR opening):** the three approved edge-case fixes: an unknown or blank recovery share/base is flagged "can't tell" and left out (NOI understated until fixed), negative sale costs are refused, percentage rent with a zero or blank base rent uses the typed breakpoint. Next: A2, the read-only cash-flow view.
 - **Dependency scan exception (4.7.82, PR opening):** a new advisory on a dev-only transitive package (minimatch via exceljs) turned the dependency check red everywhere; a time-boxed ignore (expires 2026-12-29) with reason and a test that keeps exceptions honest. Owner decision pending: allow the BlueOak-1.0.0 licence so minimatch 11 can be adopted instead.
+- **Documents hub step 2, Convert (4.7.83, PR opening):** Tools → Documents → Convert files: what a file can become (pictures, PDF pages, text, spreadsheets, CSV/JSON, Word text), run on the device, honest refusals; Excel goes through the shared zip guard. Next: D3a registry, then Start from documents.
 - Rent roll column presets read the property type more carefully (Multi-tenant office is no longer multifamily)
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
