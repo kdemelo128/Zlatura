@@ -7,6 +7,7 @@
  * changes, send its result back to the deal. Nothing reaches the deal
  * without that confirmation. */
 
+import { PRODUCT } from './brand.js';
 import { quickValue, loanTool, offerTool, netEffectiveRent, exchangeDates, waltTool } from './tools.js';
 import { MORE_TOOLS, GROUPS } from './toolsdefs.js';
 import { dateInput } from './dateinput.js';
@@ -14,7 +15,7 @@ import { dealForTools, applyFromTools } from './dealui.js';
 import { kvGet, kvSet, logRounding, MONEY_VERSION } from './store.js';
 import { quantizeToolInput, quantizeToolValues } from './engine/money.js';
 import {
-  $, el, svg, parseNum, parsePct, int, money0, money2, pct, signed, times, yrs, niceDate, niceDay, toast, copyText, actionSheet, getXlsx, deliver, printed, XLSX, localDate,
+  $, el, icon, parseNum, parsePct, int, money0, money2, pct, signed, times, yrs, niceDate, niceDay, toast, copyText, actionSheet, getXlsx, deliver, printed, XLSX, localDate,
 } from './kit.js';
 
 let api = null;
@@ -32,7 +33,7 @@ const TOOLS = [
   {
     id: 'value', group: 'Valuation', title: 'Quick value', color: '#2350D8',
     desc: 'Any two of price, NOI and cap rate give the third.',
-    icon: '<path d="M4 19h16M7 15l3-4 3 2 4-6"/>',
+    icon: 'trend',
     inputs: [['price', 'Price', 'money', '4.5m'], ['noi', 'NOI', 'money', '280k'], ['cap', 'Cap rate %', 'pct', '6.25'],
       ['bsf', 'Building SF', 'num', 'optional'], ['units', 'Units', 'num', 'optional']],
     fromDeal: (d) => ({ price: d.m.price, noi: d.m.noi, cap: null, bsf: d.figures.bsf, units: d.figures.units }),
@@ -50,7 +51,7 @@ const TOOLS = [
   {
     id: 'loan', group: 'Debt and financing', title: 'Loan sizing', color: '#0E8A7D',
     desc: 'The largest loan by LTV, DSCR and debt yield, and which test binds.',
-    icon: '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>',
+    icon: 'dollar',
     inputs: [['price', 'Purchase price', 'money', '4.5m'], ['noi', 'NOI', 'money', '280k'], ['ltv', 'Max LTV %', 'pct', '65'],
       ['rate', 'Interest rate %', 'pct', '6.75'], ['amort', 'Amortization, years', 'num', '30'], ['io', 'Interest only', 'bool'],
       ['minDscr', 'Minimum DSCR', 'num', '1.25'], ['minDy', 'Minimum debt yield %', 'pct', '8']],
@@ -71,7 +72,7 @@ const TOOLS = [
   {
     id: 'offer', group: 'Valuation', title: 'Offer and seller net', color: '#C2410C',
     desc: 'Price at a target cap or $/SF, and what the seller nets.',
-    icon: '<path d="M20 12V8H6a2 2 0 010-4h12v4M4 6v12a2 2 0 002 2h14v-4"/><path d="M18 12a2 2 0 000 4h4v-4z"/>',
+    icon: 'dollar',
     inputs: [['ask', 'Asking price', 'money', '4.5m'], ['noi', 'NOI', 'money', '280k'], ['targetCap', 'Target cap rate %', 'pct', '6.5'],
       ['bsf', 'Building SF', 'num', '9,000'], ['targetPpsf', 'Target $/SF', 'money', '475'],
       ['price', 'Sale price for the net sheet', 'money', 'blank = price at target cap'], ['commission', 'Commission %', 'pct0', '4'],
@@ -92,7 +93,7 @@ const TOOLS = [
   {
     id: 'ner', group: 'Leasing', title: 'Net effective rent', color: '#7C3AED',
     desc: 'A lease’s real rent after free rent, TI and commissions.',
-    icon: '<path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1M14 9h1M9 13h1M14 13h1M9 17h6"/>',
+    icon: 'deals',
     inputs: [['rent', 'Starting rent $/SF/yr', 'money', '42'], ['sf', 'Square feet', 'num', '2,500'], ['months', 'Term, months', 'num', '120'],
       ['esc', 'Annual increases %', 'pct', '3'], ['free', 'Free rent, months', 'num', '4'], ['ti', 'TI allowance $/SF', 'money', '40'],
       ['lc', 'Leasing commissions %', 'pct', '6'], ['discount', 'Discount rate %', 'pct', '8']],
@@ -110,7 +111,7 @@ const TOOLS = [
   {
     id: 'x1031', group: 'Conversions and dates', title: '1031 exchange clock', color: '#B45309',
     desc: 'The 45-day identification and 180-day closing deadlines.',
-    icon: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',
+    icon: 'clock',
     inputs: [['closing', 'Relinquished property closed on', 'date']],
     run: (v) => {
       const r = exchangeDates(v.closing);
@@ -126,13 +127,13 @@ const TOOLS = [
   {
     id: 'walt', group: 'Leasing', title: 'WALT and rollover', color: '#0369A1',
     desc: 'Weighted average lease term and rent rolling, from a quick rent roll.',
-    icon: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    icon: 'menu',
     rows: true,
   },
   {
     id: 'convert', group: 'Conversions and dates', title: 'Converter', color: '#475569',
     desc: 'Acres and SF, FAR to buildable, rent per month and per year.',
-    icon: '<path d="M7 7h11l-3-3M17 17H6l3 3"/>',
+    icon: 'swap',
     inputs: [['acres', 'Acres', 'num', '0.5'], ['sf', 'Land SF', 'num', '21,780'], ['far', 'FAR', 'num', '3.0'],
       ['rentYr', 'Rent $/SF a year', 'money', '36'], ['rentMo', 'Rent $/SF a month', 'money', '3.00'], ['sfLease', 'SF leased', 'num', '1,200']],
     run: (v) => {
@@ -153,11 +154,11 @@ const TOOLS = [
 TOOLS.push(/** @type {any} */ ({
   id: 'pdf-pages', group: 'Documents', title: 'PDF pages', color: '#4F555E', docs: true, inputs: [],
   desc: 'Merge PDFs, put pages in order, turn, delete, extract or split them. On this device; nothing is uploaded or kept.',
-  icon: '<path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6"/>',
+  icon: 'file-text',
 }), /** @type {any} */ ({
   id: 'doc-convert', group: 'Documents', title: 'Convert files', color: '#4F555E', docs: 'convert', inputs: [],
   desc: 'Photos, PDFs, spreadsheets, Word and text files: see what each can become, and why not the rest. On this device; nothing is uploaded or kept.',
-  icon: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
+  icon: 'swap',
 }));
 export const TOOL_IDS = TOOLS.map((t) => t.id);
 
@@ -211,7 +212,7 @@ function card(t) {
   // one tint per group (styles.css), so the screen reads as seven families, not thirty colours
   b.dataset.group = GROUPS.indexOf(t.group);
   const ic = el('span', 'tool-icon');
-  ic.innerHTML = svg(t.icon, 19);
+  ic.innerHTML = icon(t.icon, 19);
   b.appendChild(ic);
   const tx = el('span');
   const h = el('h3', null, t.title);
@@ -558,12 +559,12 @@ function describeChanges(w, d) {
 async function exportXlsx(t, v, out, d) {
   const { ExcelJS } = await getXlsx();
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'Zlatura';
+  wb.creator = `${PRODUCT}`;
   const ws = wb.addWorksheet(t.title.slice(0, 31).replace(/[\\/?*[\]:]/g, ' '));
   ws.columns = [{ width: 44 }, { width: 22 }, { width: 22 }, { width: 22 }, { width: 22 }, { width: 22 }, { width: 22 }];
   const bold = { bold: true };
   ws.addRow([t.title]).font = { bold: true, size: 14 };
-  ws.addRow([`Zlatura Tools · ${localDate()}${d ? ` · deal: ${d.name}` : ''}`]);
+  ws.addRow([`${PRODUCT} Tools · ${localDate()}${d ? ` · deal: ${d.name}` : ''}`]);
   ws.addRow([]);
   ws.addRow(['Inputs']).font = bold;
   for (const [id, label, kind] of t.inputs) {
@@ -680,7 +681,7 @@ function openWalt(t) {
       const td = el('td');
       const x = el('button', 'iconbtn');
       x.type = 'button';
-      x.innerHTML = svg('<path d="M6 6l12 12M18 6L6 18"/>', 15);
+      x.innerHTML = icon('close', 15);
       x.setAttribute('aria-label', `Remove row ${idx + 1}`);
       x.addEventListener('click', () => { mem.rows.splice(idx, 1); if (!mem.rows.length) mem.rows.push({}); draw(); update(); });
       td.appendChild(x);

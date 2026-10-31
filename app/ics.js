@@ -2,6 +2,7 @@
  * Pure: text in, text out, nothing fetched or stored. Every event is an all-day one, because a deadline is a
  * calendar day and not an instant. */
 
+import { PRODUCT } from './brand.js';
 import { calDay } from './pipeline.js';
 import { exchangeDates } from './tools.js';
 
@@ -53,7 +54,7 @@ const dayOf = (s) => { if (!s) return null; const t = Date.parse(s); return Numb
  */
 export function icsFor(events, { now = Date.now(), version = '' } = {}) {
   const seq = Math.max(0, Math.floor((now - Date.UTC(2026, 0, 1)) / 60000));
-  const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:-//Zlatura//Zlatura ${esc(version)}//EN`, 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+  const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:-//${PRODUCT}//${PRODUCT} ${esc(version)}//EN`, 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
   for (const e of events) {
     const day = e.done ? null : dayOf(e.date);
     if (day === null) continue;
@@ -74,7 +75,7 @@ export function icsFor(events, { now = Date.now(), version = '' } = {}) {
  * sheet's checkbox. left counts the key dates and tasks with no usable date.
  */
 export function dealEvents(deal, tasks, { showName = true } = {}) {
-  const name = showName ? (deal.name || 'Untitled deal') : 'Zlatura deal';
+  const name = showName ? (deal.name || 'Untitled deal') : `${PRODUCT} deal`;
   const events = []; let left = 0;
   for (const k of deal.keyDates || []) {
     if (k.done) continue;
@@ -97,10 +98,10 @@ export function closingOf(deal) {
 
 /** Day 45 and day 180 from the closing, through exchangeDates. */
 export function exchangeEvents(deal, closing, { showName = true } = {}) {
-  const name = showName ? (deal.name || 'Untitled deal') : 'Zlatura deal';
+  const name = showName ? (deal.name || 'Untitled deal') : `${PRODUCT} deal`;
   const r = exchangeDates(new Date(dayOf(closing.date)).toISOString().slice(0, 10));
   const iso = (d) => d.toISOString().slice(0, 10);
-  const description = `From Zlatura. Calendar days from the closing on ${closing.date}, weekends and holidays included. An indication, not tax advice: confirm with the qualified intermediary and a tax adviser.`;
+  const description = `From ${PRODUCT}. Calendar days from the closing on ${closing.date}, weekends and holidays included. An indication, not tax advice: confirm with the qualified intermediary and a tax adviser.`;
   return [
     { slot: 'x45', evId: `x45-${deal.id}-${closing.id}@${UID_HOST}`, date: iso(r.identify), title: `${name}: 1031 identify replacement property by (day 45)`, description, alarms: ALARMS },
     { slot: 'x180', evId: `x180-${deal.id}-${closing.id}@${UID_HOST}`, date: iso(r.close), title: `${name}: 1031 close by (day 180, or the tax return due date if earlier)`, description, alarms: ALARMS },

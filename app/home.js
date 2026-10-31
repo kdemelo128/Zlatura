@@ -2,6 +2,7 @@
  * tasks, contacts, recent activity and what was produced, and a pipeline
  * report to export or print. Everything here is kept on the device. */
 
+import { PRODUCT } from './brand.js';
 import * as crm from './crm.js';
 import { kvGet } from './store.js';
 import { STAGES, STAGE_LABEL, DEFAULT_STAGES, HIDDEN, stageChoices, stageOf, pipelineSummary, taskBuckets, attention, findContacts, upcomingDates, isoDay } from './pipeline.js';
@@ -456,7 +457,7 @@ async function reportXlsx() {
   const nameOf = Object.fromEntries(deals.map((d) => [d.id, tagged(d, d.name || d.figures.address || 'Untitled deal')]));
   const { ExcelJS } = await getXlsx();
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'Zlatura';
+  wb.creator = `${PRODUCT}`;
   const sheet = (name, cols, data) => {
     const ws = wb.addWorksheet(name);
     ws.columns = cols.map(([header, key, width, numFmt]) => ({ header, key, width, style: numFmt ? { numFmt } : {} }));
@@ -509,7 +510,7 @@ async function reportPrint() {
     }
     box.appendChild(t);
   }
-  box.appendChild(el('p', 'ps-foot', 'Cap rate is NOI over asking price where both are known, else the stated cap rate. Figures as entered in Zlatura on this device.'));
+  box.appendChild(el('p', 'ps-foot', `Cap rate is NOI over asking price where both are known, else the stated cap rate. Figures as entered in ${PRODUCT} on this device.`));
   printed('Pipeline report', { map: 'none: the pipeline lists deals by stage, not their figures' });
   window.print();
 }

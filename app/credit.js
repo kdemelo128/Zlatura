@@ -3,6 +3,7 @@
  * never fetched. These checks are NOT in analyze(): they show on the card only,
  * so no saved result or displayed figure depends on them. */
 
+import { PRODUCT } from './brand.js';
 import { toCents } from './engine/money.js';
 import { addMonths, inPlace, dayText } from './lease.js';
 
@@ -50,7 +51,7 @@ export const partyLabel = { tenant: 'the tenant on the lease', guarantor: 'the g
 /** The sentence under each rating on the card. */
 export function ratingLine(c, r) {
   const who = party(c, r.of) || '(name not typed)';
-  return `${agencyLabel(r)} ${r.rating}${r.outlook ? `, ${r.outlook}` : ''}, for ${who} (${partyLabel[r.of] || r.of}). As of ${dayText(r.asOf)}, from: ${r.source}. Typed by the broker on ${dayText(r.typedOn)}; not verified by Zlatura.`;
+  return `${agencyLabel(r)} ${r.rating}${r.outlook ? `, ${r.outlook}` : ''}, for ${who} (${partyLabel[r.of] || r.of}). As of ${dayText(r.asOf)}, from: ${r.source}. Typed by the broker on ${dayText(r.typedOn)}; not verified by ${PRODUCT}.`;
 }
 
 /**

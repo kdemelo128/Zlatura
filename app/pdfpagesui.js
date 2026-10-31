@@ -3,15 +3,15 @@
  * (pdfpages-worker.js); nothing is uploaded and no file is kept. Pure logic is in pdfpages.js. */
 /* global IntersectionObserver */
 
-import { el, svg, toast, deliver, deliveryError, getPdfjs, getFflate, isIOS, downloadName } from './kit.js';
+import { el, icon, toast, deliver, deliveryError, getPdfjs, getFflate, isIOS, downloadName } from './kit.js';
 import {
   checkAdd, problemText, pagesOf, overPages, move, rotate, remove, pageLabel, parseRanges, orderFor, withPdf, partName,
   MAX_PAGES, WATCHDOG_MS,
 } from './pdfpages.js';
 
 const ICON = {
-  up: '<path d="M6 15l6-6 6 6"/>', down: '<path d="M6 9l6 6 6-6"/>', turn: '<path d="M20 11a8 8 0 10-2.3 5.7M20 4v7h-7"/>',
-  del: '<path d="M6 6l12 12M18 6L6 18"/>',
+  up: 'up', down: 'down', turn: 'rotate',
+  del: 'close',
 };
 
 /* ------------------------------------------------------------- the worker */
@@ -184,11 +184,11 @@ export function openPdfPages(api) {
     const txt = el('div', 'docs-ptext');
     txt.append(el('b'), el('span', 'hint-sm'));
     const btns = el('div', 'docs-btns');
-    for (const [act, icon, text] of [['up', ICON.up, 'Move up'], ['down', ICON.down, 'Move down'], ['turn', ICON.turn, 'Turn'], ['del', ICON.del, 'Delete']]) {
+    for (const [act, glyph, text] of [['up', ICON.up, 'Move up'], ['down', ICON.down, 'Move down'], ['turn', ICON.turn, 'Turn'], ['del', ICON.del, 'Delete']]) {
       const b = el('button', 'iconbtn docs-icon');
       b.type = 'button';
       b.dataset.act = act;
-      b.innerHTML = svg(icon, 18);
+      b.innerHTML = icon(glyph, 18);
       b.title = text;
       btns.appendChild(b);
     }

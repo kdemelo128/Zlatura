@@ -29,7 +29,7 @@ export const GROUPS = ['Valuation', 'Debt and financing', 'Returns and fees', 'L
 export const MORE_TOOLS = [
   /* ---------------------------------------------------------- valuation */
   {
-    id: 'dcf', group: 'Valuation', title: 'Discounted cash flow', color: '#1D4ED8', icon: '<path d="M3 17l5-5 4 4 8-8M14 8h6v6"/>',
+    id: 'dcf', group: 'Valuation', title: 'Discounted cash flow', color: '#1D4ED8', icon: 'trend',
     desc: 'Value from each year’s NOI and the sale, discounted to today.',
     inputs: [['noi', 'NOI, year 1', 'money', '875k'], ['growth', 'NOI growth a year %', 'pct', '3'], ['years', 'Years held', 'int', '10'],
       ['discount', 'Discount rate %', 'pct', '8'], ['exitCap', 'Exit cap rate %', 'pct', '7'], ['saleCost', 'Sale costs %', 'pct0', '2'], ['capex', 'Capital reserve, $ a year', 'money', '0'],
@@ -58,7 +58,7 @@ export const MORE_TOOLS = [
     },
   },
   {
-    id: 'bridge', group: 'Valuation', title: 'NOI bridge', color: '#0F766E', icon: '<path d="M3 12h18M7 12v6M17 12v6M5 8c3-3 11-3 14 0"/>',
+    id: 'bridge', group: 'Valuation', title: 'NOI bridge', color: '#0F766E', icon: 'steps',
     desc: 'Potential rent down to NOI, line by line, with the ratios lenders ask for.',
     inputs: [['gpr', 'Gross potential rent', 'money', '1.2m'], ['vacancyPct', 'Vacancy %', 'pct0', '5'], ['creditPct', 'Credit loss %', 'pct0', '1'], ['concessions', 'Concessions, $', 'money', '0'],
       ['otherIncome', 'Other income', 'money', '0'], ['recoveries', 'Expense recoveries', 'money', '0'], ['taxes', 'Real estate taxes', 'money'], ['insurance', 'Insurance', 'money'],
@@ -80,7 +80,7 @@ export const MORE_TOOLS = [
     },
   },
   {
-    id: 'breakeven', group: 'Valuation', title: 'Break-even occupancy', color: '#B91C1C', icon: '<path d="M4 20h16M6 16l4-6 4 3 4-7"/>',
+    id: 'breakeven', group: 'Valuation', title: 'Break-even occupancy', color: '#B91C1C', icon: 'trend',
     desc: 'The occupancy at which income just covers expenses and debt service.',
     inputs: [['gpr', 'Gross potential rent (100% let)', 'money', '1.2m'], ['opex', 'Operating expenses', 'money', '400k'], ['debtService', 'Annual debt service', 'money', '350k'], ['otherIncome', 'Other income not tied to occupancy', 'money', '0'],
       ['gross', 'Gross income (EGI), if no GPR', 'money', 'optional'], ['occ', 'Occupancy it was earned at %, if no GPR', 'pct', 'optional']],
@@ -96,7 +96,7 @@ export const MORE_TOOLS = [
     },
   },
   {
-    id: 'valuesens', group: 'Valuation', title: 'Value sensitivity', color: '#4338CA', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>',
+    id: 'valuesens', group: 'Valuation', title: 'Value sensitivity', color: '#4338CA', icon: 'grid',
     desc: 'Value across NOI and cap rate, in one grid.',
     inputs: [['noi', 'NOI', 'money', '875k'], ['cap', 'Cap rate, centre %', 'pct', '7'], ['capStep', 'Cap rate step, points', 'num', '0.25'], ['noiStep', 'NOI step %', 'pct0', '5'], ['price', 'Asking price (to compare)', 'money']],
     explain: 'Each cell: NOI × (1 + step) ÷ cap rate. Shaded where the value is at or above the asking price.',
@@ -115,7 +115,7 @@ export const MORE_TOOLS = [
   },
   /* ------------------------------------------------------------- debt */
   {
-    id: 'amort', group: 'Debt and financing', title: 'Amortization schedule', color: '#0E7490', icon: '<path d="M4 4v16h16M8 16l3-4 3 2 5-7"/>',
+    id: 'amort', group: 'Debt and financing', title: 'Amortization schedule', color: '#0E7490', icon: 'trend',
     desc: 'Payment, interest, principal and balance by year, with an interest-only period.',
     inputs: [['loan', 'Loan amount', 'money', '8.1m'], ['rate', 'Interest rate %', 'pct', '6.75'], ['amortYears', 'Amortization, years', 'int', '30'], ['termYears', 'Term (maturity), years', 'int', '10'], ['ioYears', 'Interest-only, years', 'num', '0']],
     explain: 'Monthly payment = L × i ÷ (1 − (1 + i)⁻ⁿ), i the monthly rate and n the amortization months; interest-only months pay L × i.',
@@ -131,7 +131,7 @@ export const MORE_TOOLS = [
     },
   },
   {
-    id: 'refi', group: 'Debt and financing', title: 'Refinance and cash-out', color: '#0369A1', icon: '<path d="M4 12a8 8 0 0114-5l2-2v6h-6l2-2a5 5 0 10.5 6"/>',
+    id: 'refi', group: 'Debt and financing', title: 'Refinance and cash-out', color: '#0369A1', icon: 'rotate',
     desc: 'The new loan the property supports, the old loan paid off, and what is left.',
     inputs: [['noi', 'NOI', 'money'], ['value', 'Value (or a cap rate below)', 'money'], ['capRate', 'Cap rate for value %', 'pct'], ['balance', 'Current loan balance', 'money'],
       ['maxLtv', 'Max LTV %', 'pct', '65'], ['minDscr', 'Min DSCR', 'num', '1.25'], ['minDy', 'Min debt yield %', 'pct', '9'], ['rate', 'New rate %', 'pct', '6.5'], ['amort', 'Amortization, years', 'int', '30'], ['io', 'Interest only', 'bool'], ['costsPct', 'Refinance costs, % of loan', 'pct0', '1']],
@@ -144,7 +144,7 @@ export const MORE_TOOLS = [
     },
   },
   {
-    id: 'floating', group: 'Debt and financing', title: 'Floating-rate stress', color: '#7C2D12', icon: '<path d="M3 15c3-6 6 6 9 0s6 6 9 0"/>',
+    id: 'floating', group: 'Debt and financing', title: 'Floating-rate stress', color: '#7C2D12', icon: 'trend',
     desc: 'Interest-only debt service and coverage as the index moves, with a rate cap.',
     inputs: [['loan', 'Loan amount', 'money'], ['index', 'Index today % (e.g. SOFR)', 'pct', '4.3'], ['spread', 'Spread %', 'pct0', '3'], ['capStrike', 'Rate cap strike % (blank = none)', 'pct'], ['noi', 'NOI', 'money']],
     explain: 'Rate = min(index + shock, cap strike) + spread. Debt service shown interest-only, as floating bridge loans usually are.',
@@ -162,7 +162,7 @@ export const MORE_TOOLS = [
     },
   },
   {
-    id: 'maturity', group: 'Debt and financing', title: 'Maturity and refinance risk', color: '#9A3412', icon: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+    id: 'maturity', group: 'Debt and financing', title: 'Maturity and refinance risk', color: '#9A3412', icon: 'clock',
     desc: 'Can the loan be refinanced when it comes due? Balance against new proceeds.',
     inputs: [['loan', 'Loan amount today', 'money'], ['rate', 'Rate %', 'pct', '6.75'], ['amort', 'Amortization, years', 'int', '30'], ['io', 'Interest only', 'bool'], ['termYears', 'Years to maturity', 'int', '10'],
       ['noi', 'NOI today', 'money'], ['growth', 'NOI growth a year %', 'pct', '2'], ['refiCap', 'Cap rate at maturity %', 'pct', '7.5'], ['refiLtv', 'Refinance max LTV %', 'pct', '65'], ['refiDscr', 'Refinance min DSCR', 'num', '1.25'], ['refiDy', 'Refinance min debt yield %', 'pct', '9'], ['refiRate', 'Refinance rate %', 'pct', '7']],
@@ -175,7 +175,7 @@ export const MORE_TOOLS = [
     },
   },
   {
-    id: 'loanfees', group: 'Debt and financing', title: 'Financing costs', color: '#475569', icon: '<path d="M12 3v18M7 7h7a3 3 0 010 6H9a3 3 0 000 6h8"/>',
+    id: 'loanfees', group: 'Debt and financing', title: 'Financing costs', color: '#475569', icon: 'dollar',
     desc: 'Points, lender legal, third-party reports and reserves: what the loan really nets.',
     inputs: [['loan', 'Loan amount', 'money'], ['points', 'Origination, points', 'pct0', '1'], ['lenderLegal', 'Lender legal', 'money'], ['thirdParty', 'Appraisal, environmental, PCA', 'money'], ['reserves', 'Reserves held back', 'money']],
     fromDeal: (d) => ({ loan: d.m.loan }),
@@ -183,7 +183,7 @@ export const MORE_TOOLS = [
   },
   /* ----------------------------------------------------- returns and fees */
   {
-    id: 'hold', group: 'Returns and fees', title: 'Hold returns and fees', color: '#15803D', icon: '<path d="M3 20h18M5 20V10M10 20V6M15 20v-8M20 20V4"/>',
+    id: 'hold', group: 'Returns and fees', title: 'Hold returns and fees', color: '#15803D', icon: 'bars',
     desc: 'Buy, hold and sell: levered and unlevered IRR, multiple and cash-on-cash by year, before and after sponsor fees.',
     inputs: [['price', 'Purchase price', 'money'], ['noi', 'NOI, year 1', 'money'], ['growth', 'NOI growth a year %', 'pct', '2'], ['hold', 'Hold, years', 'int', '5'], ['exitCap', 'Exit cap rate %', 'pct', '7'], ['saleCost', 'Sale costs %', 'pct0', '2'],
       ['ltv', 'LTV %', 'pct', '65'], ['rate', 'Rate %', 'pct', '6.75'], ['amort', 'Amortization, years', 'int', '30'], ['io', 'Interest only', 'bool'], ['closing', 'Closing costs %', 'pct0', '2'],
@@ -207,7 +207,7 @@ export const MORE_TOOLS = [
     },
   },
   {
-    id: 'irrsens', group: 'Returns and fees', title: 'Returns sensitivity', color: '#166534', icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/>',
+    id: 'irrsens', group: 'Returns and fees', title: 'Returns sensitivity', color: '#166534', icon: 'grid',
     desc: 'Levered IRR across purchase price and exit cap rate.',
     inputs: [['price', 'Purchase price, centre', 'money'], ['priceStep', 'Price step %', 'pct0', '5'], ['exitCap', 'Exit cap, centre %', 'pct', '7'], ['capStep', 'Exit cap step, points', 'num', '0.25'],
       ['noi', 'NOI, year 1', 'money'], ['growth', 'NOI growth %', 'pct', '2'], ['hold', 'Hold, years', 'int', '5'], ['saleCost', 'Sale costs %', 'pct0', '2'], ['ltv', 'LTV %', 'pct', '65'], ['rate', 'Rate %', 'pct', '6.75'], ['amort', 'Amortization, years', 'int', '30'], ['closing', 'Closing costs %', 'pct0', '2']],
@@ -223,7 +223,7 @@ export const MORE_TOOLS = [
     },
   },
   {
-    id: 'waterfall', group: 'Returns and fees', title: 'Distribution waterfall', color: '#6D28D9', icon: '<path d="M4 4h6v4h6v4h4v8"/>',
+    id: 'waterfall', group: 'Returns and fees', title: 'Distribution waterfall', color: '#6D28D9', icon: 'steps',
     desc: 'How cash splits between investors and the sponsor through IRR hurdles and promotes.',
     inputs: [['equity', 'Total equity in', 'money', '4.6m'], ['flows', 'Cash back each year, comma separated', 'list', '250k, 260k, 270k, 280k, 5.9m'], ['lpShare', 'Investors’ share of the equity %', 'pct0', '90'],
       ['h1', 'Hurdle 1 (preferred return) %', 'pct0', '8'], ['p1', 'Promote above hurdle 1 %', 'pct0', '20'], ['h2', 'Hurdle 2 %', 'pct0', '12'], ['p2', 'Promote above hurdle 2 %', 'pct0', '30'], ['h3', 'Hurdle 3 %', 'pct0', '15'], ['p3', 'Promote above hurdle 3 %', 'pct0', '40']],
@@ -245,7 +245,7 @@ export const MORE_TOOLS = [
     },
   },
   {
-    id: 'commission', group: 'Returns and fees', title: 'Commission and splits', color: '#B45309', icon: '<circle cx="9" cy="9" r="3"/><circle cx="15" cy="15" r="3"/><path d="M5 19L19 5"/>',
+    id: 'commission', group: 'Returns and fees', title: 'Commission and splits', color: '#B45309', icon: 'percent',
     desc: 'A sale commission, flat or tiered, split with the co-broker, the house and a referral.',
     inputs: [['price', 'Sale price', 'money'], ['flatPct', 'Flat rate % (blank to use tiers)', 'pct0'], ['t1Up', 'Tier 1: up to $', 'money', '1m'], ['t1', 'Tier 1 rate %', 'pct0', '6'], ['t2Up', 'Tier 2: up to $', 'money', '5m'], ['t2', 'Tier 2 rate %', 'pct0', '4'], ['t3', 'Above tier 2 rate %', 'pct0', '2'],
       ['coBrokerPct', 'To the co-operating broker %', 'pct0', '50'], ['referralPct', 'Referral, % of our side', 'pct0', '0'], ['housePct', 'House share, % after referral', 'pct0', '40']],
@@ -263,7 +263,7 @@ export const MORE_TOOLS = [
   },
   /* ------------------------------------------------------------- leasing */
   {
-    id: 'compare', group: 'Leasing', title: 'Compare lease proposals', color: '#7E22CE', icon: '<path d="M4 4h7v16H4zM13 4h7v16h-7z"/>',
+    id: 'compare', group: 'Leasing', title: 'Compare lease proposals', color: '#7E22CE', icon: 'table',
     desc: 'Up to three proposals side by side: net effective rent and the landlord’s present value.',
     inputs: [['sf', 'SF', 'num', '5,000'], ['discount', 'Discount rate %', 'pct', '8'],
       ...['A', 'B', 'C'].flatMap((k) => [[`rent${k}`, `${k}: rent $/SF/yr`, 'money'], [`months${k}`, `${k}: term, months`, 'int'], [`esc${k}`, `${k}: increases %`, 'pct0'], [`free${k}`, `${k}: free months`, 'num'], [`ti${k}`, `${k}: TI $/SF`, 'money'], [`lc${k}`, `${k}: commission %`, 'pct0']])],
@@ -279,7 +279,7 @@ export const MORE_TOOLS = [
     },
   },
   {
-    id: 'renewal', group: 'Leasing', title: 'Renewal versus replacement', color: '#A21CAF', icon: '<path d="M4 12a8 8 0 0114-5M20 12a8 8 0 01-14 5M18 3v4h-4M6 21v-4h4"/>',
+    id: 'renewal', group: 'Leasing', title: 'Renewal versus replacement', color: '#A21CAF', icon: 'rotate',
     desc: 'Keep the tenant on renewal terms, or let it go and re-let after downtime.',
     inputs: [['sf', 'SF', 'num', '5,000'], ['discount', 'Discount rate %', 'pct', '8'],
       ['rRent', 'Renewal rent $/SF/yr', 'money'], ['rEsc', 'Renewal increases %', 'pct0', '3'], ['rFree', 'Renewal free months', 'num', '2'], ['rTi', 'Renewal TI $/SF', 'money', '10'], ['rLc', 'Renewal commission %', 'pct0', '4'], ['rMonths', 'Renewal term, months', 'int', '60'],
@@ -292,7 +292,7 @@ export const MORE_TOOLS = [
     },
   },
   {
-    id: 'escalation', group: 'Leasing', title: 'Rent escalation schedule', color: '#9333EA', icon: '<path d="M4 18h4v-4h4v-4h4V6h4"/>',
+    id: 'escalation', group: 'Leasing', title: 'Rent escalation schedule', color: '#9333EA', icon: 'steps',
     desc: 'A starting rent and its bumps, as dated steps with the total.',
     inputs: [['start', 'Starts', 'date'], ['months', 'Term, months', 'int', '120'], ['rate', 'Starting rent', 'money2', '36'], ['unit', 'Rent is', 'select', [['psf_year', '$/SF a year'], ['psf_month', '$/SF a month'], ['year', '$ a year'], ['month', '$ a month']]], ['sf', 'SF (for per-SF rents)', 'num'],
       ['type', 'Increases', 'select', [['pct', '% each step'], ['fixed', '$ each step']]], ['value', 'Increase', 'num', '3'], ['every', 'Every, months', 'int', '12']],
@@ -303,13 +303,13 @@ export const MORE_TOOLS = [
     },
   },
   {
-    id: 'pctrent', group: 'Leasing', title: 'Percentage rent', color: '#C026D3', icon: '<path d="M19 5L5 19M7 7h.01M17 17h.01"/>',
+    id: 'pctrent', group: 'Leasing', title: 'Percentage rent', color: '#C026D3', icon: 'percent',
     desc: 'Overage rent above a sales breakpoint, set or natural.',
     inputs: [['sales', 'Annual sales', 'money'], ['rate', 'Percentage %', 'pct0', '6'], ['breakpoint', 'Breakpoint $ (blank with natural)', 'money'], ['baseRent', 'Annual base rent', 'money'], ['natural', 'Natural breakpoint (base rent ÷ rate)', 'bool']],
     run: (v) => { const r = percentageRent(v); return r ? { lines: [['Percentage rent', money0(r.overage), true], ['Breakpoint', money0(r.breakpoint)], ['Occupancy cost', pct(r.occupancyCost, 1), false, '(base + overage) ÷ sales'], ...(r.salesToBreakpoint > 0 ? [['Sales still needed to reach it', money0(r.salesToBreakpoint)]] : [])] } : { lines: [['Enter sales, the rate and a breakpoint', '—']] }; },
   },
   {
-    id: 'recovery', group: 'Leasing', title: 'Expense recoveries', color: '#BE185D', icon: '<path d="M12 3l9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4"/>',
+    id: 'recovery', group: 'Leasing', title: 'Expense recoveries', color: '#BE185D', icon: 'menu',
     desc: 'A tenant’s share of operating expenses: pro rata, over a base year or a stop, or fixed.',
     inputs: [['expenses', 'Recoverable expenses, $ a year', 'money'], ['tenantSf', 'Tenant SF', 'num'], ['buildingSf', 'Building SF', 'num'], ['sharePct', 'Pro-rata share % (blank = SF share)', 'pct0'],
       ['method', 'Method', 'select', [['prorata', 'Pro rata (NNN)'], ['base_year', 'Over base year'], ['stop', 'Over an expense stop'], ['fixed', 'Fixed amount']]], ['baseYear', 'Base-year expenses', 'money'], ['stopPsf', 'Expense stop $/SF', 'money2'], ['fixed', 'Fixed recovery $', 'money']],
@@ -317,14 +317,14 @@ export const MORE_TOOLS = [
     run: (v) => { if (v.method === 'base_year' && !ok(v.baseYear)) return { lines: [['Enter the base-year expenses (a blank is not 0: type 0 if there is none)', '—']] }; if (v.method === 'stop' && !ok(v.stopPsf)) return { lines: [['Enter the expense stop per SF (a blank is not 0: type 0 if there is none)', '—']] }; const r = recovery(v); return r ? { lines: [['Annual recovery', money0(r.annual), true], ['Monthly', money0(r.monthly)], ['Per SF', money2(r.psf)], ['Share', pct(r.share, 2)]] } : { lines: [['Enter the expenses and the tenant’s share', '—']] }; },
   },
   {
-    id: 'absorption', group: 'Leasing', title: 'Lease-up and absorption', color: '#DB2777', icon: '<path d="M4 20V10M9 20V6M14 20v-9M19 20V4"/>',
+    id: 'absorption', group: 'Leasing', title: 'Lease-up and absorption', color: '#DB2777', icon: 'bars',
     desc: 'How long vacant space takes to lease at a steady pace, and the rent not earned meanwhile.',
     inputs: [['vacantSf', 'Vacant SF', 'num'], ['sfPerMonth', 'SF leased a month', 'num'], ['rentPsf', 'Rent $/SF/yr', 'money2'], ['freeMonths', 'Free months per new lease', 'num', '3']],
     run: (v) => { const r = absorption(v); return r ? { lines: [['Months to lease up', String(r.months), true], ['Rent not earned while empty', money0(r.lostRent)], ['Free rent given', money0(r.freeRentCost)], ['Total cost of lease-up', money0(r.totalCost), true]], tables: [{ title: 'By month', head: ['Month', 'Leased SF', 'Leased %'], rows: r.rows.map((x) => [x.month, int(x.leasedSf), pct(x.occupiedPct, 0)]) }] } : { lines: [['Enter the vacant SF, the pace and the rent', '—']] }; },
   },
   /* ------------------------------------------------------- comps, market */
   {
-    id: 'compset', group: 'Comps and market', title: 'Comp set check', color: '#2563EB', icon: '<path d="M5 19V11M10 19V6M15 19v-9M20 19V4"/>',
+    id: 'compset', group: 'Comps and market', title: 'Comp set check', color: '#2563EB', icon: 'bars',
     desc: 'How much the sale comps on the Comps tab can bear: count, recency, spread, and a value range for the subject.',
     inputs: [['subjectSf', 'Subject building SF', 'num']],
     explain: 'Quartiles of the comps’ $/SF; the value range multiplies them by the subject SF. Distance is not used: these comps carry no coordinates, so location is the broker’s judgement.',
@@ -342,7 +342,7 @@ export const MORE_TOOLS = [
   },
   /* -------------------------------------------------------- development */
   {
-    id: 'residual', group: 'Development', title: 'Residual land value', color: '#92400E', icon: '<path d="M3 21h18M5 21V11l7-6 7 6v10"/>',
+    id: 'residual', group: 'Development', title: 'Residual land value', color: '#92400E', icon: 'home',
     desc: 'What the land can bear: the finished value less every cost and the developer’s profit.',
     inputs: [['gdv', 'Finished value (or NOI and exit cap)', 'money'], ['noi', 'Stabilized NOI', 'money'], ['exitCap', 'Exit cap %', 'pct', '6'], ['saleCostPct', 'Sale costs %', 'pct0', '2'], ['hardCost', 'Hard costs', 'money'],
       ['softPct', 'Soft costs, % of hard', 'pct0', '20'], ['contingencyPct', 'Contingency %', 'pct0', '5'], ['financePct', 'Financing, % of costs', 'pct0', '6'], ['profitPct', 'Developer profit %', 'pct0', '15'],
@@ -356,13 +356,13 @@ export const MORE_TOOLS = [
     },
   },
   {
-    id: 'yoc', group: 'Development', title: 'Yield on cost', color: '#78350F', icon: '<path d="M4 20h16M7 16V9M12 16V5M17 16v-4"/>',
+    id: 'yoc', group: 'Development', title: 'Yield on cost', color: '#78350F', icon: 'bars',
     desc: 'Stabilized NOI over total cost, and the spread over the exit cap.',
     inputs: [['noi', 'Stabilized NOI', 'money'], ['land', 'Land', 'money'], ['hardCost', 'Hard costs', 'money'], ['softCost', 'Soft costs', 'money'], ['financeCost', 'Financing costs', 'money'], ['exitCap', 'Exit cap %', 'pct', '6']],
     run: (v) => { const r = yieldOnCost(v); return r ? { lines: [['Yield on cost', pct(r.yoc, 2), true], ['Spread over the exit cap', ok(r.spreadBps) ? `${Math.round(r.spreadBps)} bp` : '—', true], ['Total cost', money0(r.cost)], ['Value at the exit cap', money0(r.value)], ['Value created', money0(r.valueCreated), false, ok(r.margin) ? `${pct(r.margin, 1)} on cost` : null]], warnings: ok(r.spreadBps) && r.spreadBps < 100 ? ['Under 100 bp of spread leaves little room for cost overruns or a softer exit.'] : [] } : { lines: [['Enter the NOI and the costs', '—']] }; },
   },
   {
-    id: 'draws', group: 'Development', title: 'Construction draws', color: '#A16207', icon: '<path d="M3 20h18M6 20v-6M10 20v-9M14 20V8M18 20V5"/>',
+    id: 'draws', group: 'Development', title: 'Construction draws', color: '#A16207', icon: 'bars',
     desc: 'Costs spent month by month, equity first, then the loan, with interest capitalized.',
     inputs: [['totalCost', 'Total cost to fund', 'money'], ['months', 'Months to build', 'int', '18'], ['curve', 'Spending pattern', 'select', [['s', 'S-curve'], ['straight', 'Straight line']]], ['loanToCost', 'Loan to cost %', 'pct', '65'], ['rate', 'Construction rate %', 'pct', '8']],
     run: (v) => { const r = drawSchedule(v); return r ? { lines: [['Interest during construction', money0(r.interest), true], ['Loan at completion', money0(r.loanAtCompletion)], ['Equity in first', money0(r.equity)], ['Loan drawn for costs', money0(r.loanDrawn)]], tables: [{ title: 'By month', head: ['Month', 'Cost', 'Equity', 'Loan', 'Interest', 'Loan balance'], rows: r.rows.map((x) => [x.month, money0(x.cost), money0(x.equity), money0(x.loan), money0(x.interest), money0(x.loanBalance)]) }] } : { lines: [['Enter the cost and the months', '—']] }; },

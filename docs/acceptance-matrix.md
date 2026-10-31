@@ -4,6 +4,7 @@ Baseline: `main` at the merge of pull request #3 (content identical to commit
 `8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.77 (rows for 4.7.52 to 4.7.64 added in the conformance drift fix). This
 `8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.82 (rows for 4.7.52 to 4.7.64 added in the conformance drift fix). This
 `8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.83 (rows for 4.7.52 to 4.7.64 added in the conformance drift fix). This
+`8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.86 (rows for 4.7.52 to 4.7.64 added in the conformance drift fix). This
 `8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.85 (rows for 4.7.52 to 4.7.64 added in the conformance drift fix). This
 file tracks every feature in the master plan, `ZLATURA_MASTER_PROMPT_v2.md`
 in the repository root (the "brief" below), as its Part 23 asks. In 4.7.2 it
