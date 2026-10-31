@@ -1,13 +1,5 @@
 # Changelog
 
-## 4.7.82: The dependency and audit checks pass again: minimatch is upgraded to the fixed version (on the development branch; not merged or deployed)
-
-Advisory GHSA-g3hv-75wg-m249 (minimatch below 11.0.1) turned both the `dependencies` and the `audit` checks red on every branch. Only the test-time ExcelJS package pulls minimatch in; it is never shipped.
-
-- **`package.json` overrides pin `minimatch` to 11.0.1.** Its licence, BlueOak-1.0.0, was approved by the owner on 2026-10-31 and is listed in `THIRD_PARTY.md`. `npm audit` and the osv scan both find nothing.
-- **The earlier dated exception is gone** from `osv-scanner.toml`; the exception process stays for future advisories (`docs/security-checklist.md`).
-- Saved results unchanged; no app code touched.
-
 ## 4.7.85: Rent roll column layout no longer guessed from "multi" or "center" (on the development branch; not merged or deployed)
 
 The rent roll picked its starting columns from the property type's free text, and a bare "multi" or "center" misled it: "Multi-tenant office", "Multi-tenant retail" and "Multi-tenant industrial" got the apartment columns.
@@ -15,6 +7,14 @@ The rent roll picked its starting columns from the property type's free text, an
 - **Fixed:** apartment columns only for multifamily, multi-family, apartment or residential; retail only for retail, shopping or strip center, or NNN; "center" and "multi" alone name nothing.
 - **Unchanged:** blank, unrecognised or ambiguous text (more than one kind) gets the same neutral Retail columns an unknown type always got; "Mixed use" is still Mixed use. Columns stay editable.
 - **Tested:** a 33-row table in `tests/rentroll-preset.test.js` (6 rows failed on the old code), two pattern mutations caught. Saved results: 618 unchanged; displayed figures: 646 compared, 0 changed.
+
+## 4.7.82: The dependency and audit checks pass again: minimatch is upgraded to the fixed version (on the development branch; not merged or deployed)
+
+Advisory GHSA-g3hv-75wg-m249 (minimatch below 11.0.1) turned both the `dependencies` and the `audit` checks red on every branch. Only the test-time ExcelJS package pulls minimatch in; it is never shipped.
+
+- **`package.json` overrides pin `minimatch` to 11.0.1.** Its licence, BlueOak-1.0.0, was approved by the owner on 2026-10-31 and is listed in `THIRD_PARTY.md`. `npm audit` and the osv scan both find nothing.
+- **The earlier dated exception is gone** from `osv-scanner.toml`; the exception process stays for future advisories (`docs/security-checklist.md`).
+- Saved results unchanged; no app code touched.
 
 ## 4.7.77: Quiet numbers now say "can't tell": a tenant with no share, a blank base amount, a negative sale cost, percentage rent with no breakpoint (on the development branch; not merged or deployed)
 
