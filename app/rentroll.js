@@ -95,13 +95,22 @@ export const PRESETS = {
 /** Market rent is per unit per month for apartments, per SF per year for everything else. */
 export const MARKET_UNIT = { Multifamily: 'month' };
 
+/**
+ * The column set a free-text property type points to. Text naming one kind gets that kind's columns; blank text,
+ * unrecognised text, or text naming more than one kind ("Multi-tenant office/retail") gets the neutral Retail
+ * set rather than a guess. A bare "multi" or "center" names no kind: "Multi-tenant office" is an office and
+ * "Data center" is not a shopping center.
+ */
 export function presetFor(ptype) {
-  const t = String(ptype || '');
-  if (/multi|apartment|residential/i.test(t)) return 'Multifamily';
-  if (/industrial|warehouse|flex/i.test(t)) return 'Industrial';
+  const t = typeof ptype === 'string' ? ptype : '';
   if (/mixed/i.test(t)) return 'Mixed use';
-  if (/office|medical/i.test(t)) return 'Office';
-  return 'Retail';
+  const hits = [
+    /multi[- ]?family|apartment|residential/i.test(t) && 'Multifamily',
+    /industrial|warehouse|flex/i.test(t) && 'Industrial',
+    /\b(office|medical)\b/i.test(t) && 'Office',
+    /\b(retail|shopping|strip (mall|center|centre)|nnn)\b/i.test(t) && 'Retail',
+  ].filter(Boolean);
+  return hits.length === 1 ? hits[0] : 'Retail';
 }
 
 /** A column layout: [{ key, label, width, hidden, custom, kind }]. */

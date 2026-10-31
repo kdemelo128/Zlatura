@@ -13,6 +13,7 @@ section with grep, never in full.
 - **Version:** 4.7.82 (development branch; GitHub Pages deploys from main).
 - **Version:** 4.7.83 (development branch; GitHub Pages deploys from main).
 - **Version:** 4.7.86 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.87 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -148,6 +149,7 @@ section with grep, never in full.
 - **Dependency scan exception (4.7.82, PR opening):** a new advisory on a dev-only transitive package (minimatch via exceljs) turned the dependency check red everywhere; a time-boxed ignore (expires 2026-12-29) with reason and a test that keeps exceptions honest. Owner decision pending: allow the BlueOak-1.0.0 licence so minimatch 11 can be adopted instead.
 - **Documents hub step 2, Convert (4.7.83, PR opening):** Tools → Documents → Convert files: what a file can become (pictures, PDF pages, text, spreadsheets, CSV/JSON, Word text), run on the device, honest refusals; Excel goes through the shared zip guard. Next: D3a registry, then Start from documents.
 - UI revamp D2: one icon set and a rename-ready brand mark
+- Rent roll column presets read the property type more carefully (Multi-tenant office is no longer multifamily)
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
   owner says to continue.

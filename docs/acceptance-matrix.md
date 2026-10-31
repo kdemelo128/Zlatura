@@ -5,6 +5,7 @@ Baseline: `main` at the merge of pull request #3 (content identical to commit
 `8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.82 (rows for 4.7.52 to 4.7.64 added in the conformance drift fix). This
 `8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.83 (rows for 4.7.52 to 4.7.64 added in the conformance drift fix). This
 `8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.86 (rows for 4.7.52 to 4.7.64 added in the conformance drift fix). This
+`8ddc4e9`), version 3.3.0, audited 2026-10-10. Updated through 4.7.85 (rows for 4.7.52 to 4.7.64 added in the conformance drift fix). This
 file tracks every feature in the master plan, `ZLATURA_MASTER_PROMPT_v2.md`
 in the repository root (the "brief" below), as its Part 23 asks. In 4.7.2 it
 was checked against the master plan section by section: rows it was missing
@@ -155,7 +156,7 @@ the baseline; 32 flows are listed at 4.7.2).
 
 | Feature | Status | Notes |
 |---|---|---|
-| Native property-type templates (multifamily, retail, office, industrial, mixed-use, land) | Not implemented | One general model; rent roll presets differ by type. |
+| Native property-type templates (multifamily, retail, office, industrial, mixed-use, land) | Not implemented | One general model; rent roll presets differ by type; the preset is chosen only from one clear kind in the property type, else the neutral Retail set. |
 | Hospitality, self-storage, medical office templates (where a reliable model can be defined) | Not implemented | Added 4.7.2 (7.1). |
 | Template definitions (inputs, outputs, conventions, version, changelog) and copy-on-customize | Not implemented | Added 4.7.2 (7.1). |
 | Transaction, income, expense, cash flow, valuation, returns | Partially implemented | Direct cap, loan, DSCR, debt yield, cash-on-cash, hold IRR and multiple, DCF tool, cap-rate ladder, comp-based value. No line-item expense model, no monthly cash flow outside the rent roll projection. |
