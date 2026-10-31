@@ -225,8 +225,10 @@ part it extends or contradicts, and its status.
 - [ ] Underwriting EVOLVE: gap map and build order written, awaiting approval
   (owner, 2026-10-30; `docs/proposals/underwriting-evolve.md`). Extends Parts
   6, 7, 8, 12 and 18. Not implemented.
-- [ ] Comp enrichment and other comp sources: proposal written, awaiting approval
-  (owner, 2026-10-30; `docs/proposals/comp-enrichment-and-sources.md`). Not implemented.
+- [ ] Comp enrichment and other comp sources: proposal approved (owner,
+  2026-10-30/31; `docs/proposals/comp-enrichment-and-sources.md`). C1 (generic
+  importer, mapper, dedup, provenance, project file v2) built in 4.7.91, PR open;
+  C2 onward and online lookups not implemented; vendor profiles wait for real exports.
 - [ ] Lease abstract creator: proposal approved (owner, 2026-10-31;
   `docs/proposals/lease-abstract.md`; D6 of the documents hub). L1 (typed
   abstract, review checks, Excel/print/CSV/JSON exports, `deal.abstracts`)
