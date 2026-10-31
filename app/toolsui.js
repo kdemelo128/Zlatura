@@ -150,11 +150,15 @@ const TOOLS = [
   ...MORE_TOOLS,
 ];
 /* Documents: not a calculator, so it is added apart from the list the calculators are checked against
- * (tests/tools/golden.mjs reads that list). It opens the PDF pages sheet (pdfpagesui.js), which loads when first used. */
+ * (tests/tools/golden.mjs reads that list). They open the PDF pages sheet (pdfpagesui.js) and the Convert sheet (convertui.js), which load when first used. */
 TOOLS.push(/** @type {any} */ ({
   id: 'pdf-pages', group: 'Documents', title: 'PDF pages', color: '#4F555E', docs: true, inputs: [],
   desc: 'Merge PDFs, put pages in order, turn, delete, extract or split them. On this device; nothing is uploaded or kept.',
   icon: 'file-text',
+}), /** @type {any} */ ({
+  id: 'doc-convert', group: 'Documents', title: 'Convert files', color: '#4F555E', docs: 'convert', inputs: [],
+  desc: 'Photos, PDFs, spreadsheets, Word and text files: see what each can become, and why not the rest. On this device; nothing is uploaded or kept.',
+  icon: 'swap',
 }));
 export const TOOL_IDS = TOOLS.map((t) => t.id);
 
@@ -299,6 +303,7 @@ function inputField(t, [id, label, kind, ph, help], mem, onDate) {
 
 function open(t) {
   if (t.rows) { openWalt(t); return; }
+  if (t.docs === 'convert') { import('./convertui.js').then((m) => m.openConvert(api)); return; }
   if (t.docs) { import('./pdfpagesui.js').then((m) => m.openPdfPages(api)); return; }
   const mem = (memory[t.id] ||= {});
   const d = dealForTools();

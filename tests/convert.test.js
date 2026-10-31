@@ -1,0 +1,461 @@
+/* Documents > Convert: the matrix, the refusals, the conversions that need no browser, and the PDF-writing worker
+ * run as the browser runs it, all on invented files (tests/tools/docpdfs.mjs). */
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import ExcelJS from 'exceljs';
+import * as fflate from 'fflate';
+import {
+  MATRIX, NOT_OFFERED, KIND_LABEL, targetsFor, notPossible, classify, mismatch, textKind, imageSize, exifOrientation, pageScale,
+  unsupportedChars, textPdfProblem, zipKeys, clip, unsafeNumber, docxText, csvToCells, csvToJson, jsonToCsv, workbookToCsvs, sheetName, baseName,
+  MAX_IMAGE_PIXELS, PAGE_PICTURE, DOCX_BYTES,
+} from '../app/convert.js';
+import { plainPdf, encryptedPdf, tinyPng, hugePng, jpegShell, docxFile, oleDoc, otherZip } from './tools/docpdfs.mjs';
+
+const pdfjs = await import('../vendor/pdf-4.7.76-legacy.min.js');
+pdfjs.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf-4.7.76-legacy.worker.min.js', import.meta.url).href;
+
+/** A File-like: name, size, slice and arrayBuffer over bytes (size can be claimed larger to test a limit). */
+const file = (name, bytes, size = bytes.length) => {
+  const b = typeof bytes === 'string' ? new TextEncoder().encode(bytes) : bytes;
+  const buf = (x) => x.buffer.slice(x.byteOffset, x.byteOffset + x.byteLength);
+  return { name, size, slice: (a, z) => ({ arrayBuffer: async () => buf(b.subarray(a, z)) }), arrayBuffer: async () => { if (size > b.length) throw new Error('read a file that is over its limit'); return buf(b); } };
+};
+const getFflate = async () => fflate;
+
+/* ------------------------------------------------------------------ the matrix */
+
+test('matrix: every row takes a known kind and names a way to run; every kind has a way out or a stated reason', () => {
+  for (const m of MATRIX) {
+    assert.ok(m.from.length && m.from.every((k) => KIND_LABEL[k]), m.id);
+    assert.ok(['worker', 'canvas', 'pdfjs', 'main'].includes(m.how) && m.ext && m.type && m.fidelity.length > 20, m.id);
+  }
+  assert.equal(new Set(MATRIX.map((m) => m.id)).size, MATRIX.length, 'ids are unique');
+  for (const k of Object.keys(KIND_LABEL)) {
+    assert.ok(targetsFor(k).length > 0, `${k} can become something`);
+    assert.ok(notPossible(k).length > 0, `${k} says what it can’t become, and why`);
+    for (const [to, why] of notPossible(k)) assert.ok(to && why.length > 8, `${k} → ${to} has a reason`);
+  }
+});
+
+test('matrix: the pairs the design lists are there, and the ones it refuses are not', () => {
+  const ids = (k) => targetsFor(k).map((m) => m.id).sort();
+  assert.deepEqual(ids('jpeg'), ['img-pdf', 'jpeg-png']);
+  assert.deepEqual(ids('png'), ['img-pdf', 'png-jpeg']);
+  assert.deepEqual(ids('webp'), ['img-pdf', 'webp-jpeg', 'webp-png']);
+  assert.deepEqual(ids('heic'), ['heic-jpeg']);
+  assert.deepEqual(ids('pdf'), ['pdf-jpeg', 'pdf-png', 'pdf-txt']);
+  assert.deepEqual(ids('xlsx'), ['xlsx-csv']);
+  assert.deepEqual(ids('docx'), ['docx-txt']);
+  assert.deepEqual(ids('csv'), ['csv-json', 'csv-xlsx', 'txt-pdf']);
+  assert.deepEqual(ids('json'), ['json-csv', 'txt-pdf']);
+  assert.deepEqual(ids('txt'), ['txt-pdf']);
+  assert.ok(!MATRIX.some((m) => /docx|xlsx/.test(m.from.join()) && m.ext === 'pdf'), 'no Office file becomes a PDF');
+  assert.ok(notPossible('xlsx').some(([to]) => to === 'PDF') && notPossible('docx').some(([to]) => to === 'PDF'), 'and they say why');
+  assert.ok(NOT_OFFERED.length >= 6);
+});
+
+/* ------------------------------------------------------------------ what a file is */
+
+test('classify: the bytes decide the kind, the name only words a note', async () => {
+  const c = await classify(file('Photo.jpg', plainPdf('A', 1)), { getFflate });
+  assert.equal(c.kind, 'pdf');
+  assert.match(c.note, /“Photo\.jpg” is really a PDF, whatever its name says/);
+  assert.equal((await classify(file('x.pdf', tinyPng()), { getFflate })).kind, 'png');
+  assert.equal((await classify(file('x.png', jpegShell()), { getFflate })).kind, 'jpeg');
+  assert.equal((await classify(file('Book.xlsx', await xlsxBytes(), undefined), { getFflate })).kind, 'xlsx');
+  assert.equal((await classify(file('m.docx', docxFile()), { getFflate })).kind, 'docx');
+  assert.equal(mismatch('a.csv', 'txt'), '', 'a table named .csv is no mismatch');
+});
+
+test('classify: a text file is a table, a JSON list or plain text by its words', async () => {
+  assert.equal((await classify(file('a.txt', 'Unit,Rent\n1,1200\n2,1300\n'))).kind, 'csv');
+  assert.equal((await classify(file('a.csv', 'just a sentence\n'))).kind, 'csv', 'a .csv name with one column is still a table the person called one');
+  assert.equal((await classify(file('a.txt', '[{"a":1}]'))).kind, 'json');
+  assert.equal((await classify(file('a.json', '{not json'))).kind, 'txt');
+  assert.equal(textKind('hello there\nworld\n'), 'txt');
+});
+
+test('classify: hostile and unconvertible files are refused by name, each with its own next step', async () => {
+  const refuse = async (name, bytes, size) => (await classify(file(name, bytes, size), { getFflate })).refuse;
+  assert.match(await refuse('Lease.pages', otherZip()), /^Lease\.pages is an Apple Pages file\. Zlatura can’t convert it on this device\. In Pages, choose Export → PDF/);
+  assert.match(await refuse('Deck.pptx', otherZip()), /^Deck\.pptx is a PowerPoint file.*Export → PDF/);
+  assert.match(await refuse('Old.doc', oleDoc()), /^Old\.doc is an old Word \(\.doc\) file.*\.docx/);
+  assert.match(await refuse('Scan.tif', Uint8Array.of(0x49, 0x49, 0x2a, 0, 8, 0, 0, 0, 0, 0)), /^Scan\.tif is a TIFF image/);
+  assert.match(await refuse('Plan.dwg', new TextEncoder().encode('AC1015\0\0\0\0')), /^Plan\.dwg is an AutoCAD drawing/);
+  assert.match(await refuse('Pics.heic', Uint8Array.from([0, 0, 0, 24, ...new TextEncoder().encode('ftypavif'), 0, 0, 0, 0, 0, 0, 0, 0])), /AVIF/);
+  assert.match(await refuse('Clip.mov', Uint8Array.from([0, 0, 0, 24, ...new TextEncoder().encode('ftypqt  '), 0, 0, 0, 0, 0, 0, 0, 0])), /^Clip\.mov is not a file type Zlatura can convert/);
+  assert.match(await refuse('Blob.bin', Uint8Array.of(1, 2, 0, 3, 4)), /not a file type Zlatura can convert/);
+  assert.match(await refuse('Empty.pdf', new Uint8Array(0)), /^Empty\.pdf is empty/);
+});
+
+test('classify: a file over its kind’s limit is refused before it is read whole', async () => {
+  const over = async (name, bytes, size) => classify(file(name, bytes, size), { getFflate });
+  assert.match((await over('Big.pdf', plainPdf('A', 1), 50e6 + 1)).refuse, /^Big\.pdf is 50 MB; a PDF is read up to 50 MB/);
+  assert.equal((await over('Edge.pdf', plainPdf('A', 1), 50e6)).refuse, null, 'the limit itself is allowed');
+  assert.match((await over('Big.png', tinyPng(), 20e6 + 1)).refuse, /read up to 20 MB/);
+  assert.match((await over('Big.txt', 'abc', 10e6 + 1)).refuse, /read up to 10 MB/);
+  assert.match((await over('Big.xlsx', otherZip(), 25e6 + 1)).refuse, /read up to 25 MB/);
+});
+
+test('classify: a Word file that is a decompression bomb is refused, not opened', async () => {
+  const bomb = fflate.zipSync({ 'word/document.xml': new Uint8Array(3e6) }, { level: 9 });
+  const c = await classify(file('Bomb.docx', bomb), { getFflate });
+  assert.equal(c.kind, 'zip');
+  assert.match(c.refuse, /^Bomb\.docx: That file packs a part far tighter/);
+});
+
+/* ------------------------------------------------------------------ pictures */
+
+test('imageSize reads PNG, JPEG and WebP headers; hostile sizes are caught before a canvas', () => {
+  assert.deepEqual(imageSize(tinyPng(8, 6)), { w: 8, h: 6 });
+  assert.deepEqual(imageSize(jpegShell(40, 30)), { w: 40, h: 30 });
+  assert.deepEqual(imageSize(hugePng(60000, 60000)), { w: 60000, h: 60000 });
+  const webp = Uint8Array.from([...'RIFF'].map((c) => c.charCodeAt(0)).concat([0, 0, 0, 0], [...'WEBPVP8X'].map((c) => c.charCodeAt(0)), [10, 0, 0, 0, 0, 0, 0, 0, 99, 0, 0, 49, 0, 0]));
+  assert.deepEqual(imageSize(webp), { w: 100, h: 50 });
+  assert.equal(imageSize(Uint8Array.of(1, 2, 3)), null);
+  assert.ok(60000 * 60000 > MAX_IMAGE_PIXELS);
+});
+
+test('exifOrientation: upright is 1, a camera’s turn is read, junk is 1', () => {
+  assert.equal(exifOrientation(jpegShell(40, 30, 1)), 1);
+  for (const o of [3, 6, 8]) assert.equal(exifOrientation(jpegShell(40, 30, o)), o);
+  assert.equal(exifOrientation(tinyPng()), 1);
+  assert.equal(exifOrientation(Uint8Array.of(0xff, 0xd8, 0xff)), 1);
+});
+
+test('pageScale: 150 dpi, but never a side over 4096 px or a canvas over the pixel limit', () => {
+  assert.equal(pageScale(612, 792), PAGE_PICTURE.dpi / 72, 'a Letter page is drawn at 150 dpi');
+  const big = pageScale(5000, 3000);
+  assert.ok(5000 * big <= PAGE_PICTURE.longest + 1e-9, 'longest side capped');
+  const sq = pageScale(4000, 4000);
+  assert.ok(4000 * sq * 4000 * sq <= MAX_IMAGE_PIXELS + 1, 'pixel count capped');
+});
+
+/* ------------------------------------------------------------------ text to PDF */
+
+test('text to PDF: a character a standard font can’t draw is refused and named; Latin text passes', () => {
+  assert.equal(textPdfProblem('a.txt', 'Café – “quoted” € 5\ttab\nline'), null);
+  const p = textPdfProblem('Notes.txt', 'Hello 😀 and привет');
+  assert.match(p, /^Notes\.txt has \d+ kinds? of character a standard PDF font can’t draw: .*U\+1F600/);
+  assert.match(p, /Nothing was converted/);
+  assert.equal(unsupportedChars('→ →').length, 1, 'each character named once');
+  assert.ok(unsupportedChars('a\u0000b').length === 1, 'a control character is refused');
+});
+
+/* ------------------------------------------------------------------ Word to text */
+
+test('Word to text: body text and table cells; a text box once; deleted text and the header left out', () => {
+  const t = docxText(docxFile(['First paragraph.', 'Second & last.']), fflate, 'M.docx');
+  assert.equal(t, 'First paragraph.\nSecond & last.\nCell A\tCell B\nBoxed note\nKept');
+});
+
+test('Word to text: a file with no body, a damaged zip and an over-size body are refused in words', () => {
+  assert.throws(() => docxText(fflate.zipSync({ 'word/document.xml': fflate.strToU8('<w:document><w:body></w:body></w:document>') }), fflate, 'E.docx'), /^Error: E\.docx has no text in its body/);
+  assert.throws(() => docxText(Uint8Array.of(1, 2, 3), fflate, 'D.docx'), /could not be opened as a Word document/);
+  const big = fflate.zipSync({ 'word/document.xml': new Uint8Array(DOCX_BYTES + 1) }, { level: 9 });
+  assert.throws(() => docxText(big, fflate, 'B.docx'), /^Error: B\.docx has a body of more than 30 MB/);
+});
+
+/* ------------------------------------------------------------------ tables */
+
+test('CSV to cells: plain numbers become numbers, everything else stays text, a blank stays blank', () => {
+  const { rows, numbers } = csvToCells('Unit,Rent,Zip,Share,Note\n1,1200.50,00501,5%,\n2,"1,300",07030,$5,x\n', ',', 'r.csv');
+  assert.deepEqual(rows[1], [1, 1200.5, '00501', '5%', null]);
+  assert.deepEqual(rows[2], [2, '1,300', '07030', '$5', 'x']);
+  assert.equal(numbers, 3);
+  assert.equal(csvToCells('a\n123456789012345678\n-0\n', ',').rows[1][0], '123456789012345678', 'a long id stays text');
+  assert.equal(csvToCells('a\n-0\n', ',').rows[1][0], '-0');
+});
+
+test('CSV to JSON: the first row names the fields and values stay text; what would be lost is refused', () => {
+  assert.deepEqual(JSON.parse(csvToJson('a,b\n1,\n007,x\n', ',', 'r.csv')), [{ a: '1', b: '' }, { a: '007', b: 'x' }]);
+  assert.throws(() => csvToJson('a,,c\n1,2,3\n', ',', 'r.csv'), /Column 2 of r\.csv has no heading/);
+  assert.throws(() => csvToJson('a,a\n1,2\n', ',', 'r.csv'), /“a” more than once/);
+  assert.throws(() => csvToJson('a,b\n1,2,3\n', ',', 'r.csv'), /Row 2 of r\.csv has 3 values but there are 2 headings/);
+  assert.throws(() => csvToJson('a,b\n', ',', 'r.csv'), /heading row and at least one row/);
+  const o = JSON.parse(csvToJson('__proto__,b\n1,2\n', ',', 'r.csv'));
+  assert.equal(Object.keys(o[0]).join(), '__proto__,b', 'a field named __proto__ stays a field');
+});
+
+test('JSON to CSV: flat records only; null is blank; a formula-looking text is guarded; nesting is refused, not flattened', () => {
+  const csv = jsonToCsv('[{"a":1,"b":null,"c":"x,y"},{"a":2,"d":true,"c":"=1+1"}]', 'r.json');
+  assert.equal(csv, '﻿a,b,c,d\r\n1,,"x,y",\r\n2,,\'=1+1,true\r\n');
+  assert.throws(() => jsonToCsv('[{"a":{"b":1}}]', 'r.json'), /Item 1, “a” of r\.json holds a list or a record inside the record/);
+  assert.throws(() => jsonToCsv('{"a":1}', 'r.json'), /must be a list of records/);
+  assert.throws(() => jsonToCsv('[1,2]', 'r.json'), /Item 1 of r\.json is not a record/);
+  assert.throws(() => jsonToCsv('[{"a":', 'r.json'), /is not valid JSON/);
+});
+
+async function xlsxBytes() {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Rent roll');
+  ws.addRow(['Unit', 'Rent', 'Start', 'Flag']);
+  ws.addRow(['A1', 1200, new Date(Date.UTC(2026, 0, 31)), true]);
+  ws.addRow(['A2', null, null, null]); // a blank rent
+  ws.addRow(['A3', { formula: 'B2*2', result: 2400 }, '=hello', { formula: 'B9', result: undefined }]);
+  ws.addRow([]);
+  ws.mergeCells('A6:B6'); ws.getCell('A6').value = 'Merged';
+  wb.addWorksheet('Hidden').state = 'hidden';
+  wb.getWorksheet('Hidden').addRow(['secret']);
+  return new Uint8Array(await wb.xlsx.writeBuffer());
+}
+
+test('workbook to CSV: a blank stays blank (not 0), a formula gives its saved result, hidden sheets are named and skipped', async () => {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(await xlsxBytes());
+  const { sheets, notes } = workbookToCsvs(wb);
+  assert.equal(sheets.length, 1);
+  assert.equal(sheets[0].csv, '﻿Unit,Rent,Start,Flag\r\nA1,1200,2026-01-31,TRUE\r\nA2,,,\r\nA3,2400,\'=hello,\r\n,,,\r\nMerged,,,\r\n');
+  const text = notes.join(' ');
+  assert.match(text, /2 formulas gave the result Excel last calculated; 1 had none saved and are blank/);
+  assert.match(text, /1 text cell starting with = \+ @ tab or return, or with - .*got a leading '/);
+  assert.match(text, /Hidden sheet not converted: Hidden/);
+  assert.match(text, /merged cell/);
+});
+
+test('workbook to CSV: a sheet over the cell limit is refused by name', () => {
+  const ws = { name: 'Huge', state: 'visible', rowCount: 2e6, columnCount: 2 };
+  assert.throws(() => workbookToCsvs({ eachSheet: (f) => f(ws) }), /The sheet “Huge” has 2000000 rows by 2 columns/);
+});
+
+test('names: sheet names and file names are made safe', () => {
+  assert.equal(sheetName('A/B:C*D[1]?'), 'A B C D 1');
+  assert.equal(sheetName('x'.repeat(40)).length, 31);
+  assert.equal(sheetName('///'), 'Sheet1');
+  assert.equal(baseName('Rent roll.final.xlsx'), 'Rent roll.final');
+});
+
+/* ------------------------------------------------------------------ the worker */
+
+function startWorker() {
+  const lib = fs.readFileSync(new URL('../vendor/pdf-lib-cantoo-2.11.1.min.js', import.meta.url), 'utf8');
+  const posted = [];
+  const ctx = vm.createContext({ console, TextEncoder, TextDecoder, setTimeout, clearTimeout, crypto: globalThis.crypto });
+  ctx.self = ctx;
+  ctx.importScripts = () => vm.runInContext(lib, ctx);
+  ctx.postMessage = (m) => posted.push(m);
+  vm.runInContext(fs.readFileSync(new URL('../app/convert-worker.js', import.meta.url), 'utf8'), ctx);
+  return async (data) => { posted.length = 0; await ctx.onmessage({ data }); return posted.at(-1); };
+}
+const blob = (bytes) => ({ arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) });
+const latin = (b) => Buffer.from(b).toString('latin1');
+
+test('worker: a JPEG becomes a one-page PDF holding the JPEG’s own bytes unchanged', async () => {
+  const ask = startWorker();
+  const jpg = jpegShell(300, 150);
+  const r = await ask({ id: 1, type: 'image', file: blob(jpg), kind: 'jpeg' });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.ok(latin(r.bytes).includes(latin(jpg)), 'the picture’s bytes are in the file, unchanged');
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(r.bytes), verbosity: 0 }).promise;
+  assert.equal(doc.numPages, 1);
+  const v = (await doc.getPage(1)).getViewport({ scale: 1 });
+  assert.deepEqual([Math.round(v.width), Math.round(v.height)], [144, 72], 'the page is the picture at 150 dpi');
+});
+
+test('worker: a PNG becomes a PDF; a damaged picture is refused with a reason', async () => {
+  const ask = startWorker();
+  const r = await ask({ id: 2, type: 'image', file: blob(tinyPng(30, 20)), kind: 'png' });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal((await pdfjs.getDocument({ data: new Uint8Array(r.bytes), verbosity: 0 }).promise).numPages, 1);
+  const bad = await ask({ id: 3, type: 'image', file: blob(Uint8Array.of(1, 2, 3, 4)), kind: 'png' });
+  assert.equal(bad.ok, false);
+  assert.equal(bad.kind, 'invalid');
+});
+
+test('worker: text becomes pages that read back, wrapped and in order; a text of too many pages is refused', async () => {
+  const ask = startWorker();
+  const words = Array.from({ length: 1200 }, (_, i) => `word${i}`).join(' ');
+  const r = await ask({ id: 4, type: 'text', text: `Title line\n\n${words}\nLast line` });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(r.bytes), verbosity: 0 }).promise;
+  assert.ok(doc.numPages >= 2);
+  const all = [];
+  for (let i = 1; i <= doc.numPages; i++) all.push((await (await doc.getPage(i)).getTextContent()).items.map((x) => x.str).join(' '));
+  const joined = all.join(' ');
+  assert.ok(joined.startsWith('Title line'));
+  assert.ok(joined.includes('word0') && joined.includes('word1199') && joined.endsWith('Last line'));
+  const many = await ask({ id: 5, type: 'text', text: 'x\n'.repeat(60 * 301) });
+  assert.equal(many.ok, false);
+  assert.equal(many.kind, 'toolong');
+});
+
+test('an encrypted PDF is not something this card converts without a message (pdf.js names it)', async () => {
+  let err;
+  try { await pdfjs.getDocument({ data: new Uint8Array(encryptedPdf()), verbosity: 0 }).promise; } catch (e) { err = e; }
+  assert.ok(err && /PasswordException|InvalidPDFException|FormatError/.test(err.name), String(err && err.name));
+});
+
+/* ------------------------------------------------------------------ review fixes */
+
+// the file-name cleaner of kit.js: stem cut so the whole name is 120 characters
+const safe120 = (n) => { const d = n.lastIndexOf('.'); const ext = d > 0 && n.length - d <= 8 ? n.slice(d) : ''; return `${(ext ? n.slice(0, d) : n).slice(0, 120 - ext.length)}${ext}`; };
+
+test('zip entries: three pages of a long-named file give three different names, and two sheets too', () => {
+  const base = 'x'.repeat(110);
+  const pages = [1, 2, 3].map((i) => `${clip(base, 80)} page ${i}.png`);
+  assert.equal(new Set(zipKeys(pages, safe120)).size, 3);
+  // even when the suffix is added after a long name (the way that lost entries), nothing is overwritten
+  const lost = [1, 2, 3].map((i) => `${base} page ${i}.png`);
+  assert.ok(new Set(lost.map(safe120)).size < 3, 'the cleaner alone does collide');
+  assert.equal(new Set(zipKeys(lost, safe120)).size, 3);
+  const sheets = zipKeys([`${'y'.repeat(105)} - Sheet A.csv`, `${'y'.repeat(105)} - Sheet B.csv`], safe120);
+  assert.equal(new Set(sheets).size, 2);
+  assert.deepEqual(zipKeys(['a.csv', 'A.csv'], (n) => n), ['a.csv', 'A (2).csv']);
+  assert.equal(clip('😀😀😀', 4), '😀😀');
+  assert.equal(clip('😀😀😀', 3), '😀', 'cut between characters, counting UTF-16 units');
+});
+
+test('Word to text: a hostile 1 MB body finishes in well under a second', () => {
+  const body = `<w:p>${'<mc:Fallback>'.repeat(80000)}</w:p>${'<w:t '.repeat(30000)}${'<w:tc></w:tc>'.repeat(20000)}`;
+  const zip = fflate.zipSync({ 'word/document.xml': fflate.strToU8(`<w:document><w:body><w:p><w:r><w:t>Real</w:t></w:r></w:p>${body}</w:body></w:document>`) });
+  const t0 = Date.now();
+  const out = docxText(zip, fflate, 'H.docx');
+  assert.ok(Date.now() - t0 < 1000, `${Date.now() - t0} ms`);
+  assert.ok(out.startsWith('Real'));
+});
+
+test('JSON to CSV: a key a record does not have is blank, never an inherited property', () => {
+  assert.equal(jsonToCsv('[{"a":1},{"a":2,"constructor":"x"}]', 'r.json'), '﻿a,constructor\r\n1,\r\n2,x\r\n');
+});
+
+test('JSON to CSV: a number that would be rounded is refused, a long number in quotes is fine', () => {
+  assert.equal(unsafeNumber('[{"a": 12345678901234567890}]'), '12345678901234567890');
+  assert.equal(unsafeNumber('[{"a": 1e21}]'), '1e21');
+  assert.equal(unsafeNumber('[{"a": "12345678901234567890", "b": 123456789012345, "c": 1.5e3}]'), '');
+  assert.throws(() => jsonToCsv('[{"id": 9007199254740993}]', 'r.json'), /holds the number 9007199254740993.*rounded.*Nothing was converted/);
+  assert.match(jsonToCsv('[{"id": "9007199254740993"}]', 'r.json'), /9007199254740993/);
+});
+
+test('CSV to Excel: with decimal commas or ; fields, 1.250 stays text and is counted; otherwise it is a number', () => {
+  const eu = csvToCells('a;b\n1.250;1,5\n', ';', 'r.csv');
+  assert.equal(eu.rows[1][0], '1.250');
+  assert.equal(eu.ambiguous, 1);
+  assert.equal(csvToCells('a,b\n1.250,"1,5"\n', ',', 'r.csv').rows[1][0], '1.250', 'a decimal comma in a quoted field is enough');
+  assert.equal(csvToCells('a,b\n1.250,2\n', ',', 'r.csv').rows[1][0], '1.250', 'nothing shows which way it is meant: kept as text');
+  assert.equal(csvToCells('a,b\n1.250,0.5\n', ',', 'r.csv').rows[1][0], 1.25, 'a dot decimal elsewhere shows dots are decimals');
+  assert.equal(eu.rows[1][1], '1,5');
+});
+
+test('CSV to Excel: at most 15 digits in all become a number', () => {
+  assert.equal(csvToCells('a\n1234567890.123456\n', ',').rows[1][0], '1234567890.123456');
+  assert.equal(csvToCells('a\n123456789012345\n', ',').rows[1][0], 123456789012345);
+  assert.equal(csvToCells('a\n1234567890123456\n', ',').rows[1][0], '1234567890123456');
+});
+
+test('sheet names: quotes, History, long names and emoji never reach the library as something it refuses', () => {
+  assert.equal(sheetName("'Q3 rent'"), 'Q3 rent');
+  assert.equal(sheetName('History'), 'History 1');
+  assert.equal(sheetName('history'), 'history 1');
+  const long = sheetName(`${'a'.repeat(30)}😀😀`);
+  assert.ok(long.length <= 31 && !/[\ud800-\udbff]$/.test(long), long);
+  assert.equal(sheetName("''"), 'Sheet1');
+});
+
+test('picture sizes: a HEIC’s extent box is read, the largest wins; a JPEG with long metadata is found in the whole file', () => {
+  const box = (w, h) => [0x69, 0x73, 0x70, 0x65, 0, 0, 0, 0, w >> 24, (w >> 16) & 255, (w >> 8) & 255, w & 255, h >> 24, (h >> 16) & 255, (h >> 8) & 255, h & 255];
+  const head = [0, 0, 0, 24, ...new TextEncoder().encode('ftypheic'), 0, 0, 0, 0];
+  assert.deepEqual(imageSize(Uint8Array.from([...head, ...box(256, 128), ...box(4000, 3000)])), { w: 4000, h: 3000 });
+  assert.equal(imageSize(Uint8Array.from(head)), null);
+  const jpg = jpegShell(5000, 4000);
+  const padded = Uint8Array.from([0xff, 0xd8, 0xff, 0xe1, 0xff, 0xfe, ...new Array(0xfffe - 2).fill(0), ...jpg.subarray(2)]);
+  assert.equal(imageSize(padded.subarray(0, 65536)), null, 'the first 64 KB do not hold it');
+  assert.deepEqual(imageSize(padded), { w: 5000, h: 4000 });
+});
+
+test('formula guard: a plain negative number is left alone, other text starting with = + @ - tab or return is guarded', () => {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.addRow(['-1200', '-12.50', '-cmd', '=1+1', '+5', '@x', '- 5', '-1,200']);
+  const { sheets, notes } = workbookToCsvs(wb);
+  assert.equal(sheets[0].csv, '﻿-1200,-12.50,\'-cmd,\'=1+1,\'+5,\'@x,\'- 5,"\'-1,200"\r\n');
+  assert.match(notes.join(' '), /6 text cells starting with = \+ @ tab or return, or with - \(unless a plain number like -1200\)/);
+});
+
+const realName = async () => {
+  globalThis.document ||= { createElement: () => ({}), addEventListener() {}, documentElement: { style: {} }, querySelector: () => null, body: {} };
+  globalThis.window ||= globalThis;
+  globalThis.navigator ||= { userAgent: 'node' };
+  return (await import('../app/kit.js')).downloadName;
+};
+
+test('zip names with the real file-name cleaner and emoji: finishes, all different, page numbers kept', async () => {
+  const downloadName = await realName();
+  for (const base of ['😀'.repeat(100), `x${'😀'.repeat(70)}`, '🏢'.repeat(90)]) {
+    const t0 = Date.now();
+    const pages = [1, 2, 3, 4].map((i) => `${clip(base, 80)} page ${String(i).padStart(2, '0')}.png`);
+    const keys = zipKeys(pages, downloadName);
+    assert.ok(Date.now() - t0 < 1000);
+    assert.equal(new Set(keys.map((k) => k.toLowerCase())).size, 4, keys.join('|'));
+    assert.ok(keys.every((k, i) => k.includes(` page 0${i + 1}`)), 'page numbers survive');
+    const sheets = zipKeys([`${clip(base, 80)} - Rent.csv`, `${clip(base, 80)} - Roll.csv`], downloadName);
+    assert.equal(new Set(sheets).size, 2);
+    // even names the cleaner cuts hard still end up different, and never loop
+    const raw = zipKeys([`${base}.png`, `${base}.png`, `${base}.png`], downloadName);
+    assert.equal(new Set(raw.map((k) => k.toLowerCase())).size, 3);
+  }
+});
+
+test('zipKeys cannot loop for ever, even with a cleaner that keeps cutting the number off', () => {
+  const keys = zipKeys(['a.png', 'a.png', 'a.png'], () => 'same.png');
+  assert.equal(new Set(keys).size, 3);
+});
+
+test('downloadName never leaves half an emoji at the cut', async () => {
+  const downloadName = await realName();
+  for (const n of ['😀'.repeat(100), `x${'😀'.repeat(100)}.pdf`]) {
+    const out = downloadName(n);
+    assert.ok(out.length <= 120 && !/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/.test(out), out);
+  }
+});
+
+test('CSV to Excel: a tab file with only 1.250 and 12.500 keeps them as text (European thousands); a US file converts', () => {
+  const eu = csvToCells('a\tb\n1.250\t12.500\n', '\t', 'r.tsv');
+  assert.deepEqual(eu.rows[1], ['1.250', '12.500']);
+  assert.equal(eu.ambiguous, 2);
+  const us = csvToCells('a,b,c,d\n"1,234.50",12.5,0.5,1.250\n', ',', 'r.csv');
+  assert.deepEqual(us.rows[1], [ '1,234.50', 12.5, 0.5, 1.25 ]);
+  assert.equal(us.ambiguous, 0);
+  assert.equal(csvToCells('a\n0.250\n', '\t').rows[1][0], 0.25, '0.250 is plainly a decimal');
+});
+
+test('CSV to Excel: a quoted US 1,234 is not a sign of decimal commas', () => {
+  const r = csvToCells('a,b\n"1,234",5.5\n', ',', 'r.csv');
+  assert.equal(r.rows[1][1], 5.5);
+  assert.equal(csvToCells('a,b\n"1,234",1.250\n', ',', 'r.csv').rows[1][1], '1.250', 'but 1.250 beside it is still ambiguous: no dot decimal proves US');
+});
+
+test('Word to text: a page break does not join the words around it', () => {
+  const x = '<w:document><w:body><w:p><w:r><w:t>Page</w:t></w:r><w:r><w:br w:type="page"/></w:r><w:r><w:t>next page</w:t></w:r></w:p></w:body></w:document>';
+  assert.equal(docxText(fflate.zipSync({ 'word/document.xml': fflate.strToU8(x) }), fflate, 'B.docx'), 'Page\nnext page');
+});
+
+test('JSON numbers that survive a round trip are accepted (0.30000000000000004), others are refused', () => {
+  assert.equal(unsafeNumber('[{"a": 0.30000000000000004}]'), '');
+  assert.equal(unsafeNumber('[{"a": 12345678901234567890}]'), '12345678901234567890');
+});
+
+/* ------------------------------------------------------------------ the shared zip guard */
+
+test('Excel to CSV: a workbook that lies about its sizes is refused by name; an honest one converts unchanged', async () => {
+  const enc = (t) => new TextEncoder().encode(t);
+  const parts = { '[Content_Types].xml': enc('<x/>'), 'xl/workbook.xml': enc('<workbook/>'), 'xl/worksheets/sheet1.xml': new Uint8Array(40e6) };
+  const z = Uint8Array.from(fflate.zipSync(Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, [v, { level: 6 }]]))));
+  const dv = new DataView(z.buffer);
+  for (let i = 0; i < z.length - 46; i++) {
+    if (dv.getUint32(i, true) === 0x02014b50 && new TextDecoder().decode(z.subarray(i + 46, i + 46 + dv.getUint16(i + 28, true))) === 'xl/worksheets/sheet1.xml') {
+      dv.setUint32(i + 24, 1000, true);
+      const lo = dv.getUint32(i + 42, true); dv.setUint32(lo + 22, 1000, true);
+    }
+  }
+  const c = await classify(file('Lying.xlsx', z), { getFflate });
+  assert.ok(c.refuse, 'refused');
+  assert.match(c.refuse, /^Lying\.xlsx: .*(not the size|bomb)/);
+  const ok = await classify(file('Book.xlsx', await xlsxBytes()), { getFflate });
+  assert.equal(ok.kind, 'xlsx');
+  assert.equal(ok.guarded, true);
+  const { loadXlsx } = await import('../app/sheetread.js');
+  const wb = await loadXlsx(file('Book.xlsx', await xlsxBytes()), async () => ({ ExcelJS, fflate }), ok);
+  assert.match(workbookToCsvs(wb).sheets[0].csv, /^﻿Unit,Rent,Start,Flag\r\nA1,1200,2026-01-31,TRUE\r\n/);
+});
