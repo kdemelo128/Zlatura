@@ -1453,3 +1453,8 @@ dialog.sheet[open] { animation: up .26s var(--ease); }
 .conv-all summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
 .conv-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
 .conv-table th, .conv-table td { text-align: left; vertical-align: top; padding: var(--s1, 4px) var(--s2); border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+
+/* the comp importer's sheet: every control is at least 44 px tall, a radio's whole row is its target */
+.ci44, input.ci44, select.ci44 { min-height: 44px; }
+input.ci44, select.ci44 { height: 44px; }
+.radio-row.ci44 { display: flex; align-items: center; gap: var(--s2); }

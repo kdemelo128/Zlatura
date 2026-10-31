@@ -11,7 +11,9 @@ export const LIMITS = { source: 80, file: 200, sheet: 31, profile: 40, text: 200
 const strip = (s, n) => (typeof s === 'string' ? s.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, '').slice(0, n) : null);
 const intIn = (v, lo, hi) => (Number.isInteger(v) && v >= lo && v <= hi ? v : null);
 
-/** A stored origin made safe: null when it isn't an object or names no known kind; text capped, numbers in range, unknown keys dropped. */
+/** A stored origin made safe: null when it isn't an object or names no known kind; text capped, numbers in range, unknown keys dropped.
+ * @param {any} raw
+ * @returns {CompOrigin | null} */
 export function normOrigin(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !ORIGIN_KINDS.includes(raw.kind)) return null;
   const t = typeof raw.importedAt === 'string' && Number.isFinite(Date.parse(raw.importedAt)) ? raw.importedAt.slice(0, 40) : null;
@@ -31,7 +33,9 @@ export function normCompExtras(o) {
   return o;
 }
 
-/** Where a comp came from: its stored origin, or one worked out (a parsed CoStar comp, a comp typed by hand); null when unknown. */
+/** Where a comp came from: its stored origin, or one worked out (a parsed CoStar comp, a comp typed by hand); null when unknown.
+ * @param {any} c
+ * @returns {CompOrigin | null} */
 export function originOf(c) {
   const o = normOrigin(c && c.origin);
   if (o) return o;
@@ -40,7 +44,8 @@ export function originOf(c) {
   return null;
 }
 
-/** "Firm sheet (oct.csv, row 14)". */
+/** "Firm sheet (oct.csv, row 14)".
+ * @param {CompOrigin | null} o */
 export function originText(o) {
   if (!o) return '';
   const src = o.source || (o.kind === 'hand' ? 'entered by hand' : 'unknown source');

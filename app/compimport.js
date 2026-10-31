@@ -489,6 +489,7 @@ export function readRows(grid, mapping, answers, ctx) {
       if (!isBlank(s)) c.parcels = new Set(s.split(/[;,|]/).map((x) => x.replace(/\s+/g, '').toUpperCase()).filter(Boolean).slice(0, LIMITS.parcels));
     }
     // where it came from
+    /** @type {CompOrigin} */
     const origin = { kind: 'import', source: label, file: clip(ctx.file, LIMITS.file) || null, sha256: ctx.sha256 || null, sheet: clip(ctx.sheet || grid.sheet, LIMITS.sheet) || null, row: row.r, page: null, profile, importedAt: now.toISOString() };
     c.origin = origin;
     c.source = originText(origin);

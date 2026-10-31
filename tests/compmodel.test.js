@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { normOrigin, normCompExtras, originOf, originText, blankComp, ORIGIN_KINDS, BASES } from '../app/compmodel.js';
+import { normOrigin, originOf, originText, blankComp, ORIGIN_KINDS, BASES } from '../app/compmodel.js';
 import { compFromJSON, compToJSON, readProject, VERSION, FORMAT } from '../app/store.js';
 import { buildBackup, readBackup, planRestore, KV_KEYS } from '../app/backup.js';
 import { kvTooNew } from '../app/migrate.js';

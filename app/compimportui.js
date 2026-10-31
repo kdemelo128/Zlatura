@@ -34,7 +34,7 @@ export async function compSheets(file) {
   } catch { return []; }
 }
 
-const btn = (label, cls, onClick) => { const b = el('button', cls, label); b.type = 'button'; if (onClick) b.addEventListener('click', onClick); return b; };
+const btn = (label, cls, onClick) => { const b = el('button', `${cls || ''} ci44`.trim(), label); b.type = 'button'; if (onClick) b.addEventListener('click', onClick); return b; };
 
 /**
  * Import comps from one file. `h` = { existing(): comps in the set, manualCount(), add(comps), snapshot(), restore(snap),
@@ -66,7 +66,7 @@ export async function openCompImport(file, h) {
   const setFoot = (...nodes) => { foot.textContent = ''; foot.hidden = false; nodes.forEach((n) => foot.appendChild(n)); };
 
   // one label box, moved between steps so typing in it is never interrupted
-  const labelIn = el('input'); labelIn.type = 'text'; labelIn.id = 'ci-label'; labelIn.maxLength = LIMITS.source; labelIn.value = S.label;
+  const labelIn = el('input', 'ci44'); labelIn.type = 'text'; labelIn.id = 'ci-label'; labelIn.maxLength = LIMITS.source; labelIn.value = S.label;
   labelIn.addEventListener('input', () => { S.label = labelIn.value; });
   const labelBox = el('div', 'field');
   const labelLab = el('label', null, 'Source label'); labelLab.htmlFor = 'ci-label';
@@ -92,7 +92,7 @@ export async function openCompImport(file, h) {
     setFoot(btn('Cancel', 'btn', () => h.sheetClose()));
     const fs = el('fieldset', 'field'); fs.appendChild(el('legend', null, 'Which sheet holds the comps?'));
     usable.forEach((x, i) => {
-      const lab = el('label', 'radio-row'); const r = el('input'); r.type = 'radio'; r.name = 'ci-sheet'; r.value = String(i);
+      const lab = el('label', 'radio-row ci44'); const r = el('input'); r.type = 'radio'; r.name = 'ci-sheet'; r.value = String(i);
       lab.append(r, document.createTextNode(` ${x.g.sheet} (${x.g.rows.length - x.hd.idx - 1} rows)`));
       r.addEventListener('change', () => choose(x));
       fs.appendChild(lab);
@@ -123,7 +123,7 @@ export async function openCompImport(file, h) {
           if (x.block) { const p = el('p', x.fail ? 'chip chip-warn' : 'hint-sm', x.block); qBox.appendChild(p); continue; }
           const fs = el('fieldset', 'field'); fs.appendChild(el('legend', null, x.text));
           for (const [v, label] of x.options) {
-            const lab = el('label', 'radio-row'); const r = el('input'); r.type = 'radio'; r.name = `ci-q-${x.id}`; r.value = v; r.checked = x.value === v;
+            const lab = el('label', 'radio-row ci44'); const r = el('input'); r.type = 'radio'; r.name = `ci-q-${x.id}`; r.value = v; r.checked = x.value === v;
             r.addEventListener('change', () => { setAnswer(S.answers, x, v); refresh(); });
             lab.append(r, document.createTextNode(` ${label}`));
             fs.appendChild(lab);
@@ -146,7 +146,7 @@ export async function openCompImport(file, h) {
       const samples = rows.map((r) => String(r.cells[i] ?? '').slice(0, 40)).filter(Boolean).slice(0, 3);
       card.appendChild(el('div', 'hint-sm', samples.length ? samples.join(' · ') : 'no values'));
       const lab = el('label', null, `Use “${head.slice(0, 40)}” as`); lab.htmlFor = `ci-col-${i}`;
-      const sel = el('select', 'compact'); sel.id = `ci-col-${i}`;
+      const sel = el('select', 'compact ci44'); sel.id = `ci-col-${i}`;
       const opts = [['', 'Choose…'], ['none', 'Not used'], ...FIELDS.filter((f) => f.id !== 'comp_id' || S.mapping.columns[i] === 'comp_id').map((f) => [f.id, f.label])];
       for (const [v, l] of opts) { const o = el('option', null, l); o.value = v; sel.appendChild(o); }
       sel.value = S.mapping.columns[i] === null ? '' : S.mapping.columns[i];
@@ -156,7 +156,7 @@ export async function openCompImport(file, h) {
       cards.appendChild(card);
     });
     body.appendChild(cards);
-    const tpl = btn('Download comp template (CSV)', 'btn btn-gray btn-sm', () => downloadTemplate(h));
+    const tpl = btn('Download comp template (CSV)', 'btn btn-gray', () => downloadTemplate(h));
     body.appendChild(tpl);
     setFoot(reason, btn('Cancel', 'btn', () => h.sheetClose()), go);
     refresh();
@@ -220,7 +220,7 @@ export async function openCompImport(file, h) {
     group('Left out', outRows, (r) => { const li = el('li'); li.appendChild(el('div', 'hint-sm', `Row ${r.r}: ${r.why}`)); return li; });
     const fileChecks = res.checks.map((c) => ({ r: null, c }));
     group('Checks', [...fileChecks, ...checked.flatMap((r) => r.checks.filter((c) => c.level !== 'info').map((c) => ({ r: r.r, c })))], ({ r, c }) => el('li', 'hint-sm', `${r ? `Row ${r}: ` : ''}${LEVEL_WORD[c.level]}: ${c.text}`));
-    const rem = el('label', 'radio-row'); const box = el('input'); box.type = 'checkbox'; box.checked = S.remember && !S.tooNew; box.disabled = S.tooNew;
+    const rem = el('label', 'radio-row ci44'); const box = el('input'); box.type = 'checkbox'; box.checked = S.remember && !S.tooNew; box.disabled = S.tooNew;
     box.addEventListener('change', () => { S.remember = box.checked; });
     rem.append(box, document.createTextNode(' Remember this layout, so the next file like it is mapped for you. Remembered layouts are kept in backups.'));
     body.appendChild(rem);
