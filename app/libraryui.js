@@ -2,6 +2,7 @@
  * deal into it once, and fill it for any deal afterwards, seeing every
  * change before it is written. */
 
+import { PRODUCT } from './brand.js';
 import { inspectWorkbook, suggestCellMap, previewCells, fillCells } from './template.js';
 import { readText } from './textfile.js';
 import { DEAL_FIELDS, DEAL_FIELD, dealValues, RR_TABLE_FIELDS, rrFieldForHeader } from './dealfields.js';
@@ -10,7 +11,7 @@ import {
   listTemplates, putTemplate, deleteTemplate, newTemplate, currentBytes, currentFile, addVersion, duplicateTemplate,
   exportPackage, readPackage, CATEGORIES,
 } from './library.js';
-import { el, svg, toast, actionSheet, getFflate, deliver, localDate, niceDate, money0, int, dec } from './kit.js';
+import { el, icon, toast, actionSheet, getFflate, deliver, localDate, niceDate, money0, int, dec } from './kit.js';
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const XLSM_TYPE = 'application/vnd.ms-excel.sheet.macroEnabled.12';
@@ -32,7 +33,7 @@ export async function openLibrary(compsApi, opts) {
   const live = list.filter((t) => !t.archived);
   const archived = list.filter((t) => t.archived);
   if (!list.length) {
-    body.appendChild(el('p', 'hint', 'No templates yet. Upload the .xlsx your firm uses for underwriting, a rent roll or an IC report. Zlatura finds the labelled input cells and any rent roll table, and you check the mapping once.'));
+    body.appendChild(el('p', 'hint', `No templates yet. Upload the .xlsx your firm uses for underwriting, a rent roll or an IC report. ${PRODUCT} finds the labelled input cells and any rent roll table, and you check the mapping once.`));
   }
   const draw = (items, title) => {
     if (!items.length) return;
@@ -50,7 +51,7 @@ export async function openLibrary(compsApi, opts) {
       if (deal && !t.archived) row.appendChild(btn('btn-sm btn-primary', 'Fill', () => fillSheet(t, deal)));
       const more = el('button', 'iconbtn');
       more.type = 'button';
-      more.innerHTML = svg('<circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/>', 16);
+      more.innerHTML = icon('more', 16);
       more.setAttribute('aria-label', `More for ${t.name}`);
       more.addEventListener('click', () => templateMenu(t));
       row.appendChild(more);
@@ -210,7 +211,7 @@ async function mapSheet(t, { first = false } = {}) {
       if (m.confidence) r.appendChild(el('span', `chip ${m.confidence === 'high' ? 'chip-good' : m.confidence === 'medium' ? 'chip-accent' : 'chip-warn'}`, m.confidence === 'high' ? 'sure' : m.confidence === 'medium' ? 'likely' : 'check'));
       const x = el('button', 'iconbtn');
       x.type = 'button';
-      x.innerHTML = svg('<path d="M6 6l12 12M18 6L6 18"/>', 14);
+      x.innerHTML = icon('close', 14);
       x.setAttribute('aria-label', `Unmap ${m.sheet}!${m.cell}`);
       x.addEventListener('click', () => { t.mapping.cells = t.mapping.cells.filter((y) => y !== m); draw(); });
       r.appendChild(x);
@@ -438,7 +439,7 @@ async function fillSheet(t, deal) {
       : 'This deal has no rent roll yet, so the rent roll table is left as it is.'));
   }
   const a = el('label', 'chk');
-  a.append(audit, document.createTextNode(deal.confidential ? ' A “Zlatura Audit” sheet is added (always, for a confidential deal)' : ' Add a “Zlatura Audit” sheet listing every cell written and its source'));
+  a.append(audit, document.createTextNode(deal.confidential ? ` A “${PRODUCT} Audit” sheet is added (always, for a confidential deal)` : ` Add a “${PRODUCT} Audit” sheet listing every cell written and its source`));
   body.appendChild(a);
   body.appendChild(el('p', 'hint-sm', 'Formulas are not calculated here: Excel works them out when it opens the file. Cells that hold formulas, and the inside of merged cells, are never written.'));
 }

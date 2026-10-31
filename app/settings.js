@@ -2,7 +2,7 @@
  * stages, the AI connection, and the data kept on this device. Each row
  * opens the real control; nothing here is decorative. */
 
-import { $, el, svg, niceDate, parseNum, parsePct } from './kit.js';
+import { $, el, icon, niceDate, parseNum, parsePct } from './kit.js';
 import { getTheme } from './theme.js';
 import { getLook } from './look.js';
 import * as ai from './ai.js';
@@ -113,17 +113,17 @@ export async function renderSettings() {
   seg.setAttribute('role', 'radiogroup');
   seg.setAttribute('aria-label', 'Theme');
   const mode = getTheme();
-  for (const [v, label, icon] of [
-    ['system', 'System', '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'],
-    ['light', 'Light', '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>'],
-    ['dark', 'Dark', '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>'],
+  for (const [v, label, glyph] of [
+    ['system', 'System', 'monitor'],
+    ['light', 'Light', 'sun'],
+    ['dark', 'Dark', 'moon'],
   ]) {
     const b = el('button');
     b.type = 'button';
     b.setAttribute('role', 'radio');
     b.dataset.themeSet = v;
     b.setAttribute('aria-checked', String(v === mode));
-    b.innerHTML = svg(icon, 15);
+    b.innerHTML = icon(glyph, 15);
     b.appendChild(el('span', null, label));
     seg.appendChild(b);
   }
@@ -148,7 +148,7 @@ export async function renderSettings() {
   const tl = el('ul', 'set-list');
   const live = templates.filter((t) => !t.archived).length;
   tl.appendChild(row('Template library', live ? `${live} workbook${live === 1 ? '' : 's'} mapped and ready to fill from any deal.` : 'Map your firm’s underwriting or rent roll workbook once, then fill it for any deal.', [btn('Open library', () => openTemplates())]));
-  tl.appendChild(row('Comp workbook output', 'Choose between the Zlatura comp workbook and your own comp template on the Comps screen.', [btn('Go to Comps', () => api.showView('comps'))]));
+  tl.appendChild(row('Comp workbook output', `Choose between the ${PRODUCT} comp workbook and your own comp template on the Comps screen.`, [btn('Go to Comps', () => api.showView('comps'))]));
   tpl.appendChild(tl);
   stack.appendChild(tpl);
 

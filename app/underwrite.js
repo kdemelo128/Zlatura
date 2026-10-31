@@ -3,7 +3,8 @@
  * saved on this device as you type (kv 'uw.scratch'); "Save as a deal" turns one into a deal and removes it,
  * with an Undo. Nothing here edits a deal. */
 
-import { $, el, svg, parseNum, parsePct, int, dec, money0, money2, pct, times, short, niceDate, toast } from './kit.js';
+import { PRODUCT } from './brand.js';
+import { $, el, parseNum, parsePct, int, dec, money0, money2, pct, times, short, niceDate, toast } from './kit.js';
 import { quantizeDeal, toCents } from './engine/money.js';
 import { SALE_COST_NEGATIVE } from './deal.js';
 import { createDeal, discardDeal, showDeal, loanDefaults, scnRead, scnRefused, setRefusal } from './dealui.js';
@@ -310,7 +311,7 @@ function drawList() {
     list.appendChild(b);
   }
   box.appendChild(list);
-  if (hidden) { const p = el('p', 'hint-sm', `${hidden} more ${hidden === 1 ? 'is' : 'are'} kept on this device but not shown here (made by a newer version of Zlatura, or unreadable).`); p.style.padding = 'var(--s3) var(--s5)'; box.appendChild(p); }
+  if (hidden) { const p = el('p', 'hint-sm', `${hidden} more ${hidden === 1 ? 'is' : 'are'} kept on this device but not shown here (made by a newer version of ${PRODUCT}, or unreadable).`); p.style.padding = 'var(--s3) var(--s5)'; box.appendChild(p); }
 }
 
 function draw() {

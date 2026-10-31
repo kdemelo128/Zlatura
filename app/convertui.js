@@ -12,6 +12,7 @@ import {
   docxText, clip, zipKeys, csvToCells, csvToJson, jsonToCsv, workbookToCsvs, sheetName, MAX_IMAGE_PIXELS, IMAGE_PAGES,
 } from './convert.js';
 import { loadXlsx } from './sheetread.js';
+import { PRODUCT } from './brand.js';
 import { WATCHDOG_MS, MAX_PAGES, problemText } from './pdfpages.js';
 import { pdfPages } from './pdftext.js';
 
@@ -277,7 +278,7 @@ export function openConvert(api) {
       } catch (e) { throw pdfError(e, name); }
       const blank = pages.map((t, i) => (t.trim() ? 0 : i + 1)).filter(Boolean);
       const text = pages.map((t, i) => `Page ${i + 1}\n${t.trim() || '(no text on this page)'}`).join('\n\n');
-      if (blank.length === pages.length) throw new Error(`${name} has no text on any page: it looks like a scan. Zlatura doesn’t read scanned pages in this card, so nothing was converted.`);
+      if (blank.length === pages.length) throw new Error(`${name} has no text on any page: it looks like a scan. ${PRODUCT} doesn’t read scanned pages in this card, so nothing was converted.`);
       return { files: [one(new TextEncoder().encode(text))], note: blank.length ? `No text on page${blank.length === 1 ? '' : 's'} ${blank.slice(0, 20).join(', ')}${blank.length > 20 ? ' and more' : ''} (a scan, or only pictures); marked in the file. Scanned pages are not read by OCR here.` : '' };
     }
     if (m.id === 'docx-txt') {

@@ -4,12 +4,13 @@
  * Both take the comps exactly as the workbook would (included, edited, in
  * $/SF order), so the three outputs never disagree. */
 
+import { PRODUCT } from './brand.js';
 import { signOf } from './numtext.js';
 import { feeSummary } from './calc.js';
 import { toCents, toRate } from './engine/money.js';
 import { STAGE_LABEL, stageOf } from './pipeline.js';
 
-export const VERSION = '4.7.83';
+export const VERSION = '4.7.86';
 
 const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
 const ppsf = (c) => (num(c.price) && num(c.bsf) ? c.price / c.bsf : null);
@@ -253,7 +254,7 @@ export function renderCompSheet(box, { sales, market, subject = {}, label, prepa
   table('On market, high to low asking $/SF', market, 'market');
 
   box.appendChild(h(doc, 'p', 'ps-foot',
-    'Source: CoStar comp reports, compiled with Zlatura. $/SF is price over building size. Weighted figures divide '
+    `Source: CoStar comp reports, compiled with ${PRODUCT}. $/SF is price over building size. Weighted figures divide `
     + 'total price by total size; undisclosed prices (n/d) are excluded from them. Information deemed reliable but not '
     + 'guaranteed.'));
 }

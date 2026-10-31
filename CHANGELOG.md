@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.7.86: One icon set, and the name and mark in one place (on the development branch; not merged or deployed)
+
+Every icon in the app is now drawn to one spec, and the product's name and mark live in one file, so a later rename is a one-file change. Nothing a broker does changed, and no saved result or figure changed.
+
+- **One icon set.** `app/icons.js` holds 57 icons on a 24-unit grid with one stroke weight (1.75), round caps and joins, and the colour of the surrounding text. They replace about 100 hand-pasted shapes at five different weights (1.6 to 2.4), in both Classic and the New look. The spine icons (Home, Deals, Underwrite, Comps, Tools, Review, Settings) are the ones in the approved mockups; the rest were drawn to match. Every icon is hidden from screen readers and every icon-only button keeps its own name.
+- **One brand record.** `app/brand.js` now also holds the line under the name, and the mark, which is drawn once as a symbol and used by reference in the sidebar and the top bar (it was pasted twice). About 30 messages and workbook labels that spelled the name out now read it from `brand.js`. The saved-settings prefix `zlatura.` and the file format ids do not change.
+- **Tested.** `tests/icons.test.js` (the spec, every name used is drawn, none drawn and unused, no shape drawn by hand elsewhere) and `tests/brand-rename.test.js` (the name appears as text only in `brand.js`, the manifest and `index.html` agree with it, the mark exists once) fail on the old code; `tests/e2e/ui-d2-flow.mjs` checks icons, names and axe in the browser at phone and desktop size, light and dark. `node tests/e2e/icon-sheet.mjs` redraws the icon sheets in `docs/proposals/ui/shots/`.
+- **Saved results.** Unchanged: golden 646 figures, 0 changed; analyze-golden passes.
+
 ## 4.7.83: Convert files on your device: photos, PDFs, spreadsheets, Word and text (on the development branch; not merged or deployed)
 
 Documents hub step D2 (`docs/proposals/documents-hub.md`, section 2). **Tools → Documents → Convert files**: pick a file and the card shows exactly what it can become and, for what it can't, the reason.

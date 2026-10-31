@@ -7,6 +7,7 @@
 import { sniff, zipKind, oleKind, LIMITS } from './filekind.js';
 import { csvRows, detectDelimiter, cellValue, guardedBuffer } from './sheetread.js';
 import { decodeText } from './textfile.js';
+import { PRODUCT } from './brand.js';
 import { cell as csvCell } from './exporters.js';
 
 /** The most pixels one canvas holds on a phone (about 16.7 million): a bigger picture is refused, not shrunk. */
@@ -105,7 +106,7 @@ export function mismatch(name, kind) {
 function refusalFor(name, raw) {
   const n = name || 'That file';
   const e = extOf(name);
-  const no = (what, step) => `${n} is ${what}. Zlatura can’t convert it on this device. ${step}`;
+  const no = (what, step) => `${n} is ${what}. ${PRODUCT} can’t convert it on this device. ${step}`;
   if (raw === 'encrypted') return `${n} is password protected. Ask for an unlocked copy.`;
   if (raw === 'doc') return no('an old Word (.doc) file', 'In Word, choose Save As → Word Document (.docx), then add it here.');
   if (raw === 'xls') return no('an old Excel (.xls) file', 'In Excel, choose Save As → Excel Workbook (.xlsx), then add it here.');
@@ -125,7 +126,7 @@ function refusalFor(name, raw) {
   if (raw === 'dwg') return no('an AutoCAD drawing', 'Plot it to PDF, then add the PDF here.');
   if (raw === 'avif') return no('an AVIF picture', 'Save it as JPEG or PNG, then add that here.');
   if (e === 'rar' || e === '7z') return no(`a .${e} archive`, 'Unpack it, then add the files inside one at a time.');
-  return `${n} is not a file type Zlatura can convert. PDFs, JPEG, PNG, WebP and HEIC photos, Excel workbooks, Word documents, CSV, JSON and text files can be.`;
+  return `${n} is not a file type ${PRODUCT} can convert. PDFs, JPEG, PNG, WebP and HEIC photos, Excel workbooks, Word documents, CSV, JSON and text files can be.`;
 }
 
 /** A file's four-letter brand for the ISO media family (HEIC, AVIF, a video): bytes 8 to 11. */
