@@ -537,6 +537,7 @@ td.act .chips { justify-content: flex-end; margin-right: 4px; }
 .ctable tfoot td:last-child { border-radius: 0 0 var(--r) 0; }
 .ctable tfoot .lbl { font: 600 var(--t-12)/1.3 var(--ui); color: var(--muted); }
 .no-match { padding: var(--s5); color: var(--muted); font-size: var(--t-14); }
+.cap-row .btn { min-height: 44px; margin-left: 8px; }
 
 /* A comp is a card on a phone: name and $/SF on top, the figures in a grid,
    every one still editable in place. */
