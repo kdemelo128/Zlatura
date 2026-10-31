@@ -304,11 +304,13 @@ export function openAbstract(h, id, opts = {}) {
     if (onChange) s.addEventListener('change', () => onChange(s.value));
     return s;
   };
-  const labelled = (text, control, id) => {
+  // a visible label names the control; `keep` keeps a longer aria-label that starts with the visible words (so a screen reader hears whose Page it is)
+  const labelled = (text, control, id, keep = false) => {
     const w = el('div', 'ab-ctl');
     const l = el('label', 'fl', text);
     l.htmlFor = id;
     control.id = control.id || id;
+    if (!keep) control.removeAttribute('aria-label');
     w.append(l, control);
     return w;
   };
@@ -351,8 +353,8 @@ export function openAbstract(h, id, opts = {}) {
     page.setAttribute('aria-label', `Page for ${itemLabel(ab, key)}`);
     const quote = textIn(`${sid}-quote`, src0().quote, LIMITS.quote, () => save(), { area: true });
     quote.setAttribute('aria-label', `Quote for ${itemLabel(ab, key)}`);
-    const counter = el('span', 'hint-sm', `${quote.value.length} of ${LIMITS.quote}`);
-    quote.addEventListener('input', () => { counter.textContent = `${quote.value.length} of ${LIMITS.quote}`; });
+    const counter = el('span', 'hint-sm', `${quote.value.length} of ${LIMITS.quote} characters`);
+    quote.addEventListener('input', () => { counter.textContent = `${quote.value.length} of ${LIMITS.quote} characters`; });
     const noteBox = textIn(`${sid}-note`, (itemOf(ab, key) && itemOf(ab, key).rec && itemOf(ab, key).rec.note) || '', LIMITS.note, (v) => {
       const it = itemOf(ab, key);
       if (it && it.rec && it.rec.status === 'ambiguous' && !v.trim()) { alert.textContent = 'Say why it needs a choice, or resolve it.'; return; }
@@ -375,8 +377,8 @@ export function openAbstract(h, id, opts = {}) {
       if (doc.value && !ab.docs.includes(doc.value)) setMeta(ab, { docs: [...ab.docs, doc.value] });
       if (!res.error) { h.touch({ label: `Lease abstract: source for ${itemLabel(ab, key)}` }); status.textContent = `${itemLabel(ab, key)}: source saved.`; refresh(); }
     }
-    details.append(sum, labelled('Document', doc, doc.id), labelled('Page', page, page.id), labelled(`Quote (${LIMITS.quote} characters at most)`, quote, quote.id), counter,
-      labelled('Note (required when it needs a choice)', noteBox, noteBox.id), el('div', 'dd-formbtns'));
+    details.append(sum, labelled('Document', doc, doc.id, true), labelled('Page', page, page.id, true), labelled('Quote', quote, quote.id, true), counter,
+      labelled('Note', noteBox, noteBox.id, true), el('p', 'hint-sm', 'A note is required when the item needs a choice.'), el('div', 'dd-formbtns'));
     details.lastChild.append(choose, resolve);
     wrap.append(chip, ...extra, tick, why, details);
     const refreshTools = () => {
@@ -428,7 +430,7 @@ export function openAbstract(h, id, opts = {}) {
     let main; let unit = null; let basis = null; let rel = null;
     const units = unitsOf(f);
     const save = () => {
-      const raw = f.kind === 'date' || f.kind === 'dateRel' ? main.value : main.value;
+      const raw = main.value;
       const blank = f.kind === 'bool' || f.kind === 'enum' ? raw === '' : !String(raw).trim();
       const relText = rel ? rel.value : '';
       if (blank && !(f.kind === 'dateRel' && relText.trim())) {
@@ -443,7 +445,7 @@ export function openAbstract(h, id, opts = {}) {
       else v = f.kind === 'dateRel' && blank ? null : raw;
       const res = setValue(ab, key, v, { unit: unit ? unit.value || undefined : undefined, basis: basis ? basis.value || undefined : undefined, rel: rel ? rel.value : undefined });
       if (res.error) main.setAttribute('aria-invalid', 'true'); else main.removeAttribute('aria-invalid');
-      done(res, f.label);
+      if (done(res, f.label)) load();
     };
     const load = () => {
       const r = rec();

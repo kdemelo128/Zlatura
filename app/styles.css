@@ -724,6 +724,8 @@ dialog.sheet:has(.ab-editor) .sheet-card { height: calc(100dvh - 24px); }
 .ab-ctl { display: grid; gap: 2px; min-width: 0; }
 .ab-ctl input, .ab-ctl select, .ab-ctl textarea, .ab-input input, .ab-input select, .ab-input textarea { width: 100%; min-height: 44px; padding: 7px 9px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-sm); font-size: var(--t-15); }
 .ab-input { display: grid; gap: 6px; }
+.ab-editor input:not([type=checkbox]), .ab-editor select, .ab-editor textarea { min-height: 44px; }
+.ab-meta input, .ab-meta select, #ab-add-clause { width: 100%; padding: 7px 9px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-sm); font-size: var(--t-15); }
 .ab-progress { font-weight: 600; margin: 0; }
 .ab-filters { display: flex; gap: 6px; flex-wrap: wrap; }
 .ab-filter[aria-checked="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
