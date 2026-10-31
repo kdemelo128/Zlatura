@@ -366,3 +366,94 @@ test('a document list survives a backup and its restore, deep-equal, with no doc
   assert.deepEqual(planRestore(back, empty).deals.put[0].dd, d.dd);
   assert.doesNotMatch(text, /"(bytes|data|blob)"/, 'a Doc is a record: no file content is stored');
 });
+
+/* ------------------------------------------------ lease abstracts (schema 8) */
+
+test('4.7.88 backup: abstracts-init gives each deal an empty list and marks it schema 8; nothing else changes, it is silent, runs once, and never overwrites a list a newer version wrote', () => {
+  const b = load('4.7.88');
+  assert.equal(b.deals.length, 2);
+  assert.equal(MIGRATIONS.find((s) => s.id === 'abstracts-init').silent, true);
+  assert.equal(MIGRATIONS.find((s) => s.id === 'abstracts-init').since, '4.7.89');
+  for (const d of b.deals) {
+    assert.equal(d.schema, 7);
+    assert.ok(!('abstracts' in d));
+    assert.deepEqual(pending(d).map((s) => s.id), ['abstracts-init'], `${d.name}: only the abstracts marker is due`);
+    const before = JSON.stringify(d);
+    const hist = (d.history || []).length;
+    const applied = migrateDeal(d, { today: TODAY });
+    assert.deepEqual(applied.map((x) => x.id), ['abstracts-init']);
+    assert.deepEqual(applied[0].rounded, []);
+    assert.equal(d.schema, 8);
+    assert.deepEqual(d.abstracts, { v: 1, items: [] }, 'empty: no abstract is made up');
+    assert.equal((d.history || []).length, hist, 'no history entry: the step is silent');
+    const { abstracts, ...rest } = d;
+    assert.equal(JSON.stringify({ ...rest, schema: 7 }), before, 'everything else, the document list included, is as saved');
+    assert.deepEqual(migrateDeal(d, { today: TODAY }), [], 'and runs once');
+  }
+  assert.ok(load('4.7.88').deals[0].dd.docs.length === 1 && load('4.7.88').deals[0].credit && load('4.7.88').deals[0].rr.leases.length === 2, 'the fixture holds a rent roll, a credit record and a document list for the step to leave alone');
+  const mine = { v: 1, items: [{ id: 'ab_keep' }] };
+  const d = load('4.7.88').deals[0];
+  d.abstracts = mine;
+  migrateDeal(d, { today: TODAY });
+  assert.equal(d.abstracts, mine, 'a list that is already there is left as it is');
+});
+
+test('a 4.7.88 backup restores with a line saying what the step does, and a schema 9 deal is refused', () => {
+  const b = load('4.7.88');
+  assert.match(planRestore(b, empty).summary.join(' '), /2 deals saved by an older version are brought up to date as they are restored: ready for lease abstracts \(2\)\./);
+  const raw = JSON.parse(fs.readFileSync(FIX + BACKUPS['4.7.88'], 'utf8'));
+  raw.deals[1].schema = 9;
+  assert.throws(() => readBackup(raw), /a deal saved by a newer version.*Nothing was restored/);
+  assert.ok(tooNew({ ...load('4.7.88').deals[0], schema: 9 }));
+});
+
+test('hostile abstracts in a backup survive readBackup and planRestore as saved, and the screen reads them cleaned', async () => {
+  globalThis.document ||= { createElement: () => ({}), addEventListener() {}, documentElement: { style: {} }, querySelector: () => null, body: {} };
+  globalThis.window ||= globalThis;
+  const { abstractsOf } = await import('../app/abstracts.js');
+  const d = load('4.7.88').deals[0];
+  migrateDeal(d, { today: TODAY });
+  d.abstracts = { v: 1, items: [null, { id: 'ab_x', title: 'Example', fields: { deposit: { value: 'abc', status: 'found' }, __proto__: { value: 1 } } }, 7] };
+  const text = JSON.stringify(await buildBackup({ deals: [d], appVersion: '4.7.89' }));
+  const back = readBackup(text);
+  assert.deepEqual(back.deals[0].abstracts, JSON.parse(JSON.stringify(d.abstracts)));
+  const put = planRestore(back, empty).deals.put[0];
+  assert.deepEqual(put.abstracts, JSON.parse(JSON.stringify(d.abstracts)));
+  const clean = abstractsOf(put);
+  assert.equal(clean.items.length, 1);
+  assert.equal(clean.items[0].fields.deposit.value, null);
+  assert.equal(clean.items[0].fields.deposit.status, 'ambiguous');
+});
+
+test('a real abstract survives a backup and its restore, deep-equal', async () => {
+  globalThis.document ||= { createElement: () => ({}), addEventListener() {}, documentElement: { style: {} }, querySelector: () => null, body: {} };
+  globalThis.window ||= globalThis;
+  const A = await import('../app/abstracts.js');
+  const d = load('4.7.88').deals[0];
+  migrateDeal(d, { today: TODAY });
+  const ab = A.addAbstract(A.abstractsOf(d), { title: 'Example Cafe lease', docs: ['dd_invented00001'] }).abstract;
+  A.setValue(ab, 'tenant', 'Example Cafe LLC'); A.setEvidence(ab, 'tenant', [{ doc: 'dd_invented00001', page: 1, quote: 'This lease is between Example Holdings and Example Cafe LLC.' }]);
+  const t = A.addTerm(ab, { kind: 'initial' }).term;
+  A.addStep(ab, t.id, { from: '2027-01-01', to: '2027-12-31', primary: 'month', amounts: { month: 4250 } });
+  const back = readBackup(JSON.stringify(await buildBackup({ deals: [d], appVersion: '4.7.89' })));
+  assert.deepEqual(back.deals[0].abstracts, d.abstracts);
+  assert.deepEqual(A.normAbstracts(back.deals[0].abstracts), d.abstracts, 'already clean: the normaliser changes nothing');
+});
+
+test('no deal figure reads the abstracts: the analysis input is the same with and without them', async () => {
+  const { analysisInput, inputOfPath, NOT_CALCULATED } = await import('../app/impact.js');
+  const { recordable, historyEntry } = await import('../app/history.js');
+  const d = load('4.7.88').deals[0];
+  migrateDeal(d, { today: TODAY });
+  const bare = analysisInput(structuredClone(d));
+  const withAb = structuredClone(d);
+  withAb.abstracts = { v: 1, items: [{ id: 'ab_1', title: 'x', fields: { deposit: { value: 5000, status: 'found' } } }] };
+  assert.deepEqual(analysisInput(withAb), bare);
+  assert.deepEqual(inputOfPath(['abstracts', 'items', { id: 'ab_1' }, 'fields', 'deposit']), { input: 'abstracts' });
+  assert.match(NOT_CALCULATED.abstracts, /no deal figure reads it/);
+  // an untouched migrated deal records nothing; a real abstract does
+  const stored = structuredClone(d); delete stored.abstracts;
+  assert.equal(historyEntry(stored, d), null);
+  assert.ok(!('abstracts' in recordable(d)));
+  assert.ok(historyEntry(d, withAb));
+});

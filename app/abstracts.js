@@ -420,6 +420,7 @@ export function addStep(ab, termId, init = NO, { now } = NO) {
   const relative = init.mFrom != null || init.mTo != null;
   const from = init.from ?? (!relative && prev && prev.to ? addDays(prev.to, 1) : null);
   const step = normStep({ primary: prev ? prev.primary : 'month', basis: prev ? prev.basis : null, label: `Year ${ab.steps.filter((s) => s.term === termId).length + 1}`, ...init, from, id: rid('st_'), term: termId, checked: false, status: 'unread' }, new Set([termId]));
+  if (step.primary && step.amounts[step.primary] !== null) step.status = 'found';
   ab.steps.push(step); touch(ab, now);
   return { step };
 }
@@ -559,7 +560,9 @@ export function stepMonthly(step, ab) {
 
 /**
  * The rent block of a term: one row per step with its dates, months, monthly rent, total rent and the annual rate per SF
- * (monthly x 12 / rentable SF), and a total row that exists only when every row is complete. Whole cents everywhere; the
+
+ * (monthly x 12 / rentable SF), and a total row that exists only when every row is complete (a row whose dates are unresolved
+ * has no total). Whole cents everywhere; the
  * total is the sum of the rows' cent totals, as the workbook's SUM is. `weighted` is the term's total over its years over the
  * rentable SF.
  */
@@ -570,11 +573,11 @@ export function rentBlock(ab, termId) {
     const { from, to, reason } = stepDates(step, ab);
     const months = stepMonths(step, ab);
     const { monthly, why } = stepMonthly(step, ab);
-    const total = monthly !== null && months !== null ? toCents(monthly * months) : null;
+    const resolved = from !== null && to !== null && months !== null;
+    const total = monthly !== null && resolved ? toCents(monthly * months) : null;
     const b = basisOf(step, ab);
     const rentable = !!s && s.basis === 'rentable' && b === 'rentable';
     const annualPsf = monthly !== null && rentable ? toRate(monthly * 12 / s.sf) : null;
-    const resolved = from !== null && to !== null && months !== null;
     return { step, from, to, months, monthly, total, annualPsf, psfText: annualPsf === null && b && b !== 'rentable' ? `per ${b} SF` : null, resolved, reason: reason || (monthly === null ? why : months === null ? 'months are not known' : null) };
   });
   let total = null;

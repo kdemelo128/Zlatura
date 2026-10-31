@@ -210,6 +210,9 @@
     "merge": "5cbc860371799e6719b7eeebdeec718906b36f91065710dc54f3aee3814e1e74",
     "replace": "f7371f93f9de5cb6dd02b406cc7a84eaccf8e64dae520be3105793d6a398554b"
    }
+  },
+  "backup-4.7.88-before-abstracts.json": {
+   "refusedByOldCode": "This backup holds 2 deals saved by a newer version of Zlatura (“Invented Plaza (fictional)”, “Invented Court (fictional)”): update the app first. Nothing was restored."
   }
  }
 }

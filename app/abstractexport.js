@@ -83,6 +83,12 @@ export function optionText(o) {
   return { kind, size: size || 'Size not stated', notice: noticeText(o), reset, fee: o.fee !== null ? `Fee ${money2(o.fee)}` : '', conditions: o.conditions };
 }
 
+const GRID = ['tenant', 'propertyId', 'premisesAddress', 'proRata', 'proRataCovers', 'sf', 'deposit', 'commencement', 'rentCommencement', 'expiration', 'termText', 'noticeTenant', 'noticeLandlord', 'paymentAddress'];
+/** The typed values the header grid and the notice addresses do not show, so none is left out of a file: [{ label, text, kind }]. */
+export function otherTerms(ab) {
+  return FIELDS.filter((f) => f.kind !== 'clause' && !GRID.includes(f.key) && ab.fields[f.key] && ab.fields[f.key].status !== 'unread').map((f) => ({ label: f.label, ...shown(ab, f.key) }));
+}
+
 /** The numbered notes: standard clauses in order, then the optional ones present, then the custom ones. [{ n, label, text, missing }] */
 export function notes(ab) {
   const rows = [];
@@ -240,6 +246,19 @@ function fillSheet(ws, deal, ab) {
   }
   r += 1;
 
+  // everything typed that the grid does not show
+  const more = otherTerms(ab);
+  if (more.length) {
+    band(ws, r, 'Other terms'); merge(ws, r, 1, 8); r += 1;
+    for (const m of more) {
+      put(ws, `A${r}`, `${m.label} →`, { bold: true, color: NAVY, wrap: true }); merge(ws, r, 1, 3);
+      put(ws, `D${r}`, m.text, { wrap: true, italic: m.kind === 'missing' || m.kind === 'unread' }); merge(ws, r, 4, 8);
+      ws.getRow(r).height = Math.max(15, 13 * lines(m.text, 60));
+      r += 1;
+    }
+    r += 1;
+  }
+
   // numbered notes, one merged row each
   band(ws, r, 'Notes'); merge(ws, r, 1, 8); r += 1;
   for (const n of notes(ab)) {
@@ -373,7 +392,8 @@ export function renderAbstractPrint(box, { deal, ab, doc = document }) {
   const srcOf = (k) => { const it = itemOf(ab, k); return it && it.rec ? [...new Set((it.rec.src || []).filter((s) => s.page).map((s) => `p.${s.page}`))].join(', ') : ''; };
   box.appendChild(h('div', 'ps-h2', 'Key terms'));
   const keys = ['tenant', 'landlord', 'tradeName', 'propertyId', 'premisesAddress', 'suite', 'sf', 'proRata', 'proRataCovers', 'leaseDate', 'commencement', 'rentCommencement', 'expiration', 'termText', 'deposit'];
-  box.appendChild(table(['Item', 'Value', 'Source', 'Checked'], keys.map((k) => [FIELD_BY_KEY[k].label, show(k), srcOf(k), ab.fields[k] && ab.fields[k].checked ? 'yes' : 'no'])));
+  box.appendChild(table(['Item', 'Value', 'Source', 'Checked'], [...keys.map((k) => [FIELD_BY_KEY[k].label, show(k), srcOf(k), ab.fields[k] && ab.fields[k].checked ? 'yes' : 'no']),
+    ...otherTerms(ab).filter((m) => !keys.includes(FIELDS.find((f) => f.label === m.label).key)).map((m) => { const k = FIELDS.find((f) => f.label === m.label).key; return [m.label, m.text, srcOf(k), ab.fields[k].checked ? 'yes' : 'no']; })]));
   box.appendChild(h('p', 'ps-foot', RATE_NOTE));
   for (const term of ab.terms) {
     const b = rentBlock(ab, term.id);

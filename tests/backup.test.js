@@ -378,8 +378,8 @@ test('W1: a merge that leaves more than 100 says new ones are refused until some
 
 // every fixture, from 3.1.0 to 4.7.56, restores to the plan 4.7.56 (2ac22a1) gave: nothing about sets or quick underwritings, nothing else changed
 const canon = (v) => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v);
-// main's schema steps 5 (fee record), 6 (credit record) and 7 (document list) came after 4.7.56, so the "brought up to date" line names them; the rest of the line and plan is held to the old plan
-const stepsSince4756 = (l) => { const t = l.replace(/(:|,) ready for the (?:fee record|credit record|document list) \(\d+\)/g, (m, c) => (c === ':' ? ':' : '')).replace(/restored:,/, 'restored:').replace(/restored: ?\./, 'restored:'); return /restored:$/.test(t) || /restored:\s*$/.test(t) ? '' : t; };
+// main's schema steps 5 (fee record), 6 (credit record) 7 (document list) and 8 (lease abstracts) came after 4.7.56, so the "brought up to date" line names them; the rest of the line and plan is held to the old plan
+const stepsSince4756 = (l) => { const t = l.replace(/(:|,) ready for (?:the (?:fee record|credit record|document list)|lease abstracts) \(\d+\)/g, (m, c) => (c === ':' ? ':' : '')).replace(/restored:,/, 'restored:').replace(/restored: ?\./, 'restored:'); return /restored:$/.test(t) || /restored:\s*$/.test(t) ? '' : t; };
 const fingerprint = (p) => crypto.createHash('sha256').update(JSON.stringify(canon(JSON.parse(JSON.stringify({ put: p.deals.put, kv: p.kv, local: p.local, removeDeals: p.removeDeals, removeKv: p.removeKv, session: p.session, summary: p.summary.map(stepsSince4756).filter(Boolean) }))))).digest('hex');
 test('W1: every backup fixture restores to the same plan as 4.7.56 (2ac22a1), in merge and replace, and brings no quick underwritings', () => {
   const snap = JSON.parse(fs.readFileSync(new URL('./fixtures/restore-plans-2ac22a1.json', import.meta.url), 'utf8'));

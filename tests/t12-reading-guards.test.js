@@ -31,7 +31,7 @@ test('a 4.7.27 backup restores with its T-12 exactly as it was, and means the sa
   const plan = planRestore(b, empty, 'merge');
   const t = plan.deals.put[0].t12;
   assert.deepStrictEqual(t, raw.deals[0].t12, 'every field of the statement comes back as it went in');
-  assert.deepStrictEqual(pending(plan.deals.put[0]).map((x) => x.id), ['fee-record', 'credit-record', 'dd-init'], 'only the fee-record and credit-record markers are waiting: no step touches the statement');
+  assert.deepStrictEqual(pending(plan.deals.put[0]).map((x) => x.id), ['fee-record', 'credit-record', 'dd-init', 'abstracts-init'], 'only the fee-record and credit-record markers are waiting: no step touches the statement');
   assert.ok(!('v' in t) && !('source' in t) && !('period' in t), 'nothing is added to it');
   assert.ok(t.lines.every((l) => !('blank' in l) && !('src' in l) && !('conf' in l)), 'no line is re-read');
   const T = statementTotals(t);

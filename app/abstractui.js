@@ -14,7 +14,7 @@ import {
   checkAbstract, progress, itemOf, itemLabel, rentBlock, unitsOf,
 } from './abstracts.js';
 import { FIELDS, GROUPS, BASES, TERM_KINDS, OPTION_KINDS, RESETS, LIMITS } from './abstractfields.js';
-import { buildAbstractWorkbook, abstractCsv, abstractJson, renderAbstractPrint, RATE_NOTE, NO_MAP } from './abstractexport.js';
+import { buildAbstractWorkbook, abstractCsv, abstractJson, renderAbstractPrint, RATE_NOTE } from './abstractexport.js';
 import { redrawKeepingFocus } from './focuskeep.js';
 import { cleanName } from './dd.js';
 
@@ -159,13 +159,13 @@ export function renderAbstractsCard(box, h) {
       const libs = await h.getXlsx();
       const bytes = await buildAbstractWorkbook(libs.ExcelJS, { deal: d, abstracts: abs, portfolio, fflate: libs.fflate });
       const name = portfolio ? `${dealName(d)} lease abstracts.xlsx` : `${dealName(d)} lease abstract - ${abs[0].title || 'abstract'}.xlsx`;
-      if (await deliver(name, bytes, XLSX, { map: NO_MAP }) === 'done') toast('Workbook ready. This file contains lease wording.');
+      if (await deliver(name, bytes, XLSX, { map: 'none: the lease abstract as typed; no deal calculation' }) === 'done') toast('Workbook ready. This file contains lease wording.');
     } catch (err) { if (!err || err.code !== 'declined') status.textContent = `The workbook could not be made: ${(err && err.message) || err}`; }
   }
   async function exportText(abs, kind) {
     const text = kind === 'csv' ? `﻿${abstractCsv(d, abs)}` : abstractJson(d, abs, VERSION);
     const name = `${dealName(d)} lease abstract - ${abs[0].title || 'abstract'}.${kind}`;
-    if (await deliver(name, new TextEncoder().encode(text), kind === 'csv' ? 'text/csv' : 'application/json', { map: NO_MAP }) === 'done') toast(`${kind.toUpperCase()} ready. This file contains lease wording.`);
+    if (await deliver(name, new TextEncoder().encode(text), kind === 'csv' ? 'text/csv' : 'application/json', { map: 'none: the lease abstract as typed; no deal calculation' }) === 'done') toast(`${kind.toUpperCase()} ready. This file contains lease wording.`);
   }
   function printAbstract(ab) {
     printAbstractSheet(d, ab);
@@ -175,7 +175,7 @@ export function renderAbstractsCard(box, h) {
 /** Print one abstract in the page's print sheet. */
 export function printAbstractSheet(d, ab) {
   renderAbstractPrint($('print-sheet'), { deal: d, ab });
-  printed(`Lease abstract: ${ab.title || 'abstract'}`, { map: NO_MAP });
+  printed(`Lease abstract: ${ab.title || 'abstract'}`, { map: 'none: the lease abstract as typed; no deal calculation' });
   window.print();
 }
 
@@ -282,12 +282,12 @@ export function openAbstract(h, id, opts = {}) {
     try {
       const libs = await h.getXlsx();
       const bytes = await buildAbstractWorkbook(libs.ExcelJS, { deal: d, abstracts: [ab], fflate: libs.fflate });
-      if (await deliver(`${dealName(d)} lease abstract - ${ab.title || 'abstract'}.xlsx`, bytes, XLSX, { map: NO_MAP }) === 'done') toast('Workbook ready. This file contains lease wording.');
+      if (await deliver(`${dealName(d)} lease abstract - ${ab.title || 'abstract'}.xlsx`, bytes, XLSX, { map: 'none: the lease abstract as typed; no deal calculation' }) === 'done') toast('Workbook ready. This file contains lease wording.');
     } catch (err) { if (!err || err.code !== 'declined') alert.textContent = `The workbook could not be made: ${(err && err.message) || err}`; }
   }
   async function exportText(kind) {
     const text = kind === 'csv' ? `﻿${abstractCsv(d, [ab])}` : abstractJson(d, [ab], VERSION);
-    if (await deliver(`${dealName(d)} lease abstract - ${ab.title || 'abstract'}.${kind}`, new TextEncoder().encode(text), kind === 'csv' ? 'text/csv' : 'application/json', { map: NO_MAP }) === 'done') toast(`${kind.toUpperCase()} ready. This file contains lease wording.`);
+    if (await deliver(`${dealName(d)} lease abstract - ${ab.title || 'abstract'}.${kind}`, new TextEncoder().encode(text), kind === 'csv' ? 'text/csv' : 'application/json', { map: 'none: the lease abstract as typed; no deal calculation' }) === 'done') toast(`${kind.toUpperCase()} ready. This file contains lease wording.`);
   }
 
   /* ------------------------------------------------------- shared pieces */
