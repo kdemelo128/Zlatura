@@ -1,13 +1,5 @@
 # Changelog
 
-## 4.7.82: The dependency and audit checks pass again: minimatch is upgraded to the fixed version (on the development branch; not merged or deployed)
-
-Advisory GHSA-g3hv-75wg-m249 (minimatch below 11.0.1) turned both the `dependencies` and the `audit` checks red on every branch. Only the test-time ExcelJS package pulls minimatch in; it is never shipped.
-
-- **`package.json` overrides pin `minimatch` to 11.0.1.** Its licence, BlueOak-1.0.0, was approved by the owner on 2026-10-31 and is listed in `THIRD_PARTY.md`. `npm audit` and the osv scan both find nothing.
-- **The earlier dated exception is gone** from `osv-scanner.toml`; the exception process stays for future advisories (`docs/security-checklist.md`).
-- Saved results unchanged; no app code touched.
-
 ## 4.7.86: One icon set, and the name and mark in one place (on the development branch; not merged or deployed)
 
 Every icon in the app is now drawn to one spec, and the product's name and mark live in one file, so a later rename is a one-file change. Nothing a broker does changed, and no saved result or figure changed.
@@ -16,6 +8,14 @@ Every icon in the app is now drawn to one spec, and the product's name and mark 
 - **One brand record.** `app/brand.js` now also holds the line under the name, and the mark, which is drawn once as a symbol and used by reference in the sidebar and the top bar (it was pasted twice). About 30 messages and workbook labels that spelled the name out now read it from `brand.js`. The saved-settings prefix `zlatura.` and the file format ids do not change.
 - **Tested.** `tests/icons.test.js` (the spec, every name used is drawn, none drawn and unused, no shape drawn by hand elsewhere) and `tests/brand-rename.test.js` (the name appears as text only in `brand.js`, the manifest and `index.html` agree with it, the mark exists once) fail on the old code; `tests/e2e/ui-d2-flow.mjs` checks icons, names and axe in the browser at phone and desktop size, light and dark. `node tests/e2e/icon-sheet.mjs` redraws the icon sheets in `docs/proposals/ui/shots/`.
 - **Saved results.** Unchanged: golden 646 figures, 0 changed; analyze-golden passes.
+
+## 4.7.82: The dependency and audit checks pass again: minimatch is upgraded to the fixed version (on the development branch; not merged or deployed)
+
+Advisory GHSA-g3hv-75wg-m249 (minimatch below 11.0.1) turned both the `dependencies` and the `audit` checks red on every branch. Only the test-time ExcelJS package pulls minimatch in; it is never shipped.
+
+- **`package.json` overrides pin `minimatch` to 11.0.1.** Its licence, BlueOak-1.0.0, was approved by the owner on 2026-10-31 and is listed in `THIRD_PARTY.md`. `npm audit` and the osv scan both find nothing.
+- **The earlier dated exception is gone** from `osv-scanner.toml`; the exception process stays for future advisories (`docs/security-checklist.md`).
+- Saved results unchanged; no app code touched.
 
 ## 4.7.77: Quiet numbers now say "can't tell": a tenant with no share, a blank base amount, a negative sale cost, percentage rent with no breakpoint (on the development branch; not merged or deployed)
 
