@@ -1,13 +1,5 @@
 # Changelog
 
-## 4.7.82: The dependency and audit checks pass again: minimatch is upgraded to the fixed version (on the development branch; not merged or deployed)
-
-Advisory GHSA-g3hv-75wg-m249 (minimatch below 11.0.1) turned both the `dependencies` and the `audit` checks red on every branch. Only the test-time ExcelJS package pulls minimatch in; it is never shipped.
-
-- **`package.json` overrides pin `minimatch` to 11.0.1.** Its licence, BlueOak-1.0.0, was approved by the owner on 2026-10-31 and is listed in `THIRD_PARTY.md`. `npm audit` and the osv scan both find nothing.
-- **The earlier dated exception is gone** from `osv-scanner.toml`; the exception process stays for future advisories (`docs/security-checklist.md`).
-- Saved results unchanged; no app code touched.
-
 ## 4.7.83: Convert files on your device: photos, PDFs, spreadsheets, Word and text (on the development branch; not merged or deployed)
 
 Documents hub step D2 (`docs/proposals/documents-hub.md`, section 2). **Tools → Documents → Convert files**: pick a file and the card shows exactly what it can become and, for what it can't, the reason.
@@ -18,6 +10,14 @@ Documents hub step D2 (`docs/proposals/documents-hub.md`, section 2). **Tools �
 - **Nothing is uploaded.** The saved file's name appears on Home's activity list and in backups; no file contents are kept. PDFs are written in a Web Worker with the already vendored `@cantoo/pdf-lib`; no new library. Not available in this card: reading a scanned page by OCR, and anything that needs an Office engine.
 - **Tested:** `tests/convert.test.js` (32 tests, each mutation-checked) and the browser flow `convert-flow` (keyboard, announcements, 44 px targets, axe at phone and desktop size, Cancel, offline) on invented files. Chromium only; not tried on Safari or an iPhone. No saved result changed.
 - **Number and text safety:** CSV to Excel keeps `1.250` as text (and says so) when the file uses decimal commas or `;`; a number over 15 digits stays text; JSON numbers that would round are refused; a text starting with `= + @`, tab, return, or `-` (unless a plain number like -1200) gets a leading `'` in a CSV.
+
+## 4.7.82: The dependency and audit checks pass again: minimatch is upgraded to the fixed version (on the development branch; not merged or deployed)
+
+Advisory GHSA-g3hv-75wg-m249 (minimatch below 11.0.1) turned both the `dependencies` and the `audit` checks red on every branch. Only the test-time ExcelJS package pulls minimatch in; it is never shipped.
+
+- **`package.json` overrides pin `minimatch` to 11.0.1.** Its licence, BlueOak-1.0.0, was approved by the owner on 2026-10-31 and is listed in `THIRD_PARTY.md`. `npm audit` and the osv scan both find nothing.
+- **The earlier dated exception is gone** from `osv-scanner.toml`; the exception process stays for future advisories (`docs/security-checklist.md`).
+- Saved results unchanged; no app code touched.
 
 ## 4.7.77: Quiet numbers now say "can't tell": a tenant with no share, a blank base amount, a negative sale cost, percentage rent with no breakpoint (on the development branch; not merged or deployed)
 
