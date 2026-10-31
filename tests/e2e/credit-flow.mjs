@@ -70,7 +70,7 @@ await page.click('#credit-add');
 await page.waitForSelector('#credit-entity');
 await settle();
 let c = await credit();
-check('adding a record stores it empty: no scope, no ratings, no sales, no go-dark answer', c && c.v === 1 && c.guarantor.scope === null && c.ratings.length === 0 && c.sales === null && c.goDark.state === null && (await deals())[0].schema === 6, JSON.stringify(c));
+check('adding a record stores it empty: no scope, no ratings, no sales, no go-dark answer', c && c.v === 1 && c.guarantor.scope === null && c.ratings.length === 0 && c.sales === null && c.goDark.state === null && (await deals())[0].schema === 7, JSON.stringify(c));
 check('the OM’s guarantor is offered with a Use tap, never copied in silently', (await txt('#credit-use-om')) === 'Use the OM’s guarantor (Example Holdings)' && (await page.inputValue('#credit-guarantor')) === '' && c.guarantor.name === '');
 await page.click('#credit-use-om');
 await page.waitForSelector('#credit-guarantor');
@@ -177,7 +177,7 @@ const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }
 const bfile = `${SHOTS}credit-backup.json`;
 await dl.saveAs(bfile);
 const bj = JSON.parse(fs.readFileSync(bfile, 'utf8'));
-check('the backup carries the credit record, store sales included, at schema 6', bj.deals.length === 1 && bj.deals[0].schema === 6 && bj.deals[0].credit.sales.annual === 1234567.89 && bj.deals[0].credit.ratings.length === 2, JSON.stringify([bj.deals[0].schema]));
+check('the backup carries the credit record, store sales included, at schema 7', bj.deals.length === 1 && bj.deals[0].schema === 7 && bj.deals[0].credit.sales.annual === 1234567.89 && bj.deals[0].credit.ratings.length === 2, JSON.stringify([bj.deals[0].schema]));
 const before = await credit();
 await page.evaluate(() => new Promise((res) => { localStorage.clear(); const q = indexedDB.deleteDatabase('zlatura'); q.onsuccess = res; q.onerror = res; q.onblocked = res; }));
 await page.goto(`${BASE}#settings`, { waitUntil: 'load' });

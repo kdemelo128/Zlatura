@@ -15,6 +15,7 @@ import { editContact } from './dealcrm.js';
 import { tickable, matchContacts } from './claims.js';
 import { newBrief, requestBody, receive, fail, readBrief, tickClaim, loadBriefs, saveBrief, deleteBrief, expiry, SECTIONS } from './research.js';
 import { el, toast, actionSheet, niceDate } from './kit.js';
+import { sha256Hex } from './fingerprint.js';
 
 let api = null;
 export function initResearch(compsApi) { api = compsApi; }
@@ -25,7 +26,7 @@ const btn = (cls, text, fn) => { const b = el('button', `btn ${cls}`.trim(), tex
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const countWords = (c) => `${c.confirmed} confirmed, ${plural(c.hypothesis, 'hypothesis', 'hypotheses')}, ${c.refused} refused`;
 const changed = () => document.dispatchEvent(new CustomEvent('reviewchange'));
-const sha256 = async (bytes) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((x) => x.toString(16).padStart(2, '0')).join('');
+const sha256 = sha256Hex;
 const INFERRED = { registered_agent: 'registered agent', mailing_address: 'mailing address', shared_surname: 'shared surname', other: 'other' };
 
 /* ---------------------------------------------------------------- start */

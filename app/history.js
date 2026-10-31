@@ -136,7 +136,10 @@ export function applyChanges(obj, changes, { backwards = false } = {}) {
   const stale = [];
   for (const c of list) {
     const expect = backwards ? c.new : c.old;
-    if (!deepSame(getPath(obj, c.path), expect)) stale.push(c.path);
+    const onlyDd = c.path.length === 1 && c.path[0] === 'dd';
+    // an empty document list and none at all are the same thing to History (see recordable)
+    const at = getPath(obj, c.path);
+    if (!deepSame(onlyDd && emptyDd(at) ? undefined : at, onlyDd && emptyDd(expect) ? undefined : expect)) stale.push(c.path);
   }
   if (stale.length) return stale;
   for (const c of list) setPath(obj, c.path, copy(backwards ? c.old : c.new), c.index);
@@ -233,7 +236,14 @@ export function recordable(d) {
   const out = { ...d };
   for (const k of SKIP_TOP) delete out[k];
   if (out.rr && Array.isArray(out.rr.leases)) delete out.rentRoll;
+  // an empty document list (what the dd-init step and a first look at the card make) is bookkeeping, not an edit
+  if (emptyDd(out.dd)) delete out.dd;
   return out;
+}
+
+/** A document list with no documents, no not-applicable entries and no property type chosen: History treats it as no list. */
+export function emptyDd(dd) {
+  return !!dd && typeof dd === 'object' && !(Array.isArray(dd.docs) && dd.docs.length) && !(dd.na && typeof dd.na === 'object' && Object.keys(dd.na).length) && !dd.preset;
 }
 
 /** The largest change list kept in one entry; a bigger one points at the snapshot taken before it (or can't be undone). */

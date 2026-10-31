@@ -21,7 +21,7 @@ import {
 import { docKind, pdfRollRecord } from './rrdoc.js';
 import { compareRolls } from './reconcile.js';
 import { qcPanel } from './dataqcui.js';
-import { blockingChecks, resolveCheck } from './dataqc.js';
+import { blockingChecks, resolveCheck, qcCounts } from './dataqc.js';
 import { readScannedPage, ocrSupported } from './ocr.js';
 import { kvGet, kvSet } from './store.js';
 import { projectionNow, projectionLater } from './projector.js';
@@ -82,6 +82,8 @@ export function renderRentRollWorkspace(box, deal, compsApi, onChange, hooks = {
   changed.snapshot = (reason) => (hooks.snapshot ? hooks.snapshot(reason) : null);
   // "what this affects" (the dependency map), opened by the deal screen
   changed.affects = (ids, opts) => (hooks.affects ? hooks.affects(ids, opts) : null);
+  // the file a reader read goes in the deal's Documents list (ddui.js)
+  changed.registerRead = (file, info) => (hooks.registerRead ? hooks.registerRead(file, info) : null);
 
   const head = el('div', 'card-head');
   head.appendChild(el('h2', null, 'Rent roll'));
@@ -1064,6 +1066,7 @@ function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
     rr.leases = mode === 'add' ? [...old, ...leases] : leases;
     api.sheetClose();
     changed(true, { kind: 'import', label: `Imported ${leases.length} unit${leases.length === 1 ? '' : 's'} from the rent roll PDF “${file.name}”${mode === 'replace' && old.length ? ', replacing the rent roll' : ''}${accepted ? `; ${accepted} failed check${accepted === 1 ? '' : 's'} accepted` : ''}`, snapshot: snap });
+    changed.registerRead(file, { reader: 'rrpdf', target: 'rr', type: 'rentroll', kind: 'pdf', pages: pages.length, checks: qcCounts(record.qc) });
     toast(`${leases.length} unit${leases.length === 1 ? '' : 's'} imported from ${file.name}. Each rent is one documented period.`, { label: 'Undo', run: () => { rr.leases = old; changed(); } }, 9000);
   });
   draw();

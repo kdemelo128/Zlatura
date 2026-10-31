@@ -42,8 +42,8 @@ const deals = async (p) => Object.fromEntries((await idb(p, 'deals')).map((d) =>
 const historyOf = (p, id) => p.evaluate((dealId) => new Promise((res) => { const r = indexedDB.open('zlatura'); r.onsuccess = () => { const g = r.result.transaction('history').objectStore('history').getAll(IDBKeyRange.bound([dealId, 0], [dealId, Infinity])); g.onsuccess = () => res(g.result); }; }), id);
 // a stored deal without what is new every time (lease ids, the time it was saved)
 // 4.7.4's step "rr-qc" only adds: a deal whose rent roll came from an OM gets a Data QC record marked
-// "read before Data QC" and schema 3, and 4.7.23's step sets schema 4 on every deal, and 4.7.61’s “fee-record” schema 5, and 4.7.68’s “credit-record” schema 6. Set apart (and checked on its own below), the rest must match the old code.
-const comparable = (d) => { const { rrQc, ...x } = d; return JSON.parse(JSON.stringify({ ...x, schema: d.schema >= 3 ? 2 : d.schema, updatedAt: 0, rr: d.rr && { ...d.rr, leases: d.rr.leases.map(({ id, ...l }) => l) } })); };
+// "read before Data QC" and schema 3, and 4.7.23's step sets schema 4 on every deal, and 4.7.61’s “fee-record” schema 5, and 4.7.68’s “credit-record” schema 6, and 4.7.79’s “dd-init” schema 7 with an empty document list. Set apart (and checked on its own below), the rest must match the old code.
+const comparable = (d) => { const { rrQc, dd, ...x } = d; return JSON.parse(JSON.stringify({ ...x, schema: d.schema >= 3 ? 2 : d.schema, updatedAt: 0, rr: d.rr && { ...d.rr, leases: d.rr.leases.map(({ id, ...l }) => l) } })); };
 const fromOm = (d) => (d.rentRoll || []).length > 0;
 async function restore(p, base, file) {
   await p.goto(`${base}#settings`, { waitUntil: 'load' });
@@ -80,8 +80,8 @@ check('the restore sheet says which deals an older version saved, and what bring
   /3 deals saved by an older version are brought up to date as they are restored: money rounded to whole cents \(1\), rent roll set up \(3\)/.test(sheet), sheet.replace(/\s+/g, ' ').slice(0, 300));
 let after = await deals(page);
 check('3 deals restored', Object.keys(after).length === 3, Object.keys(after).join(' / '));
-check('each is up to date before it is opened: a rent roll, schema 6 (with the OM rent roll’s Data QC record), money version 1',
-  Object.values(after).every((d) => d.rr && d.schema === 6 && d.moneyVersion === 1 && (fromOm(d) ? d.rrQc && d.rrQc.legacy === true && d.rrQc.checks.length === 0 : !d.rrQc)),
+check('each is up to date before it is opened: a rent roll, schema 7 (with the OM rent roll’s Data QC record), money version 1',
+  Object.values(after).every((d) => d.rr && d.schema === 7 && d.moneyVersion === 1 && (fromOm(d) ? d.rrQc && d.rrQc.legacy === true && d.rrQc.checks.length === 0 : !d.rrQc)),
   Object.values(after).map((d) => `${d.figures.address}: rr ${!!d.rr} schema ${d.schema} money ${d.moneyVersion}`).join(' / '));
 const ex = after['4410 Example Avenue NW'];
 check('the OM’s five rent roll rows became five leases', ex && ex.rr && ex.rr.leases.length === 5);
@@ -126,7 +126,7 @@ const made = hd.find((e) => e.label === 'Rent roll set up');
 check('opened directly: the rounding is an entry of its own, with only the value it rounded', !!rnd && (rnd.changes || []).length >= 1 && (rnd.changes || []).every((c) => !/^rr\b|rr\./.test(c.path || '')), hd.map((e) => `${e.kind}:${e.label}:${(e.changes || []).length}`).join(' / '));
 check('and the new rent roll is the next entry, holding the rent roll', !!made && (made.changes || []).some((c) => /rr/.test(JSON.stringify(c.path || c.key || c))), made && JSON.stringify(made.changes).slice(0, 200));
 const storedDirect = (await deals(page))['4410 Example Avenue NW'] && (await idb(page, 'deals')).find((d) => d.id === direct.id);
-check('and it is stored up to date', storedDirect && storedDirect.rr && storedDirect.schema === 6 && storedDirect.rrQc && storedDirect.rrQc.legacy && storedDirect.moneyVersion === 1);
+check('and it is stored up to date', storedDirect && storedDirect.rr && storedDirect.schema === 7 && storedDirect.rrQc && storedDirect.rrQc.legacy && storedDirect.moneyVersion === 1);
 
 // ---- 4. a backup with a deal from a newer version is refused, nothing restored
 const newer = JSON.parse(fs.readFileSync(FIX, 'utf8'));

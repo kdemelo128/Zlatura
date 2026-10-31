@@ -541,6 +541,8 @@ export async function importFile(h, file) {
     if (!t) return; // the number question was cancelled
   } catch (e) { toast(e.message || String(e), null, 9000); return; }
   keepStatement(h, d, t, note);
+  // the file it read goes in the deal's Documents list (ddui.js), counted by the statement's own period checks
+  if (h.registerRead && h.deal === d && d.t12 === t) h.registerRead(file, { reader: 't12', target: 't12', type: 't12', kind: ['csv', 'tsv'].includes(t.source && t.source.type) ? 'csv' : 'xlsx', pages: null, checks: qcCounts(t12Qc(t)) });
 }
 
 /** Which sheet of a workbook with several statements; null when cancelled. Projections are listed, not choosable. */

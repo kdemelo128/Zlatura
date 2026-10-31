@@ -37,7 +37,9 @@ import { redrawKeepingFocus } from './focuskeep.js';
 import { renderT12Card } from './t12ui.js';
 import { renderFeeCard } from './feeui.js';
 import { renderCreditCard } from './creditui.js';
+import { renderDocsCard, recordFileRead } from './ddui.js';
 import { openLibrary } from './libraryui.js';
+import { getSettings as getAiSettings, isReady } from './ai.js';
 import { openAiSettings, readWithAi, openAssistant, transcribeNote, openTranscript } from './aiui.js';
 import { crossChecks } from './reconcile.js';
 import { STAGE_LABEL, stageOf } from './pipeline.js';
@@ -46,7 +48,7 @@ import * as crm from './crm.js';
 import { sweepResearch } from './research.js';
 import {
   $, el, icon, IN_ARTIFACT, XLSX, printed, parseNum, parsePct, int, dec, money0, money2, pct, signed, times, yrs, short, niceDate,
-  localDate, toast, actionSheet, getPdfjs, getXlsx, deliver, deliveryError, shareText, idle, pdfProblem,
+  localDate, toast, actionSheet, getPdfjs, getXlsx, getFflate, deliver, deliveryError, shareText, idle, pdfProblem,
 } from './kit.js';
 
 let api = null;
@@ -447,10 +449,10 @@ async function readOmFile(file) {
     return;
   }
   const om = readOm(pages, { layouts: layouts.length === pages.length ? layouts : null, asOf: localDate() });
-  reading = null;
   if (om.chars < 200) {
     // every page a scan: the Data QC record lists them, so one can be read by OCR
     const { qc } = omRollRecord({ ...om, rentRoll: null, scanned: pages.map((_, i) => i + 1) }, { asOf: localDate(), file: file.name });
+    reading = null;
     deal = newDeal({ name: file.name.replace(/\.pdf$/i, ''), source: file.name, readAt: Date.now(), pages: om.pages, rrQc: qc });
     omFiles.set(deal.id, file);
     render();
@@ -484,6 +486,12 @@ async function readOmFile(file) {
   omFiles.set(deal.id, file);
   try { localStorage.setItem(CUR_KEY, deal.id); } catch { /* fine */ }
   const n = Object.keys(figures).length;
+  const made = deal;
+  // the file it read goes in the Documents list, and the figures read from it point back at it: fingerprinted before the deal's first save, so the read is one history entry
+  await recordFileRead(deal, file, { reader: 'om', target: 'omRead', type: 'om', kind: 'pdf', pages: om.pages, link: true, checks: qcCounts({ checks: [...((/** @type {any} */ (deal).omRead?.checks) || []), ...((/** @type {any} */ (deal).rrQc?.checks) || [])] }) }, () => {}).catch(() => {});
+  // `reading` stays set across the fingerprint, so a second OM is refused meanwhile; and the screen is this OM's deal
+  reading = null;
+  deal = made;
   render();
   touch();
   store.askToPersist();
@@ -763,6 +771,9 @@ function renderDeal(r) {
   comps.id = 'deal-comps';
   main.appendChild(comps);
   main.appendChild(figuresCard());
+  const docs = el('section', 'card dd-card');
+  docs.id = 'deal-dd';
+  main.appendChild(docs);
   const credit = el('section', 'card credit-card');
   credit.id = 'deal-credit';
   main.appendChild(credit);
@@ -804,9 +815,36 @@ function renderDeal(r) {
   r.appendChild(stack);
   renderDerived();
   // drawn once here, not with the figures: a redraw while typing would take the keyboard away
+  renderDocsCard(docs, docsHost(d0));
   renderCreditCard(credit, { deal, touch: (meta) => touch(d0, meta) });
   renderFeeCard(fee, { deal, touch: (meta) => touch(d0, meta) });
   showPane(pane, { focus: false });
+}
+
+/** What the Documents card (ddui.js) needs of this screen. */
+function docsHost(d) {
+  return {
+    deal: d,
+    touch: (meta) => touch(d, meta),
+    stillOpen: () => deal === d,
+    getFflate, getXlsx,
+    problem: (err, file) => pdfProblem(err, file),
+    readPdf: async (bytes) => { const layouts = []; const pages = await api.pdfPages(await getPdfjs(), bytes, { layouts }); return { pages, layouts }; },
+    ocrText: async (bytes) => (await readScannedPage(await getPdfjs(), bytes.slice(), 1)).text,
+    // other deals holding a file with this fingerprint, by name: shown on this device only
+    otherDeals: async (sha) => (await listAllDeals()).filter((x) => x.id !== d.id && x.dd && Array.isArray(x.dd.docs) && x.dd.docs.some((y) => y && y.sha256 === sha)).map((x) => x.name || (x.figures && x.figures.address) || 'Untitled deal'),
+    // the reader's own panel for a type: the rent roll workspace, the T-12 card or the figures and their checks
+    openReader: (type) => {
+      if (type === 'rentroll') showPane('rentroll');
+      else { showPane('overview', { focus: false }); const t = $(type === 't12' ? 'deal-t12' : 'deal-checks'); if (t) t.scrollIntoView({ block: 'start' }); }
+    },
+    ai: { ready: async () => isReady(await getAiSettings()), pick: chooseForAi },
+    sheetOpen: api.sheetOpen, sheetClose: api.sheetClose,
+  };
+}
+/** A reader has read a file for this deal: it goes in the Documents list (ddui.js recordFileRead), and the card follows. */
+function fileRead(d, file, info) {
+  return recordFileRead(d, file, info, (meta) => touch(d, meta)).then((doc) => { if (doc && deal === d) { const box = $('deal-dd'); if (box) renderDocsCard(box, docsHost(d)); } return doc; });
 }
 
 const PANES = [['overview', 'Overview'], ['rentroll', 'Rent roll'], ['whatif', 'What if'], ['visit', 'Site visit']];
@@ -835,6 +873,7 @@ function drawT12() {
     deal: d,
     touch: (meta) => touch(d, meta),
     snapshot: (reason) => snapshotBefore(d, reason),
+    registerRead: (file, info) => fileRead(d, file, info),
     redraw: () => { if (deal === d) { renderDerived(); document.dispatchEvent(new CustomEvent('reviewchange')); } },
     // the deal's own figures changed (Use the T-12's figures, the T-12 removed): the whole screen, so their tags follow
     rerender: () => { if (deal === d) { render(); document.dispatchEvent(new CustomEvent('reviewchange')); } },
@@ -884,7 +923,7 @@ function drawRentRoll() {
   const box = $('deal-rentroll');
   if (!box || !deal) return;
   const d = deal;
-  renderRentRollWorkspace(box, deal, api, rentRollChanged, { snapshot: (reason) => snapshotBefore(d, reason), affects: (ids, opts) => showImpact(ids, opts) });
+  renderRentRollWorkspace(box, deal, api, rentRollChanged, { snapshot: (reason) => snapshotBefore(d, reason), affects: (ids, opts) => showImpact(ids, opts), registerRead: (file, info) => fileRead(d, file, info) });
 }
 
 /** Any rent roll edit: the flat rows the analysis reads follow, the deal saves, the analysis redraws. */
