@@ -1,12 +1,11 @@
 # Changelog
 
-## 4.7.82: The dependency scan passes again, with a dated exception for one dev-only advisory (on the development branch; not merged or deployed)
+## 4.7.82: The dependency and audit checks pass again: minimatch is upgraded to the fixed version (on the development branch; not merged or deployed)
 
-The CI `dependencies` check began failing on advisory GHSA-g3hv-75wg-m249 in minimatch 3.1.5 and 5.1.9, which only the test-time ExcelJS package pulls in (never shipped).
+Advisory GHSA-g3hv-75wg-m249 (minimatch below 11.0.1) turned both the `dependencies` and the `audit` checks red on every branch. Only the test-time ExcelJS package pulls minimatch in; it is never shipped.
 
-- **`osv-scanner.toml`** ignores that one advisory until 2026-12-29, with a written reason; nothing else is ignored.
-- **`docs/security-checklist.md`** records the exception and when to remove it.
-- **Tested:** `tests/ci-scanners.test.js` requires every exception to have a reason and an expiry within 90 days; the pinned osv-scanner 2.7.0 loads the file.
+- **`package.json` overrides pin `minimatch` to 11.0.1.** Its licence, BlueOak-1.0.0, was approved by the owner on 2026-10-31 and is listed in `THIRD_PARTY.md`. `npm audit` and the osv scan both find nothing.
+- **The earlier dated exception is gone** from `osv-scanner.toml`; the exception process stays for future advisories (`docs/security-checklist.md`).
 - Saved results unchanged; no app code touched.
 
 ## 4.7.77: Quiet numbers now say "can't tell": a tenant with no share, a blank base amount, a negative sale cost, percentage rent with no breakpoint (on the development branch; not merged or deployed)

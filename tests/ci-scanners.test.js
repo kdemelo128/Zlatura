@@ -69,7 +69,6 @@ test('the gitleaks allowlist names exact paths and says they are not secrets', (
 test('osv-scanner.toml exceptions are time-boxed, reasoned and the scan step has no blanket ignore', () => {
   const toml = read('osv-scanner.toml');
   const entries = toml.split('[[IgnoredVulns]]').slice(1);
-  assert.ok(entries.length > 0);
   for (const e of entries) {
     assert.match(e, /^\s*id = "GHSA-[a-z0-9-]+"/m, 'ignored advisory has no id');
     assert.match(e, /^reason = ".{40,}"/m, 'ignored advisory has no written reason');
@@ -82,4 +81,15 @@ test('osv-scanner.toml exceptions are time-boxed, reasoned and the scan step has
   }
   assert.doesNotMatch(wf, /osv-scanner[^\n]*\|\| true/);
   assert.doesNotMatch(wf, /--config|--experimental-all-packages/);
+});
+
+// GHSA-g3hv-75wg-m249: every minimatch in the lock file is 11.0.1 or later (the override in package.json).
+test('package-lock.json holds no minimatch older than 11.0.1', () => {
+  const lock = JSON.parse(read('package-lock.json'));
+  const found = Object.entries(lock.packages).filter(([k]) => /(^|\/)minimatch$/.test(k));
+  assert.ok(found.length > 0, 'minimatch is expected in the lock file');
+  for (const [k, v] of found) {
+    const [maj, min, pat] = v.version.split('.').map(Number);
+    assert.ok(maj > 11 || (maj === 11 && (min > 0 || pat >= 1)), `${k} is ${v.version}`);
+  }
 });
