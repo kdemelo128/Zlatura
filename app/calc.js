@@ -111,6 +111,7 @@ export function loanFees({ loan, points = 1, lenderLegal = 0, thirdParty = 0, re
 export function dcf({ noi, growth = 0, years = 10, discount, exitCap, saleCost = 0, capex = 0, noiSeries = null }) {
   const n = Math.round(years);
   if (!pos(discount) || !pos(exitCap) || !(n >= 1 && n <= 50)) return null;
+  if (ok(saleCost) && saleCost < 0) return null; // a negative sale cost would raise the price: refused, as on the Deal screen
   const series = Array.isArray(noiSeries) && noiSeries.length >= n + 1 ? noiSeries.slice(0, n + 1) : (ok(noi) ? Array.from({ length: n + 1 }, (_, t) => noi * (1 + nz(growth) / 100) ** t) : null);
   if (!series) return null;
   const d = discount / 100;
@@ -122,7 +123,7 @@ export function dcf({ noi, growth = 0, years = 10, discount, exitCap, saleCost =
     pvCf += pv;
     rows.push({ year: t, noi: series[t - 1], cashFlow: cf, pv });
   }
-  const sale = reversion({ basisNext: series[n], exitCap, saleCostPct: nz(saleCost) }).net;
+  const sale = /** @type {{ net: number }} */ (reversion({ basisNext: series[n], exitCap, saleCostPct: nz(saleCost) })).net;
   const pvRev = sale / (1 + d) ** n;
   const value = pvCf + pvRev;
   return { rows, reversion: sale, pvReversion: pvRev, pvCashFlows: pvCf, value, impliedCap: value ? (series[0] / value) * 100 : null, reversionShare: value ? (pvRev / value) * 100 : null };
@@ -402,6 +403,7 @@ export function escalationSchedule({ start, months, rate, unit = 'psf_year', sf,
 export function residualLand({ gdv, noi, exitCap, saleCostPct = 2, hardCost, softPct = 20, contingencyPct = 5, financePct = 6, profitPct = 15, profitOn = 'cost', buildableSf, units }) {
   const value = pos(gdv) ? gdv : pos(noi) && pos(exitCap) ? noi / (exitCap / 100) : null;
   if (!value || !pos(hardCost)) return null;
+  if (ok(saleCostPct) && saleCostPct < 0) return null; // a negative sale cost would raise the price
   const net = value * (1 - nz(saleCostPct) / 100);
   const soft = hardCost * nz(softPct) / 100;
   const cont = (hardCost + soft) * nz(contingencyPct) / 100;

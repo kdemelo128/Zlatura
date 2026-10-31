@@ -208,7 +208,7 @@ export const PROJ_LINES = {
   reserves: ['Capital reserves', ['rr.settings.reservesPsf', 'lease.sf', 'leases', 'rr.settings.expenseGrowth', 'rr.settings.years', 'rr.settings.asOf', { path: 'rr.settings.buildingSf', when: 'only when the leases give no SF' }]],
   cashFlow: ['Cash flow before debt service', ['proj.noi', 'proj.ti', 'proj.lc', 'proj.reserves']],
   occupancy: ['Occupancy (projected)', [...ROLL, { path: 'rr.settings.buildingSf', when: 'only when the leases give no SF' }]],
-  notes: ['Notes on the projection’s assumptions', ['lease.unit', 'lease.tenant', 'lease.sf', 'lease.marketRent', 'lease.status', 'leases', 'rr.settings.marketRent', 'rr.settings.marketGrowth', 'rr.settings.renewal']],
+  notes: ['Notes on the projection’s assumptions', ['lease.unit', 'lease.tenant', 'lease.sf', 'lease.marketRent', 'lease.status', 'lease.recovery', 'lease.rent', 'lease.percentRent', 'leases', 'rr.settings.marketRent', 'rr.settings.marketGrowth', 'rr.settings.renewal']],
 };
 for (const [k, [label, reads]] of Object.entries(PROJ_LINES)) {
   node(`proj.${k}`, { group: 'projection', label, reads: reads.map((p) => (typeof p === 'string' ? { path: p, ...RR } : p)), rr: true });

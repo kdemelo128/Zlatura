@@ -6,7 +6,8 @@
 import { PRODUCT } from './brand.js';
 import { $, el, parseNum, parsePct, int, dec, money0, money2, pct, times, short, niceDate, toast } from './kit.js';
 import { quantizeDeal, toCents } from './engine/money.js';
-import { createDeal, discardDeal, showDeal, loanDefaults, scnRead } from './dealui.js';
+import { SALE_COST_NEGATIVE } from './deal.js';
+import { createDeal, discardDeal, showDeal, loanDefaults, scnRead, scnRefused, setRefusal } from './dealui.js';
 import { newScratch, work, dealFields, loadScratch, saveScratch, deleteScratch, MAX_SCRATCH } from './uwstore.js';
 
 let api = null;
@@ -32,7 +33,7 @@ const LOAN = [
   ['loan', 'closing', 'Closing costs %', 'pct0'], ['loan', 'minDscr', 'Lender minimum DSCR', 'num'], ['loan', 'minDy', 'Lender minimum debt yield %', 'pct'],
 ];
 const HOLD = [
-  ['live', 'hold', 'Hold, years', 'hold'], ['live', 'growth', 'NOI growth a year %', 'delta'], ['live', 'exitCap', 'Exit cap rate %', 'pct'], ['live', 'saleCost', 'Sale costs %', 'pct0'],
+  ['live', 'hold', 'Hold, years', 'hold'], ['live', 'growth', 'NOI growth a year %', 'delta'], ['live', 'exitCap', 'Exit cap rate %', 'pct'], ['live', 'saleCost', 'Sale costs %', 'cost'],
 ];
 
 /** What was typed, as the deal page reads the same kind of field (null when it can't be read: a blank is absent, never 0). */
@@ -105,7 +106,12 @@ function field(parent, part, key, label, kind, inputs) {
   i.autocomplete = 'off';
   if (kind !== 'text') i.inputMode = 'decimal';
   i.value = show(kind, cur[part][key]);
+  const er = el('div', 'hint-sm warn-text');
+  er.id = `uw-err-${key}`;
+  // a record saved with a negative sale cost opens with the refusal showing
+  setRefusal(i, er, scnRefused(kind, i.value), `${SALE_COST_NEGATIVE} The default is used instead.`);
   const apply = () => {
+    setRefusal(i, er, scnRefused(kind, i.value), `${SALE_COST_NEGATIVE} The default is used instead.`);
     const v = read(kind, i.value);
     if (v === null || v === undefined) delete cur[part][key]; else cur[part][key] = v;
     touched();
@@ -114,7 +120,7 @@ function field(parent, part, key, label, kind, inputs) {
   i.addEventListener('input', apply);
   i.addEventListener('change', () => { apply(); i.value = show(kind, cur[part][key]); flush(); });
   inputs.set(`${part}.${key}`, i);
-  fd.append(lab, i);
+  fd.append(lab, i, er);
   parent.appendChild(fd);
 }
 
@@ -211,7 +217,10 @@ function card() {
   };
   const [cap, capWhy] = ask('Price for a cap rate of', 'cap');
   const [irr, irrWhy] = ask('Price for a levered IRR of', 'irr');
-  out.append(res, ans);
+  const notes = el('div');
+  notes.id = 'uw-notes';
+  notes.setAttribute('role', 'status');
+  out.append(res, notes, ans);
   c.appendChild(out);
 
   const acts = el('div', 'view-actions');
@@ -224,7 +233,7 @@ function card() {
   del.id = 'uw-delete';
   acts.append(save, nw, del);
   c.appendChild(acts);
-  live = { inputs, res, build, cap, capWhy, irr, irrWhy, sub: null, title: null };
+  live = { inputs, res, notes, build, cap, capWhy, irr, irrWhy, sub: null, title: null };
   return c;
 }
 
@@ -250,10 +259,12 @@ function results() {
   if (m.maxLoan) L.appendChild(line('Largest loan it supports', money0(m.maxLoan.loan), true, `limited by ${m.maxLoan.binding}${m.maxLoan.tests.DSCR ? ` · DSCR test ${short(m.maxLoan.tests.DSCR)}` : ''}${m.maxLoan.tests['Debt yield'] ? ` · debt-yield test ${short(m.maxLoan.tests['Debt yield'])}` : ''}`));
   else L.appendChild(line('Largest loan it supports', '—'));
   L.append(
-    line('Levered IRR', pct(r && r.leveredIrr), true, r ? `${run.inputs.hold}-year hold, NOI growing ${dec(run.inputs.growth, 2)}% a year, sold at a ${ok(run.inputs.exitCap) ? pct(run.inputs.exitCap) : '—'} cap` : 'needs a price, NOI and an exit cap'),
+    line('Levered IRR', pct(r && r.leveredIrr), true, r ? `${run.inputs.hold}-year hold, NOI growing ${dec(run.inputs.growth, 2)}% a year, sold at a ${ok(run.inputs.exitCap) ? pct(run.inputs.exitCap) : '—'} cap` : ok(run.inputs.saleCost) && run.inputs.saleCost < 0 ? 'left out: sale costs can’t be negative' : 'needs a price, NOI and an exit cap'),
     line('Equity multiple', mult),
     line('Unlevered IRR', pct(r && r.unleveredIrr)),
   );
+  live.notes.textContent = '';
+  for (const t of run.notes) live.notes.appendChild(el('p', 'hint-sm warn-text', t));
   // the two answers sit in rows drawn once, so a target field being typed in is never replaced
   live.cap.textContent = money0(answers.priceForCap);
   live.capWhy.textContent = ok(run.inputs.noi) ? `NOI ${money0(run.inputs.noi)} ÷ cap rate` : 'needs NOI';
