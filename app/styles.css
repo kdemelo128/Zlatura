@@ -1408,3 +1408,9 @@ dialog.sheet[open] { animation: up .26s var(--ease); }
   .docs-page { grid-template-columns: 64px minmax(0, 1fr) auto; }
   .docs-btns { grid-column: auto; }
 }
+.conv-can li { display: grid; gap: var(--s1, 4px); justify-items: start; }
+.conv-can .hint-sm, .conv-no li { overflow-wrap: anywhere; }
+.conv-no { padding-left: var(--s3); list-style: disc; display: grid; gap: var(--s1, 4px); color: var(--ink-2, inherit); }
+.conv-all summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.conv-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+.conv-table th, .conv-table td { text-align: left; vertical-align: top; padding: var(--s1, 4px) var(--s2); border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }

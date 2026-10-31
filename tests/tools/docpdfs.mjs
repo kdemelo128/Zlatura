@@ -144,3 +144,52 @@ export function sharedImagesPdf(mode) {
 export function undecodablePdf() {
   return assemble([...frame(), page(5, ''), { dict: '<< /Filter /FooDecode >>', stream: 'q Q' }]);
 }
+
+/* ---------------------------------------------------------------- Documents > Convert fixtures */
+
+import { deflateSync } from 'node:zlib';
+import { zipSync, strToU8 } from 'fflate';
+
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = (b) => { let c = 0xffffffff; for (const x of b) c = CRC[(c ^ x) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+const be32 = (n) => Uint8Array.of(n >>> 24, (n >>> 16) & 255, (n >>> 8) & 255, n & 255);
+const chunk = (type, data) => { const t = enc.encode(type); const body = Uint8Array.from([...t, ...data]); return Uint8Array.from([...be32(data.length), ...body, ...be32(crc32(body))]); };
+
+/** A real PNG, `w` by `h`, one flat colour (RGBA), decodable by any viewer. */
+export function tinyPng(w = 8, h = 6, [r, g, b, a] = [200, 40, 40, 255]) {
+  const row = Uint8Array.from([0, ...Array.from({ length: w }, () => [r, g, b, a]).flat()]);
+  const raw = Uint8Array.from(Array.from({ length: h }, () => [...row]).flat());
+  const ihdr = Uint8Array.from([...be32(w), ...be32(h), 8, 6, 0, 0, 0]);
+  return Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...chunk('IHDR', ihdr), ...chunk('IDAT', deflateSync(raw)), ...chunk('IEND', [])]);
+}
+/** A PNG that says it is `w` by `h` pixels but holds one row: the header is all a size check reads. */
+export const hugePng = (w, h) => { const p = tinyPng(2, 1); p.set(be32(w), 16); p.set(be32(h), 20); return p; };
+
+/** The markers of a JPEG (start, optional EXIF orientation, frame header of `w` by `h`, end) with no picture data:
+ *  enough for a size check, an orientation read and the PDF library's embed (which copies the bytes), not for drawing. */
+export function jpegShell(w = 40, h = 30, orientation = 1) {
+  const exif = orientation === 1 ? [] : [0xff, 0xe1, 0, 34, 0x45, 0x78, 0x69, 0x66, 0, 0, 0x49, 0x49, 0x2a, 0, 8, 0, 0, 0, 1, 0, 0x12, 0x01, 3, 0, 1, 0, 0, 0, orientation, 0, 0, 0, 0, 0, 0, 0];
+  const sof = [0xff, 0xc0, 0, 11, 8, h >> 8, h & 255, w >> 8, w & 255, 1, 1, 0x11, 0];
+  return Uint8Array.from([0xff, 0xd8, ...exif, ...sof, 0xff, 0xd9]);
+}
+
+/** A Word file with `paras` paragraphs of body text, a two-cell table row, a text box that stores its text twice
+ *  (as Word does) and a deleted run, plus a header that must not appear. */
+export function docxFile(paras = ['First paragraph.', 'Second & last.']) {
+  const p = (t) => `<w:p><w:r><w:t xml:space="preserve">${t.replace(/&/g, '&amp;')}</w:t></w:r></w:p>`;
+  const body = paras.map(p).join('')
+    + '<w:tbl><w:tr><w:tc><w:p><w:r><w:t>Cell A</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Cell B</w:t></w:r></w:p></w:tc></w:tr></w:tbl>'
+    + '<mc:AlternateContent><mc:Choice><w:p><w:r><w:t>Boxed note</w:t></w:r></w:p></mc:Choice><mc:Fallback><w:p><w:r><w:t>Boxed note</w:t></w:r></w:p></mc:Fallback></mc:AlternateContent>'
+    + '<w:p><w:del><w:r><w:delText>Struck</w:delText></w:r></w:del><w:r><w:t>Kept</w:t></w:r></w:p>';
+  const xml = `<?xml version="1.0"?><w:document xmlns:w="w" xmlns:mc="mc"><w:body>${body}</w:body></w:document>`;
+  return zipSync({ '[Content_Types].xml': strToU8('<Types/>'), 'word/document.xml': strToU8(xml), 'word/header1.xml': strToU8('<w:hdr><w:p><w:r><w:t>Header text</w:t></w:r></w:p></w:hdr>') });
+}
+
+/** The first bytes of an old Word file (an OLE container naming a WordDocument stream). */
+export function oleDoc() {
+  const head = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+  const name = [...'WordDocument'].flatMap((c) => [c.charCodeAt(0), 0]);
+  return Uint8Array.from([...head, ...new Array(504).fill(0), ...name, ...new Array(64).fill(0)]);
+}
+/** A zip that is not a workbook or a document (a Pages or PowerPoint file looks like this). */
+export const otherZip = () => zipSync({ 'index.xml': strToU8('<x/>'), 'Data/a.txt': strToU8('a') });
