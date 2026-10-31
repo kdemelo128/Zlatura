@@ -715,6 +715,45 @@ button.src::after { content: ""; position: absolute; inset: -11px -6px; }
 .dd-naform input { width: 100%; min-height: 44px; }
 .dd-formbtns { display: flex; gap: 8px; }
 .dd-asof { display: grid; gap: 6px; padding: var(--s4); }
+/* the Lease abstracts card and editor (abstractui.js): status is words, every target is at least 44px */
+.ab-row .dd-line .btn { min-height: 44px; }
+dialog.sheet:has(.ab-editor) { max-width: 1100px; }
+dialog.sheet:has(.ab-editor) .sheet-card { height: calc(100dvh - 24px); }
+.ab-editor { display: grid; gap: var(--s3); outline: none; }
+.ab-meta { display: grid; gap: var(--s3); grid-template-columns: 1fr; }
+.ab-ctl { display: grid; gap: 2px; min-width: 0; }
+.ab-ctl input, .ab-ctl select, .ab-ctl textarea, .ab-input input, .ab-input select, .ab-input textarea { width: 100%; min-height: 44px; padding: 7px 9px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-sm); font-size: var(--t-15); }
+.ab-input { display: grid; gap: 6px; }
+.ab-editor input:not([type=checkbox]), .ab-editor select, .ab-editor textarea { min-height: 44px; }
+.ab-meta input, .ab-meta select, #ab-add-clause { width: 100%; padding: 7px 9px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-sm); font-size: var(--t-15); }
+.ab-progress { font-weight: 600; margin: 0; }
+.ab-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.ab-filter[aria-checked="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.ab-filter, .ab-tools .btn, .ab-exports .btn, .ab-editor .btn { min-height: 44px; }
+.ab-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: var(--t-13); }
+.ab-fail { font-weight: 600; }
+.ab-group > h3 { margin: var(--s3) 0 var(--s2); }
+.ab-ginner { display: grid; gap: var(--s3); }
+.ab-field, .ab-term, .ab-option, .ab-step { border: 1px solid var(--line); border-radius: var(--r-sm); padding: var(--s3); display: grid; gap: var(--s2); }
+.ab-grid { display: grid; gap: var(--s2); grid-template-columns: 1fr; }
+.ab-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ab-why { flex: 1 1 100%; }
+.ab-src { flex: 1 1 100%; }
+.ab-src summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+.ab-src[open] { display: grid; gap: var(--s2); }
+.ab-check { display: flex; align-items: center; gap: 6px; min-height: 44px; }
+.ab-check input { width: 24px; height: 24px; }
+.ab-readout, .ab-total { margin: 0; font-size: var(--t-13); color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ab-flaglist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.ab-flaglist li { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+@media (min-width: 900px) {
+  .ab-meta { grid-template-columns: 2fr 1fr; }
+  .ab-ginner { grid-template-columns: 1fr 1fr; }
+  .ab-ginner > .ab-term, .ab-ginner > .ab-rent, .ab-ginner > .ab-opts, .ab-ginner > .ab-flags, .ab-ginner > .btn, .ab-ginner > select { grid-column: 1 / -1; }
+  .ab-grid { grid-template-columns: repeat(4, 1fr); }
+  .ab-stepgrid { grid-template-columns: repeat(6, 1fr); }
+}
+@media print { .ab-print { font-size: 9pt; } .ab-print-table { page-break-inside: auto; } .ab-print-flags { margin: 0; padding-left: 14pt; font-size: 8.5pt; } }
 /* the Fee card (feeui.js) */
 .credit-card > .btn, .credit-card > .hint, .credit-card > .hint-sm, .credit-card > .credit-checks { margin: 4px 14px 10px; }
 .credit-card .figs select { width: 100%; min-height: 40px; padding: 7px 9px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-sm); font-size: var(--t-15); }

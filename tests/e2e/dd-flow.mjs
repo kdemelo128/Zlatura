@@ -66,7 +66,7 @@ await page.waitForSelector('#dd-toggle');
 dealId = await page.evaluate(() => localStorage.getItem('zlatura.deal.current'));
 
 let d0 = (await deals())[0];
-check('a new deal has an empty document list at schema 7, written by the app, not made up', d0.schema === 7 && JSON.stringify(d0.dd) === JSON.stringify({ v: 1, preset: null, na: {}, docs: [] }), JSON.stringify(d0.dd));
+check('a new deal has an empty document list at schema 8, written by the app, not made up', d0.schema === 8 && JSON.stringify(d0.dd) === JSON.stringify({ v: 1, preset: null, na: {}, docs: [] }), JSON.stringify(d0.dd));
 const histN = (id = dealId) => page.evaluate((did) => new Promise((res) => { const r = indexedDB.open('zlatura'); r.onsuccess = () => { const g = r.result.transaction('history').objectStore('history').getAll(IDBKeyRange.bound([did, 0], [did, Infinity])); g.onsuccess = () => { r.result.close(); res(g.result.length); }; }; }), id);
 // a deal saved before the list existed (schema 6, no dd) is opened: the silent step adds no History entry
 await page.evaluate(async (id) => { const m = await import('./app/store.js'); const x = await m.loadDeal(id); delete x.dd; x.schema = 6; await m.saveDeal(x); }, dealId);
@@ -76,7 +76,7 @@ await page.reload({ waitUntil: 'load' });
 await page.waitForSelector('#dd-toggle');
 await settle();
 await page.waitForTimeout(800);
-check('opening a deal saved before the document list adds nothing to its History, and the list is made', (await histN()) === h0 && (await dd()) && (await deals()).find((x) => x.id === dealId).schema === 7, `${h0} → ${await histN()}`);
+check('opening a deal saved before the document list adds nothing to its History, and the list is made', (await histN()) === h0 && (await dd()) && (await deals()).find((x) => x.id === dealId).schema === 8, `${h0} → ${await histN()}`);
 check('the Documents card is collapsed by default, and its heading is a button that says so', (await page.getAttribute('#dd-toggle', 'aria-expanded')) === 'false' && (await page.locator('#dd-body').isHidden()) && (await txt('#dd-toggle')) === 'Documents');
 await page.click('#dd-toggle');
 await page.waitForSelector('#dd-preset');
@@ -228,7 +228,7 @@ const bfile = `${SHOTS}dd-backup.json`;
 await dl.saveAs(bfile);
 const btext = fs.readFileSync(bfile, 'utf8');
 const bj = JSON.parse(btext);
-check('the backup carries the document list at schema 7, and none of the files’ bytes', bj.deals.length === 1 && bj.deals[0].schema === 7 && JSON.stringify(bj.deals[0].dd) === JSON.stringify(full) && !btext.includes('%PDF') && !btext.includes('Invented Gardens Apartments'), JSON.stringify(bj.deals[0].schema));
+check('the backup carries the document list at schema 8, and none of the files’ bytes', bj.deals.length === 1 && bj.deals[0].schema === 8 && JSON.stringify(bj.deals[0].dd) === JSON.stringify(full) && !btext.includes('%PDF') && !btext.includes('Invented Gardens Apartments'), JSON.stringify(bj.deals[0].schema));
 await page.evaluate(() => new Promise((res) => { localStorage.clear(); const q = indexedDB.deleteDatabase('zlatura'); q.onsuccess = res; q.onerror = res; q.onblocked = res; }));
 await page.goto(`${BASE}#settings`, { waitUntil: 'load' });
 await page.reload({ waitUntil: 'load' });

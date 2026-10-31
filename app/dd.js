@@ -32,10 +32,11 @@ export const cutText = (s, n) => { const t = String(s ?? '').slice(0, n); return
 export const cleanName = (name) => cutText(downloadName(name), MAX_NAME);
 
 const isoDay = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`)) && new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s;
-const rid = () => {
+/** A new id: the prefix and 12 base-36 characters (dd_, ab_). */
+export const rid = (prefix = 'dd_') => {
   const bytes = new Uint8Array(12);
   if (globalThis.crypto && globalThis.crypto.getRandomValues) globalThis.crypto.getRandomValues(bytes); else for (let i = 0; i < 12; i++) bytes[i] = Math.floor(Math.random() * 256);
-  return `dd_${[...bytes].map((b) => (b % 36).toString(36)).join('')}`;
+  return `${prefix}${[...bytes].map((b) => (b % 36).toString(36)).join('')}`;
 };
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

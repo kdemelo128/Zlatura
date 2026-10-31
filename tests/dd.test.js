@@ -424,12 +424,15 @@ test('an empty or untouched document list is no edit: History would record nothi
     for (const d of deals) {
       migrateDeal(d, { today: '2026-10-10' });
       const stored = structuredClone(d);
-      delete stored.dd;
+      const realDd = d.dd && (d.dd.docs.length || d.dd.preset || Object.keys(d.dd.na).length); // a fixture may hold a real list: that is data, not bookkeeping
+      if (!realDd) delete stored.dd;
+      delete stored.abstracts;
       assert.equal(historyEntry(stored, d), null, `${f}: ${d.name}`);
       const after = structuredClone(d);
       D.ddOf(after);
       assert.equal(historyEntry(d, after), null);
-      assert.ok(!('dd' in recordable(d)));
+      assert.ok(realDd || !('dd' in recordable(d)));
+      assert.ok(!('abstracts' in recordable(d)));
     }
   }
   // but a real change is recorded

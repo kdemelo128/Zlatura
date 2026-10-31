@@ -9,12 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.77 (development branch; GitHub Pages deploys from main).
-- **Version:** 4.7.82 (development branch; GitHub Pages deploys from main).
-- **Version:** 4.7.83 (development branch; GitHub Pages deploys from main).
-- **Version:** 4.7.86 (development branch; GitHub Pages deploys from main).
-- **Version:** 4.7.87 (development branch; GitHub Pages deploys from main).
-- **Version:** 4.7.88 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.89 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -152,6 +147,7 @@ section with grep, never in full.
 - UI revamp D2: one icon set and a rename-ready brand mark
 - Rent roll column presets read the property type more carefully (Multi-tenant office is no longer multifamily)
 - **Document registry, Underwriting P1 (4.7.88, PR opening):** a Documents card per deal: what was added, what each is (the reader says, or you confirm), a checklist per property type (found / missing / optional), SHA-256 fingerprints, no document bytes stored; `deal.dd` through the silent `dd-init` schema step (7). Next: Start from documents, the Reconcile view, the template safety fixes.
+- **Lease abstract creator L1 (4.7.89, PR opening):** a typed abstract per lease on the deal (page and short quote per field, status words, blank is never zero), review checks, Excel export in the firm's abstract layout (one lease and portfolio), print view, CSV/JSON; `deal.abstracts` through the silent `abstracts-init` step (schema 8). Annual rate per SF is monthly x 12 / rentable SF (owner to confirm). No reading of PDFs yet: next L2 and later.
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
   owner says to continue.

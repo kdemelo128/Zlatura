@@ -227,9 +227,10 @@ part it extends or contradicts, and its status.
   6, 7, 8, 12 and 18. Not implemented.
 - [ ] Comp enrichment and other comp sources: proposal written, awaiting approval
   (owner, 2026-10-30; `docs/proposals/comp-enrichment-and-sources.md`). Not implemented.
-- [ ] Lease abstract creator: proposal written, awaiting approval (owner,
-  2026-10-30; `docs/proposals/lease-abstract.md`; D6 of the documents hub).
-  Not implemented.
+- [ ] Lease abstract creator: proposal approved (owner, 2026-10-31;
+  `docs/proposals/lease-abstract.md`; D6 of the documents hub). L1 (typed
+  abstract, review checks, Excel/print/CSV/JSON exports, `deal.abstracts`)
+  built in 4.7.89, PR open; reading PDFs (L2 on) not implemented.
 - [ ] A full improvement run on every feature (owner): each touched feature
   gets better, and none is removed. Partially implemented, item by item.
 - [x] Time-zone change (4.7.60) acknowledged (owner, 2026-10-29): `termLeft`
