@@ -87,3 +87,12 @@ test('no icon is drawn anywhere but icons.js (and the brand mark in brand.js)', 
   assert.ok(!/<(path|circle|rect)\b/.test(html.replace(/<!--[\s\S]*?-->/g, '')), 'index.html draws a shape by hand: use <svg data-icon="name">');
   assert.ok(!/stroke-width="/.test(html), 'index.html sets a stroke weight by hand');
 });
+
+test('no local variable or parameter named icon hides the icon() function in a file that calls it', () => {
+  for (const [f, s] of Object.entries(src)) {
+    const code = s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '');
+    if (!/[^.\w]icon\(/.test(code)) continue;
+    assert.ok(!/\b(const|let|var)\s+icon\b/.test(code), `${f} declares a variable named icon and also calls icon()`);
+    assert.ok(!/\(\s*(?:[\w$]+\s*,\s*)*icon\s*(?:,[^)]*)?\)\s*=>/.test(code), `${f} has a parameter named icon and also calls icon()`);
+  }
+});

@@ -413,10 +413,10 @@ function row(c, kind) {
 
 function actions(c, kind) {
   const box = el('span');
-  const btn = (icon, title, fn) => {
+  const btn = (glyph, title, fn) => {
     const b = el('button', 'iconbtn');
     b.type = 'button';
-    b.innerHTML = icon;
+    b.innerHTML = glyph;
     b.title = title;
     b.setAttribute('aria-label', `${title}: ${c.name}`);
     b.addEventListener('click', fn);
@@ -675,9 +675,9 @@ function restoreSnapshot(s) {
 
 function queueItem(name) {
   const li = el('li');
-  const icon = el('span', 'chev');
-  icon.innerHTML = icon('file-text', 16);
-  li.appendChild(icon);
+  const chev = el('span', 'chev');
+  chev.innerHTML = icon('file-text', 16);
+  li.appendChild(chev);
   li.appendChild(el('span', 'name', name));
   const st = el('span', 'state', 'waiting…');
   li.appendChild(st);
