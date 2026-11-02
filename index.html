@@ -110,14 +110,14 @@
         <div class="stack">
           <div class="hero drop" id="drop">
             <div class="hero-icon"><svg data-icon="upload" width="28" height="28" aria-hidden="true"></svg></div>
-            <h2 id="drop-title">Add CoStar comp reports</h2>
-            <p id="drop-text">Drop the PDFs here or choose them. Add more at any time and they join the set.</p>
+            <h2 id="drop-title">Add comps</h2>
+            <p id="drop-text">Drop CoStar PDFs, or a CSV or Excel file of comps. Everything is read on this device.</p>
             <div class="hero-actions">
-              <label class="btn btn-primary btn-lg" for="file">Choose PDFs</label>
+              <label class="btn btn-primary btn-lg" for="file">Choose files</label>
               <button class="btn btn-lg" id="example" type="button">Try example comps</button>
             </div>
             <div class="trust"><svg data-icon="shield" width="14" height="14" aria-hidden="true"></svg>Nothing is uploaded. Works offline once loaded.</div>
-            <input type="file" id="file" aria-label="Choose CoStar comp reports or a project file" accept="application/pdf,.pdf,application/json,.json" multiple>
+            <input type="file" id="file" aria-label="Choose CoStar comp reports, spreadsheets of comps, or a project file" accept="application/pdf,.pdf,application/json,.json,.csv,.tsv,.txt,text/csv,.xlsx" multiple>
           </div>
 
           <div class="card addbar" id="addbar" hidden>

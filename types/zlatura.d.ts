@@ -250,3 +250,18 @@ interface AnalysisUnits {
 type AnyUsd = Usd | UsdPerYear | UsdPerMonth | UsdPerSfYear | UsdPerSfMonth | UsdPerSf | UsdPerLandSf | UsdPerUnit | UsdPerUnitMonth | RentRate;
 /** What pct() and signed() may show: a percent, a change in percent, or points. Never a fraction. */
 type AnyPct = Pct | PctChange | Points;
+
+/* ----------------------------------------------- where a comp came from (compmodel.js) */
+/** Who made a comp: read from a CoStar report, imported from a spreadsheet, or typed in. */
+type CompOriginKind = 'costar' | 'import' | 'hand';
+/** Whether a comp's building area is rentable, gross, or not known: only a rentable area goes into $/SF without the broker's say-so. */
+type CompBasis = 'rentable' | 'gross' | 'unknown';
+/** A comp's provenance, as stored (every text capped, every number in range: compmodel.normOrigin). */
+interface CompOrigin {
+  kind: CompOriginKind; source: string | null; file: string | null; sha256: string | null; sheet: string | null;
+  row: number | null; page: number | null; profile: string | null; importedAt: string | null;
+}
+/** One remembered column layout (kv `comps.mappings`, items keyed by a 64-hex header fingerprint). */
+interface ImportLayout {
+  source: string; columns: Record<string, string>; answers: Record<string, string>; statusMap: Record<string, string>; uses: number; savedAt: number;
+}

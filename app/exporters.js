@@ -10,7 +10,7 @@ import { feeSummary } from './calc.js';
 import { toCents, toRate } from './engine/money.js';
 import { STAGE_LABEL, stageOf } from './pipeline.js';
 
-export const VERSION = '4.7.90';
+export const VERSION = '4.7.91';
 
 const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
 const ppsf = (c) => (num(c.price) && num(c.bsf) ? c.price / c.bsf : null);
@@ -71,6 +71,9 @@ const CSV_COLS = [
   ['Source PDF', (c) => c.source],
   ['Flags', (c) => (c.flags || []).join(' | ')],
 ];
+
+/** The CSV's column headings, in order (the comp importer reads its own export back by them). */
+export const CSV_HEADINGS = CSV_COLS.map(([h]) => h);
 
 /** A text cell a spreadsheet would read as a formula gets a leading quote:
  *  "=1+1", "+1", "-1", "@SUM" and anything starting with a tab or return. */

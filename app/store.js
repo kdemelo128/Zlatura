@@ -13,6 +13,7 @@
 import { FORMATS, PRODUCT, removeOldLocalKeys } from './brand.js';
 import { quantizeSession } from './engine/money.js';
 import { MIGRATIONS, MONEY_VERSION, applyStep } from './migrate.js';
+import { normCompExtras } from './compmodel.js';
 import { historyEntry, copyDeal, roundedPlace, SNAPSHOTS } from './history.js';
 
 const DB = 'zlatura';
@@ -22,7 +23,8 @@ const STORE = 'session';
 const KEY = 'current';
 const DATA_STORES = [STORE, 'deals', 'kv'];
 export const FORMAT = FORMATS.project.write;
-export const VERSION = 1;
+/** The project file's version: 2 (4.7.90) adds the comps' origin, area basis and reported $/SF; a version 1 file opens as it was. */
+export const VERSION = 2;
 /** How long the old database is kept when no backup has been made since the move. */
 export const KEEP_OLD_MS = 30 * 86400000;
 
@@ -726,7 +728,7 @@ export function compFromJSON(o) {
   c.date = o.date ? new Date(o.date) : null;
   c.parcels = new Set(o.parcels || []);
   c.flags = Array.isArray(o.flags) ? o.flags : [];
-  return c;
+  return normCompExtras(c);
 }
 
 /** Check that a parsed project file is ours and usable; throws a plain message if not. */

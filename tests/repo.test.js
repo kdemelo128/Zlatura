@@ -116,3 +116,9 @@ test('the PDF writer (Documents > PDF pages) is pinned, licensed, listed with it
   assert.ok(fs.statSync(path.join(ROOT, f)).size < 1e6, 'at 1 MB or less it can be in the install set');
   assert.ok(read('app/pdfpages-worker.js').includes(`importScripts('../${f}')`), 'the worker loads exactly this file');
 });
+
+test('the comp importer reads files on the device only: no network call in its modules', () => {
+  for (const f of ['app/compimport.js', 'app/compimportui.js', 'app/compmodel.js']) {
+    assert.ok(!/\bfetch\(|XMLHttpRequest|sendBeacon|WebSocket|EventSource/.test(read(f)), `${f} makes no network call`);
+  }
+});
