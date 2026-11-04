@@ -270,7 +270,7 @@ const HTML_ALLOW = [
   { re: /^<script>$/, why: 'inline blocks that start on their own line (3 today), written in index.html; no data goes in' },
   { re: /^<script nomodule>document\.getElementById\('shell'\)\.hidden = true; document\.getElementById\('fatal'\)\.hidden = false;<\/script>$/, why: 'old-browser notice, fixed ids' },
   { re: /^<script type="module">$/, why: 'inline module block; no data goes in' },
-  { re: /^<script type="module" src="app\/ui\.js" onerror="document\.getElementById\('load-error'\)\.hidden=false"><\/script>$/, why: 'the app entry: one fixed onerror that unhides the load-error notice' },
+  { re: /^<script type="module" src="app\/ui\.js" onerror="document\.getElementById\('load-error'\)\.hidden=false;noteFailure\(this\.src,'the app did not finish loading; a content blocker or the connection may be the cause'\);findBlocked\(\)"><\/script>$/, why: 'the app entry: one fixed onerror that unhides the load-error notice, records the script own src and a fixed sentence (noteFailure) and runs the blocked-file preflight (findBlocked); no page data goes in'},
 ];
 test('index.html has only the reviewed inline scripts and on* attributes', () => {
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
