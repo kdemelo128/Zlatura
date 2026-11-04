@@ -1260,7 +1260,10 @@ dialog.sheet[open] { animation: up .26s var(--ease); }
 }
 .toast button { pointer-events: auto; border: 0; background: none; font: 700 var(--t-14) var(--ui); cursor: pointer; padding: 0 4px; min-height: 32px; min-width: 32px; color: var(--brass-mark); white-space: nowrap; }
 @media (min-width: 960px) { .toast { bottom: 24px; left: 248px; } }
+.start-fail { background: var(--primary); color: var(--primary-ink); padding: 10px 16px; font-size: var(--t-14); line-height: 1.45; }
 .fatal { max-width: 640px; margin: 40px auto; padding: 0 16px; }
+.fatal .btn { min-height: 44px; margin: 8px 0; }
+.fatal pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--t-14); }
 .fatal h2 { font: 600 24px/1.2 var(--serif); margin-bottom: 8px; }
 @media (max-width: 760px) { .charts { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 420px) { .view-head h1 { font-size: 27px; } .home-head h1 { font-size: 30px; } .hide-sm { display: none; } .tile .v, .kpi .v { font-size: 21px; } }

@@ -235,7 +235,7 @@ deal.sources[key].doc = Doc.id                              // optional; new rea
   type that isn't superseded; n/a = an entry in `na`. Only the broker's
   choices are stored.
 - **SHA-256** through `crypto.subtle.digest`. The helper already in
-  `researchui.js:28` moves to `app/fingerprint.js`, and both callers use it
+  `researchui.js:28` moves to `app/filehash.js`, and both callers use it
   (no second copy). Where `crypto.subtle` is missing (an insecure origin),
   the value is `null`, never a fake.
 - **Caps:** 200 Docs. A 201st is refused with a message. `name` and `note`

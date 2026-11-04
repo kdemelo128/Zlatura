@@ -1579,17 +1579,33 @@ const compsApi = {
   // a restore writes straight to storage: any comp edit still pending goes first
   flushComps: flushSession,
 };
-initDeal(compsApi);
-initTools(compsApi);
-initUnderwrite(compsApi);
-initHome(compsApi);
-initSettings(compsApi);
-initCommand(compsApi);
-initTheme();
-initLook();
-initShortcuts(compsApi);
-initReview();
-initResearch(compsApi);
+/* One failing start-up step must not take the app down: it is named on screen and in the console, and the
+   rest still run. Nothing is saved or changed by the banner. */
+const failedParts = [];
+function step(part, fn) {
+  try { fn(); } catch (e) {
+    console.error(`${part} did not start`, e);
+    failedParts.push(part);
+    let b = document.getElementById('start-fail');
+    if (!b) {
+      b = document.createElement('div'); b.id = 'start-fail'; b.className = 'start-fail';
+      b.setAttribute('role', 'alert');
+      document.body.prepend(b);
+    }
+    b.textContent = `Part of the app did not start: ${failedParts.join(', ')}. Your deals were not touched. Reload the page; if it happens again, tell support which part is named here.`;
+  }
+}
+step('Deal', () => initDeal(compsApi));
+step('Tools', () => initTools(compsApi));
+step('Underwrite', () => initUnderwrite(compsApi));
+step('Home', () => initHome(compsApi));
+step('Settings', () => initSettings(compsApi));
+step('Command palette', () => initCommand(compsApi));
+step('Theme', () => initTheme());
+step('Look', () => initLook());
+step('Shortcuts', () => initShortcuts(compsApi));
+step('Review', () => initReview());
+step('Research', () => initResearch(compsApi));
 
 restoreSubject();
 renderAll();

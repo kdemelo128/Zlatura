@@ -12,7 +12,7 @@ import { blocked } from './ai.js';
 import { intake } from './ddintake.js';
 import { classify, TYPES, TYPE_BY_ID, typeLabel, PRESETS, PRESET_IDS } from './ddtypes.js';
 import { ddOf, checklist, addDoc, removeDoc, restoreDoc, retype, markReviewed, setAsOf, setNa, clearNa, recordRead, MAX_REASON } from './dd.js';
-import { sha256Hex } from './fingerprint.js';
+import { sha256Hex } from './filehash.js';
 import { LIMITS } from './filekind.js';
 
 const OPEN_KEY = 'zl.dd.open';
