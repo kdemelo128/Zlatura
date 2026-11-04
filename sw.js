@@ -86,7 +86,7 @@ const ASSETS = [
   'app/abstracts.js',
   'app/abstractexport.js',
   'app/abstractui.js',
-  'app/fingerprint.js',
+  'app/filehash.js',
   'app/feeui.js',
   'app/review.js',
   'app/reviewui.js',

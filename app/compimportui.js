@@ -6,7 +6,7 @@ import { $, el, toast, getXlsx, getFflate, downloadName, int } from './kit.js';
 import { PRODUCT } from './brand.js';
 import { checkUpload } from './filekind.js';
 import { readGrids, unreadable } from './sheetread.js';
-import { sha256Hex } from './fingerprint.js';
+import { sha256Hex } from './filehash.js';
 import { LEVEL_WORD } from './dataqc.js';
 import { kvTooNew } from './migrate.js';
 import { LIMITS } from './compmodel.js';
