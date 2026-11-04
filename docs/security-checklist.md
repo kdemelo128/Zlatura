@@ -92,6 +92,10 @@ itself is not installed or run. First applied by hand on 2026-10-21 (findings F1
 34. A dynamic pass (fuzzing a parser, a zip-bomb timing, a live header check) is listed as not performed unless it
     was done; add one when a phase introduces accounts, hosting or a new file format.
 
+## Repo hygiene guard (`tests/hygiene.test.js`)
+
+Runs in `npm test`, so locally and in the `test.yml` job, with no network. Fails if a tracked path is under `private/`, is a `.env*`, key, certificate or local-database file, or is a `.pdf/.xlsx/.xls/.docx/.pptx` not in the exact allowlist of invented fixtures (empty today; `.gitignore` already ignores the document types, so a tracked one was force-added). Also scans tracked text files for private-key blocks and AWS, GitHub, Slack, `sk-`, Google and JWT tokens, and reports the path and rule only. It complements gitleaks in `security-scan.yml`. Blind spot: it cannot tell that a realistic name or figure inside a committed fixture is invented; it sees only paths, extensions and secret patterns, so fixture review stays a human check.
+
 ## Standing remediation rule
 
 Fixes are separate PRs with a test that fails on the old code. A finding that changes a stored field, a saved result

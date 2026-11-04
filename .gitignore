@@ -11,3 +11,15 @@ private/
 
 # personal Claude Code settings (the shared ones are .claude/settings.json)
 .claude/settings.local.json
+
+# credentials and local databases: never committed (tests/hygiene.test.js fails if one is tracked)
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+*.kdbx
+*.sqlite
+*.sqlite3
+*.db
