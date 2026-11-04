@@ -12,16 +12,18 @@ export function safeHref(url) {
   } catch { return ''; }
 }
 
-/** mailto: for an address; "?", "&" and "#" in it are escaped, so it cannot add a cc, a bcc, a subject or a body. '' without an "@". */
+/** mailto: for an address. A pasted leading "mailto:" is dropped; text with whitespace, a comma or semicolon, angle brackets or a control character is not an address and gets no link; "?", "&" and "#" are escaped, so it cannot add a cc, a bcc, a subject or a body. '' without an "@". */
 export function mailtoHref(email) {
-  const s = String(email ?? '').trim();
+  const s = String(email ?? '').trim().replace(/^mailto:/i, '').trim();
+  if (/[\s,;<>\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/.test(s)) return '';
   const at = s.lastIndexOf('@');
   if (at < 1 || at === s.length - 1) return '';
   return safeHref(`mailto:${encodeURIComponent(s.slice(0, at))}@${encodeURIComponent(s.slice(at + 1))}`);
 }
 
-/** tel: for a number: digits and a leading "+" only. '' when no digit is left. */
+/** tel: for a number: digits, and a "+" only when it is the first character. '' when no digit is left. */
 export function telHref(phone) {
-  const d = String(phone ?? '').replace(/[^\d+]/g, '');
-  return /\d/.test(d) ? safeHref(`tel:${d}`) : '';
+  const s = String(phone ?? '').trim();
+  const d = s.replace(/\D/g, '');
+  return d ? safeHref(`tel:${s.startsWith('+') ? '+' : ''}${d}`) : '';
 }

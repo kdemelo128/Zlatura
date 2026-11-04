@@ -18,6 +18,9 @@ test('mailtoHref cannot add a header, and refuses text that is not an address', 
   assert.ok(h.startsWith('mailto:'), h);
   assert.ok(!/[?&#]/.test(h.slice(7)), h);
   assert.equal(mailtoHref('javascript:alert(1)'), '');
+  assert.equal(mailtoHref('mailto:a@b.test'), 'mailto:a@b.test');
+  assert.equal(mailtoHref(' MAILTO:a@b.test '), 'mailto:a@b.test');
+  for (const bad of ['a b@c.test', 'a@b.test c', 'a@b.test,c@d.test', 'a@b.test;c@d.test', 'Name <a@b.test>', 'a\u0000@b.test', 'a@b.test\u0007', 'a\t@b.test', 'a@b.test\u202e', 'a\u200b@b.test']) assert.equal(mailtoHref(bad), '', JSON.stringify(bad));
   assert.equal(mailtoHref(''), ''); assert.equal(mailtoHref(null), ''); assert.equal(mailtoHref('@b.test'), ''); assert.equal(mailtoHref('a@'), '');
 });
 
@@ -25,5 +28,8 @@ test('telHref keeps digits and a plus, and nothing else', () => {
   assert.equal(telHref('(555) 123-4567'), 'tel:5551234567');
   assert.equal(telHref('+1 555 123 4567'), 'tel:+15551234567');
   assert.equal(telHref('javascript:alert(1)'), 'tel:1');
+  assert.equal(telHref('1+2'), 'tel:12');
+  assert.equal(telHref('555+1234'), 'tel:5551234');
+  assert.equal(telHref('  +44 20 7946 0000'), 'tel:+442079460000');
   assert.equal(telHref('call me'), ''); assert.equal(telHref(null), ''); assert.equal(telHref('+'), '');
 });
