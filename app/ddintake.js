@@ -14,7 +14,7 @@ import { layoutOf, sheetChoices, pickSheet } from './t12.js';
 import { headerAndRows } from './rentrollui.js';
 import { classify, scoreText, suggestFromName } from './ddtypes.js';
 import { kindOf } from './dd.js';
-import { sha256Hex } from './fingerprint.js';
+import { sha256Hex } from './filehash.js';
 
 const accepts = (fn) => { try { return !!fn(); } catch { return false; } };
 const cellText = (grids) => grids.flatMap((g) => g.rows.slice(0, 60).map((r) => r.cells.filter((c) => typeof c === 'string').join(' '))).join('\n').replace(/[ \t]+/g, ' ');

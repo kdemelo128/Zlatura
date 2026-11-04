@@ -8,7 +8,7 @@ import { PRODUCT } from './brand.js';
 import { scaleOf } from './scale.js';
 import { parseDateText } from './dateinput.js';
 import { toCents, toRate } from './engine/money.js';
-import { sha256Hex } from './fingerprint.js';
+import { sha256Hex } from './filehash.js';
 import { cell, CSV_HEADINGS } from './exporters.js';
 import { LIMITS, BASES, blankComp, originText } from './compmodel.js';
 

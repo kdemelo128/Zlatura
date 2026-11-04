@@ -300,6 +300,9 @@
 <div class="fatal" id="load-error" hidden>
   <h2>Zlatura didn&rsquo;t finish loading</h2>
   <p>Part of the app could not be downloaded. Check the connection and reload the page. Once it has loaded completely, it works with no connection at all.</p>
+  <p id="load-error-detail" role="status"></p>
+  <p>Your deals were not touched. If you use an ad or privacy blocker, allow this site and reload.</p>
+  <button class="btn btn-gray" id="load-error-reset" type="button">Reset the offline copy and reload</button>
 </div>
 
 <script nomodule>document.getElementById('shell').hidden = true; document.getElementById('fatal').hidden = false;</script>
@@ -309,6 +312,43 @@
   let probe = null;
   probe ??= ({ ok: true })?.ok;
   window.__zlaturaSyntax = probe;
+</script>
+<script>
+  /* What actually failed, in plain text: the file and the browser's own words. */
+  window.__zlaturaFailures = [];
+  function noteFailure(file, text) {
+    var f = String(file || '').replace(location.origin, '');
+    window.__zlaturaFailures.push((f ? f + ': ' : '') + (text || ''));
+    var d = document.getElementById('load-error-detail');
+    if (d) d.textContent = window.__zlaturaFailures.join(' | ');
+  }
+  window.addEventListener('error', function (e) {
+    if (window.__zlaturaReady) return;
+    var t = e.target && (e.target.src || e.target.href);
+    noteFailure(t || e.filename, t ? 'this file could not be downloaded; a content blocker or the connection may be the cause' : e.message);
+  }, true);
+  window.addEventListener('unhandledrejection', function (e) {
+    if (window.__zlaturaReady) return;
+    var r = e.reason; noteFailure('', (r && r.message) || String(r || 'a file could not be downloaded; a content blocker or the connection may be the cause'));
+  });
+  /* The browser does not say which imported file failed, so ask for each file the app lists and name the
+     ones that cannot be fetched (a blocker rejects the request). */
+  function findBlocked() {
+    fetch('sw.js').then(function (r) { return r.text(); }).then(function (t) {
+      var files = (t.match(/'(?:app|vendor)\/[^']+\.js'/g) || []).map(function (q) { return q.slice(1, -1); });
+      return Promise.all(files.map(function (f) { return fetch(f).then(function (r) { return r.ok ? null : f + ' (' + r.status + ')'; }, function () { return f; }); }));
+    }).then(function (bad) {
+      bad = bad.filter(Boolean);
+      if (bad.length) noteFailure(bad.join(', '), 'could not be downloaded; a content blocker or the connection may be the cause');
+    }).catch(function () {});
+  }
+  /* Clears the offline copy only: the service worker and Cache Storage. Deals live in IndexedDB and
+     localStorage and are never touched. */
+  document.getElementById('load-error-reset').addEventListener('click', function () {
+    var go = function () { location.reload(); };
+    var regs = navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }) : Promise.resolve();
+    regs.catch(function () {}).then(function () { return window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }) : 0; }).catch(function () {}).then(go);
+  });
 </script>
 <script>
   /* Decided when the page has finished loading, not on a timer: "load" fires
@@ -322,6 +362,6 @@
     document.getElementById(which).hidden = false;
   });
 </script>
-<script type="module" src="app/ui.js" onerror="document.getElementById('load-error').hidden=false"></script>
+<script type="module" src="app/ui.js" onerror="document.getElementById('load-error').hidden=false;noteFailure(this.src,'the app did not finish loading; a content blocker or the connection may be the cause');findBlocked()"></script>
 </body>
 </html>
