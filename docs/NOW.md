@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.91 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.93 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -150,6 +150,7 @@ section with grep, never in full.
 - **Lease abstract creator L1 (4.7.89, PR opening):** a typed abstract per lease on the deal (page and short quote per field, status words, blank is never zero), review checks, Excel export in the firm's abstract layout (one lease and portfolio), print view, CSV/JSON; `deal.abstracts` through the silent `abstracts-init` step (schema 8). Annual rate per SF is monthly x 12 / rentable SF (owner to confirm). No reading of PDFs yet: next L2 and later.
 - **Comps table render cap (4.7.90, merged #118):** the comps table draws the first 200 rows with a "Show all N comps" button; totals, exports, sort and search still cover every comp (an edit at 1,200 comps: about 650 ms to about 61 ms on desktop).
 - **Comp importer C1 (4.7.91, PR opening):** Comps imports from CSV and Excel through a mapper that remembers each layout (`comps.mappings`), asks about sale vs asking, percent vs decimal, acres vs SF and gross vs rentable area, shows possible duplicates (Skip / Add anyway), and records where each comp came from; the project file is version 2. No network, no vendor profiles yet (they need real exports from the owner). The CoStar reader and golden outputs are untouched. Next: C2 staging, then online lookups.
+- **Security S1, repo hygiene guard (4.7.93, PR opening):** a test over `git ls-files` rejects tracked files under `private/`, `.env*`, keys and databases, real-document types, and high-confidence secret patterns (path and rule only, never the match); `.gitignore` extended. From `docs/proposals/security-robustness-triage.md` (merged #121), rank 1. Next: S4 (DOM sink scan), then S3 (size caps on six readers).
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
   owner says to continue.
