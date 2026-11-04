@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.92 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.94 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -151,6 +151,7 @@ section with grep, never in full.
 - **Comps table render cap (4.7.90, merged #118):** the comps table draws the first 200 rows with a "Show all N comps" button; totals, exports, sort and search still cover every comp (an edit at 1,200 comps: about 650 ms to about 61 ms on desktop).
 - **Comp importer C1 (4.7.91, PR opening):** Comps imports from CSV and Excel through a mapper that remembers each layout (`comps.mappings`), asks about sale vs asking, percent vs decimal, acres vs SF and gross vs rentable area, shows possible duplicates (Skip / Add anyway), and records where each comp came from; the project file is version 2. No network, no vendor profiles yet (they need real exports from the owner). The CoStar reader and golden outputs are untouched. Next: C2 staging, then online lookups.
 - **Load-error fix (4.7.92, PR opening):** a privacy or ad blocker (EasyPrivacy blocks any file named fingerprint.js on github.io) stopped the app loading in the owner's normal Mac browser; the file is now `app/filehash.js`, a test forbids tracker-like file names, the load-error panel names the failed file and has a "Reset the offline copy and reload" button that never touches deals, and a failing start-up step is named on screen while the rest still run. Next: the Safari < 16.4 regex fix in `convert-worker.js`, then lease PDF reading (L2). Codex is connected through `AGENTS.md` (#120); the owner's Codex-built underwriting filler is to be uploaded and used as the base of the underwriting tool.
+- **Security S4, DOM sink scan and link gate (4.7.94, PR opening):** `tests/dom-sinks.test.js` (TypeScript parser, exact reviewed allowlist) fails on any new HTML sink, eval, or unchecked link or timer string in `app/` and `index.html`; `app/links.js` allows only http, https, mailto and tel and fixes a real gap (a contact email with `?bcc=` made a mailto link with hidden recipients); 18 new hostile payloads. Designer review done (scan header made honest, mailto edge cases, hidden characters escaped). Triage rank 6.
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
   owner says to continue.
