@@ -167,14 +167,28 @@ async function scenario(label, opts) {
   await page.waitForFunction(() => /of 2,000 comps/.test(document.querySelector('#sales-table')?.textContent || ''), null, { timeout: 60000 });
   c('the table draws the first 200 of 2,000 imported comps with a Show all button', /Showing 200 of 2,000 comps/.test(await page.locator('#sales-table').textContent()) && (await page.locator('#sales-table button', { hasText: 'Show all 2,000 comps' }).count()) === 1);
   await page.waitForTimeout(2000);
-  const price = page.locator('#sales-table tbody tr').first().locator('input[aria-label="Sale price"]');
-  const before = await page.locator('#sales-table tbody tr').first().locator('.calc').first().textContent();
-  await price.fill('7,000,000');
-  await page.evaluate((b) => window.__arm('change', () => document.querySelector('#sales-table tbody tr .calc')?.textContent !== b), before);
-  await price.press('Tab');
-  await page.waitForFunction(() => window.__perf.done !== null, null, { timeout: 30000 });
-  const ms = await page.evaluate(() => window.__perf.done);
-  c(`an edit with 2,000 imported comps takes ${Math.round(ms)} ms (budget 150)`, ms <= 150, `${ms} ms`);
+  // six edits on six rows: the median is the stable figure, the worst sample is held to the same 150 ms ceiling
+  const samples = [];
+  for (let k = 0; k < 6; k++) {
+    const row = page.locator('#sales-table tbody tr').nth(k);
+    const price = row.locator('input[aria-label="Sale price"]');
+    const before = await row.locator('.calc').first().textContent();
+    await price.fill(`${7000000 + k * 13}`);
+    await page.evaluate(([i, b]) => window.__arm('change', () => document.querySelectorAll('#sales-table tbody tr')[i]?.querySelector('.calc')?.textContent !== b), [k, before]);
+    await price.press('Tab');
+    await page.waitForFunction(() => window.__perf.done !== null, null, { timeout: 30000 });
+    samples.push(await page.evaluate(() => window.__perf.done));
+    await page.waitForTimeout(400);
+  }
+  const sorted = [...samples].sort((x, y) => x - y);
+  const med = (sorted[samples.length / 2 - 1] + sorted[samples.length / 2]) / 2;
+  const worst = sorted[sorted.length - 1];
+  const list = samples.map(Math.round).join(', ');
+  c(`an edit with 2,000 imported comps takes a median ${Math.round(med)} ms over ${samples.length} (budget 150)`, med <= 150, `[${list}]`);
+  c(`the slowest of those ${samples.length} edits takes ${Math.round(worst)} ms (ceiling 150)`, worst <= 150, `[${list}]`);
+  // the cells must be their own paint layers (.ctable tbody td { position: relative }): without it focus repaints every drawn
+  // cell and a desktop edit costs about 40 ms more (timing alone is too noisy to tell, so the style itself is asserted)
+  c('the comps table cells are position: relative', await page.evaluate(() => getComputedStyle(document.querySelector('.ctable tbody td:not(.tg)')).position === 'relative'));
   c('no sideways scrolling', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   c('no console errors', errors.length === 0, errors.join(' / '));
   await browser.close();

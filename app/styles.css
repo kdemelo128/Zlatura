@@ -514,7 +514,7 @@ details.fold > summary .count { color: var(--faint); font-weight: 500; font-size
 }
 .ctable thead th:first-child { padding-left: var(--s5); }
 .ctable th.r, .ctable td.r { text-align: right; }
-.ctable tbody td { border-bottom: 1px solid var(--line); padding: 6px 8px; vertical-align: middle; transition: background var(--d1); }
+.ctable tbody td { border-bottom: 1px solid var(--line); padding: 6px 8px; vertical-align: middle; transition: background var(--d1); position: relative; }
 .ctable tbody td:first-child { padding-left: var(--s5); }
 .ctable tbody tr:hover td { background: var(--surface-2); }
 .ctable tbody tr.off td { opacity: .45; }
