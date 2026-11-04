@@ -42,6 +42,11 @@ itself is not installed or run. First applied by hand on 2026-10-21 (findings F1
 **Parsers and resource use**
 7. Every reader of an uploaded file checks size first, then content type from bytes; zips check declared total
    size, entry count and per-entry ratio before inflating; sheets and pages have caps.
+   Done for the PDF, workbook-template and JSON (backup, project) readers by `checkReader` in `app/filekind.js`
+   (S3): size against `LIMITS`, then the kind from the first bytes, never the name; a PDF over `LIMITS.pdfPages`
+   (500) pages is refused before a page is read. Not yet: a size cap on backup and project JSON (`LIMITS.json` is
+   `Infinity` until the owner chooses one, because a backup with voice notes has no upper bound the app enforces),
+   and site photos and voice notes (a phone photo or a long recording can legitimately be large).
 8. Regexes on file text have no nested ambiguous quantifiers.
 9. PDF.js runs with eval disabled and its workers come from our own origin; OCR files load from our origin only.
 10. Macros in a workbook are never run; a password-protected file gets a message, not a crash.

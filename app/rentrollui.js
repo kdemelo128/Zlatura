@@ -8,6 +8,7 @@
 
 import { cellValue, csvRows, unreadable, isCsv, loadXlsx } from './sheetread.js';
 import { readText } from './textfile.js';
+import { checkReader } from './filekind.js';
 import { calDay } from './pipeline.js';
 import { waltMethod } from './engine/walt.js';
 import {
@@ -897,6 +898,8 @@ async function importPdfDialog(rr, changed) {
     const f = inp.files[0];
     if (!f) return;
     if (!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf') { toast('That is not a PDF.'); return; }
+    const bad = await checkReader(f, 'pdf');
+    if (bad) { toast(bad, null, 8000); return; }
     let pages; let bytes; let pdfjs;
     const layouts = [];
     try {

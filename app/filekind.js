@@ -5,7 +5,9 @@
  * rest. Design: docs/proposals/t12-formats.md. */
 
 /** The most bytes each kind is read at: a bigger file is refused before it is read. */
-export const LIMITS = { workbook: 25e6, text: 10e6, pdf: 50e6, image: 20e6, zipTotal: 100e6, zipRatio: 200, zipEntries: 10000 };
+export const LIMITS = { workbook: 25e6, text: 10e6, pdf: 50e6, image: 20e6, zipTotal: 100e6, zipRatio: 200, zipEntries: 10000,
+  pdfPages: 500, // pages a PDF may have to be read (pdftext.js); the longest real OM seen is about 120
+  json: Infinity }; // a backup or project file: no size cap until the owner chooses one (docs/proposals/security-robustness-triage.md, S3)
 
 const startsWith = (b, sig, at = 0) => sig.every((x, i) => b[at + i] === x);
 const ascii = (s) => [...s].map((c) => c.charCodeAt(0));
@@ -221,4 +223,39 @@ export async function checkUpload(file, { getFflate } = {}) {
   const safe = hardenZip(bytes, fflate);
   if (safe.refuse) return no('zip', file.name ? safe.refuse.replace(/^That file/, `“${file.name}”`) : safe.refuse);
   return { kind: 'xlsx', macros: z.macros, refuse: null, buffer: safe.buffer, guarded: true };
+}
+
+const KIND_NAME = { pdf: 'a PDF', png: 'a photo', jpeg: 'a photo', webp: 'a photo', heic: 'a photo', image: 'a photo', zip: 'a zip file', ole: 'an old Office file', text: 'a text file', unknown: 'a binary file', docx: 'a Word document' };
+
+/**
+ * Whether `file` can be handed to a reader that wants a PDF, an Excel workbook
+ * or a JSON file (a backup, a comp project): null when it can, else the plain
+ * message naming the file. The kind comes from the first bytes, never the
+ * name; the size is compared with the kind's limit before more than 8 KB is
+ * read. An empty file passes (the reader has its own message for it). A
+ * workbook goes through checkUpload (zip guard, passwords, old formats).
+ * @param {{ name: string, size: number, slice: (a: number, b: number) => { arrayBuffer: () => Promise<ArrayBuffer> }, arrayBuffer: () => Promise<ArrayBuffer> }} file
+ * @param {'pdf'|'xlsx'|'json'} want
+ * @param {{ getFflate?: () => Promise<any> }} [opts]
+ * @returns {Promise<string|null>}
+ */
+export async function checkReader(file, want, { getFflate } = {}) {
+  const who = file.name ? `“${file.name}”` : 'That file';
+  const no = (why) => `${who} can’t be read: ${why}`;
+  const mb = `${Math.round(file.size / 1e5) / 10} MB`;
+  if (!file.size) return null;
+  if (want === 'xlsx') {
+    const up = await checkUpload(file, { getFflate });
+    if (up.kind === 'xlsx') return up.refuse ? `${who} can’t be read. ${up.refuse}` : null;
+    if (['pdf', 'image', 'text', 'unknown', 'docx'].includes(up.kind)) return no(`it is ${KIND_NAME[up.kind]}, not an Excel workbook (.xlsx), whatever its name says.`);
+    return `${who} can’t be read. ${up.refuse}`;
+  }
+  const limit = want === 'pdf' ? LIMITS.pdf : LIMITS.json;
+  if (file.size > limit) return no(`it is ${mb}; ${want === 'pdf' ? 'a PDF' : 'a backup or project file'} is read up to ${limit / 1e6} MB.`);
+  const head = new Uint8Array(await file.slice(0, 8192).arrayBuffer());
+  const k = sniff(head);
+  if (want === 'pdf') return k === 'pdf' ? null : no(`it is ${KIND_NAME[k] || 'not a PDF'}, not a PDF, whatever its name says.`);
+  if (k !== 'text') return no(`it is ${KIND_NAME[k] || 'not text'}, not a backup or project file, whatever its name says.`);
+  const label = head[0] === 0xff && head[1] === 0xfe ? 'utf-16le' : head[0] === 0xfe && head[1] === 0xff ? 'utf-16be' : 'utf-8';
+  return new TextDecoder(label).decode(head).trimStart().startsWith('{') ? null : no('it is not a backup or project file (those start with “{”).');
 }

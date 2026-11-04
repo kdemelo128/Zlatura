@@ -30,6 +30,7 @@ import { legacyRows, omRollRecord, applyHeldRows, addOcrRows, ocrReading, rollOf
 import { qcPanel } from './dataqcui.js';
 import { omReadRecord, applyOmFix, heldFields, basisText } from './omstatement.js';
 import { resolveCheck, blockingChecks, qcCounts } from './dataqc.js';
+import { checkReader } from './filekind.js';
 import { readScannedPage, readPhotoText, ocrSupported } from './ocr.js';
 import { pending as stepsDue, applyStep } from './migrate.js';
 import { renderRentRollWorkspace } from './rentrollui.js';
@@ -434,6 +435,8 @@ async function readOmFile(file) {
   if (!file) return;
   if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') { toast('An offering memorandum needs to be a PDF.'); return; }
   if (reading) { toast('Still reading the last OM.'); return; }
+  const bad = await checkReader(file, 'pdf');
+  if (bad) { toast(bad, null, 8000); return; }
   flushDeal();
   reading = { name: file.name, done: 0, total: 0 };
   render();
@@ -2051,7 +2054,12 @@ function pickPdf() {
 async function ocrPage(d, page) {
   if (ocrBusy) { toast('Still reading a page.'); return; }
   let file = omFiles.get(d.id);
-  if (!file) { file = await pickPdf(); if (!file) return; omFiles.set(d.id, file); }
+  if (!file) {
+    file = await pickPdf(); if (!file) return;
+    const bad = await checkReader(file, 'pdf');
+    if (bad) { toast(bad, null, 8000); return; }
+    omFiles.set(d.id, file);
+  }
   ocrBusy = { dealId: d.id, page, text: 'Starting…' };
   if (deal === d) render();
   try {

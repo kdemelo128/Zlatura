@@ -5,6 +5,7 @@
 import { PRODUCT } from './brand.js';
 import { inspectWorkbook, suggestCellMap, previewCells, fillCells } from './template.js';
 import { readText } from './textfile.js';
+import { checkReader } from './filekind.js';
 import { DEAL_FIELDS, DEAL_FIELD, dealValues, RR_TABLE_FIELDS, rrFieldForHeader } from './dealfields.js';
 import { COLUMNS, gridContext } from './rentroll.js';
 import {
@@ -120,6 +121,8 @@ async function readWorkbook(file) {
   if (!/\.xls[xm]$/i.test(file.name)) throw new Error('Choose an Excel workbook (.xlsx, or .xlsm with macros).');
   if (!file.size) throw new Error('That file is empty.');
   const fflate = await getFflate();
+  const bad = await checkReader(file, 'xlsx', { getFflate });
+  if (bad) throw new Error(bad);
   const bytes = new Uint8Array(await file.arrayBuffer());
   const info = inspectWorkbook(fflate, bytes, xmlApi());
   return { bytes, info };
@@ -169,6 +172,8 @@ async function upload(existing = null) {
 async function importPackage() {
   const file = await pickFile('.json,application/json');
   if (!file) return;
+  const bad = await checkReader(file, 'json');
+  if (bad) { toast(bad, null, 8000); return; }
   try {
     const r = await readText(file);
     const p = readPackage(r.text);

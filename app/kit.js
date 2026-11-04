@@ -353,6 +353,7 @@ export function pdfProblem(err, file) {
   if ((err && err.name === 'InvalidPDFException') || /invalid pdf|pdf structure|missing pdf/i.test(msg)) {
     return 'it is not a readable PDF: it may be damaged or only partly downloaded. Download it again, or export a fresh copy.';
   }
+  if (err && err.plain) return msg;
   if (/too old/.test(msg)) return `${msg}.`;
   return `it could not be opened (${msg || 'unknown error'}). Try again, or save a fresh copy of the PDF.`;
 }
