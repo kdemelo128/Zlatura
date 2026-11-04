@@ -8,6 +8,7 @@ import { el, icon, toast, niceDate, actionSheet, openSheet, closeSheet, backdrop
 import { icsFor, dealEvents, closingOf, exchangeEvents } from './ics.js';
 import { VERSION } from './exporters.js';
 import { dateInput } from './dateinput.js';
+import { mailtoHref, telHref } from './links.js';
 import { startResearch } from './researchui.js';
 
 /**
@@ -219,8 +220,9 @@ export function taskRow(t, { overdue = false, dealName = null, onDeal = null } =
 
 export function contactLinks(c) {
   const box = el('div', 'contact-links');
-  if (c.phone) { const a = el('a', 'chip chip-plain', 'Call'); a.href = `tel:${c.phone.replace(/[^\d+]/g, '')}`; a.setAttribute('aria-label', `Call ${c.name}`); box.appendChild(a); }
-  if (c.email) { const a = el('a', 'chip chip-plain', 'Email'); a.href = `mailto:${c.email}`; a.setAttribute('aria-label', `Email ${c.name}`); box.appendChild(a); }
+  const tel = telHref(c.phone); const mail = mailtoHref(c.email);   // a scheme from the allowlist, or no link
+  if (tel) { const a = el('a', 'chip chip-plain', 'Call'); a.href = tel; a.setAttribute('aria-label', `Call ${c.name}`); box.appendChild(a); }
+  if (mail) { const a = el('a', 'chip chip-plain', 'Email'); a.href = mail; a.setAttribute('aria-label', `Email ${c.name}`); box.appendChild(a); }
   return box;
 }
 

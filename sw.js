@@ -111,6 +111,7 @@ const ASSETS = [
   'app/ics.js',
   'app/crm.js',
   'app/dealcrm.js',
+  'app/links.js',
   'app/home.js',
   'app/backup.js',
   'app/claims.js',
