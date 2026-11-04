@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.94 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.95 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -154,6 +154,7 @@ section with grep, never in full.
 - **Security S1, repo hygiene guard (4.7.93, PR opening):** a test over `git ls-files` rejects tracked files under `private/`, `.env*`, keys and databases, real-document types, and high-confidence secret patterns (path and rule only, never the match); `.gitignore` extended. From `docs/proposals/security-robustness-triage.md` (merged #121), rank 1. Next: S4 (DOM sink scan), then S3 (size caps on six readers).
 - **Load-error fix (4.7.92, PR opening):** a privacy or ad blocker (EasyPrivacy blocks any file named fingerprint.js on github.io) stopped the app loading in the owner's normal Mac browser; the file is now `app/filehash.js`, a test forbids tracker-like file names, the load-error panel names the failed file and has a "Reset the offline copy and reload" button that never touches deals, and a failing start-up step is named on screen while the rest still run. Next: the Safari < 16.4 regex fix in `convert-worker.js`, then lease PDF reading (L2). Codex is connected through `AGENTS.md` (#120); the owner's Codex-built underwriting filler is to be uploaded and used as the base of the underwriting tool.
 - **Security S4, DOM sink scan and link gate (4.7.94, PR opening):** `tests/dom-sinks.test.js` (TypeScript parser, exact reviewed allowlist) fails on any new HTML sink, eval, or unchecked link or timer string in `app/` and `index.html`; `app/links.js` allows only http, https, mailto and tel and fixes a real gap (a contact email with `?bcc=` made a mailto link with hidden recipients); 18 new hostile payloads. Designer review done (scan header made honest, mailto edge cases, hidden characters escaped). Triage rank 6.
+- **Test fixes, two browser-test races (4.7.95, PR opening):** the lease abstract flow waited for a download after the click (failed about 1 run in 4) and the Windows-1252 flow waited a fixed 400 ms before reading the saved T-12 (about 1 in 6); both now wait for the real event. Tests only. (S1 merged #123; S4 merged #124.)
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
   owner says to continue.

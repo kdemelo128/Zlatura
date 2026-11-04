@@ -52,9 +52,11 @@ await fc.setFiles(E + 't12-windows-1252.csv');
 await page.waitForSelector('.toast');
 const toast = await text('.toast');
 check('the T-12 toast says it was read as Windows-1252, with the words to check', /Read as Windows-1252 .* Check that these read right: Café, Lumière, O’Brien’s\./.test(toast), toast);
-await page.waitForTimeout(400);
 const id = await page.evaluate(() => localStorage.getItem('zlatura.deal.current'));
-const deal = await page.evaluate((x) => new Promise((res) => { const q = indexedDB.open('zlatura'); q.onsuccess = () => { const g = q.result.transaction('deals').objectStore('deals').get(x); g.onsuccess = () => res(g.result); }; }), id);
+// wait until the T-12 is saved, not a fixed 400 ms: on a loaded machine the save can land later (an intermittent failure, about 1 run in 6)
+const readDeal = (x) => page.evaluate((k) => new Promise((res) => { const q = indexedDB.open('zlatura'); q.onsuccess = () => { const g = q.result.transaction('deals').objectStore('deals').get(k); g.onsuccess = () => res(g.result); }; }), x);
+let deal = null;
+for (let i = 0; i < 100; i++) { deal = await readDeal(id); if (deal && deal.t12 && deal.t12.lines && deal.t12.lines.length) break; await page.waitForTimeout(100); }
 const got = (deal && deal.t12 ? deal.t12.lines.map((l) => l.label) : []);
 check('its line labels are kept with their accents', ['Base Rent – Café Lumière', 'CAM Recoveries – O’Brien’s Deli', 'Repairs & Maintenance – Peña Services'].every((l) => got.includes(l)), got.join(' | '));
 
