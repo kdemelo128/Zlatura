@@ -9,6 +9,14 @@ Security checklist ID 2 (cross-site scripting). The app already put every name a
 - **Hostile text.** `SINK` in `tests/fixtures/hostile.js` (svg onload, img onerror, quote and backtick breakers, javascript:/data:/vbscript: URLs, bidi override, zero-width and combining characters, 10,000 characters, `__proto__`/`constructor`) and `tests/e2e/sink-flow.mjs` type each into comps, tenants, the deal name, the note and contacts, and check they stay text, create no element, run nothing, change no link, survive a reload.
 - **Tested.** `tests/links.test.js`; the sink scan and sink flow fail on the old code and on mutations (an `innerHTML = userText` line, `el()` using `innerHTML`, `javascript:` on the scheme list). Saved results and the golden outputs do not change; no saved-data change.
 
+## 4.7.93: A real file or credential can no longer be committed by accident (on the development branch; not merged or deployed)
+
+The repo is public and real files live only in the git-ignored `private/` folder, but nothing stopped `git add -f` or `git add -A` from committing a lease, a rent roll or a key.
+
+- **New guard test** (`tests/hygiene.test.js`, runs in `npm test` and so in CI): fails if a tracked path is under `private/`, is `.env*`, a key or certificate, a local database, or a `.pdf/.xlsx/.xls/.docx/.pptx` outside an exact allowlist of invented fixtures (empty today); and if a tracked text file holds a private-key block, AWS, GitHub, Slack, `sk-`, Google or JWT token pattern. It names the path and rule, never the match. It complements gitleaks (local, no network, also covers document types).
+- **`.gitignore`** now also ignores `.env.*`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa*`, `*.kdbx` and local databases.
+- **Tested** with a throwaway `git init` repo holding each bad case, plus one mutation per rule. Saved results and golden outputs are unchanged.
+
 ## 4.7.92: The app no longer stops loading when a privacy blocker dislikes a file name (on the development branch; not merged or deployed)
 
 A content blocker on a Mac (EasyPrivacy rule `/fingerprint.js`) blocked `app/fingerprint.js` on github.io, so the whole app showed "didn't finish loading". Incognito and the iPhone, which have no blocker, worked.
