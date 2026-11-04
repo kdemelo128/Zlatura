@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.96 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.97 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -156,6 +156,7 @@ section with grep, never in full.
 - **Security S4, DOM sink scan and link gate (4.7.94, PR opening):** `tests/dom-sinks.test.js` (TypeScript parser, exact reviewed allowlist) fails on any new HTML sink, eval, or unchecked link or timer string in `app/` and `index.html`; `app/links.js` allows only http, https, mailto and tel and fixes a real gap (a contact email with `?bcc=` made a mailto link with hidden recipients); 18 new hostile payloads. Designer review done (scan header made honest, mailto edge cases, hidden characters escaped). Triage rank 6.
 - **Test fixes, two browser-test races (4.7.95, PR opening):** the lease abstract flow waited for a download after the click (failed about 1 run in 4) and the Windows-1252 flow waited a fixed 400 ms before reading the saved T-12 (about 1 in 6); both now wait for the real event. Tests only. (S1 merged #123; S4 merged #124.)
 - **Comps cell paint (4.7.96, PR opening):** `position: relative` on the comps table cells (`app/styles.css`) so the browser stops repainting all 200 drawn rows when focus moves; the designer measured about 65 ms of every desktop edit at 2,000 comps as paint. Tests: a CSS assertion and a median-of-6 timing at the cap. The recovery-copy write (about 1.9 MB per edit, fails silently above about 5,000 comps) is a saved-data change and waits for the owner. Next: S3, size caps on six readers.
+- **Security S3, reader caps (4.7.97, PR opening):** every reader of a file now goes through `checkReader` (size before reading, kind from the first bytes, page cap 500): OM PDF and its OCR re-pick, CoStar PDFs, rent roll PDF (150 MB, the others keep 50 MB), Excel and library templates (25 MB, zip guard), backup, project and package JSON (text starting with `{`, refused only above 512 MB), rent roll CSV, PDFs sent to Research and AI. Site photos and voice notes are not covered (legitimately large). Designer review found and fixed a bug that would have refused a backup of a deal named like a PDF. Next: lease PDF reading L3 (design note in `docs/proposals/lease-abstract-l3-note.md` on branch claude/lease-abstract-l2, owner gate: schema 9).
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
   owner says to continue.
