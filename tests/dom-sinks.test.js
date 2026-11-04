@@ -1,0 +1,280 @@
+/* The DOM sink guard (security checklist ID 2, triage S4). Untrusted text (a tenant name, a rent roll cell, OM text,
+ * a file name, a CSV cell, AI output, an imported project or backup) must never reach an HTML sink or a script
+ * sink. This test parses every app/**.js file and sw.js with the TypeScript parser (already a devDependency; so
+ * comments and strings are never mistaken for code) and fails on any sink that is not in the reviewed ALLOW list
+ * below. A new sink in a PR therefore fails here until somebody reads it and adds a line with the reason.
+ *
+ * Sinks found: innerHTML, outerHTML, insertAdjacentHTML, srcdoc, createContextualFragment (as a property name, in
+ * a call, an assignment or an object literal, with a string key too); document.write/writeln; eval, Function,
+ * new Function; setTimeout/setInterval given a string; dynamic import() and importScripts() of a non-literal;
+ * DOMParser.parseFromString; assignments to .href/.src/.action/.formAction, to location (.href, .assign, .replace),
+ * window.open, and setAttribute of href/src/srcset/action/formaction/on*; { href|src|action } inside Object.assign.
+ *
+ * Blind spots, honestly: aliasing (const set = Element.prototype.insertAdjacentHTML is caught because the name is flagged, but
+ * const w = el; w[k] = ... is not; `const F = Function` is caught because the bare name is flagged), computed access with a
+ * VARIABLE key (el[name] = ..., window[name](t)), `(0, el.insertAdjacentHTML)` style indirect calls, destructured sinks
+ * (const { innerHTML } = el is not caught; a write through Object.assign/defineProperty/setProperty on a variable
+ * key is not), HTML built in a template literal and handed to a sink the scan does not know, DOM APIs not on the
+ * list (document.createRange().createContextualFragment is on it; DOMParser is flagged by parseFromString only),
+ * code reached through a library (vendor/ is not scanned), a worker's own messages, and anything in index.html
+ * beyond the text check below (it looks for on*= attributes and <script> blocks; it does not parse HTML).
+ * Also flagged: compound assignment (+=) to a link or HTML property, ['href'] style string keys, eval/Function by
+ * name, setTimeout/setInterval whose first argument is not a function literal, setAttributeNS, new Worker /
+ * SharedWorker / importScripts / serviceWorker.register / import() of anything but a literal path (or new URL(literal,
+ * import.meta.url)), execCommand other than 'copy', window/self/globalThis/win .open, and index.html on*= attributes
+ * and inline scripts.
+ * The browser flows tests/e2e/hostile-flow.mjs and sink-flow.mjs
+ * cover those from the other side by typing hostile text and checking that nothing runs. */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const list = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })
+  .flatMap((e) => (e.isDirectory() ? (e.name === 'vendor' ? [] : list(`${dir}/${e.name}`)) : e.name.endsWith('.js') ? [`${dir}/${e.name}`] : []));
+
+const HTML_NAMES = new Set(['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'srcdoc', 'createContextualFragment']);
+const URL_PROPS = new Set(['href', 'src', 'srcset', 'ping', 'action', 'formAction', 'formaction']);
+const URL_ATTRS = /^(href|src|srcset|ping|action|formaction|xlink:href|on.*)$/i;
+const SCRIPT_NAMES = new Set(['eval', 'Function']);
+const GLOBALS = /^(window|self|globalThis|win|top|parent)$/;
+const nameOf = (n) => (n && (ts.isIdentifier(n) || ts.isStringLiteralLike(n)) ? n.text : null);
+const isLiteralText = (n) => !!n && ts.isStringLiteralLike(n);
+// 'a literal path', or new URL('literal', import.meta.url)
+const isFixedPath = (n) => isLiteralText(n) || (!!n && ts.isNewExpression(n) && n.expression.getText() === 'URL' && isLiteralText(n.arguments?.[0]));
+const isAssignOp = (k) => k >= ts.SyntaxKind.FirstAssignment && k <= ts.SyntaxKind.LastAssignment;
+
+/** Every sink in one source text: [{ line, rule, text }]. */
+export function scan(source, file = 'x.js') {
+  const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const hits = [];
+  const add = (node, rule) => {
+    const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line;
+    // the text the allowlist is tested on: the whole nearest enclosing statement (so a `+ userText` on a later line
+    // or a second statement on the same line cannot hide behind a reviewed pattern), whitespace collapsed
+    let st = node;
+    while (st.parent && !/(Statement|Declaration)$/.test(ts.SyntaxKind[st.kind])) st = st.parent;
+    hits.push({ line: line + 1, rule, text: st.getText(sf).replace(/\s+/g, ' ') });
+  };
+  // the property named by x.name or x['name']
+  const propOf = (n) => (ts.isPropertyAccessExpression(n) ? n.name.text : ts.isElementAccessExpression(n) && isLiteralText(n.argumentExpression) ? n.argumentExpression.text : null);
+  const calleeName = (c) => (ts.isIdentifier(c) ? c.text : propOf(c));
+  const isLocation = (n) => (ts.isIdentifier(n) && n.text === 'location') || propOf(n) === 'location';
+  const visit = (n) => {
+    // HTML sink names: x.innerHTML, x['innerHTML'], { innerHTML: ... }, { innerHTML }
+    const pn = propOf(n);
+    if (pn && HTML_NAMES.has(pn)) add(n, `html:${pn}`);
+    else if ((ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n)) && HTML_NAMES.has(nameOf(n.name))) add(n, `html:${nameOf(n.name)}`);
+    // eval and Function by name, called or not: x.eval, x['eval'], const F = Function, (0, eval)(t)
+    if (pn && SCRIPT_NAMES.has(pn)) add(n, `script:${pn}`);
+    else if (ts.isIdentifier(n) && SCRIPT_NAMES.has(n.text) && !(n.parent && ts.isPropertyAccessExpression(n.parent) && n.parent.name === n) && !(n.parent && (ts.isPropertyAssignment(n.parent) || ts.isMethodDeclaration(n.parent)) && n.parent.name === n)) add(n, `script:${n.text}`);
+
+    if (ts.isCallExpression(n) || ts.isNewExpression(n)) {
+      const c = n.expression; const name = calleeName(c); const args = n.arguments || [];
+      const isWin = ts.isPropertyAccessExpression(c) && GLOBALS.test(c.expression.getText(sf));
+      if ((name === 'write' || name === 'writeln') && ts.isPropertyAccessExpression(c) && /^(document|doc)$/.test(c.expression.getText(sf))) add(n, 'script:document.write');
+      else if ((name === 'setTimeout' || name === 'setInterval') && args[0] && !ts.isArrowFunction(args[0]) && !ts.isFunctionExpression(args[0])) add(n, `script:${name}-not-a-function-literal`);
+      else if (name === 'importScripts' && args.some((a) => !isFixedPath(a))) add(n, 'script:importScripts');
+      else if (c.kind === ts.SyntaxKind.ImportKeyword && args[0] && !isFixedPath(args[0])) add(n, 'script:import()');
+      else if ((name === 'Worker' || name === 'SharedWorker') && ts.isNewExpression(n) && !isFixedPath(args[0])) add(n, `script:new-${name}`);
+      else if (name === 'register' && ts.isPropertyAccessExpression(c) && /serviceWorker/.test(c.expression.getText(sf)) && !isFixedPath(args[0])) add(n, 'script:serviceWorker.register');
+      else if (name === 'execCommand' && !(isLiteralText(args[0]) && args[0].text === 'copy')) add(n, 'html:execCommand');
+      else if (name === 'parseFromString') add(n, 'html:parseFromString');
+      else if (name === 'open' && isWin) add(n, 'nav:window.open');
+      else if ((name === 'assign' || name === 'replace') && (ts.isPropertyAccessExpression(c) || ts.isElementAccessExpression(c)) && isLocation(c.expression)) add(n, `nav:location.${name}`);
+      else if (name === 'setAttributeNS') add(n, 'attr:setAttributeNS');
+      else if (name === 'setAttribute' && args[0] && (!isLiteralText(args[0]) || URL_ATTRS.test(args[0].text))) add(n, 'attr:setAttribute-url');
+      else if (name === 'assign' && ts.isPropertyAccessExpression(c) && c.expression.getText(sf) === 'Object') {
+        for (const a of args.slice(1)) {
+          if (!ts.isObjectLiteralExpression(a)) continue;
+          for (const p of a.properties) if ((ts.isPropertyAssignment(p) || ts.isShorthandPropertyAssignment(p)) && URL_PROPS.has(nameOf(p.name))) add(p, `url:Object.assign-${nameOf(p.name)}`);
+        }
+      }
+    }
+    // assignments, plain or compound (=, +=, ||= ...): x.href, x['href'], location, location.href
+    if (ts.isBinaryExpression(n) && isAssignOp(n.operatorToken.kind)) {
+      const l = n.left; const lp = propOf(l);
+      if (lp && URL_PROPS.has(lp)) add(n, `url:.${lp}${n.operatorToken.getText(sf)}`);
+      else if (isLocation(l)) add(n, 'nav:location=');
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(sf);
+  return hits;
+}
+
+/** index.html: on*= attributes and <script> blocks, by text. Returns [{ line, rule, text }]. */
+export function scanHtml(html) {
+  const hits = [];
+  html.split('\n').forEach((text, i) => {
+    const t = text.trim();
+    if (/<[a-z][^>]*\son[a-z]+\s*=/i.test(t)) hits.push({ line: i + 1, rule: 'html:on-attribute', text: t });
+    if (/<script\b(?![^>]*\bsrc=)/i.test(t)) hits.push({ line: i + 1, rule: 'html:inline-script', text: t });
+    if (/\b(javascript|vbscript):/i.test(t)) hits.push({ line: i + 1, rule: 'html:script-url', text: t });
+  });
+  return hits;
+}
+
+/* The reviewed sites. `file` is exact; `re` is tested on the trimmed text of the line; `why` is the reading that was
+ * done (triage section 4, re-read for this test). `n` is how many hits the entry must cover, so a second sink slipped
+ * onto an allowed pattern still fails. */
+const ICON = 'icon() returns markup only from the fixed ICONS table, and "" for an unknown name; size and extra are code constants';
+// the one reviewed shape: icon(<'name' | variable | variable || 'name'>, <size>[, ' class="chev"']) and nothing else on the statement
+const CALL = String.raw`icon\((?:'[a-z-]+'|[\w.]+(?: \|\| '[a-z-]+')?)(?:, \d+(?:, ' class="chev"')?)?\)`;
+const SET = new RegExp(String.raw`^[\w.]+\.innerHTML = ${CALL};$`);                          // x.innerHTML = icon(...);
+const INS = new RegExp(String.raw`^[\w.]+\.insertAdjacentHTML\('beforeend', ${CALL}\);$`);   // x.insertAdjacentHTML('beforeend', icon(...));
+const OBJ = new RegExp(String.raw`^[\w.]+\.appendChild\(Object\.assign\(el\('div', '[a-z-]+'\), \{ innerHTML: ${CALL} \}\)\);$`);   // Object.assign(el('div', 'hero-icon'), { innerHTML: icon(..) })
+const ALLOW = [
+  // ---- fixed icon markup (class: fixed icon)
+  { file: 'app/abstractui.js', re: INS, n: 1, why: ICON },
+  { file: 'app/command.js', re: INS, n: 1, why: ICON },
+  { file: 'app/command.js', re: SET, n: 1, why: `${ICON}; it.icon is a constant on each command item` },
+  { file: 'app/dateinput.js', re: SET, n: 1, why: ICON },
+  { file: 'app/dealcrm.js', re: SET, n: 4, why: ICON },
+  { file: 'app/dealui.js', re: SET, n: 8, why: ICON },
+  { file: 'app/dealui.js', re: INS, n: 2, why: ICON },
+  { file: 'app/dealui.js', re: OBJ, n: 2, why: ICON },
+  { file: 'app/dealui.js', re: /^hero\.appendChild\(Object\.assign\(el\('div', 'trust'\), \{ innerHTML: `\$\{icon\('shield', 14\)\}Read on this device\. The OM is never uploaded\.` \}\)\);$/, n: 1, why: 'icon plus a fixed sentence, no data' },
+  { file: 'app/dealui.js', re: /^li\.innerHTML = icon\(c\.level === 'info' \? 'info' : 'warn', 18\);/, n: 1, why: `${ICON}; the name is one of two literals` },
+  { file: 'app/impactui.js', re: SET, n: 1, why: ICON },
+  { file: 'app/kit.js', re: INS, n: 1, why: `${ICON}; it.icon is a constant on each action-sheet item` },
+  { file: 'app/libraryui.js', re: SET, n: 2, why: ICON },
+  { file: 'app/pdfpagesui.js', re: SET, n: 1, why: `${ICON}; glyph is an ICON constant` },
+  { file: 'app/rentrollui.js', re: SET, n: 11, why: ICON },
+  { file: 'app/settings.js', re: SET, n: 1, why: `${ICON}; glyph is a constant of the theme list` },
+  { file: 'app/toolsui.js', re: SET, n: 2, why: `${ICON}; t.icon is a constant of the tool table` },
+  { file: 'app/ui.js', re: SET, n: 1, why: ICON },
+  { file: 'app/ui.js', re: /^b\.innerHTML = glyph;$/, n: 1, why: 'glyph is ICON_INFO, ICON_MOVE or ICON_DEL, constants made with icon() at the top of ui.js' },
+  // ---- fixed SVG hydration from constants
+  { file: 'app/icons.js', re: /^s\.innerHTML = d;$/, n: 1, why: 'd is a path string from the ICONS table, looked up by a data-icon name that is written in index.html' },
+  { file: 'app/brand.js', re: /^sp\.innerHTML = `<symbol id="brand-mark" viewBox="\$\{MARK\.viewBox\}" fill="none" stroke="currentColor" stroke-width="\$\{MARK\.stroke\}" stroke-linecap="round" stroke-linejoin="round">\$\{MARK\.body\}<\/symbol>`;$/, n: 1, why: 'brand mark path data: MARK is a constant in brand.js' },
+  { file: 'app/brand.js', re: /^m\.innerHTML = '<svg width="17" height="17" aria-hidden="true"><use href="#brand-mark"\/><\/svg>';$/, n: 1, why: 'a fixed svg string' },
+  // ---- static literal strings
+  { file: 'app/command.js', re: /^foot\.innerHTML = '<span><kbd class="kbd">↑<\/kbd>[^'`$\\]*'(?: \+ '[^'`$\\]*')*;$/, n: 1, why: 'a literal, no interpolation' },
+  { file: 'app/dealui.js', re: /^lg\.innerHTML = '<span class="src high"><i><\/i>p\.4<\/span>[^'`$\\]*'(?: \+ '[^'`$\\]*')*;$/, n: 1, why: 'a literal legend, no interpolation' },
+  { file: 'app/rentrollui.js', re: /^lg\.innerHTML = '<span><i class="k-doc"><\/i>[^'`$\\]*'(?: \+ '[^'`$\\]*')*;$/, n: 1, why: 'a literal legend, no interpolation' },
+  // ---- timers given a named function of the code (not a string): the name is a function declared in the same file
+  { file: 'app/dealui.js', re: /saveTimer = setTimeout\(flushDeal, /, n: 1, why: 'flushDeal is the exported function declared in this file' },
+  { file: 'app/reviewui.js', re: /timer = setTimeout\(again, 300\)/, n: 1, why: 'again is the arrow function declared above' },
+  { file: 'app/ui.js', re: /setTimeout\(syncDealHash, 0\)/, n: 1, why: 'syncDealHash is a function declaration in this file' },
+  { file: 'app/ui.js', re: /saveTimer = setTimeout\(flushSession, 400\)/, n: 1, why: 'flushSession is a function declaration in this file' },
+  { file: 'app/underwrite.js', re: /timer = setTimeout\(flush, SAVE_MS\)/, n: 1, why: 'flush is a function declaration in this file' },
+  { file: 'app/kit.js', re: /setTimeout\(fn, 1200\)\)/, n: 1, why: 'idle(fn): fn is a function passed by code at each caller' },
+  // ---- XML namespaces: fixed names and values, not HTML
+  { file: 'app/template.js', re: /setAttributeNS\('http:\/\/www\.w3\.org\/XML\/1998\/namespace', 'xml:space', 'preserve'\)/, n: 1, why: 'a fixed XML attribute on an Office XML part' },
+  { file: 'app/template.js', re: /setAttributeNS\(REL, 'r:id', `rId\$\{k\}`\)/, n: 1, why: 'REL is a constant namespace; the id is a counter' },
+  // ---- links and navigation: every one has a constant scheme and host, or goes through app/links.js
+  { file: 'app/dealui.js', re: /window\.open\(`https:\/\/www\.google\.com\/maps/, n: 1, why: 'fixed https host; the address is encodeURIComponent-ed; noopener' },
+  { file: 'app/ui.js', re: /a\.href = `https:\/\/www\.google\.com\/maps/, n: 1, why: 'fixed https host; the address is encodeURIComponent-ed' },
+  { file: 'app/dealcrm.js', re: /a\.href = (tel|mail);/, n: 2, why: 'telHref / mailtoHref (app/links.js): a fixed tel:/mailto: scheme through the safeHref allowlist, or no link' },
+  { file: 'app/kit.js', re: /Object\.assign\(a, \{ href: url, download: filename \}\)/, n: 1, why: 'url is a blob: URL from URL.createObjectURL, made on the line above' },
+  { file: 'app/kit.js', re: /^s\.src = src;/, n: 1, why: 'loadScript: every caller passes a fixed ../vendor/ path built with new URL(..., import.meta.url)' },
+  { file: 'app/kit.js', re: /import\(PDFJS\)/, n: 1, why: 'PDFJS is a vendored path constant' },
+  { file: 'app/ocr.js', re: /import\(LIB\)/, n: 1, why: 'LIB is a vendored path constant' },
+  { file: 'app/aiui.js', re: /au\.src = URL\.createObjectURL/, n: 1, why: 'blob: URL of a stored voice note' },
+  { file: 'app/brief.js', re: /img\.src = url;/, n: 1, why: 'url is a blob: URL of a stored photo (brief.js builds the list)' },
+  { file: 'app/dealui.js', re: /^(au|a|img)\.src = (url|u);/, n: 3, why: 'blob: URLs made with URL.createObjectURL from stored photos and voice notes' },
+  { file: 'app/template.js', re: /parseFromString\(text, 'application\/xml'\)/, n: 1, why: 'parses an Office XML part as XML, never as HTML; the result is not inserted into the page' },
+  // ---- SVG attribute helpers: the keys are fixed names at every call site (viewBox, x, y, class, aria-label ...); text goes in as textContent
+  { file: 'app/glance.js', re: /^n\.setAttribute\(k, v\);$/, n: 1, why: 'svg(tag, attrs): every call passes fixed attribute names (x, y, d, class, role, aria-label); labels are set with textContent' },
+  { file: 'app/rentrollui.js', re: /^n\.setAttribute\(k, v\);$/, n: 1, why: 'mk(tag, attrs): every call passes fixed geometry and class names; labels are set with textContent' },
+  { file: 'app/icons.js', re: /^s\.setAttribute\(k, v\);$/, n: 1, why: 'the pairs come from a literal object of presentation attributes in the for header just above' },
+  // ---- data fields that merely are called src: not DOM
+  { file: 'app/abstracts.js', re: /^rec\.src = list;/, n: 1, why: 'a record field (source quotes), not an element' },
+  { file: 'app/t12.js', re: /Object\.assign\(line, \{ src: \{ type:/, n: 1, why: 'a record field (where a line was read from), not an element' },
+  { file: 'app/omroll.js', re: /^row\.src = \{/, n: 1, why: 'a record field (page, line, cells), not an element' },
+];
+
+test('no DOM or script sink in app/ or sw.js that is not in the reviewed allowlist', () => {
+  const files = [...list('app'), 'sw.js'];
+  assert.ok(files.length > 90, `scanned ${files.length} files`);
+  const used = ALLOW.map(() => 0);
+  const bad = [];
+  for (const f of files) {
+    for (const h of scan(fs.readFileSync(path.join(ROOT, f), 'utf8'), f)) {
+      const i = ALLOW.findIndex((a) => a.file === f && a.re.test(h.text));
+      if (i < 0) bad.push(`${f}:${h.line} [${h.rule}] ${h.text.slice(0, 120)}`); else used[i] += 1;
+    }
+  }
+  assert.deepEqual(bad, [], `Unreviewed sinks. Read each one: if untrusted text can reach it, fix it (el(tag, cls, text), textContent, safeHref); if it cannot, add a line to ALLOW with the reason.\n${bad.join('\n')}`);
+  const off = ALLOW.map((a, i) => ({ a, got: used[i] })).filter(({ a, got }) => got !== a.n).map(({ a, got }) => `${a.file} ${a.re} expected ${a.n}, matched ${got}`);
+  assert.deepEqual(off, [], 'an ALLOW line no longer matches the code it was written for: update or delete it');
+});
+
+test('the scanner itself finds each kind of sink (so a quiet pass means something)', () => {
+  const rules = (src) => scan(src).map((h) => h.rule);
+  assert.deepEqual(rules('el.innerHTML = userText;'), ['html:innerHTML']);
+  assert.deepEqual(rules("el['innerHTML'] = t;"), ['html:innerHTML']);
+  assert.deepEqual(rules('Object.assign(d, { innerHTML: t });'), ['html:innerHTML']);
+  assert.deepEqual(rules("el.insertAdjacentHTML('beforeend', t);"), ['html:insertAdjacentHTML']);
+  assert.deepEqual(rules('el.outerHTML = t;'), ['html:outerHTML']);
+  assert.deepEqual(rules('document.write(t);'), ['script:document.write']);
+  assert.deepEqual(rules('eval(t);'), ['script:eval']);
+  assert.deepEqual(rules('new Function(t);'), ['script:Function']);
+  assert.deepEqual(rules("setTimeout('x()', 5);"), ['script:setTimeout-not-a-function-literal']);
+  assert.deepEqual(rules('setTimeout(t, 0);'), ['script:setTimeout-not-a-function-literal']);
+  assert.deepEqual(rules('setInterval(t, 0);'), ['script:setTimeout-not-a-function-literal'.replace('Timeout', 'Interval')]);
+  assert.deepEqual(rules('setTimeout(() => x(), 5); setTimeout(function () { x(); }, 5);'), []);
+  // newly covered forms (one probe each)
+  assert.deepEqual(rules('a.href += t;'), ['url:.href+=']);
+  assert.deepEqual(rules('a.href ||= t;'), ['url:.href||=']);
+  assert.deepEqual(rules("location['href'] = t;"), ['url:.href=']);
+  assert.deepEqual(rules('a.srcset = t;'), ['url:.srcset=']);
+  assert.deepEqual(rules('a.ping = t;'), ['url:.ping=']);
+  assert.deepEqual(rules('el.innerHTML += t;'), ['html:innerHTML']);
+  assert.deepEqual(rules("window['eval'](t);"), ['script:eval']);
+  assert.deepEqual(rules('(0, eval)(t);'), ['script:eval']);
+  assert.deepEqual(rules('const F = Function; F(t);'), ['script:Function']);
+  assert.deepEqual(rules('const f = window.Function;'), ['script:Function']);
+  assert.deepEqual(rules("a.setAttributeNS(ns, 'href', t);"), ['attr:setAttributeNS']);
+  assert.deepEqual(rules('new Worker(t);'), ['script:new-Worker']);
+  assert.deepEqual(rules('new SharedWorker(t);'), ['script:new-SharedWorker']);
+  assert.deepEqual(rules("new Worker(new URL('./w.js', import.meta.url));"), []);
+  assert.deepEqual(rules('navigator.serviceWorker.register(t);'), ['script:serviceWorker.register']);
+  assert.deepEqual(rules("navigator.serviceWorker.register('sw.js');"), []);
+  assert.deepEqual(rules("document.execCommand('insertHTML', false, t);"), ['html:execCommand']);
+  assert.deepEqual(rules("document.execCommand('copy');"), []);
+  assert.deepEqual(rules('win.open(t);'), ['nav:window.open']);
+  assert.deepEqual(rules('self.open(t);'), ['nav:window.open']);
+  assert.deepEqual(rules('globalThis.open(t);'), ['nav:window.open']);
+  assert.deepEqual(rules('const r = indexedDB.open(db);'), []);
+  assert.deepEqual(rules('importScripts(t);'), ['script:importScripts']);
+  // index.html
+  assert.deepEqual(scanHtml('<a onclick="x()">').map((h) => h.rule), ['html:on-attribute']);
+  assert.deepEqual(scanHtml('<script>x()</script>').map((h) => h.rule), ['html:inline-script']);
+  assert.deepEqual(scanHtml('<script type="module" src="a.js"></script>'), []);
+  assert.deepEqual(scanHtml('<a href="javascript:x()">').map((h) => h.rule), ['html:script-url']);
+  assert.deepEqual(scanHtml('<p>one on = two</p>'), []);
+  assert.deepEqual(rules('a.href = t;'), ['url:.href=']);
+  assert.deepEqual(rules('location.href = t;'), ['url:.href=']);
+  assert.deepEqual(rules('location = t;'), ['nav:location=']);
+  assert.deepEqual(rules('location.assign(t);'), ['nav:location.assign']);
+  assert.deepEqual(rules('window.open(t);'), ['nav:window.open']);
+  assert.deepEqual(rules("a.setAttribute('href', t);"), ['attr:setAttribute-url']);
+  assert.deepEqual(rules("a.setAttribute('onclick', t);"), ['attr:setAttribute-url']);
+  assert.deepEqual(rules("a.setAttribute(k, t);"), ['attr:setAttribute-url']);
+  assert.deepEqual(rules("a.setAttribute('aria-label', t);"), []);
+  assert.deepEqual(rules('Object.assign(a, { href: u });'), ['url:Object.assign-href']);
+  assert.deepEqual(rules("import(p);"), ['script:import()']);
+  assert.deepEqual(rules("import('./x.js');"), []);
+  // comments and strings are not code
+  assert.deepEqual(rules("// el.innerHTML = t\n/* eval(x) */ const s = 'el.innerHTML = t';"), []);
+  assert.deepEqual(rules('const u = new URL(x).href; const n = o.src;'), []);
+});
+
+// index.html: the inline scripts and the one on* attribute it has are reviewed here, by what they do
+const HTML_ALLOW = [
+  { re: /^<script>$/, why: 'inline blocks that start on their own line (3 today), written in index.html; no data goes in' },
+  { re: /^<script nomodule>document\.getElementById\('shell'\)\.hidden = true; document\.getElementById\('fatal'\)\.hidden = false;<\/script>$/, why: 'old-browser notice, fixed ids' },
+  { re: /^<script type="module">$/, why: 'inline module block; no data goes in' },
+  { re: /^<script type="module" src="app\/ui\.js" onerror="document\.getElementById\('load-error'\)\.hidden=false;noteFailure\(this\.src,'the app did not finish loading; a content blocker or the connection may be the cause'\);findBlocked\(\)"><\/script>$/, why: 'the app entry: one fixed onerror that unhides the load-error notice, records the script own src and a fixed sentence (noteFailure) and runs the blocked-file preflight (findBlocked); no page data goes in'},
+];
+test('index.html has only the reviewed inline scripts and on* attributes', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const hits = scanHtml(html);
+  const bad = hits.filter((h) => !HTML_ALLOW.some((a) => a.re.test(h.text)));
+  assert.deepEqual(bad, [], 'a new inline script, on*= attribute or javascript: URL in index.html: review it, then add it to HTML_ALLOW');
+});

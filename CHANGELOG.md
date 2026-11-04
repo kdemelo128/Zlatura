@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.7.94: Text from a file or a person can no longer reach a script sink unnoticed, and contact links are restricted (on the development branch; not merged or deployed)
+
+Security checklist ID 2 (cross-site scripting). The app already put every name and cell into the page as text, but nothing stopped a later change from writing text into HTML, and a contact's email was placed into a `mailto:` link unescaped, so an address like `a@b.test?bcc=x@y.test` added a hidden recipient.
+
+- **Source guard.** `tests/dom-sinks.test.js` parses every file in `app/` and `sw.js` and fails on any `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `srcdoc`, `eval`, `new Function`, `document.write`, string `setTimeout`, non-literal `import()`/`importScripts`, `parseFromString`, `window.open`, `location` write, `href`/`src` assignment or `setAttribute` of a link or event attribute that is not in a reviewed allowlist with its reason. Blind spots are listed in the test header.
+- **Link gate.** New `app/links.js`: `safeHref` lets only http, https, mailto and tel through; `mailtoHref` escapes `?`, `&` and `#` in an address and gives no link without an `@`; `telHref` keeps digits and a leading plus. Contact Call/Email links use them (`app/dealcrm.js`). A number with no digits or text that is not an address now shows no link instead of a dead one.
+- **Hostile text.** `SINK` in `tests/fixtures/hostile.js` (svg onload, img onerror, quote and backtick breakers, javascript:/data:/vbscript: URLs, bidi override, zero-width and combining characters, 10,000 characters, `__proto__`/`constructor`) and `tests/e2e/sink-flow.mjs` type each into comps, tenants, the deal name, the note and contacts, and check they stay text, create no element, run nothing, change no link, survive a reload.
+- **Tested.** `tests/links.test.js`; the sink scan and sink flow fail on the old code and on mutations (an `innerHTML = userText` line, `el()` using `innerHTML`, `javascript:` on the scheme list). Saved results and the golden outputs do not change; no saved-data change.
+
 ## 4.7.93: A real file or credential can no longer be committed by accident (on the development branch; not merged or deployed)
 
 The repo is public and real files live only in the git-ignored `private/` folder, but nothing stopped `git add -f` or `git add -A` from committing a lease, a rent roll or a key.
