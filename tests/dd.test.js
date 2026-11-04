@@ -1,4 +1,4 @@
-/* The due-diligence document registry (app/dd.js, ddtypes.js, ddintake.js, fingerprint.js): the type table and
+/* The due-diligence document registry (app/dd.js, ddtypes.js, ddintake.js, filehash.js): the type table and
  * the checklist per kind of property, the classifier (ambiguity asks; the file name never sets a type), the
  * record of a file (no bytes; the SHA-256 fingerprint; "as of" never today), the caps, "not applicable" with a
  * reason, and a reader marking a file read. Invented names and text only. */
@@ -12,7 +12,7 @@ globalThis.window ||= globalThis;
 globalThis.navigator ||= { userAgent: 'node' };
 const T = await import('../app/ddtypes.js');
 const D = await import('../app/dd.js');
-const { sha256Hex } = await import('../app/fingerprint.js');
+const { sha256Hex } = await import('../app/filehash.js');
 const { identify } = await import('../app/ddintake.js');
 const { layoutOf } = await import('../app/t12.js');
 const { headerAndRows } = await import('../app/rentrollui.js');

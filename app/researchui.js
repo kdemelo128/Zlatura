@@ -15,7 +15,7 @@ import { editContact } from './dealcrm.js';
 import { tickable, matchContacts } from './claims.js';
 import { newBrief, requestBody, receive, fail, readBrief, tickClaim, loadBriefs, saveBrief, deleteBrief, expiry, SECTIONS } from './research.js';
 import { el, toast, actionSheet, niceDate } from './kit.js';
-import { sha256Hex } from './fingerprint.js';
+import { sha256Hex } from './filehash.js';
 
 let api = null;
 export function initResearch(compsApi) { api = compsApi; }
