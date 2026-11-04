@@ -1,11 +1,12 @@
 # Changelog
 
-## 4.7.95: A browser test for the lease abstracts no longer fails by chance (on the development branch; not merged or deployed)
+## 4.7.95: Two browser tests no longer fail by chance (on the development branch; not merged or deployed)
 
-The browser test for the lease abstract exports (`tests/e2e/abstract-flow.mjs`) failed about one run in four on the step "a confidential deal's workbook is named CONFIDENTIAL and is marked on its sheets". The app was behaving correctly. The test clicked the Workbook button first and only then started waiting for the download, so a download that arrived quickly was missed.
+Two of the browser tests failed now and then although the app was behaving correctly. Both were races in the tests, not in the app.
 
-- **The test now starts waiting for the download before the click**, the way the other two downloads in the same file already do. Nothing in the app changed.
-- **Tested:** the flow was run eight times in a row after the change and passed 71 of 71 every time; before the change it failed twice in six runs. A search of every browser test found no other download wait that comes after its click.
+- **Lease abstracts (`tests/e2e/abstract-flow.mjs`)** failed about one run in four on "a confidential deal's workbook is named CONFIDENTIAL and is marked on its sheets". The test clicked the Workbook button first and only then started waiting for the download, so a download that arrived quickly was missed. It now starts waiting before the click, the way the other two downloads in that file already do.
+- **Windows-1252 import (`tests/e2e/encoding-flow.mjs`)** failed about one run in six on "its line labels are kept with their accents". The test waited a fixed 400 ms and then read the saved T-12, so on a busy machine it read before the save had landed. It now waits until the T-12 is saved.
+- **Tested:** each flow was run in a row after its change (abstract-flow 8 of 8 passed 71 of 71; encoding-flow 10 of 10 passed 12 of 12). Before the changes they failed in 2 of 6 runs and 1 of 6 runs. A search of every browser test found no other download wait that comes after its click; other fixed waits exist and are listed as a follow-up, not changed here.
 - Saved results and golden outputs do not change; no app code is touched.
 
 ## 4.7.93: A real file or credential can no longer be committed by accident (on the development branch; not merged or deployed)
