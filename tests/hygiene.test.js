@@ -95,6 +95,8 @@ test('every secret rule fires on a sample, the allowlists are exact, and ordinar
     'Google API key': j('AIza', 'a'.repeat(35)),
     'JWT': j('eyJ', 'a'.repeat(20), '.eyJ', 'b'.repeat(20), '.', 'c'.repeat(24)),
   };
+  // a rule that is deleted, or added without a sample, must fail here: the loop below only visits rules that exist
+  assert.deepEqual(SECRET_RULES.map(([name]) => name).sort(), Object.keys(samples).sort(), 'every secret rule has a sample and every sample a rule');
   for (const [rule] of SECRET_RULES) {
     assert.deepEqual(secretFindings([{ path: 'x.txt', text: samples[rule] }]), [`x.txt: ${rule}`]);
   }
