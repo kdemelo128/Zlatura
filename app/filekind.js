@@ -7,7 +7,8 @@
 /** The most bytes each kind is read at: a bigger file is refused before it is read. */
 export const LIMITS = { workbook: 25e6, text: 10e6, pdf: 50e6, image: 20e6, zipTotal: 100e6, zipRatio: 200, zipEntries: 10000,
   pdfPages: 500, // pages a PDF may have to be read (pdftext.js); the longest real OM seen is about 120
-  json: Infinity }; // a backup or project file: no size cap until the owner chooses one (docs/proposals/security-robustness-triage.md, S3)
+  pdfRead: 150e6, // a PDF read for its text on a deal or in Comps (an OM with photos is often over 50 MB); PDF pages, Convert and Documents keep `pdf`
+  json: 512e6 }; // a backup or project file: more than a browser can hold as one string, so it could never have been restored
 
 const startsWith = (b, sig, at = 0) => sig.every((x, i) => b[at + i] === x);
 const ascii = (s) => [...s].map((c) => c.charCodeAt(0));
@@ -250,12 +251,11 @@ export async function checkReader(file, want, { getFflate } = {}) {
     if (['pdf', 'image', 'text', 'unknown', 'docx'].includes(up.kind)) return no(`it is ${KIND_NAME[up.kind]}, not an Excel workbook (.xlsx), whatever its name says.`);
     return `${who} can’t be read. ${up.refuse}`;
   }
-  const limit = want === 'pdf' ? LIMITS.pdf : LIMITS.json;
-  if (file.size > limit) return no(`it is ${mb}; ${want === 'pdf' ? 'a PDF' : 'a backup or project file'} is read up to ${limit / 1e6} MB.`);
+  const limit = want === 'pdf' ? LIMITS.pdfRead : LIMITS.json;
+  if (file.size > limit) return no(want === 'pdf' ? `it is ${mb}; a PDF is read up to ${limit / 1e6} MB.` : `it is ${mb}, more than a browser can hold as text (${limit / 1e6} MB), so it cannot be a backup or project file.`);
   const head = new Uint8Array(await file.slice(0, 8192).arrayBuffer());
-  const k = sniff(head);
-  if (want === 'pdf') return k === 'pdf' ? null : no(`it is ${KIND_NAME[k] || 'not a PDF'}, not a PDF, whatever its name says.`);
-  if (k !== 'text') return no(`it is ${KIND_NAME[k] || 'not text'}, not a backup or project file, whatever its name says.`);
+  if (want === 'pdf') { const k = sniff(head); return k === 'pdf' ? null : no(`it is ${KIND_NAME[k] || 'not a PDF'}, not a PDF, whatever its name says.`); }
+  // a backup or project is told from its text alone (its deal names may hold anything, even "%PDF-"): it must start with "{"
   const label = head[0] === 0xff && head[1] === 0xfe ? 'utf-16le' : head[0] === 0xfe && head[1] === 0xff ? 'utf-16be' : 'utf-8';
   return new TextDecoder(label).decode(head).trimStart().startsWith('{') ? null : no('it is not a backup or project file (those start with “{”).');
 }

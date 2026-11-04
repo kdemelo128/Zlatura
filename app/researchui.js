@@ -15,6 +15,7 @@ import { editContact } from './dealcrm.js';
 import { tickable, matchContacts } from './claims.js';
 import { newBrief, requestBody, receive, fail, readBrief, tickClaim, loadBriefs, saveBrief, deleteBrief, expiry, SECTIONS } from './research.js';
 import { el, toast, actionSheet, niceDate } from './kit.js';
+import { checkReader } from './filekind.js';
 import { sha256Hex } from './filehash.js';
 
 let api = null;
@@ -85,11 +86,12 @@ export async function startResearch(pre = {}) {
   pick.addEventListener('change', async () => {
     for (const f of [...pick.files]) {
       if (!/\.(pdf|txt|md|csv)$/i.test(f.name)) { toast(`${f.name}: research reads PDFs and plain text (TXT, MD, CSV).`, null, 7000); continue; }
+      if (/\.pdf$/i.test(f.name)) { const bad = await checkReader(f, 'pdf'); if (bad) { toast(bad, null, 7000); continue; } }
       const bytes = new Uint8Array(await f.arrayBuffer());
       const name = f.name.slice(0, 200);
       if (/\.pdf$/i.test(f.name)) {
         let pages = [];
-        try { pages = await pdfText(api, bytes); } catch { pages = []; }
+        try { pages = await pdfText(api, bytes); } catch (e) { pages = []; if (e && e.plain) toast(`${name}: ${e.message} Its text was not read here, so it is sent as a scanned PDF.`, null, 8000); }
         const scanned = !pages.some((p) => p && p.trim());
         add({ name, kind: 'pdf', pages: pages.length || null, chars: pages.join('').length, sha256: await sha256(bytes), scanned, texts: scanned ? null : pages, bytes: bytes.length, doc: { name, mediaType: 'application/pdf', data: ai.toBase64(bytes) } });
       } else {

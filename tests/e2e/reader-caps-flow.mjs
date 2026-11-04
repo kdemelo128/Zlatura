@@ -1,5 +1,5 @@
 /* Every file reader checks the file before it reads it (filekind.js checkReader), in the browser on a phone-size page:
- * an oversized fake PDF (51 MB of nothing), a PNG under a .pdf name, a 501-page PDF, a PNG under a .xlsx name,
+ * an oversized fake PDF (150 MB of nothing), a PNG under a .pdf name, a 501-page PDF, a PNG under a .xlsx name,
  * and a JSON array and a PNG under a backup name go in through the real file inputs. Each gives a plain message
  * naming the file, and the deals on the device are exactly as they were. A real 121-page OM still reads. */
 import fs from 'fs';
@@ -14,7 +14,7 @@ const said = async (re, ms = 20000) => { await page.waitForFunction((s) => [...d
 
 // invented bad files
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...new Array(2000).fill(7)]);
-const big = Buffer.alloc(51e6 + 1000); big.write('%PDF-1.7\n');
+const big = Buffer.alloc(150e6 + 1000); big.write('%PDF-1.7\n');
 fs.mkdirSync(SHOTS, { recursive: true });
 const put = (name, b) => { const p = SHOTS + name; fs.writeFileSync(p, b); return p; };
 const bigPdf = put('rc-huge.pdf', big);
@@ -41,7 +41,7 @@ check('there is a deal to protect', JSON.parse(before).length === 1, before);
 // 1. the OM reader
 await page.setInputFiles('#om-file', bigPdf);
 let t = await said(/rc-huge\.pdf” can’t be read/);
-check('OM: an oversized PDF is refused, naming the file', t.some((x) => /“rc-huge\.pdf” can’t be read: it is 51(\.\d)? MB; a PDF is read up to 50 MB/.test(x)), JSON.stringify(t));
+check('OM: an oversized PDF is refused, naming the file', t.some((x) => /“rc-huge\.pdf” can’t be read: it is 150(\.\d)? MB; a PDF is read up to 150 MB/.test(x)), JSON.stringify(t));
 await page.setInputFiles('#om-file', pngPdf);
 t = await said(/rc-photo\.pdf” can’t be read/);
 check('OM: a photo named .pdf is refused as a photo', t.some((x) => /“rc-photo\.pdf” can’t be read: it is a photo, not a PDF/.test(x)), JSON.stringify(t));
@@ -57,20 +57,20 @@ await page.locator('#deal-rentroll button[aria-label="More rent roll actions"]')
 const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('.action-sheet .action-item', { hasText: 'Import from PDF' }).click()]);
 await chooser.setFiles(bigPdf);
 t = await said(/rc-huge\.pdf” can’t be read/);
-check('rent roll PDF: an oversized PDF is refused, naming the file', t.some((x) => /“rc-huge\.pdf” can’t be read: it is 51(\.\d)? MB/.test(x)), JSON.stringify(t));
+check('rent roll PDF: an oversized PDF is refused, naming the file', t.some((x) => /“rc-huge\.pdf” can’t be read: it is 150(\.\d)? MB/.test(x)), JSON.stringify(t));
 check('rent roll PDF: nothing stored', (await deals()) === before);
 
 // 3. the Comps readers: CoStar PDFs, a project file, the Excel template
 await page.goto(BASE + '#comps', { waitUntil: 'load' });
 await page.setInputFiles('#file', bigPdf);
 t = await said(/rc-huge\.pdf” can’t be read/);
-check('Comps: an oversized CoStar PDF is refused, naming the file', t.some((x) => /“rc-huge\.pdf” can’t be read: it is 51(\.\d)? MB/.test(x)), JSON.stringify(t));
+check('Comps: an oversized CoStar PDF is refused, naming the file', t.some((x) => /“rc-huge\.pdf” can’t be read: it is 150(\.\d)? MB/.test(x)), JSON.stringify(t));
 await page.setInputFiles('#file', arrJson);
 t = await said(/rc-array\.json” can’t be read/);
 check('Comps: a JSON array named as a project is refused', t.some((x) => /“rc-array\.json” can’t be read: it is not a backup or project file/.test(x)), JSON.stringify(t));
 await page.setInputFiles('#file', pngJson);
 t = await said(/rc-photo\.json” can’t be read/);
-check('Comps: a photo named .json is refused as a photo', t.some((x) => /“rc-photo\.json” can’t be read: it is a photo/.test(x)), JSON.stringify(t));
+check('Comps: a photo named .json is refused', t.some((x) => /“rc-photo\.json” can’t be read: it is not a backup or project file/.test(x)), JSON.stringify(t));
 await page.setInputFiles('#tpl-file', pngXlsx);
 t = await said(/rc-photo\.xlsx” can’t be read/);
 check('Comps: a photo named .xlsx is refused as the template', t.some((x) => /“rc-photo\.xlsx” can’t be read: it is a photo, not an Excel workbook/.test(x)), JSON.stringify(t));
@@ -79,7 +79,7 @@ check('Comps: nothing was changed', (await deals()) === before);
 // 4. backup restore
 await page.goto(BASE + '#settings', { waitUntil: 'load' });
 await page.waitForSelector('#settings-data #backup-file', { state: 'attached' });
-for (const [f, re] of [[arrJson, /“rc-array\.json” can’t be read: it is not a backup or project file/], [pngJson, /“rc-photo\.json” can’t be read: it is a photo/]]) {
+for (const [f, re] of [[arrJson, /“rc-array\.json” can’t be read: it is not a backup or project file/], [pngJson, /“rc-photo\.json” can’t be read: it is not a backup or project file/]]) {
   await page.setInputFiles('#backup-file', f);
   t = await said(re);
   check(`backup: ${f.split('/').pop()} is refused before anything is read or changed`, t.some((x) => re.test(x)) && !(await page.locator('.action-sheet').count()), JSON.stringify(t));

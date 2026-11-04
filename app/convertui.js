@@ -339,6 +339,7 @@ export function openConvert(api) {
 
   /** What went wrong opening a PDF with pdf.js, in words. */
   function pdfError(e, name) {
+    if (e && e.pages) return Object.assign(new Error(`${name} has ${e.pages} pages; ${MAX_PAGES} is the most to read at once. Use PDF pages to cut it first.`), { plain: true });
     if (e && (e.stopped || e.plain)) return e;
     const n = e && e.name;
     if (n === 'PasswordException') return new Error(problemText(name, 'encrypted'));

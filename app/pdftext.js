@@ -35,10 +35,11 @@ export function repairApostrophes(pages) {
 
 /** Refuse a document with more pages than LIMITS.pdfPages, before any page is read; the reason is plain, for pdfProblem. */
 export async function checkPageCount(doc) {
-  if (doc.numPages <= LIMITS.pdfPages) return;
   const n = doc.numPages;
+  if (Number.isInteger(n) && n >= 0 && n <= LIMITS.pdfPages) return;
   await doc.destroy();
-  throw Object.assign(new Error(`it has ${n} pages; ${LIMITS.pdfPages} is the most to read at once. Use PDF pages to cut it first.`), { plain: true });
+  if (!Number.isInteger(n) || n < 0) throw Object.assign(new Error('could not read the page count: the file may be damaged. Download it again, or export a fresh copy.'), { plain: true });
+  throw Object.assign(new Error(`it has ${n} pages; ${LIMITS.pdfPages} is the most to read at once. Use PDF pages to cut it first.`), { plain: true, pages: n });
 }
 
 /**

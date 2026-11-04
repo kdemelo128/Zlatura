@@ -6,6 +6,9 @@ import fs from 'node:fs';
 import * as fflate from 'fflate';
 import { LIMITS, checkReader } from '../app/filekind.js';
 import { pdfPages, checkPageCount } from '../app/pdftext.js';
+import { buildBackup } from '../app/backup.js';
+import { exportPackage } from '../app/library.js';
+import { FORMATS } from '../app/brand.js';
 
 const getFflate = async () => fflate;
 const enc = (s) => new TextEncoder().encode(s);
@@ -18,9 +21,11 @@ function fake(head, size, name) {
 const pdfHead = [...enc('%PDF-1.7\n')];
 
 test('a PDF reader refuses a file over the PDF limit without reading it, naming the file', async () => {
-  const f = fake(pdfHead, LIMITS.pdf + 1, 'Huge OM.pdf');
+  const f = fake(pdfHead, LIMITS.pdfRead + 1, 'Huge OM.pdf');
   const r = await checkReader(f, 'pdf');
-  assert.match(r, /^“Huge OM\.pdf” can’t be read: it is 50 MB; a PDF is read up to 50 MB\./);
+  assert.match(r, /^“Huge OM\.pdf” can’t be read: it is 150 MB; a PDF is read up to 150 MB\./);
+  assert.equal(await checkReader(fake(pdfHead, 120e6, 'Photo OM.pdf'), 'pdf'), null); // photo-heavy OMs over 50 MB are read
+  assert.equal(LIMITS.pdf, 50e6); // PDF pages, Convert and Documents keep 50 MB
   assert.equal(f.calls.whole, 0);
 });
 
@@ -66,10 +71,10 @@ test('a template reader passes a real workbook, and refuses a password-protected
 });
 
 test('a backup or project reader refuses an array, a PNG, a PDF and a zip under a .json name, unread', async () => {
-  for (const [head, re] of [[[...enc('[1,2,3]')], /start with “\{”/], [PNG, /a photo/], [pdfHead, /a PDF/], [[0x50, 0x4b, 3, 4], /a zip file/], [[...enc('plain words')], /start with “\{”/]]) {
+  for (const [head, re] of [[[...enc('[1,2,3]')], /start with “\{”/], [PNG, /start with “\{”/], [pdfHead, /start with “\{”/], [[0x50, 0x4b, 3, 4], /start with “\{”/], [[...enc('plain words')], /start with “\{”/]]) {
     const f = fake(head, 4000, 'Zlatura backup.json');
     const r = await checkReader(f, 'json');
-    assert.match(r, /^“Zlatura backup\.json” can’t be read: it is /);
+    assert.match(r, /^“Zlatura backup\.json” can’t be read: it is not a backup or project file/);
     assert.match(r, re);
     assert.equal(f.calls.whole, 0);
   }
@@ -81,13 +86,13 @@ test('a backup passes: plain, with a byte-order mark, UTF-16, and after blank li
   }
 });
 
-test('a backup over a size limit is refused unread (the limit is off until the owner chooses one)', async () => {
-  assert.equal(LIMITS.json, Infinity);
+test('a backup over a size limit is refused unread (512 MB: beyond what a browser holds as a string)', async () => {
+  assert.equal(LIMITS.json, 512e6);
   const was = LIMITS.json;
   LIMITS.json = 100e6;
   try {
     const f = fake([...enc('{"a":1}')], 100e6 + 1, 'b.json');
-    assert.match(await checkReader(f, 'json'), /^“b\.json” can’t be read: it is 100 MB; a backup or project file is read up to 100 MB\./);
+    assert.match(await checkReader(f, 'json'), /^“b\.json” can’t be read: it is 100 MB, more than a browser can hold as text \(100 MB\)/);
     assert.equal(f.calls.whole, 0);
   } finally { LIMITS.json = was; }
 });
@@ -131,3 +136,34 @@ test('every reader site checks the file before reading it', () => {
   assert.match(SRC('ocr.js'), /await checkPageCount\(doc\);/);
   assert.match(SRC('pdftext.js'), /await checkPageCount\(doc\);\n  const pages/);
 });
+
+test('the real backup, project and template package outputs pass, even with hostile names and a BOM', async () => {
+  const names = ['Scan %PDF-1.4 note', 'PK\u0003\u0004 notes', '\ufeffBOM name', '%PDF-'];
+  const deals = names.map((name, i) => ({ id: `d${i}`, name, figures: { address: name } }));
+  const backup = await buildBackup({ deals, kv: {}, appVersion: '1' });
+  const project = { format: FORMATS.project.write, version: 1, savedAt: 'x', docs: names.map((n) => ({ name: n, pages: [n] })), edits: {}, manual: [], subject: null };
+  const pkg = exportPackage({ name: names[0], category: 'Underwriting', description: names[1], versions: [{ fileName: 'a.xlsx', bytes: new Uint8Array(3) }], mapping: {}, current: 0 });
+  for (const t of [JSON.stringify(backup), JSON.stringify(backup, null, 2), JSON.stringify(project), pkg]) {
+    assert.equal(await checkReader(new File([enc(t)], 'x.json'), 'json'), null);
+    assert.equal(await checkReader(new File([Uint8Array.from([0xef, 0xbb, 0xbf, ...enc(t)])], 'x.json'), 'json'), null);
+  }
+});
+
+test('an odd page count is refused plainly: NaN, undefined, fractions, negatives', async () => {
+  for (const n of [NaN, undefined, 2.5, -1]) {
+    const calls = {};
+    await assert.rejects(() => checkPageCount(docOf(n, calls)), (e) => /^could not read the page count/.test(e.message) && e.plain === true);
+    assert.equal(calls.destroyed, true);
+  }
+  await checkPageCount(docOf(0)); // an empty PDF keeps its own message further on
+});
+
+test('the rent roll CSV, research and AI file readers check before reading', () => {
+  before(SRC('rentrollui.js'), 'async function readTable', 'checkUpload(file)', /readText\(/);
+  before(SRC('researchui.js'), "pick.addEventListener('change'", "checkReader(f, 'pdf')", /arrayBuffer\(\)/);
+  before(SRC('aiui.js'), 'export async function readWithAi', "checkReader(f, 'pdf')", /arrayBuffer\(\)/);
+  assert.match(SRC('researchui.js'), /e\.plain\) toast/);
+  assert.match(SRC('aiui.js'), /e\.plain\) toast/);
+  assert.match(SRC('convertui.js'), /e\.pages\) return/);
+});
+

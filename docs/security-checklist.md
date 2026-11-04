@@ -42,11 +42,23 @@ itself is not installed or run. First applied by hand on 2026-10-21 (findings F1
 **Parsers and resource use**
 7. Every reader of an uploaded file checks size first, then content type from bytes; zips check declared total
    size, entry count and per-entry ratio before inflating; sheets and pages have caps.
-   Done for the PDF, workbook-template and JSON (backup, project) readers by `checkReader` in `app/filekind.js`
-   (S3): size against `LIMITS`, then the kind from the first bytes, never the name; a PDF over `LIMITS.pdfPages`
-   (500) pages is refused before a page is read. Not yet: a size cap on backup and project JSON (`LIMITS.json` is
-   `Infinity` until the owner chooses one, because a backup with voice notes has no upper bound the app enforces),
-   and site photos and voice notes (a phone photo or a long recording can legitimately be large).
+   Every file-reading path and its status (S3; `checkReader`, `checkUpload` and `LIMITS` are in `app/filekind.js`):
+   - T-12 statement (`t12ui.js`), Comps spreadsheet import (`compimportui.js`), Documents hub (`ddui.js`,
+     `ddintake.js`), rent roll spreadsheet and rent roll CSV (`rentrollui.js`): `checkUpload`, size then kind.
+   - PDF pages and Convert (`pdfpagesui.js`, `convertui.js`): their own size, kind and 500-page limits; PDFs there stay at 50 MB.
+   - OM PDF, OCR re-pick, CoStar PDFs (Comps), rent roll PDF: `checkReader(file, 'pdf')`, 150 MB and kind from the bytes;
+     over 500 pages is refused in `checkPageCount` (`pdftext.js`, `ocr.js`).
+   - Excel template (Comps) and library template: `checkReader(file, 'xlsx')` (`checkUpload` and the zip guard).
+   - Backup restore, Comps project, library package: `checkReader(file, 'json')`, refused above 512 MB (more than a
+     browser can hold as one string) and unless the text starts with `{`; below 512 MB there is no cap, because deals
+     carry photos and voice notes with no enforced bound.
+   - Research sources and AI documents (`researchui.js`, `aiui.js`): a PDF goes through `checkReader(file, 'pdf')`
+     (kind from the bytes; the 28 MB `MAX_SEND` total is tighter than the 150 MB cap); a text file is covered only by
+     `MAX_SEND` (and `MAX_TEXT` in research), not sniffed, because a 10 MB text cap would refuse what is accepted today.
+     A PDF over 500 pages says its text was not read here and is sent as a scanned PDF.
+   - Site photos and voice notes (`dealui.js`): NOT covered; the browser decodes them and a phone photo or a long
+     recording can be legitimately large, so no cap was chosen.
+   - Photo text reading (`readPhotoText`, from a stored photo): not a file input; the photo was added above.
 8. Regexes on file text have no nested ambiguous quantifiers.
 9. PDF.js runs with eval disabled and its workers come from our own origin; OCR files load from our origin only.
 10. Macros in a workbook are never run; a password-protected file gets a message, not a crash.
