@@ -17,6 +17,7 @@
  * confidence, and is never applied without the broker accepting it. */
 
 import { layoutPage, itemsFromWords } from './layout.js';
+import { checkPageCount } from './pdftext.js';
 
 const LIB = '../vendor/ocr/tesseract-7.0.0.esm.min.js';
 const SCALE = 3; // about 216 dpi on a letter page: enough for 7-point table type
@@ -68,6 +69,7 @@ export async function readScannedPage(pdfjs, bytes, pageNo, { onProgress = (/** 
   if (!ocrSupported()) throw new Error('this browser can’t run the scanned-page reader (it needs WebAssembly SIMD: Safari 16.4 or later, or a current Chrome, Edge or Firefox)');
   onProgress('Drawing the page…');
   const doc = await pdfjs.getDocument({ data: bytes, isEvalSupported: false, useSystemFonts: false }).promise;
+  await checkPageCount(doc);
   let canvas;
   try {
     const page = await doc.getPage(pageNo);

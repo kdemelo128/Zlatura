@@ -1,6 +1,7 @@
 /* pdftext.js -- page text extraction, shared by the browser app and the test
  * harness. `pdfjs` is injected so the browser uses its own bundled copy. */
 import { layoutPage } from './layout.js';
+import { LIMITS } from './filekind.js';
 
 /* CoStar's PDF generator writes a broken ToUnicode map for the apostrophe in
  * some font subsets: the glyph resolves to a capital letter, so "property's"
@@ -32,6 +33,15 @@ export function repairApostrophes(pages) {
   return pages.map((p) => res.reduce((s, re) => s.replace(re, '$1’'), p));
 }
 
+/** Refuse a document with more pages than LIMITS.pdfPages, before any page is read; the reason is plain, for pdfProblem. */
+export async function checkPageCount(doc) {
+  const n = doc.numPages;
+  if (Number.isInteger(n) && n >= 0 && n <= LIMITS.pdfPages) return;
+  await doc.destroy();
+  if (!Number.isInteger(n) || n < 0) throw Object.assign(new Error('could not read the page count: the file may be damaged. Download it again, or export a fresh copy.'), { plain: true });
+  throw Object.assign(new Error(`it has ${n} pages; ${LIMITS.pdfPages} is the most to read at once. Use PDF pages to cut it first.`), { plain: true, pages: n });
+}
+
 /**
  * Page text of a PDF. `onPage(done, total)` reports progress on a long
  * document. With `layouts` (an array), each page's geometry from layout.js is
@@ -46,6 +56,7 @@ export async function pdfPages(pdfjs, data, opts = {}) {
     useSystemFonts: false,
     ...docOpts,
   }).promise;
+  await checkPageCount(doc);
   const pages = [];
   for (let i = 1; i <= doc.numPages; i++) {
     if (onPage) onPage(i, doc.numPages);

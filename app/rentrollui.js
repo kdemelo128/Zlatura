@@ -8,6 +8,7 @@
 
 import { cellValue, csvRows, unreadable, isCsv, loadXlsx } from './sheetread.js';
 import { readText } from './textfile.js';
+import { checkUpload, checkReader } from './filekind.js';
 import { calDay } from './pipeline.js';
 import { waltMethod } from './engine/walt.js';
 import {
@@ -844,7 +845,11 @@ async function importDialog(rr, changed) {
 async function readTable(file) {
   const no = unreadable(file, 'rent roll');
   if (no) throw new Error(no);
-  if (isCsv(file)) { const { text, note } = await readText(file); return { ...parseCsv(text), note }; }
+  if (isCsv(file)) {
+    const up = await checkUpload(file); // size and kind from the bytes, as the T-12 text path does
+    if (up.refuse || up.kind !== 'text') throw new Error(up.refuse || `“${file.name}” can’t be read: it is not a text file, whatever its name says.`);
+    const { text, note } = await readText(file); return { ...parseCsv(text), note };
+  }
   const wb = await loadXlsx(file, getXlsx); // size, kind and the zip's real sizes are checked before ExcelJS sees the bytes
   let best = null;
   wb.eachSheet((ws) => {
@@ -897,6 +902,8 @@ async function importPdfDialog(rr, changed) {
     const f = inp.files[0];
     if (!f) return;
     if (!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf') { toast('That is not a PDF.'); return; }
+    const bad = await checkReader(f, 'pdf');
+    if (bad) { toast(bad, null, 8000); return; }
     let pages; let bytes; let pdfjs;
     const layouts = [];
     try {

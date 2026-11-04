@@ -13,6 +13,7 @@ import { decodeText } from './textfile.js';
 import { buildFacts } from './aifacts.js';
 import { normalizeValue, verifyQuote, reconcile, sameValue } from './reconcile.js';
 import { el, toast, actionSheet, getPdfjs, money0, money2, pct, int, niceDate, copyText } from './kit.js';
+import { checkReader } from './filekind.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 export const MAX_SEND = 28 * 1024 * 1024;   // the server accepts 40 MB of JSON; base64 adds a third
@@ -128,10 +129,11 @@ export async function readWithAi(h, files) {
   const texts = [];
   const notes = [];
   for (const f of files) {
+    if (/\.pdf$/i.test(f.name)) { const bad = await checkReader(f, 'pdf'); if (bad) { toast(bad, null, 7000); return; } }
     const bytes = new Uint8Array(await f.arrayBuffer());
     if (/\.pdf$/i.test(f.name)) {
       let pages = [];
-      try { pages = await pdfText(h.api, bytes); } catch { pages = []; }
+      try { pages = await pdfText(h.api, bytes); } catch (e) { pages = []; if (e && e.plain) toast(`${f.name}: ${e.message} Its text was not read here, so it is sent as a scanned PDF.`, null, 8000); }
       texts.push(pages);
       docs.push({ name: f.name, mediaType: 'application/pdf', data: ai.toBase64(bytes) });
     } else {

@@ -3,6 +3,7 @@
 
 import * as store from './store.js';
 import { readText } from './textfile.js';
+import { checkReader } from './filekind.js';
 import { snapshotData } from './history.js';
 import { buildBackup, readBackup, planRestore, changedSteps, LOCAL_KEYS } from './backup.js';
 import { migrateDeal } from './migrate.js';
@@ -126,6 +127,8 @@ export async function makeBackup({ withHistory = true } = {}) {
 async function restore(file, api) {
   let backup;
   let note = null;
+  const bad = await checkReader(file, 'json');
+  if (bad) { toast(bad, null, 9000); return; }
   try { const r = await readText(file); note = r.note; backup = readBackup(r.text); } catch (e) { toast(e.message, null, 7000); return; }
   if (note) toast(`${file.name}: ${note}`, null, 12000);
   const c = await current();

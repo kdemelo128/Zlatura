@@ -22,6 +22,7 @@ import { toCents } from './engine/money.js';
 import { setConventions } from './engine/conventions.js';
 import { pdfPages } from './pdftext.js';
 import { readText } from './textfile.js';
+import { checkReader } from './filekind.js';
 import { loadComps, ppsf, mdy, MAX_COMPS } from './costar.js';
 import { buildWorkbook, byPpsf } from './workbook.js';
 import { zoningLookup, zoningInfo } from './zoning.js';
@@ -777,6 +778,8 @@ async function handleFiles(fileList) {
       const i = next++;
       const { file, st } = items[i];
       st.textContent = 'reading…';
+      const bad = await checkReader(file, 'pdf');
+      if (bad) { st.textContent = 'could not be read'; st.classList.add('err'); st.title = bad; failed.push(bad); continue; }
       try {
         const pages = await pdfPages(pdfjs, new Uint8Array(await file.arrayBuffer()), {
           onPage: (k, n) => { if (n > 3) st.textContent = `page ${k} of ${n}`; },
@@ -939,6 +942,8 @@ async function saveProject() {
 async function openProject(file) {
   let p;
   let note = null;
+  const bad = await checkReader(file, 'json');
+  if (bad) { toast(bad, null, 8000); return; }
   try {
     const r = await readText(file);
     note = r.note;
@@ -1202,6 +1207,8 @@ async function loadTemplate(file) {
     toast(/\.xls$/i.test(file.name) ? 'That is an old .xls file. Open it in Excel and save it as .xlsx first.' : 'Choose an Excel .xlsx file.');
     return;
   }
+  const bad = await checkReader(file, 'xlsx', { getFflate });
+  if (bad) { toast(bad, null, 8000); return; }
   try {
     const fflate = await getFflate();
     const { inspectTemplate } = await import('./template.js');
