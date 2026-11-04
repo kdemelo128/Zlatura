@@ -61,7 +61,7 @@ await page.press('#fig-price', 'Tab');
 await settle();
 dealId = await page.evaluate(() => localStorage.getItem('zlatura.deal.current'));
 await page.waitForSelector('#ab-toggle');
-check('a new deal has an empty abstract list at schema 8, made by the app', (await deals())[0].schema === 8 && JSON.stringify((await deals())[0].abstracts) === JSON.stringify({ v: 1, items: [] }));
+check('a new deal has an empty abstract list at schema 9, made by the app', (await deals())[0].schema === 9 && JSON.stringify((await deals())[0].abstracts) === JSON.stringify({ v: 1, items: [] }));
 check('the Lease abstracts card is collapsed by default, and its heading is a button that says so', (await page.getAttribute('#ab-toggle', 'aria-expanded')) === 'false' && (await page.locator('#ab-body').isHidden()) && (await txt('#ab-toggle')) === 'Lease abstracts');
 await page.click('#dd-toggle');
 await page.waitForSelector('#dd-files', { state: 'attached' });
@@ -287,7 +287,7 @@ const [bdl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 
 const bfile = `${SHOTS}ab-backup.json`;
 await bdl.saveAs(bfile);
 const bj = JSON.parse(fs.readFileSync(bfile, 'utf8'));
-check('the backup carries the abstracts at schema 8, record for record', bj.deals.length === 1 && bj.deals[0].schema === 8 && JSON.stringify(bj.deals[0].abstracts) === JSON.stringify(full));
+check('the backup carries the abstracts at schema 9, record for record', bj.deals.length === 1 && bj.deals[0].schema === 9 && JSON.stringify(bj.deals[0].abstracts) === JSON.stringify(full));
 await page.evaluate(() => new Promise((res) => { localStorage.clear(); const q = indexedDB.deleteDatabase('zlatura'); q.onsuccess = res; q.onerror = res; q.onblocked = res; }));
 await page.goto(`${BASE}#settings`, { waitUntil: 'load' });
 await page.reload({ waitUntil: 'load' });

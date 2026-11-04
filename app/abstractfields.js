@@ -12,7 +12,9 @@ export const TERM_KINDS = Object.freeze(['initial', 'renewal', 'extension', 'fmv
 export const OPTION_KINDS = Object.freeze(['renewal', 'expansion', 'contraction', 'termination', 'rofr', 'rofo', 'purchase']);
 export const RESETS = Object.freeze(['fmv', 'fixed', 'cpi', 'other']);
 export const REL_TO = Object.freeze(['expiration', 'commencement', 'other']);
-export const READERS = Object.freeze(['typed']);
+/** Who made a source: the broker typed it, or a reader (pdf text layer or OCR, with its rule-set version) found it. */
+export const READERS = Object.freeze(['typed', 'pdftext@1', 'ocr@1']);
+export const CONFIDENCES = Object.freeze(['high', 'medium', 'low']);
 
 /** Every cap in one place (the normaliser applies them all). */
 export const LIMITS = Object.freeze({

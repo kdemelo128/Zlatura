@@ -13,7 +13,7 @@
 import { cutText, rid } from './dd.js';
 import { toCents, toRate } from './engine/money.js';
 import { addDays, addMonths, dayOf, monthlyAmount, monthsBetween, validateLease } from './lease.js';
-import { BASES, CLAUSES, FIELDS, FIELD_BY_KEY, LIMITS, OPTION_KINDS, REL_TO, RESETS, STATUSES, TERM_KINDS } from './abstractfields.js';
+import { BASES, CLAUSES, CONFIDENCES, FIELDS, FIELD_BY_KEY, LIMITS, OPTION_KINDS, READERS, REL_TO, RESETS, STATUSES, TERM_KINDS } from './abstractfields.js';
 
 export { emptyAbstracts } from './history.js';
 
@@ -69,19 +69,36 @@ export function coerce(f, v) {
   }
 }
 
-const normSrc = (x) => ({
-  doc: typeof x.doc === 'string' && x.doc ? cutText(x.doc, LIMITS.id) : null,
-  page: Number.isSafeInteger(x.page) && x.page >= 1 ? x.page : null,
-  start: null, len: null, quote: cutText(str(x.quote), LIMITS.quote), reader: 'typed', ocrConf: null,
-});
-/** The parts every item shares (a field, a term, a step, an option, a custom clause), beyond its value. */
-function normCommon(x) {
+/** A source. A reader's start, len and OCR confidence stand only with a reader; for the broker's own they are null. */
+function normSrc(x) {
+  const reader = READERS.includes(x.reader) ? x.reader : 'typed';
+  const mine = reader !== 'typed';
   return {
-    by: 'broker', checked: isoLike(x.checked) ? x.checked : false, confidence: null,
-    src: Array.isArray(x.src) ? x.src.filter(isObj).slice(0, LIMITS.sources).map(normSrc) : [],
-    supersededBy: null, note: cutText(str(x.note), LIMITS.note),
+    doc: typeof x.doc === 'string' && x.doc ? cutText(x.doc, LIMITS.id) : null,
+    page: Number.isSafeInteger(x.page) && x.page >= 1 ? x.page : null,
+    start: mine && Number.isSafeInteger(x.start) && x.start >= 0 ? x.start : null,
+    len: mine && Number.isSafeInteger(x.len) && x.len >= 1 && x.len <= LIMITS.quote ? x.len : null,
+    quote: cutText(str(x.quote), LIMITS.quote), reader,
+    ocrConf: reader === 'ocr@1' && fin(x.ocrConf) ? Math.min(100, Math.max(0, Math.round(x.ocrConf))) : null,
   };
 }
+/** True when a source was made by a reader and quotes at least three characters (what makes `by: 'reader'` believable). */
+const readSrc = (s) => s.reader !== 'typed' && s.quote.trim().length >= 3;
+/**
+ * The parts every item shares (a field, a term, a step, an option, a custom clause), beyond its value. `by: 'reader'` stands
+ * only with a reader's source that quotes something, so a backup cannot claim a reader found what nobody read; `supersededBy`
+ * (a document id) is kept only on terms and steps.
+ */
+function normCommon(x, { sup = false } = NO) {
+  const src = Array.isArray(x.src) ? x.src.filter(isObj).slice(0, LIMITS.sources).map(normSrc) : [];
+  const byReader = x.by === 'reader' && src.some(readSrc);
+  return {
+    by: byReader ? 'reader' : 'broker', checked: isoLike(x.checked) ? x.checked : false, confidence: byReader && CONFIDENCES.includes(x.confidence) ? x.confidence : null,
+    src, supersededBy: sup && typeof x.supersededBy === 'string' && x.supersededBy ? cutText(x.supersededBy, LIMITS.id) : null, note: cutText(str(x.note), LIMITS.note),
+  };
+}
+/** The broker edits what a reader found: it becomes theirs (the source stays, as the page it came from). */
+export const takeOver = (rec) => { rec.by = 'broker'; rec.confidence = null; };
 /** A tick only stands on a found or not-found item: a hostile save cannot keep one on an unread or ambiguous item. */
 const gate = (o) => (o.status === 'found' || o.status === 'not-found' || !o.checked ? o : { ...o, checked: false });
 const status = (s) => (STATUSES.includes(s) ? s : 'unread');
@@ -131,7 +148,7 @@ function normTerm(x) {
     id: idOf(x.id, 'tm_'), kind: TERM_KINDS.includes(x.kind) ? x.kind : null,
     label: cutText(str(x.label), LIMITS.termLabel), ref: cutText(str(x.ref), LIMITS.termRef),
     doc: typeof x.doc === 'string' && x.doc ? cutText(x.doc, LIMITS.id) : null, effective: isoDay(x.effective) ? x.effective : null,
-    supersedes: x.supersedes === true, unquantified: x.unquantified === true, status: status(x.status), ...normCommon(x),
+    supersedes: x.supersedes === true, unquantified: x.unquantified === true, status: status(x.status), ...normCommon(x, { sup: true }),
   });
 }
 function normStep(x, termIds) {
@@ -142,7 +159,7 @@ function normStep(x, termIds) {
   return gate({
     id: idOf(x.id, 'st_'), term: typeof x.term === 'string' && termIds.has(x.term) ? x.term : null, label: cutText(str(x.label), LIMITS.stepLabel),
     from: isoDay(x.from) ? x.from : null, to: isoDay(x.to) ? x.to : null, mFrom: nPos(x.mFrom), mTo: nPos(x.mTo),
-    amounts, primary, basis: BASES.includes(x.basis) ? x.basis : null, status: status(x.status), ...normCommon(x),
+    amounts, primary, basis: BASES.includes(x.basis) ? x.basis : null, status: status(x.status), ...normCommon(x, { sup: true }),
   });
 }
 function normOption(x) {
@@ -276,7 +293,7 @@ export function setValue(ab, key, value, { unit, basis, rel, now } = NO) {
   if (unit !== undefined && unit !== null && !units.includes(unit)) return { error: `${f.label}: that unit is not allowed here.` };
   if (basis !== undefined && basis !== null && !BASES.includes(basis)) return { error: `${f.label}: that is not a measure basis.` };
   const had = ab.fields[key];
-  const next = normField(f, { ...(had || {}), value: v, rel: relText, status: 'found', unit: unit ?? had?.unit, basis: basis ?? had?.basis, checked: false });
+  const next = normField(f, { ...(had || {}), value: v, rel: relText, status: 'found', unit: unit ?? had?.unit, basis: basis ?? had?.basis, checked: false, by: 'broker' });
   const changed = !had || had.status !== 'found' || JSON.stringify([had.value, had.unit, had.basis, had.rel ?? '']) !== JSON.stringify([next.value, next.unit, next.basis, next.rel ?? '']);
   const out = changed ? untick(ab, key, had) : {};
   if (!changed) return { ok: true };
@@ -301,7 +318,7 @@ export function setNone(ab, key, { noClause = false, now } = NO) {
   if (v === null) return { error: `${f.label}: "none" does not apply to this kind of value.` };
   const had = ab.fields[key];
   if (!evidence(had) && !noClause) return { error: `${f.label}: give the page or a quote that says so, or say there is no clause.` };
-  const next = normField(f, { ...(had || {}), value: v, status: 'found', checked: false, note: had && had.note ? had.note : evidence(had) ? '' : 'no clause' });
+  const next = normField(f, { ...(had || {}), value: v, status: 'found', checked: false, by: 'broker', note: had && had.note ? had.note : evidence(had) ? '' : 'no clause' });
   const out = untick(ab, key, had);
   ab.fields[key] = next;
   touch(ab, now);
@@ -313,7 +330,7 @@ export function setNotFound(ab, key, { now } = NO) {
   if (!f) return { error: 'That is not a lease abstract field.' };
   const had = ab.fields[key];
   const out = untick(ab, key, had);
-  ab.fields[key] = normField(f, { ...(had || {}), value: null, status: 'not-found', checked: false });
+  ab.fields[key] = normField(f, { ...(had || {}), value: null, status: 'not-found', checked: false, by: 'broker' });
   touch(ab, now);
   return { ok: true, ...out };
 }
@@ -350,6 +367,7 @@ export function setEvidence(ab, key, src, { now } = NO) {
     rec = ab.fields[key];
   }
   rec.src = list;
+  if (!list.some(readSrc)) takeOver(rec); // a source the broker typed is the broker's
   touch(ab, now);
   return { ok: true };
 }
@@ -408,6 +426,7 @@ export function setTerm(ab, id, patch, { now } = NO) {
   if (!changed) return { ok: true };
   const out = untick(ab, `term:${id}`, t);
   Object.assign(t, pick(next, TERM_EDIT), { status: 'found' });
+  takeOver(t);
   touch(ab, now);
   return { ok: true, ...out };
 }
@@ -442,6 +461,7 @@ export function setStep(ab, id, patch, { now } = NO) {
   if (JSON.stringify(pick(s, KEYS)) === JSON.stringify(pick(next, KEYS))) return { ok: true };
   const out = untick(ab, `step:${id}`, s);
   Object.assign(s, pick(next, KEYS));
+  takeOver(s);
   if (s.status !== 'ambiguous') s.status = s.primary && s.amounts[s.primary] !== null ? 'found' : 'unread';
   touch(ab, now);
   return { ok: true, ...out };

@@ -19,8 +19,8 @@ export const MAX_REASON = 200;
 export const KINDS = ['pdf', 'xlsx', 'csv', 'docx', 'image', 'text', 'other'];
 export const STATUSES = ['received', 'read', 'reviewed', 'superseded'];
 export const TYPE_BY = ['reader', 'broker'];
-const READERS = ['om', 'rrpdf', 'rrsheet', 't12', 'ocr'];
-const TARGETS = ['omRead', 'rr', 't12'];
+const READERS = ['om', 'rrpdf', 'rrsheet', 't12', 'ocr', 'lease'];
+const TARGETS = ['omRead', 'rr', 't12', 'abstracts'];
 
 /** An empty registry. */
 export const newDd = () => ({ v: 1, preset: null, na: {}, docs: [] });
@@ -182,6 +182,15 @@ export function recordRead(dd, f, { now = new Date().toISOString() } = {}) {
   }
   const r = addDoc(dd, { ...f, typeBy: 'reader', read }, { now });
   return r.error ? r : { doc: r.doc, added: true };
+}
+
+/** A reader has read this Doc (by id): the lease reader, whose values went to a lease abstract. { pass, warn, fail } count its checks. */
+export function markRead(dd, id, read, { now = new Date().toISOString() } = {}) {
+  const doc = dd.docs.find((x) => x.id === id);
+  if (!doc) return false;
+  doc.read = { reader: read.reader, at: now, target: read.target, checks: { pass: read.checks.pass | 0, warn: read.checks.warn | 0, fail: read.checks.fail | 0 } };
+  if (doc.status === 'received') doc.status = 'read';
+  return true;
 }
 
 /** Does any lease in the rent roll carry percentage rent (it makes the retail sales and REA documents required)? */
