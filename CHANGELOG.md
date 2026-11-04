@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.7.95: Two browser tests no longer fail by chance (on the development branch; not merged or deployed)
+
+Two of the browser tests failed now and then although the app was behaving correctly. Both were races in the tests, not in the app.
+
+- **Lease abstracts (`tests/e2e/abstract-flow.mjs`)** failed about one run in four on "a confidential deal's workbook is named CONFIDENTIAL and is marked on its sheets". The test clicked the Workbook button first and only then started waiting for the download, so a download that arrived quickly was missed. It now starts waiting before the click, the way the other two downloads in that file already do.
+- **Windows-1252 import (`tests/e2e/encoding-flow.mjs`)** failed about one run in six on "its line labels are kept with their accents". The test waited a fixed 400 ms and then read the saved T-12, so on a busy machine it read before the save had landed. It now waits until the T-12 is saved.
+- **Tested:** each flow was run in a row after its change (abstract-flow 8 of 8 passed 71 of 71; encoding-flow 10 of 10 passed 12 of 12). Before the changes they failed in 2 of 6 runs and 1 of 6 runs. A search of every browser test found no other download wait that comes after its click; other fixed waits exist and are listed as a follow-up, not changed here.
+- Saved results and golden outputs do not change; no app code is touched.
+
 ## 4.7.94: Text from a file or a person can no longer reach a script sink unnoticed, and contact links are restricted (on the development branch; not merged or deployed)
 
 Security checklist ID 2 (cross-site scripting). The app already put every name and cell into the page as text, but nothing stopped a later change from writing text into HTML, and a contact's email was placed into a `mailto:` link unescaped, so an address like `a@b.test?bcc=x@y.test` added a hidden recipient.

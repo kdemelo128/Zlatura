@@ -345,8 +345,11 @@ await page.evaluate(async (id) => { const m = await import('./app/store.js'); co
 await page.reload({ waitUntil: 'load' });
 await page.waitForSelector('#ab-toggle');
 const seen = outside.length;
-await page.locator('.ab-row').first().locator('button:has-text("Workbook")').click();
-const cdl = await page.waitForEvent('download', { timeout: 30000 }).catch(() => null);
+// the download wait starts BEFORE the click: waiting after it misses a download that arrives first (an intermittent failure, about 1 run in 4)
+const [cdl] = await Promise.all([
+  page.waitForEvent('download', { timeout: 30000 }).catch(() => null),
+  page.locator('.ab-row').first().locator('button:has-text("Workbook")').click(),
+]);
 check('a confidential deal’s workbook is named CONFIDENTIAL and is marked on its sheets', cdl && /^CONFIDENTIAL - /.test(cdl.suggestedFilename()));
 if (cdl) { await cdl.saveAs(`${SHOTS}ab-conf.xlsx`); const z = fflate.unzipSync(new Uint8Array(fs.readFileSync(`${SHOTS}ab-conf.xlsx`))); check('and its first sheet prints CONFIDENTIAL in the header and footer', /CONFIDENTIAL/.test(new TextDecoder().decode(z['xl/worksheets/sheet1.xml']))); }
 check('exporting made no request to any other site', outside.length === seen, outside.slice(seen).join(', '));
