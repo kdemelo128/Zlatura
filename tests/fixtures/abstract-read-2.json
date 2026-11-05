@@ -1,0 +1,115 @@
+{
+ "docType": "lease",
+ "fields": {
+  "landlord": {
+   "status": "found",
+   "value": "Meadowbrook Plaza Partners LP",
+   "page": 1,
+   "confidence": "high"
+  },
+  "tenant": {
+   "status": "found",
+   "value": "Foxglove Optical LLC",
+   "page": 1,
+   "confidence": "high"
+  },
+  "tradeName": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  },
+  "guarantor": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  },
+  "suite": {
+   "status": "found",
+   "value": "14",
+   "page": 1,
+   "confidence": "high"
+  },
+  "floor": {
+   "status": "found",
+   "value": "first",
+   "page": 1,
+   "confidence": "high"
+  },
+  "sf": {
+   "status": "ambiguous",
+   "value": null,
+   "page": 2,
+   "confidence": "low"
+  },
+  "proRata": {
+   "status": "found",
+   "value": 4.2,
+   "page": 2,
+   "confidence": "high"
+  },
+  "leaseDate": {
+   "status": "found",
+   "value": "2027-03-15",
+   "page": 1,
+   "confidence": "medium"
+  },
+  "possession": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  },
+  "commencement": {
+   "status": "found",
+   "value": "2027-09-01",
+   "page": 1,
+   "confidence": "high"
+  },
+  "rentCommencement": {
+   "status": "ambiguous",
+   "value": null,
+   "page": 1,
+   "confidence": "low"
+  },
+  "expiration": {
+   "status": "found",
+   "value": "2032-08-31",
+   "page": 1,
+   "confidence": "high"
+  },
+  "termMonths": {
+   "status": "found",
+   "value": 60,
+   "page": 1,
+   "confidence": "high"
+  },
+  "termText": {
+   "status": "found",
+   "value": "five (5) years",
+   "page": 1,
+   "confidence": "high"
+  },
+  "deposit": {
+   "status": "found",
+   "value": 5000,
+   "page": 2,
+   "confidence": "high",
+   "unit": "total"
+  },
+  "depositForm": {
+   "status": "found",
+   "value": "cash",
+   "page": 2,
+   "confidence": "high"
+  },
+  "escalation": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  }
+ },
+ "terms": [],
+ "steps": [],
+ "flags": [
+  "Usable area 2150 SF, p.1: not used as the square feet"
+ ]
+}

@@ -426,13 +426,14 @@ test('an empty or untouched document list is no edit: History would record nothi
       const stored = structuredClone(d);
       const realDd = d.dd && (d.dd.docs.length || d.dd.preset || Object.keys(d.dd.na).length); // a fixture may hold a real list: that is data, not bookkeeping
       if (!realDd) delete stored.dd;
-      delete stored.abstracts;
+      const realAb = d.abstracts && d.abstracts.items.length; // a fixture may hold typed abstracts: that is data too
+      if (!realAb) delete stored.abstracts;
       assert.equal(historyEntry(stored, d), null, `${f}: ${d.name}`);
       const after = structuredClone(d);
       D.ddOf(after);
       assert.equal(historyEntry(d, after), null);
       assert.ok(realDd || !('dd' in recordable(d)));
-      assert.ok(!('abstracts' in recordable(d)));
+      assert.ok(realAb || !('abstracts' in recordable(d)));
     }
   }
   // but a real change is recorded

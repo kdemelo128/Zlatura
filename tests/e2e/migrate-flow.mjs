@@ -80,8 +80,8 @@ check('the restore sheet says which deals an older version saved, and what bring
   /3 deals saved by an older version are brought up to date as they are restored: money rounded to whole cents \(1\), rent roll set up \(3\)/.test(sheet), sheet.replace(/\s+/g, ' ').slice(0, 300));
 let after = await deals(page);
 check('3 deals restored', Object.keys(after).length === 3, Object.keys(after).join(' / '));
-check('each is up to date before it is opened: a rent roll, schema 8 (with the OM rent roll’s Data QC record), money version 1',
-  Object.values(after).every((d) => d.rr && d.schema === 8 && d.moneyVersion === 1 && (fromOm(d) ? d.rrQc && d.rrQc.legacy === true && d.rrQc.checks.length === 0 : !d.rrQc)),
+check('each is up to date before it is opened: a rent roll, schema 9 (with the OM rent roll’s Data QC record), money version 1',
+  Object.values(after).every((d) => d.rr && d.schema === 9 && d.moneyVersion === 1 && (fromOm(d) ? d.rrQc && d.rrQc.legacy === true && d.rrQc.checks.length === 0 : !d.rrQc)),
   Object.values(after).map((d) => `${d.figures.address}: rr ${!!d.rr} schema ${d.schema} money ${d.moneyVersion}`).join(' / '));
 const ex = after['4410 Example Avenue NW'];
 check('the OM’s five rent roll rows became five leases', ex && ex.rr && ex.rr.leases.length === 5);
@@ -126,7 +126,7 @@ const made = hd.find((e) => e.label === 'Rent roll set up');
 check('opened directly: the rounding is an entry of its own, with only the value it rounded', !!rnd && (rnd.changes || []).length >= 1 && (rnd.changes || []).every((c) => !/^rr\b|rr\./.test(c.path || '')), hd.map((e) => `${e.kind}:${e.label}:${(e.changes || []).length}`).join(' / '));
 check('and the new rent roll is the next entry, holding the rent roll', !!made && (made.changes || []).some((c) => /rr/.test(JSON.stringify(c.path || c.key || c))), made && JSON.stringify(made.changes).slice(0, 200));
 const storedDirect = (await deals(page))['4410 Example Avenue NW'] && (await idb(page, 'deals')).find((d) => d.id === direct.id);
-check('and it is stored up to date', storedDirect && storedDirect.rr && storedDirect.schema === 8 && storedDirect.rrQc && storedDirect.rrQc.legacy && storedDirect.moneyVersion === 1);
+check('and it is stored up to date', storedDirect && storedDirect.rr && storedDirect.schema === 9 && storedDirect.rrQc && storedDirect.rrQc.legacy && storedDirect.moneyVersion === 1);
 
 // ---- 4. a backup with a deal from a newer version is refused, nothing restored
 const newer = JSON.parse(fs.readFileSync(FIX, 'utf8'));

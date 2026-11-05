@@ -1,0 +1,122 @@
+{
+ "docType": "amendment",
+ "effective": "2032-03-01",
+ "fields": {
+  "suite": {
+   "status": "found",
+   "value": "210",
+   "page": 1,
+   "confidence": "high"
+  },
+  "expiration": {
+   "status": "found",
+   "value": "2037-02-28",
+   "page": 1,
+   "confidence": "high"
+  }
+ },
+ "terms": [
+  {
+   "kind": "extension",
+   "status": "found",
+   "page": 1,
+   "supersedes": true
+  }
+ ],
+ "steps": [
+  {
+   "label": "Months 4-12",
+   "amounts": {
+    "month": 5000,
+    "year": 60000
+   },
+   "primary": null,
+   "basis": null,
+   "status": "found",
+   "page": 1,
+   "mFrom": 4,
+   "mTo": 12
+  },
+  {
+   "label": "Months 13-24",
+   "amounts": {
+    "month": 5100,
+    "year": 61200
+   },
+   "primary": null,
+   "basis": null,
+   "status": "found",
+   "page": 1,
+   "mFrom": 13,
+   "mTo": 24
+  },
+  {
+   "label": "Months 25-36",
+   "amounts": {
+    "month": 5202,
+    "year": 62424
+   },
+   "primary": null,
+   "basis": null,
+   "status": "found",
+   "page": 1,
+   "mFrom": 25,
+   "mTo": 36
+  },
+  {
+   "label": "Months 37-48",
+   "amounts": {
+    "month": 5306.04,
+    "year": 63722.48
+   },
+   "primary": null,
+   "basis": null,
+   "status": "found",
+   "page": 1,
+   "mFrom": 37,
+   "mTo": 48
+  },
+  {
+   "label": "Months 49-60",
+   "amounts": {
+    "month": 5412.16,
+    "year": 64945.92
+   },
+   "primary": null,
+   "basis": null,
+   "status": "found",
+   "page": 1,
+   "mFrom": 49,
+   "mTo": 60
+  },
+  {
+   "label": "Months 61-72",
+   "amounts": {
+    "month": 5520.4,
+    "year": 66244.8
+   },
+   "primary": null,
+   "basis": null,
+   "status": "found",
+   "page": 1,
+   "mFrom": 61,
+   "mTo": 72
+  },
+  {
+   "label": "Months 73-84",
+   "amounts": {
+    "month": 5630.81,
+    "year": 67569.72
+   },
+   "primary": null,
+   "basis": null,
+   "status": "found",
+   "page": 1,
+   "mFrom": 73,
+   "mTo": 84
+  }
+ ],
+ "flags": [
+  "Rent abated in months 1-3, p.1: record it as free rent"
+ ]
+}

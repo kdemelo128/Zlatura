@@ -185,6 +185,22 @@ export const MIGRATIONS = [
       return { rounded: [] };
     },
   },
+  {
+    id: 'abstracts-read',
+    field: 'schema',
+    to: 9,
+    since: '4.7.98',
+    does: 'Marks the deal as one that may hold lease values a reader found (each with its page and quote, never ticked). Nothing already stored changes. It exists so an older version, which would show those values as typed by the broker, refuses the backup instead.',
+    brief: 'ready for lease values read from a PDF',
+    silent: true,
+    kind: 'create',
+    label: () => 'Ready for lease values read from a PDF',
+    needed: (d) => (d.schema || 0) < 9,
+    up(d) {
+      d.schema = 9;
+      return { rounded: [] };
+    },
+  },
 ];
 
 /**

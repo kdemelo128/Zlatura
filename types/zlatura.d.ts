@@ -140,8 +140,11 @@ interface Dd { v: 1; preset: 'office' | 'retail' | 'netlease' | 'multifamily' | 
 /** A deal's lease abstracts (deal.abstracts): lease terms the broker typed, each with the page it came from. Sparse: a field key that is absent is unread. */
 type AbStatus = 'unread' | 'found' | 'not-found' | 'ambiguous';
 type AbBasis = 'rentable' | 'usable' | 'gross' | 'land';
-interface AbSrc { doc: string | null; page: number | null; start: null; len: null; quote: string; reader: 'typed'; ocrConf: null }
-interface AbItem { status: AbStatus; by: 'broker'; checked: false | string; confidence: null; src: AbSrc[]; supersededBy: null; note: string }
+/** Who made a source: the broker ('typed'), or a lease reader (the pdf text layer or OCR, with its rule-set version). A reader's start and len are hints for finding the quote again. */
+type AbReader = 'typed' | 'pdftext@1' | 'ocr@1';
+interface AbSrc { doc: string | null; page: number | null; start: number | null; len: number | null; quote: string; reader: AbReader; ocrConf: number | null }
+/** `by: 'reader'` stands only with a reader's source that quotes something; a `confidence` only goes with it; `supersededBy` (a Doc id) only on terms and steps. */
+interface AbItem { status: AbStatus; by: 'broker' | 'reader'; checked: false | string; confidence: 'high' | 'medium' | 'low' | null; src: AbSrc[]; supersededBy: string | null; note: string }
 interface AbField extends AbItem { value: unknown; unit: 'month' | 'year' | 'psf_year' | 'psf_month' | 'total' | null; basis: AbBasis | null; rel?: string }
 interface AbTerm extends AbItem { id: string; kind: 'initial' | 'renewal' | 'extension' | 'fmv' | 'opex' | null; label: string; ref: string; doc: string | null; effective: IsoDate | null; supersedes: boolean; unquantified: boolean }
 interface AbStep extends AbItem {
@@ -274,3 +277,20 @@ interface Workspace {
 }
 /** The stored workspace choice (kv `ui.prefs`, key `workspace`), after workspaces.js sanitises it on read. */
 interface WorkspaceChoice { v: 1; active: string; pinned: string[]; picked: boolean }
+/* The lease reader (app/leaseread.js, leasestage.js): what it finds, before the broker keeps it. Nothing here is stored. */
+interface LeasePage { n: number; text: string; source: 'pdftext' | 'ocr'; conf: number | null; poor: boolean; lines: { s: number; e: number; furniture: boolean }[]; clean: string }
+interface LeaseSource { page: number; start: number; len: number; quote: string; hit?: string; confidence: 'high' | 'medium' | 'low'; from: string; ocrConf: number | null }
+interface LeaseCand {
+  key: string; value: unknown; unit: string | null; basis: AbBasis | null; rel: string; status: 'found' | 'ambiguous' | 'not-found'; confidence: 'high' | 'medium' | 'low'; note: string; from: string;
+  page: number | null; start: number | null; len: number; quote: string; hit?: string; ocrConf: number | null; sources: LeaseSource[]; choices?: unknown;
+}
+interface LeaseStep {
+  label: string; mFrom: number | null; mTo: number | null; from: IsoDate | null; to: IsoDate | null; amounts: Record<string, number>; primary: string | null; basis: AbBasis | null;
+  status: 'found' | 'ambiguous'; note: string; figures: string[]; page: number; start: number; len: number; quote: string; confidence: 'high' | 'medium' | 'low'; sources: LeaseSource[]; termIndex?: number; choices?: unknown;
+}
+interface LeaseTerm { kind: string | null; label: string; status: 'found' | 'ambiguous'; note: string; page: number; start: number; len: number; quote: string; confidence: 'high' | 'medium' | 'low'; supersedes: boolean; ocrConf: number | null }
+interface LeaseResult {
+  docType: 'lease' | 'amendment' | 'summary' | 'other'; ask: string[]; sections: unknown[]; terms: LeaseTerm[]; cands: LeaseCand[]; steps: LeaseStep[];
+  flags: { text: string; page: number; kind: string }[]; effective: { iso: IsoDate | null; page: number | null; quote: string; confidence: string; note?: string } | null;
+  pages: { n: number; source: 'pdftext' | 'ocr'; conf: number | null; poor: boolean; chars: number }[]; warnings: string[];
+}

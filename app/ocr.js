@@ -92,6 +92,63 @@ export async function readScannedPage(pdfjs, bytes, pageNo, { onProgress = (/** 
 }
 
 /**
+ * A reader for many pages of one scanned PDF (a lease): one pdf.js document and one Tesseract worker are held for the whole run, so
+ * the engine loads once, not once a page. read(pageNo, { onProgress }) gives what readScannedPage gives ({ text, geom, words, conf })
+ * with the same scale and parameters (psm 6, spaces kept). restart() ends the engine worker at once (a page that took too long); the
+ * next read starts a fresh one. close() ends both. Nothing is fetched from another site.
+ * @param {any} pdfjs @param {Uint8Array} bytes
+ */
+export function openScanReader(pdfjs, bytes) {
+  if (!ocrSupported()) throw new Error('this browser can’t run the scanned-page reader (it needs WebAssembly SIMD: Safari 16.4 or later, or a current Chrome, Edge or Firefox)');
+  /** @type {any} */ let doc = null;
+  /** @type {any} */ let worker = null;
+  /** @type {Promise<any> | null} */ let starting = null;
+  let say = (/** @type {string} */ _t) => {};
+  const getWorker = () => (starting ||= (async () => {
+    say('Loading the scanned-page reader (about 7 MB, the first time)…');
+    const { default: Tesseract } = await import(LIB);
+    const base = new URL('../vendor/ocr/', import.meta.url).href;
+    const w = await Tesseract.createWorker('eng', 1, {
+      workerPath: base + FILES.worker, corePath: base + FILES.core, langPath: base + FILES.lang, workerBlobURL: false, cacheMethod: 'none', gzip: true,
+      logger: (m) => { if (m && m.status === 'recognizing text') say(`Reading: ${Math.round((m.progress || 0) * 100)}%`); },
+    });
+    await w.setParameters({ tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' });
+    worker = w;
+    return w;
+  })().catch((e) => { starting = null; throw e; }));
+  return {
+    async read(pageNo, { onProgress = (/** @type {string} */ _t) => {} } = {}) {
+      say = onProgress;
+      onProgress('Drawing the page…');
+      doc ||= await pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false, useSystemFonts: false }).promise;
+      const page = await doc.getPage(pageNo);
+      const vp = page.getViewport({ scale: SCALE });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(vp.width);
+      canvas.height = Math.ceil(vp.height);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      page.cleanup();
+      const w = await getWorker();
+      const { data } = await w.recognize(canvas, {}, { blocks: true, text: false });
+      const words = [];
+      for (const b of data.blocks || []) for (const p of b.paragraphs || []) for (const l of p.lines || []) {
+        const base0 = l.baseline && Number.isFinite(l.baseline.y0) ? (l.baseline.y0 + l.baseline.y1) / 2 : null;
+        for (const t of l.words || []) words.push({ text: t.text, conf: t.confidence, x0: t.bbox.x0, y0: t.bbox.y0, x1: t.bbox.x1, y1: t.bbox.y1, base: base0 });
+      }
+      const geom = {};
+      const text = layoutPage(itemsFromWords(words, canvas.height), canvas.height, geom);
+      const conf = words.length ? words.reduce((n, t) => n + (t.conf || 0), 0) / words.length : 0;
+      return { text, geom, words: words.length, conf, scale: SCALE };
+    },
+    async restart() { const w = worker; worker = null; starting = null; if (w) await w.terminate().catch(() => {}); },
+    async close() { await this.restart(); const d = doc; doc = null; if (d) await d.destroy().catch(() => {}); },
+  };
+}
+
+/**
  * Text in a photo (a sign, a business name, an address), read on the device. The photo is only drawn to a
  * canvas and handed to the text reader; nothing looks for people or faces. Returns signLines(...) of what was read.
  * @param {Blob} blob @param {{ onProgress?: (text: string) => void }} [opts]

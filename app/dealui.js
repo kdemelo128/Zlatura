@@ -40,7 +40,8 @@ import { renderFeeCard } from './feeui.js';
 import { renderCreditCard } from './creditui.js';
 import { renderDocsCard, recordFileRead } from './ddui.js';
 import { renderAbstractsCard, openAbstractForDoc } from './abstractui.js';
-import { ddOf } from './dd.js';
+import { ddOf, addDoc, markRead, setAsOf } from './dd.js';
+import { dropLeaseSessions } from './leasereadui.js';
 import { openLibrary } from './libraryui.js';
 import { getSettings as getAiSettings, isReady } from './ai.js';
 import { openAiSettings, readWithAi, openAssistant, transcribeNote, openTranscript } from './aiui.js';
@@ -423,6 +424,7 @@ async function openDeal(id, { quiet = false } = {}) {
 function closeDeal() {
   flushDeal();
   deal = null;
+  dropLeaseSessions();
   try { localStorage.removeItem(CUR_KEY); } catch { /* fine */ }
   render();
   document.dispatchEvent(new CustomEvent('dealchange'));
@@ -832,7 +834,12 @@ function renderDeal(r) {
 
 /** What the Lease abstracts card (abstractui.js) needs of this screen. */
 function abstractsHost(d) {
-  return { deal: d, touch: (meta) => touch(d, meta), stillOpen: () => deal === d, getXlsx, docs: () => ddOf(d).docs, sheetOpen: api.sheetOpen, sheetClose: api.sheetClose };
+  return {
+    deal: d, touch: (meta) => touch(d, meta), stillOpen: () => deal === d, getXlsx, docs: () => ddOf(d).docs, sheetOpen: api.sheetOpen, sheetClose: api.sheetClose,
+    // the lease reader (leasereadui.js): a read lease is recorded on its Document (never the file), an amendment's effective date is its as-of date, and a different file can be added as a new document
+    markRead: (id, { asOf, checks }) => { const dd = ddOf(d); if (checks) markRead(dd, id, { reader: 'lease', target: 'abstracts', checks }); if (asOf) setAsOf(dd, id, asOf); },
+    addDocument: (info) => { const r = addDoc(ddOf(d), info); if (!r.error) touch(d, { label: `Documents: added ${r.doc.name}` }); return r; },
+  };
 }
 
 /** What the Documents card (ddui.js) needs of this screen. */

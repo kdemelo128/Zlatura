@@ -565,3 +565,72 @@ test('a hostile backup’s tick on an ambiguous or unread item is dropped, so th
   assert.equal(ab.fields.tenant.checked, '2026-10-31T10:00:00Z');
   assert.equal(A.progress(ab).checked, 1);
 });
+
+/* ------------------------------------------------------------ values found by a reader (L3, schema 9) */
+const SRC = { doc: 'dd_x', page: 3, start: 120, len: 22, quote: 'No security deposit.', reader: 'pdftext@1', ocrConf: null };
+const readField = (extra = {}) => ({ value: 0, unit: 'total', status: 'found', by: 'reader', confidence: 'high', src: [SRC], ...extra });
+const norm1 = (fields, more = {}) => A.normAbstracts({ v: 1, items: [{ id: 'ab_r', title: 'R', fields, ...more }] }).items[0];
+
+test('the normaliser keeps what a reader found: its source (offsets, OCR confidence), by "reader" and a confidence word', () => {
+  const ab = norm1({ deposit: readField({ src: [{ ...SRC, reader: 'ocr@1', ocrConf: 83.6 }], confidence: 'medium' }) });
+  const d = ab.fields.deposit;
+  assert.deepEqual([d.by, d.confidence, d.value], ['reader', 'medium', 0]);
+  assert.deepEqual(d.src[0], { doc: 'dd_x', page: 3, start: 120, len: 22, quote: 'No security deposit.', reader: 'ocr@1', ocrConf: 84 });
+  assert.deepEqual(norm1({ deposit: readField() }).fields.deposit.src[0].ocrConf, null, 'a text page has no OCR confidence');
+  assert.equal(JSON.stringify(A.normAbstracts({ v: 1, items: [ab] }).items[0]), JSON.stringify(ab), 'idempotent');
+});
+test('a backup cannot fake provenance: by "reader" needs a reader’s source that quotes something, else it is the broker’s with no confidence', () => {
+  for (const [name, src] of [['no source', []], ['a typed source', [{ ...SRC, reader: 'typed' }]], ['an unknown reader', [{ ...SRC, reader: 'gpt-9' }]], ['no quote', [{ ...SRC, quote: '' }]], ['a two-character quote', [{ ...SRC, quote: 'No' }]]]) {
+    const d = norm1({ deposit: readField({ src }) }).fields.deposit;
+    assert.deepEqual([d.by, d.confidence], ['broker', null], name);
+  }
+  assert.equal(norm1({ deposit: readField({ by: 'robot' }) }).fields.deposit.by, 'broker');
+  assert.equal(norm1({ deposit: readField({ confidence: 'certain' }) }).fields.deposit.confidence, null, 'only high, medium or low');
+  assert.equal(norm1({ deposit: { value: 0, status: 'found', by: 'broker', confidence: 'high', src: [] } }).fields.deposit.confidence, null, 'a confidence only goes with the reader');
+});
+test('reader offsets: start and len are kept only with a reader, as safe integers, len 1 to 240; OCR confidence only with OCR, cut to 0 to 100', () => {
+  const s = (o) => norm1({ deposit: readField({ src: [{ ...SRC, ...o }] }) }).fields.deposit.src[0];
+  assert.deepEqual([s({ start: -1 }).start, s({ start: 1.5 }).start, s({ start: 2 ** 60 }).start, s({ start: '5' }).start], [null, null, null, null]);
+  assert.deepEqual([s({ len: 0 }).len, s({ len: 241 }).len, s({ len: 240 }).len, s({ len: 1 }).len], [null, null, 240, 1]);
+  assert.deepEqual([s({ reader: 'ocr@1', ocrConf: 250 }).ocrConf, s({ reader: 'ocr@1', ocrConf: -5 }).ocrConf, s({ reader: 'ocr@1', ocrConf: NaN }).ocrConf, s({ reader: 'ocr@1', ocrConf: 0 }).ocrConf], [100, 0, null, 0]);
+  assert.equal(s({ reader: 'pdftext@1', ocrConf: 90 }).ocrConf, null);
+  const typed = norm1({ tenant: { value: 'X Inc', status: 'found', src: [{ doc: 'd', page: 1, quote: 'q', reader: 'typed', start: 5, len: 5, ocrConf: 80 }] } }).fields.tenant.src[0];
+  assert.deepEqual([typed.start, typed.len, typed.ocrConf, typed.reader], [null, null, null, 'typed']);
+});
+test('supersededBy is kept on terms and steps only, and is cut to an id', () => {
+  const ab = norm1({ tenant: { value: 'X Inc', status: 'found', supersededBy: 'dd_a' } }, {
+    terms: [{ id: 'tm1', supersededBy: 'dd_a' }], steps: [{ id: 'st1', term: 'tm1', supersededBy: 'x'.repeat(100) }], options: [{ id: 'op1', supersededBy: 'dd_a' }], clauses: [{ id: 'cl1', supersededBy: 'dd_a' }],
+  });
+  assert.deepEqual([ab.fields.tenant.supersededBy, ab.terms[0].supersededBy, ab.steps[0].supersededBy.length, ab.options[0].supersededBy, ab.clauses[0].supersededBy], [null, 'dd_a', 40, null, null]);
+});
+test('a reader value survives a hostile mix: unknown keys, wrong types and a confidence on an ambiguous item with its note', () => {
+  const ab = norm1({ sf: { value: 'lots', status: 'found', by: 'reader', confidence: 'high', src: [SRC], note: '' } });
+  assert.equal(ab.fields.sf.status, 'ambiguous'); assert.equal(ab.fields.sf.value, null); assert.ok(ab.fields.sf.note.trim());
+  assert.equal(ab.fields.sf.by, 'reader');
+});
+test('a broker edit of a reader value makes it the broker’s: setValue, setStep, setTerm, setNone and setNotFound; the source stays; a no-change edit does not', () => {
+  const mk = () => {
+    const ab = norm1({ deposit: readField({ value: 5000 }), tenant: readField({ value: 'X Inc', unit: undefined, src: [{ ...SRC, quote: 'X Inc (“Tenant”)' }] }) },
+      { terms: [{ id: 'tm1', kind: 'initial', label: 'Original term', status: 'found', by: 'reader', confidence: 'low', src: [SRC] }], steps: [{ id: 'st1', term: 'tm1', label: 'Year 1', primary: 'month', amounts: { month: 100 }, status: 'found', by: 'reader', confidence: 'high', src: [SRC] }] });
+    return ab;
+  };
+  let ab = mk();
+  A.setValue(ab, 'deposit', 5000, { unit: 'total' });
+  assert.equal(ab.fields.deposit.by, 'reader', 'the same value typed again changes nothing');
+  A.setValue(ab, 'deposit', 6000);
+  assert.deepEqual([ab.fields.deposit.by, ab.fields.deposit.confidence, ab.fields.deposit.src.length, ab.fields.deposit.src[0].reader], ['broker', null, 1, 'pdftext@1']);
+  ab = mk(); A.setNone(ab, 'tenant'); assert.equal(ab.fields.tenant.by, 'broker');
+  ab = mk(); A.setNotFound(ab, 'tenant'); assert.equal(ab.fields.tenant.by, 'broker');
+  ab = mk(); A.setStep(ab, 'st1', { amounts: { month: 200 } }); assert.deepEqual([ab.steps[0].by, ab.steps[0].confidence], ['broker', null]);
+  ab = mk(); A.setStep(ab, 'st1', { amounts: { month: 100 } }); assert.equal(ab.steps[0].by, 'reader', 'no change, no takeover');
+  ab = mk(); A.setTerm(ab, 'tm1', { label: 'Renewed' }); assert.equal(ab.terms[0].by, 'broker');
+  ab = mk(); A.setEvidence(ab, 'deposit', [{ doc: 'dd_x', page: 4, quote: 'typed by hand' }]); assert.equal(ab.fields.deposit.by, 'broker', 'a source the broker typed replaces the reader’s');
+  ab = mk(); A.setNote(ab, 'deposit', 'checked with the client'); assert.equal(ab.fields.deposit.by, 'reader', 'a note alone does not change who found the value');
+});
+test('a typed value is unchanged by the reader’s widening: the L1 shape is still by "broker", reader "typed", no offsets', () => {
+  const ab = fresh();
+  A.setValue(ab, 'tenant', 'Example Cafe LLC');
+  A.setEvidence(ab, 'tenant', { doc: 'dd_1', page: 2, quote: 'Example Cafe LLC' });
+  const t = ab.fields.tenant;
+  assert.deepEqual([t.by, t.confidence, t.supersededBy, t.src[0].reader, t.src[0].start, t.src[0].len, t.src[0].ocrConf], ['broker', null, null, 'typed', null, null, null]);
+});

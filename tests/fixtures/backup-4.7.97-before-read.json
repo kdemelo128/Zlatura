@@ -1,0 +1,604 @@
+{
+ "format": "zlatura-backup",
+ "version": 2,
+ "app": "4.7.97",
+ "createdAt": "2026-11-04T23:33:22.344Z",
+ "counts": {
+  "deals": 2,
+  "templates": 0,
+  "tasks": 1,
+  "contacts": 0
+ },
+ "deals": [
+  {
+   "id": "d4797a",
+   "name": "Invented Plaza (fictional)",
+   "createdAt": 1792203277340,
+   "updatedAt": 1792203290000,
+   "source": null,
+   "readAt": null,
+   "pages": 0,
+   "figures": {
+    "address": "100 Example Way",
+    "city": "Sampleton",
+    "state": "ZZ",
+    "price": 6450000,
+    "noi": 387000,
+    "bsf": 24000
+   },
+   "sources": {},
+   "rentRoll": [],
+   "unpriced": false,
+   "loan": {
+    "ltv": 65,
+    "rate": 6.75,
+    "amort": 30,
+    "io": false,
+    "closing": 2,
+    "minDscr": 1.25,
+    "minDy": 8
+   },
+   "qDone": {},
+   "myQuestions": [],
+   "live": {},
+   "scenarios": [],
+   "targets": {
+    "cap": null,
+    "irr": 15,
+    "value": null
+   },
+   "visit": {
+    "at": null,
+    "items": {},
+    "notes": "",
+    "photos": [],
+    "audio": []
+   },
+   "moneyVersion": 1,
+   "schema": 8,
+   "rr": {
+    "settings": {
+     "asOf": "2026-10-01",
+     "years": 10,
+     "marketRent": null,
+     "marketUnit": "psf_year",
+     "marketGrowth": 3,
+     "opex": null,
+     "expenseGrowth": 3,
+     "recoverable": null,
+     "generalVacancy": 0,
+     "reservesPsf": 0,
+     "otherIncome": [],
+     "leaseUpMonths": 6,
+     "buildingSf": 24000,
+     "renewal": {
+      "assume": true,
+      "probability": 65,
+      "termMonths": 60,
+      "downtime": 6,
+      "renewFree": 0,
+      "newFree": 3,
+      "renewTi": 0,
+      "newTi": 0,
+      "renewLc": 0,
+      "newLc": 0,
+      "escalation": 3
+     }
+    },
+    "leases": [],
+    "columns": [
+     {
+      "key": "unit",
+      "label": "Unit / suite",
+      "width": 90,
+      "hidden": false
+     },
+     {
+      "key": "tenant",
+      "label": "Tenant",
+      "width": 180,
+      "hidden": false
+     },
+     {
+      "key": "sf",
+      "label": "SF",
+      "width": 80,
+      "hidden": false
+     },
+     {
+      "key": "share",
+      "label": "Pro-rata share %",
+      "width": 90,
+      "hidden": false
+     },
+     {
+      "key": "status",
+      "label": "Status",
+      "width": 110,
+      "hidden": false
+     },
+     {
+      "key": "leaseStart",
+      "label": "Lease start",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "leaseEnd",
+      "label": "Lease end",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "annual",
+      "label": "Annual rent",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "psf",
+      "label": "Rent / SF / yr",
+      "width": 100,
+      "hidden": false
+     },
+     {
+      "key": "recovery",
+      "label": "Recoveries",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "marketRent",
+      "label": "Market rent",
+      "width": 100,
+      "hidden": false
+     },
+     {
+      "key": "options",
+      "label": "Options",
+      "width": 160,
+      "hidden": false
+     }
+    ],
+    "preset": "Retail"
+   },
+   "fee": {
+    "price": 6450000,
+    "flatPct": 2.5,
+    "tiers": [],
+    "coBrokerPct": null,
+    "referralPct": null,
+    "housePct": null,
+    "invoiced": null,
+    "paid": []
+   },
+   "credit": {
+    "v": 1,
+    "leaseEntity": "Example Cafe LLC",
+    "leaseId": null,
+    "parent": "",
+    "guarantor": {
+     "name": "Example Holdings",
+     "scope": "full",
+     "limit": "",
+     "endsOn": null
+    },
+    "ratings": [],
+    "sales": null,
+    "goDark": {
+     "state": null,
+     "note": ""
+    }
+   },
+   "dd": {
+    "v": 1,
+    "preset": "retail",
+    "na": {},
+    "docs": [
+     {
+      "id": "dd_invented00002",
+      "type": "lease",
+      "typeBy": "broker",
+      "name": "Example Cafe lease.pdf",
+      "kind": "pdf",
+      "size": 20480,
+      "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+      "pages": 12,
+      "addedAt": "2026-11-01T10:00:00.000Z",
+      "asOf": null,
+      "status": "received",
+      "supersededBy": null,
+      "read": null,
+      "note": ""
+     }
+    ]
+   },
+   "abstracts": {
+    "v": 1,
+    "items": [
+     {
+      "id": "ab_e42s5rz3n33c",
+      "leaseId": null,
+      "docs": [
+       "dd_invented00002"
+      ],
+      "title": "Example Cafe lease",
+      "asOf": null,
+      "version": 1,
+      "versions": [],
+      "fields": {
+       "tenant": {
+        "value": "Example Cafe LLC",
+        "unit": null,
+        "basis": null,
+        "status": "found",
+        "by": "broker",
+        "checked": "2026-11-01T10:00:00.000Z",
+        "confidence": null,
+        "src": [
+         {
+          "doc": "dd_invented00002",
+          "page": 1,
+          "start": null,
+          "len": null,
+          "quote": "Example Cafe LLC (“Tenant”)",
+          "reader": "typed",
+          "ocrConf": null
+         }
+        ],
+        "supersededBy": null,
+        "note": ""
+       },
+       "commencement": {
+        "value": "2027-03-01",
+        "unit": null,
+        "basis": null,
+        "status": "found",
+        "by": "broker",
+        "checked": false,
+        "confidence": null,
+        "src": [],
+        "supersededBy": null,
+        "note": "",
+        "rel": ""
+       },
+       "expiration": {
+        "value": null,
+        "unit": null,
+        "basis": null,
+        "status": "found",
+        "by": "broker",
+        "checked": false,
+        "confidence": null,
+        "src": [],
+        "supersededBy": null,
+        "note": "",
+        "rel": "the last day of the 60th full month after the Commencement Date"
+       },
+       "sf": {
+        "value": 1500,
+        "unit": null,
+        "basis": "rentable",
+        "status": "found",
+        "by": "broker",
+        "checked": false,
+        "confidence": null,
+        "src": [],
+        "supersededBy": null,
+        "note": ""
+       },
+       "deposit": {
+        "value": 0,
+        "unit": "total",
+        "basis": null,
+        "status": "found",
+        "by": "broker",
+        "checked": false,
+        "confidence": null,
+        "src": [
+         {
+          "doc": "dd_invented00002",
+          "page": 3,
+          "start": null,
+          "len": null,
+          "quote": "No security deposit is required.",
+          "reader": "typed",
+          "ocrConf": null
+         }
+        ],
+        "supersededBy": null,
+        "note": ""
+       }
+      },
+      "terms": [
+       {
+        "id": "tm_vapb673jb50a",
+        "kind": "initial",
+        "label": "Original term",
+        "ref": "",
+        "doc": null,
+        "effective": null,
+        "supersedes": false,
+        "unquantified": false,
+        "status": "found",
+        "by": "broker",
+        "checked": false,
+        "confidence": null,
+        "src": [],
+        "supersededBy": null,
+        "note": ""
+       }
+      ],
+      "steps": [
+       {
+        "id": "st_vcvozo92qct6",
+        "term": "tm_vapb673jb50a",
+        "label": "Year 1",
+        "from": null,
+        "to": null,
+        "mFrom": 1,
+        "mTo": 12,
+        "amounts": {
+         "month": 3750,
+         "year": null,
+         "psf_year": null,
+         "psf_month": null
+        },
+        "primary": "month",
+        "basis": null,
+        "status": "found",
+        "by": "broker",
+        "checked": false,
+        "confidence": null,
+        "src": [],
+        "supersededBy": null,
+        "note": ""
+       },
+       {
+        "id": "st_y8l4bk301sw6",
+        "term": "tm_vapb673jb50a",
+        "label": "Year 2",
+        "from": null,
+        "to": null,
+        "mFrom": 13,
+        "mTo": 24,
+        "amounts": {
+         "month": 3862.5,
+         "year": null,
+         "psf_year": null,
+         "psf_month": null
+        },
+        "primary": "month",
+        "basis": null,
+        "status": "found",
+        "by": "broker",
+        "checked": false,
+        "confidence": null,
+        "src": [],
+        "supersededBy": null,
+        "note": ""
+       }
+      ],
+      "options": [],
+      "clauses": [],
+      "flags": [],
+      "audit": [],
+      "createdAt": "2026-11-01T10:00:00.000Z",
+      "updatedAt": "2026-11-01T10:00:00.000Z"
+     }
+    ]
+   }
+  },
+  {
+   "id": "d4797b",
+   "name": "Invented Court (fictional)",
+   "createdAt": 1792203277340,
+   "updatedAt": 1792203291000,
+   "source": null,
+   "readAt": null,
+   "pages": 0,
+   "figures": {
+    "address": "7 Sample Court",
+    "price": 2400000,
+    "noi": 144000
+   },
+   "sources": {},
+   "rentRoll": [],
+   "unpriced": false,
+   "loan": {
+    "ltv": 65,
+    "rate": 6.75,
+    "amort": 30,
+    "io": false,
+    "closing": 2,
+    "minDscr": 1.25,
+    "minDy": 8
+   },
+   "qDone": {},
+   "myQuestions": [],
+   "live": {},
+   "scenarios": [],
+   "targets": {
+    "cap": null,
+    "irr": 15,
+    "value": null
+   },
+   "visit": {
+    "at": null,
+    "items": {},
+    "notes": "",
+    "photos": [],
+    "audio": []
+   },
+   "moneyVersion": 1,
+   "schema": 8,
+   "rr": {
+    "settings": {
+     "asOf": "2026-10-01",
+     "years": 10,
+     "marketRent": null,
+     "marketUnit": "psf_year",
+     "marketGrowth": 3,
+     "opex": null,
+     "expenseGrowth": 3,
+     "recoverable": null,
+     "generalVacancy": 0,
+     "reservesPsf": 0,
+     "otherIncome": [],
+     "leaseUpMonths": 6,
+     "buildingSf": null,
+     "renewal": {
+      "assume": true,
+      "probability": 65,
+      "termMonths": 60,
+      "downtime": 6,
+      "renewFree": 0,
+      "newFree": 3,
+      "renewTi": 0,
+      "newTi": 0,
+      "renewLc": 0,
+      "newLc": 0,
+      "escalation": 3
+     }
+    },
+    "leases": [],
+    "columns": [
+     {
+      "key": "unit",
+      "label": "Unit / suite",
+      "width": 90,
+      "hidden": false
+     },
+     {
+      "key": "tenant",
+      "label": "Tenant",
+      "width": 180,
+      "hidden": false
+     },
+     {
+      "key": "sf",
+      "label": "SF",
+      "width": 80,
+      "hidden": false
+     },
+     {
+      "key": "share",
+      "label": "Pro-rata share %",
+      "width": 90,
+      "hidden": false
+     },
+     {
+      "key": "status",
+      "label": "Status",
+      "width": 110,
+      "hidden": false
+     },
+     {
+      "key": "leaseStart",
+      "label": "Lease start",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "rentStart",
+      "label": "Rent start",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "leaseEnd",
+      "label": "Lease end",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "annual",
+      "label": "Annual rent",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "psf",
+      "label": "Rent / SF / yr",
+      "width": 100,
+      "hidden": false
+     },
+     {
+      "key": "recovery",
+      "label": "Recoveries",
+      "width": 120,
+      "hidden": false
+     },
+     {
+      "key": "marketRent",
+      "label": "Market rent",
+      "width": 100,
+      "hidden": false
+     },
+     {
+      "key": "nextStep",
+      "label": "Next rent change",
+      "width": 140,
+      "hidden": false
+     },
+     {
+      "key": "options",
+      "label": "Options",
+      "width": 160,
+      "hidden": false
+     }
+    ],
+    "preset": "Office"
+   },
+   "fee": {
+    "price": 6450000,
+    "flatPct": 2.5,
+    "tiers": [],
+    "coBrokerPct": null,
+    "referralPct": null,
+    "housePct": null,
+    "invoiced": null,
+    "paid": []
+   },
+   "credit": {
+    "v": 1,
+    "leaseEntity": "Example Cafe LLC",
+    "leaseId": null,
+    "parent": "",
+    "guarantor": {
+     "name": "Example Holdings",
+     "scope": "full",
+     "limit": "",
+     "endsOn": null
+    },
+    "ratings": [],
+    "sales": null,
+    "goDark": {
+     "state": null,
+     "note": ""
+    }
+   },
+   "dd": {
+    "v": 1,
+    "preset": null,
+    "na": {},
+    "docs": []
+   },
+   "abstracts": {
+    "v": 1,
+    "items": []
+   }
+  }
+ ],
+ "kv": {
+  "crm.tasks": [
+   {
+    "id": "t1",
+    "text": "Call the owner",
+    "done": false
+   }
+  ]
+ },
+ "session": null,
+ "local": {}
+}

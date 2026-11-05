@@ -1,0 +1,166 @@
+{
+ "docType": "lease",
+ "fields": {
+  "landlord": {
+   "status": "found",
+   "value": "Ironwood Realty Trust",
+   "page": 1,
+   "confidence": "high"
+  },
+  "tenant": {
+   "status": "found",
+   "value": "Cedarline Dental PC",
+   "page": 1,
+   "confidence": "high"
+  },
+  "tradeName": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  },
+  "guarantor": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  },
+  "suite": {
+   "status": "found",
+   "value": "305",
+   "page": 1,
+   "confidence": "high"
+  },
+  "floor": {
+   "status": "found",
+   "value": "third",
+   "page": 1,
+   "confidence": "high"
+  },
+  "sf": {
+   "status": "found",
+   "value": 1875,
+   "page": 1,
+   "confidence": "high",
+   "basis": "rentable"
+  },
+  "proRata": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  },
+  "leaseDate": {
+   "status": "found",
+   "value": "2028-04-10",
+   "page": 1,
+   "confidence": "high"
+  },
+  "possession": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  },
+  "commencement": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  },
+  "rentCommencement": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  },
+  "expiration": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  },
+  "termMonths": {
+   "status": "found",
+   "value": 60,
+   "page": 1,
+   "confidence": "high"
+  },
+  "termText": {
+   "status": "found",
+   "value": "sixty (60) months",
+   "page": 1,
+   "confidence": "high"
+  },
+  "deposit": {
+   "status": "found",
+   "value": 3000,
+   "page": 1,
+   "confidence": "high",
+   "unit": "total"
+  },
+  "depositForm": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  },
+  "escalation": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  }
+ },
+ "terms": [
+  {
+   "kind": "initial",
+   "status": "found",
+   "page": 3
+  }
+ ],
+ "steps": [
+  {
+   "label": "Year 1",
+   "amounts": {
+    "month": 3125
+   },
+   "primary": "month",
+   "basis": null,
+   "status": "found",
+   "page": 3
+  },
+  {
+   "label": "Year 2",
+   "amounts": {
+    "month": 3218.75
+   },
+   "primary": "month",
+   "basis": null,
+   "status": "found",
+   "page": 3
+  },
+  {
+   "label": "Year 3",
+   "amounts": {
+    "month": 3315.31
+   },
+   "primary": "month",
+   "basis": null,
+   "status": "found",
+   "page": 3
+  },
+  {
+   "label": "Year 4",
+   "amounts": {
+    "month": 3414.77
+   },
+   "primary": "month",
+   "basis": null,
+   "status": "found",
+   "page": 4
+  },
+  {
+   "label": "Year 5",
+   "amounts": {
+    "month": 3517.21
+   },
+   "primary": "month",
+   "basis": null,
+   "status": "found",
+   "page": 4
+  }
+ ],
+ "flags": []
+}
