@@ -17,6 +17,7 @@ import { listLabels, forgetLabel } from './t12labels.js';
 import { CATEGORY } from './t12.js';
 import { CONVENTIONS, conv, setConventions, conventionValues } from './engine/conventions.js';
 import { kvSet } from './store.js';
+import { workspaceSettings } from './workspaceui.js';
 
 let api = null;
 
@@ -158,6 +159,8 @@ export async function renderSettings() {
   pl.appendChild(row('Deal stages', 'Rename stages to your firm’s words, or hide the ones you do not use.', [btn('Edit stages', () => editStages())]));
   pipe.appendChild(pl);
   stack.appendChild(pipe);
+
+  stack.appendChild(workspaceSettings(section, row, btn));
 
   // AI
   const aic = section('AI', 'settings-ai', ai.isReady(aiSet) ? 'on' : 'off');
