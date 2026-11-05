@@ -11,6 +11,16 @@ Reading a lease was typed by hand in the lease abstract. Now a "Read the lease" 
 - **Review fixes.** Two rent tables with the same heading but different figures are one "needs your choice" term, never merged (the rent was counted twice). A number like 125.000 SF, 1.250,50 or 8,5% asks (thousands or decimal mark?) instead of being read as 125, and a decimal part is never dropped. A step an amendment replaces is shown struck through and left out of the term total, the annual rate, the exports' totals and the next-date list; an amendment whose dates only partly overlap an old step leaves it in place with a flag, and one that gives months only supersedes nothing and says so. A value read by OCR is never above medium confidence (the page average cannot vouch for one digit). A quote ends with its sentence, and its stored offsets map back to the page text. A replaced value's note names the document that said it.
 - **Tested** with invented lease layouts and PDFs, an invented noisy scanned lease read by the real OCR engine in `leaseread-flow`, hostile backups, an old-backup fixture, and mutation checks. Saved-deal results and the 646 displayed figures are unchanged. Chromium only: OCR speed on a phone is not measured.
 
+## 4.7.100: A way to hand work to other AI models, with Claude checking it (on the development branch; not merged or deployed)
+
+Development tooling only; the app, saved deals and every figure are unchanged.
+
+- **Proposal approved.** `docs/proposals/multi-model-harness.md`: Claude is the hub; Codex, Gemini, Grok, Kimi and Muse take task cards and return drafts. Claude runs the real gates and the owner merges.
+- **`tools/harness/`.** A task-card format (`docs/tasks/`), a routing table (`workers.json`), and `run-task.mjs` with `plan`, `packet`, `run` and `ingest`. Workers are logged-in command-line tools or paste-in chats; no API keys are used.
+- **Guards.** A card cannot put `private/`, CI files or the harness config in scope; a worker's diff touching protected files is refused; a key or email address in a card or in output stops the run.
+- **Tested.** `tests/harness.test.js` (7 tests, stub workers only, no network). No vendor has been run yet; each worker is "not yet tested" until its dry run in the next PR.
+- Saved results unchanged; golden figures: 646 compared, 0 changed.
+
 ## 4.7.99: Workspaces: pick the lens that fits your work, and Home and Tools follow (on the development branch; not merged or deployed)
 
 Zlatura has nine workspaces (Brokerage, Underwriting, Lending, Development, Investing, Occupier, Asset management, Capital raising, Leases and documents). A workspace is a lens, not a wall.

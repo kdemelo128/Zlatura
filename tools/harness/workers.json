@@ -1,0 +1,19 @@
+{
+  "_note": "Dev tooling only. No keys here: accounts are signed in on the owner's computer (Google sign-in), so a worker is either a logged-in command-line tool ('cli') or a chat the owner pastes into ('relay'). Plans are the owner's stated ones; model names are starting points to confirm in H2.",
+  "workers": [
+    { "id": "claude-opus",   "label": "Claude Opus (designer)",  "mode": "agent", "plan": "Claude Pro", "tier": "premium", "best": ["money", "parsing", "security", "review"], "cost": "uses Claude Pro limits" },
+    { "id": "claude-sonnet", "label": "Claude Sonnet (builder)", "mode": "agent", "plan": "Claude Pro", "tier": "standard", "best": ["ui", "tests", "docs", "wiring"], "cost": "uses Claude Pro limits" },
+    { "id": "codex",  "label": "Codex (GPT)",  "mode": "cli",   "plan": "GPT basic paid", "tier": "standard", "best": ["underwriting-filler", "excel", "routine-build"], "command": ["codex", "exec", "-"], "cost": "plan limits; use a smaller model for routine cards" },
+    { "id": "gemini", "label": "Gemini",       "mode": "cli",   "plan": "free paid-basic", "tier": "free", "best": ["long-documents", "bulk-summary", "docs"], "command": ["gemini", "-p", "-"], "cost": "free tier limits" },
+    { "id": "grok",   "label": "Grok",         "mode": "relay", "plan": "free", "tier": "free", "best": ["second-opinion", "test-ideas"], "cost": "free tier limits" },
+    { "id": "kimi",   "label": "Kimi",         "mode": "relay", "plan": "free", "tier": "free", "best": ["second-opinion", "docs-draft"], "cost": "free tier limits" },
+    { "id": "muse",   "label": "Muse (Meta AI)", "mode": "relay", "plan": "free", "tier": "free", "best": ["brainstorm", "plain-language-drafts"], "cost": "free tier limits" }
+  ],
+  "routing": {
+    "money": "claude-opus", "parsing": "claude-opus", "security": "claude-opus", "data-format": "claude-opus",
+    "ui": "claude-sonnet", "tests": "claude-sonnet", "docs": "gemini", "routine-build": "codex",
+    "underwriting-filler": "codex", "long-documents": "gemini", "second-opinion": "grok"
+  },
+  "protectedPaths": [".github/", "sw.js", "tests/hygiene.test.js", "tests/dom-sinks.test.js", "tools/harness/workers.json", "private/", ".env"],
+  "secondModelReviewFor": ["money", "parsing", "security", "data-format"]
+}
