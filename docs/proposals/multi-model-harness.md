@@ -148,3 +148,30 @@ The owner approved the design and all recommendations, and answered the open que
 `tests/harness.test.js`. Commands: `plan`, `packet`, `run` (CLI workers), `ingest` (paste-in
 replies). Tested on stubs only (no network, no keys). No worker has been run against a real
 vendor: that is H2, and each worker shows "not yet tested" until then.
+
+## Addendum (owner, 2026-11-05): roles, every model, every project
+
+The owner wants every model used, on this project and future ones, each in a role: designer,
+researcher, bug fixer, developer, and so on. Built in `claude/harness-roles-connectors`:
+
+- **Roles, not just models.** `workers.json` now has ten roles (orchestrator, designer,
+  researcher, developer, bug-fixer, tester, reviewer, security-reviewer, writer, ideas). Each
+  has a primary worker, fallbacks, and a reviewer. A task card has a `kind`; the kind maps to a
+  role; the role maps to a worker. If a worker is out of free messages or not installed, the
+  next one in the role takes the card (`plan --available a,b`).
+- **Every one of the six products plays a role** (a test fails if one is left out). Starting
+  assignments: Claude Opus designs, fixes bugs and reviews security; Claude Sonnet
+  orchestrates, builds and tests; Codex builds and refactors; Gemini researches and writes;
+  Grok reviews diffs and tests; Kimi researches and reviews; Muse brainstorms.
+- **Projects.** A card can say `project: <name>`. `projects` in `workers.json` holds each
+  project's extra protected paths and the paths that need an `approved-design:` line before
+  any worker may touch them (Zlatura: `app/engine/`, `app/deal.js`). Anything not named uses
+  the default project, so a new project works with no change to the tool.
+- **Connectors** (`tools/harness/connectors/`): one per vendor (claude, openai, gemini, grok,
+  kimi, muse), each `agent`, `cli` or `relay`. A connector checks whether it works on this
+  machine (`doctor`), builds the command for a CLI worker, gives paste-in instructions for a
+  chat worker, and pulls a unified diff out of a chat reply. No connector holds a key or makes
+  a network call (a test enforces it). These are not claude.ai or Model Context Protocol
+  connectors: those need each vendor's own sign-in, which only the owner can do.
+- **Not yet verified:** the exact command lines for Codex CLI and Gemini CLI. `doctor` on the
+  owner's machine and the H2 dry run settle that before either is relied on.

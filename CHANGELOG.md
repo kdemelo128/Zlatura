@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.7.102: Every AI model gets a role, on any project (on the development branch; not merged or deployed)
+
+Development tooling only; the app, saved deals and every figure are unchanged.
+
+- **Roles.** Ten roles (orchestrator, designer, researcher, developer, bug-fixer, tester, reviewer, security-reviewer, writer, ideas), each with a primary worker, fallbacks and a reviewer. A task card's kind picks the role; an unavailable worker falls through to the next. All six AI products (Claude, GPT/Codex, Gemini, Grok, Kimi, Muse) play at least one role, enforced by a test.
+- **Connectors.** One per vendor, in `tools/harness/connectors/`: Claude (agent), Codex and Gemini (logged-in command-line tools), Grok, Kimi and Muse (paste-in chat). `doctor` shows which work on this machine; `ingest` pulls a diff out of a chat reply. No key, no network call.
+- **Any project.** A card can name a project; each project lists its own protected paths and the paths that need an approved design first (Zlatura: engine and deal code).
+- **Tested.** `tests/harness.test.js` (15 tests, no network). Command lines for Codex CLI and Gemini CLI are not yet verified on a real machine.
+- Saved results unchanged; golden figures unchanged.
+
 ## 4.7.101: Read a lease PDF into the lease abstract (on the development branch; not merged or deployed)
 
 Reading a lease was typed by hand in the lease abstract. Now a "Read the lease" button on each linked document reads the PDF on the phone with fixed rules (no AI) and shows what it found before anything is written.

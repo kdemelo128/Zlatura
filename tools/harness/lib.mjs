@@ -3,23 +3,33 @@ import { readFileSync } from 'node:fs';
 
 export function loadWorkers(path = new URL('./workers.json', import.meta.url)) {
   const cfg = JSON.parse(readFileSync(path, 'utf8'));
-  for (const w of cfg.workers) {
-    if (!['agent', 'cli', 'relay'].includes(w.mode)) throw new Error(`worker ${w.id}: bad mode`);
-    if (w.mode === 'cli' && !Array.isArray(w.command)) throw new Error(`worker ${w.id}: cli needs command`);
+  const ids = new Set(cfg.workers.map((w) => w.id));
+  for (const [role, r] of Object.entries(cfg.roles)) {
+    for (const id of [r.primary, ...(r.fallbacks ?? []), ...(r.reviewer ? [r.reviewer] : [])]) {
+      if (!ids.has(id)) throw new Error(`role ${role}: unknown worker ${id}`);
+    }
   }
-  for (const [kind, id] of Object.entries(cfg.routing)) {
-    if (!cfg.workers.some((w) => w.id === id)) throw new Error(`routing ${kind}: unknown worker ${id}`);
+  for (const [kind, role] of Object.entries(cfg.kinds)) {
+    if (!cfg.roles[role]) throw new Error(`kind ${kind}: unknown role ${role}`);
   }
   return cfg;
 }
 
-// Pick a worker for a task kind; kinds that need a second opinion also get a reviewer.
-export function route(cfg, kind) {
-  const worker = cfg.routing[kind];
-  if (!worker) throw new Error(`no route for task kind "${kind}"`);
-  const needsReview = cfg.secondModelReviewFor.includes(kind);
-  const reviewer = needsReview ? (worker === 'claude-opus' ? 'grok' : 'claude-opus') : null;
-  return { worker, reviewer };
+// Pick a worker for a task kind. `available` (a Set of worker ids) lets a worker that is
+// out of free messages, or not installed, fall through to the next one in the role.
+export function route(cfg, kind, available = null) {
+  const role = cfg.kinds[kind];
+  if (!role) throw new Error(`no route for task kind "${kind}"`);
+  const r = cfg.roles[role];
+  const order = [r.primary, ...(r.fallbacks ?? [])];
+  const worker = order.find((id) => !available || available.has(id));
+  if (!worker) throw new Error(`no available worker for role "${role}"`);
+  let reviewer = null;
+  if (cfg.secondModelReviewKinds.includes(kind) || r.reviewer) {
+    const want = r.reviewer ?? 'claude-opus';
+    reviewer = want !== worker && (!available || available.has(want)) ? want : order.find((id) => id !== worker && (!available || available.has(id))) ?? null;
+  }
+  return { role, worker, reviewer, order };
 }
 
 // Parse a task card: front matter lines "key: value", then the body.
@@ -36,17 +46,26 @@ export function parseCard(text) {
   return { meta, body: m[2] };
 }
 
-const isProtected = (cfg, p) => cfg.protectedPaths.some((q) => p === q || p.startsWith(q.endsWith('/') ? q : q + '/') || p === q.replace(/\/$/, ''));
+const protectedList = (cfg, project = 'default') => [...cfg.protectedPaths, ...((cfg.projects[project] ?? cfg.projects.default).extraProtected ?? [])];
+const isProtected = (cfg, p, project = 'default') => protectedList(cfg, project).some((q) => p === q || p.startsWith(q.endsWith('/') ? q : q + '/') || p === q.replace(/\/$/, ''));
+
+// Paths that need an approved design before a worker may touch them (money and engine code).
+export function checkDesign(cfg, card) {
+  const project = card.meta.project || 'default';
+  const need = (cfg.projects[project] ?? cfg.projects.default).requiresDesign ?? [];
+  const hit = card.meta.scopeList.filter((p) => need.some((q) => p === q || p.startsWith(q.endsWith('/') ? q : q + '/')));
+  if (hit.length && !card.meta['approved-design']) throw new Error(`scope touches ${hit.join(', ')}: add an "approved-design:" line naming the approved design`);
+}
 
 // A card may not put protected paths (including private/) in scope.
-export function checkScope(cfg, scopeList) {
-  const bad = scopeList.filter((p) => isProtected(cfg, p.replace(/^\.\//, '')) || p.includes('..'));
+export function checkScope(cfg, scopeList, project = 'default') {
+  const bad = scopeList.filter((p) => isProtected(cfg, p.replace(/^\.\//, ''), project) || p.includes('..'));
   if (bad.length) throw new Error(`scope names protected or unsafe path: ${bad.join(', ')}`);
 }
 
 // Paths a worker's diff touched: refuse protected ones unless the card named them.
-export function checkChangedFiles(cfg, changed, scopeList) {
-  const bad = changed.filter((p) => isProtected(cfg, p) && !scopeList.includes(p));
+export function checkChangedFiles(cfg, changed, scopeList, project = 'default') {
+  const bad = changed.filter((p) => isProtected(cfg, p, project) && !scopeList.includes(p));
   if (bad.length) throw new Error(`worker changed protected files: ${bad.join(', ')}`);
 }
 
@@ -58,7 +77,8 @@ export function findSecret(text) {
 
 // The packet a worker receives: rules + card. Refuses if the card carries a secret.
 export function buildPacket(cfg, card, agentsMd) {
-  checkScope(cfg, card.meta.scopeList);
+  checkScope(cfg, card.meta.scopeList, card.meta.project || 'default');
+  checkDesign(cfg, card);
   const hit = findSecret(card.body + card.meta.goal);
   if (hit) throw new Error(`card contains something that looks like a key or personal address (${hit})`);
   return [
