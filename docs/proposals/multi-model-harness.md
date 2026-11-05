@@ -120,3 +120,31 @@ installed on the owner's machine, that is the owner's install, not the repo's.
 Nothing here was run against a real vendor yet. Whether each vendor's CLI
 supports non-interactive, no-push operation in your versions is unchecked and
 will be tested in H2, per worker, before it goes in the routing table.
+
+## Decided (owner, 2026-11-05)
+
+The owner approved the design and all recommendations, and answered the open questions:
+
+- **Muse AI** is Meta AI's Muse (muse.ai). It is a chat product, so it is a paste-in
+  ("relay") worker. No endpoint is assumed.
+- **Accounts:** all six are made and linked to the owner's Google sign-in. Plans: Claude Pro,
+  GPT basic paid, Gemini free paid-basic, Grok, Muse and Kimi free.
+- **Consequence for the design:** a Google sign-in is a login to the chat app, not an API
+  key, and free plans often have no API. So no keys are used at all. A worker is either a
+  command-line tool the owner is logged in to on their own computer (`cli`: Codex, Gemini)
+  or a chat the owner pastes into (`relay`: Grok, Kimi, Muse). Whether each vendor's CLI
+  exists for the owner's plan is checked in H2, per worker.
+- **Cheaper and older models are welcome** for routine cards; the routing table prefers the
+  cheapest allowed worker, and money, parsing and security stay on Opus.
+- **Where it runs:** the owner's computer for CLIs and pastes; Claude orchestrates and
+  reviews. The owner's address is never put in a card, a packet or a commit (the tool
+  refuses it).
+- **Visual:** the Model Board artifact (`https://claude.ai/artifact/HJpZztLwpoVVkkEYdrH9Yz`,
+  private to the owner) shows the hub, the seven workers, a router, and the setup steps.
+
+## Built in this PR (H1)
+
+`tools/harness/{workers.json,lib.mjs,run-task.mjs}`, `docs/tasks/example-docs-card.md`,
+`tests/harness.test.js`. Commands: `plan`, `packet`, `run` (CLI workers), `ingest` (paste-in
+replies). Tested on stubs only (no network, no keys). No worker has been run against a real
+vendor: that is H2, and each worker shows "not yet tested" until then.
