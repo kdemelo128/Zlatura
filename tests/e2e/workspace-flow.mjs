@@ -28,7 +28,7 @@ const toolIds = (page) => page.evaluate(() => {
   return { below: [...new Set(all.filter((b) => !first.includes(b)).map((b) => b.dataset.tool))].sort(), first: first.map((b) => b.dataset.tool), heading: document.querySelector('#tool-group-ws')?.textContent || null, firstGroup: document.querySelector('#tools-root h2.tool-group')?.textContent || null };
 });
 const go = async (page, v) => { await page.evaluate((x) => { location.hash = `#${x}`; }, v); await page.waitForSelector(`#view-${v}`, { state: 'visible' }); await page.waitForTimeout(300); };
-const notBot = (ctx) => ctx.addInitScript(() => { Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }); });
+const notBot = (ctx) => ctx.addInitScript(() => { Object.defineProperty(Object.getPrototypeOf(navigator), 'webdriver', { get: () => false }); });
 const wsName = (page) => page.textContent('#ws-switch');
 const stored = (page) => page.evaluate(() => import('./app/store.js').then((m) => m.kvGet('ui.prefs')));
 const dealsJson = (page) => page.evaluate(() => import('./app/dealui.js').then(async (m) => JSON.stringify(await m.listAllDeals())));

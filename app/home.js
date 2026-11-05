@@ -143,7 +143,7 @@ export function composeHome(ws, parts) {
 
 /** "<Workspace> tools": buttons that open tools the Tools screen already has. */
 function wsToolsCard(ws) {
-  const [c, h] = section(`${ws.name} tools`, 'home-ws-tools');
+  const [c] = section(`${ws.name} tools`, 'home-ws-tools');
   const titles = new Map(toolIndex().map((t) => [t.id, t.title]));
   const list = el('div', 'wsp-tools');
   for (const id of ws.tools) {
