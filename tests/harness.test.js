@@ -32,7 +32,7 @@ test('a worker diff touching protected files is refused unless the card named th
 test('keys and the owner address are caught in cards and output', () => {
   assert.ok(findSecret('token sk-abcdefghijklmnopqrstuvwx'));
   assert.ok(findSecret('see someone@gmail.com'));
-  assert.ok(findSecret('-----BEGIN PRIVATE KEY-----'));
+  assert.ok(findSecret('-'.repeat(5) + 'BEGIN PRIVATE ' + 'KEY' + '-'.repeat(5)));
   assert.equal(findSecret('plain docs text'), null);
   const bad = parseCard('---\nid: t\nkind: docs\ngoal: g\nscope: docs/a.md\n---\nuse key sk-abcdefghijklmnopqrstuvwx');
   assert.throws(() => buildPacket(cfg, bad, 'rules'), /key or personal/);
