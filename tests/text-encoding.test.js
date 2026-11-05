@@ -167,3 +167,14 @@ test('the words to check are words: a lone dash is not one', async () => {
   const g = await readGrids(csv(bytes('t12-windows-1252.csv'), 'invented-t12.csv'), noXlsx);
   assert.match(g[0].note, /Check that these read right: Café, Lumière, O’Brien’s\.$/);
 });
+
+test('a very long word with no accent in it does not make the note slow (the word search is linear)', () => {
+  const text = JSON.stringify({ name: 'a'.repeat(60000), office: 'مكتب', cafe: 'Café' });
+  const bytes = new TextEncoder().encode(text);
+  const t0 = performance.now();
+  const r = decodeText(bytes);
+  const ms = performance.now() - t0;
+  assert.equal(r.encoding, 'utf-8');
+  assert.match(r.note, /“مكتب” or “/, 'the words to check are still found');
+  assert.ok(ms < 1000, `${Math.round(ms)} ms for 60,000 characters`);
+});
