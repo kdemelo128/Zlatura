@@ -57,7 +57,11 @@ function scan(b) {
 /** Up to three different words with a letter and a character outside plain ASCII (and passing `keep`), for the broker to check. */
 function samples(text, keep = (w) => true) {
   const out = [];
-  for (const m of text.matchAll(/[^\s,;"]*[^\x00-\x7f][^\s,;"]*/g)) {
+  // one pass over the words (runs of characters that are not separators), keeping those with a non-ASCII character.
+  // The earlier single pattern re-scanned a long run with no such character from every start position (a 40,000-character
+  // name took about 16 s); and no lookbehind, which Safari before 16.4 cannot even parse
+  for (const m of text.matchAll(/[^\s,;"]+/g)) {
+    if (!/[^\x00-\x7f]/.test(m[0])) continue;
     const w = m[0].replace(/^[()[\]'.:]+|[()[\]'.:]+$/g, '');
     if (/\p{L}/u.test(w) && keep(w) && !out.includes(w)) out.push(w);
     if (out.length === 3) break;
