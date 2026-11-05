@@ -13,6 +13,7 @@ import { MORE_TOOLS, GROUPS } from './toolsdefs.js';
 import { dateInput } from './dateinput.js';
 import { dealForTools, applyFromTools } from './dealui.js';
 import { kvGet, kvSet, logRounding, MONEY_VERSION } from './store.js';
+import { activeWorkspace, workspaceReady } from './workspaceui.js';
 import { quantizeToolInput, quantizeToolValues } from './engine/money.js';
 import {
   $, el, icon, parseNum, parsePct, int, money0, money2, pct, signed, times, yrs, niceDate, niceDay, toast, copyText, actionSheet, getXlsx, deliver, printed, XLSX, localDate,
@@ -190,6 +191,17 @@ function render() {
     const q = query.trim().toLowerCase();
     const match = (t) => !q || `${t.title} ${t.desc} ${t.group}`.toLowerCase().includes(q);
     let shown = 0;
+    // the active workspace's tools come first as one more group; the groups below still hold every tool
+    const ws = activeWorkspace();
+    const mine = ws.id === 'brokerage' ? [] : ws.tools.map((id) => TOOLS.find((t) => t.id === id)).filter((t) => t && match(t));
+    if (mine.length) {
+      const h = el('h2', 'tool-group', `For ${ws.name}`);
+      h.id = 'tool-group-ws';
+      list.appendChild(h);
+      const grid = el('div', 'tool-grid');
+      for (const t of mine) grid.appendChild(card(t));
+      list.appendChild(grid);
+    }
     for (const g of GROUPS) {
       const ts = TOOLS.filter((t) => t.group === g && match(t));
       if (!ts.length) continue;
@@ -712,6 +724,9 @@ export function initTools(compsApi) {
   api = compsApi;
   render();
   roundSavedInputs();
+  // the order of the list follows the workspace; the set of tools never does
+  workspaceReady().then(render);
+  document.addEventListener('workspacechange', render);
 }
 
 /** Saved Tools inputs and scenarios from before 4.1, rounded once like other stored money; each change logged. */

@@ -269,6 +269,14 @@ interface ImportLayout {
   source: string; columns: Record<string, string>; answers: Record<string, string>; statusMap: Record<string, string>; uses: number; savedAt: number;
 }
 
+/** One workspace in app/workspaces.js: a lens over Home, Tools and the New menu (it never hides a tool or a screen). */
+interface Workspace {
+  id: string; name: string; group: string; line: string;
+  homeCards: readonly string[]; tools: readonly string[]; newMenu: readonly string[]; checklists: readonly string[]; exports: readonly string[];
+  words: { pipeline?: string; continue?: string; empty?: string };
+}
+/** The stored workspace choice (kv `ui.prefs`, key `workspace`), after workspaces.js sanitises it on read. */
+interface WorkspaceChoice { v: 1; active: string; pinned: string[]; picked: boolean }
 /* The lease reader (app/leaseread.js, leasestage.js): what it finds, before the broker keeps it. Nothing here is stored. */
 interface LeasePage { n: number; text: string; source: 'pdftext' | 'ocr'; conf: number | null; poor: boolean; lines: { s: number; e: number; furniture: boolean }[]; clean: string }
 interface LeaseSource { page: number; start: number; len: number; quote: string; hit?: string; confidence: 'high' | 'medium' | 'low'; from: string; ocrConf: number | null }

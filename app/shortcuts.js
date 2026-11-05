@@ -44,6 +44,7 @@ export const SHORTCUTS = [
   { group: 'In the rent roll', keys: [['Esc']], does: 'Put the cell back as it was', src: ['rentrollui.js'], listen: ['Escape'] },
   { group: 'In a date field', keys: [['Enter']], does: 'Keep the date (or a setting’s number) you typed', src: ['dateinput.js', 'settings.js'], listen: ['Enter'] },
   { group: 'In a date field', keys: [['Esc']], does: 'Put back the last date (or setting)', src: ['dateinput.js', 'settings.js'], listen: ['Escape'] },
+  { group: 'Home', keys: [['←'], ['→']], does: 'Move between the pinned workspace tabs, once one has the focus (Enter picks it)', src: ['workspaceui.js'], listen: ['ArrowLeft', 'ArrowRight', 'Home', 'End'] },
   { group: 'Settings', keys: [['←'], ['→']], does: 'Choose the theme or the look, once that control has the focus', src: ['theme.js', 'look.js'], listen: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'] },
 ];
 
