@@ -80,7 +80,7 @@ test('a ticked value is never overwritten, even one the reader wrote, and a tick
   run(ab, F1, LEASE);
   A.setChecked(ab, 'tenant', true, { now: NOW });
   const before = JSON.stringify(rec(ab, 'tenant'));
-  const am = [...F3]; am[0] = am[0].replace('Tidewater Bakery Inc. (“Tenant”)', 'Tidewater Bakery Inc. (“Tenant”)');
+  const am = [...F3]; am[0] = am[0].replace('Tidewater Bakery Inc. (“Tenant”)', 'Tidewater Bakery LLC (“Tenant”)');
   const res = { ...result(F3), cands: [{ ...result(F2).cands.find((c) => c.key === 'tenant'), sources: undefined }] };
   const rows = S.stageInto(ab, { ...res, docType: 'amendment', terms: [], steps: [], flags: [] }, { doc: AMEND, effective: '2032-03-01', docs: [LEASE, AMEND] });
   assert.equal(rows[0].effect, 'differs');
