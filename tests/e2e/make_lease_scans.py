@@ -43,7 +43,7 @@ def draw_page(items, dpi, mode, tilt, blur, specks, seed):
 
 
 # page 1: colour, 200 dpi, tilted; page 2: one bit, 300 dpi; page 3 (the rent table): grey, blurred; page 4 (signatures): little text
-specs = [(200, "RGB", 0.8, 0, 220), (300, "1", -1.2, 0, 160), (200, "L", 0.5, 1.7, 120), (200, "RGB", -0.6, 0, 140)]
+specs = [(200, "RGB", 0.8, 0, 220), (300, "1", -1.2, 0, 160), (200, "L", 0.5, 2.6, 120), (200, "RGB", -0.6, 0, 140)]
 c = canvas.Canvas(f"{d}/lease-f5-scan.pdf", pagesize=letter)
 for n, (items, (dpi, mode, tilt, blur, specks)) in enumerate(zip(pages, specs), 1):
     im = draw_page(items, dpi, mode, tilt, blur, specks, 40 + n)
