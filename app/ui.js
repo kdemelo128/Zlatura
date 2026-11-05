@@ -42,6 +42,7 @@ import { initDeal, dealForWorkbook, currentDealName, currentDealId, openTemplate
 import { initTools } from './toolsui.js';
 import { initUnderwrite } from './underwrite.js';
 import { initHome } from './home.js';
+import { initWorkspaces } from './workspaceui.js';
 import { initSettings } from './settings.js';
 import { initCommand } from './command.js';
 import { initTheme } from './theme.js';
@@ -1605,6 +1606,7 @@ function step(part, fn) {
 step('Deal', () => initDeal(compsApi));
 step('Tools', () => initTools(compsApi));
 step('Underwrite', () => initUnderwrite(compsApi));
+step('Workspaces', () => initWorkspaces(compsApi));
 step('Home', () => initHome(compsApi));
 step('Settings', () => initSettings(compsApi));
 step('Command palette', () => initCommand(compsApi));

@@ -1462,3 +1462,34 @@ dialog.sheet[open] { animation: up .26s var(--ease); }
 .ci44, input.ci44, select.ci44 { min-height: 44px; }
 input.ci44, select.ci44 { height: 44px; }
 .radio-row.ci44 { display: flex; align-items: center; gap: var(--s2); }
+
+/* ========================================================= workspaces (workspaceui.js) */
+.wsp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3) var(--s4); margin: var(--s3) 0 var(--s2); }
+.wsp-switch { min-height: 44px; gap: 8px; }
+.wsp-tabs { display: flex; gap: var(--s5); overflow-x: auto; scrollbar-width: none; max-width: 100%; border-bottom: 1px solid var(--line-strong); }
+.wsp-tabs::-webkit-scrollbar { display: none; }
+.wsp-tab { flex: none; position: relative; min-height: 44px; padding: 0 2px; border: 0; background: none; cursor: pointer; white-space: nowrap; font: 600 var(--t-14)/1 var(--ui); color: var(--muted); }
+.wsp-tab:hover { color: var(--ink); }
+.wsp-tab[aria-selected="true"] { color: var(--ink); }
+.wsp-tab[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px 2px 0 0; background: var(--ink); }
+.wsp-tab:focus-visible { outline-offset: -2px; }
+.wsp-note { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); color: var(--muted); font: 400 var(--t-14)/1.4 var(--ui); }
+.wsp-note .btn { min-height: 44px; }
+.wsp-group { font: 600 var(--t-12)/1 var(--ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: var(--s5) 0 var(--s2); }
+.wsp-row { padding: 0; }
+.wsp-pick { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 44px; padding: var(--s3) var(--s4); border: 0; background: none; cursor: pointer; text-align: left; font: inherit; color: var(--ink); }
+.wsp-pick b { font-weight: 600; }
+.wsp-pick > span, .wsp-text > span { color: var(--muted); font-size: var(--t-13); }
+.wsp-pick[aria-current="true"] b::after { content: " (current)"; font-weight: 400; color: var(--muted); }
+.wsp-check { flex-direction: row; align-items: center; gap: var(--s4); }
+.wsp-text { display: flex; flex-direction: column; gap: 2px; }
+.wsp-check input, .wsp-pin input { width: 22px; height: 22px; flex: none; }
+.wsp-pin { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 var(--s4); cursor: pointer; color: var(--muted); font-size: var(--t-13); }
+.wsp-tools { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.wsp-toolbtn { min-height: 44px; }
+.wsp-uwtools { padding: 0 var(--s5) var(--s4); display: grid; gap: var(--s2); }
+@media (min-width: 960px) {
+  .sidebar .wsp-rail-tab { height: 44px; }
+  .sidebar .wsp-rail-tab[aria-current="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1px var(--line), var(--shadow); }
+  .sidebar .wsp-rail-all { color: var(--muted); padding-left: 40px; }
+}
