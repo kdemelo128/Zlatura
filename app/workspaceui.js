@@ -12,14 +12,14 @@ import { WORKSPACES, GROUPS, MAX_PINNED, workspaceById, sanitiseWorkspace, withA
 const PREFS = 'ui.prefs';
 let api = null;
 let prefs = null;                  // the whole ui.prefs record (other keys are kept as they are)
-let ready = Promise.resolve();
+let ready = null;                  // the one read of the stored choice, started by whoever asks first (Tools and Underwrite draw before initWorkspaces runs)
 let refocus = null;                // a pinned tab to focus after Home redraws, when a tab was how the switch was made
 
 /** The stored choice, sanitised (Brokerage when there is none). */
 export const choice = () => sanitiseWorkspace(prefs && prefs.workspace);
 export const activeWorkspace = () => workspaceById(choice().active);
 /** Resolves once the stored choice has been read (Home and Tools wait for it before drawing). */
-export const workspaceReady = () => ready;
+export const workspaceReady = () => ready || (ready = kvGet(PREFS).then((p) => { prefs = p && typeof p === 'object' ? p : null; }));
 
 async function save(next) {
   const was = prefs && prefs.workspace;
@@ -79,7 +79,7 @@ export function workspaceBar({ dealCount = 0 } = {}) {
 /** After Home has drawn: give a pinned tab the focus when that is how the switch was made. */
 export function restoreTabFocus() {
   if (!refocus) return;
-  const t = document.getElementById(`ws-tab-${refocus}`);
+  const t = document.getElementById(refocus === 'switch' ? 'ws-switch' : `ws-tab-${refocus}`);
   refocus = null;
   if (t) t.focus({ preventScroll: true });
 }
@@ -149,6 +149,14 @@ export function openSwitcher() {
     }
   };
   draw();
+  // picking or pinning redraws Home and replaces the switch button the sheet would give the focus back to: focus the new one
+  document.getElementById('sheet').addEventListener('close', () => {
+    const b = document.getElementById('ws-switch');
+    if (b && b.offsetParent) b.focus();
+    // Home may redraw just after (a pick does): the next draw hands the focus to the new button; a stale wish is dropped
+    refocus = 'switch';
+    setTimeout(() => { if (refocus === 'switch') refocus = null; }, 1000);
+  }, { once: true });
 }
 
 /** First run: "What do you work on?" Skip (or closing the sheet) means Brokerage. */
@@ -205,7 +213,7 @@ function drawRail() {
   const c = choice();
   host.textContent = '';
   host.setAttribute('role', 'group');
-  host.setAttribute('aria-labelledby', 'ws-rail-head');
+  host.setAttribute('aria-label', 'Workspaces: choose a lens for Home and Tools');
   const h = el('div', 'nav-label', 'Workspaces');
   h.id = 'ws-rail-head';
   host.appendChild(h);
@@ -244,13 +252,14 @@ export function workspaceSettings(section, row, btn) {
 
 export function initWorkspaces(compsApi) {
   api = compsApi;
-  ready = kvGet(PREFS).then((p) => { prefs = p && typeof p === 'object' ? p : null; });
+  const loaded = workspaceReady();
   drawRail();
   document.addEventListener('workspacechange', drawRail);
-  ready.then(async () => {
+  loaded.then(async () => {
     drawRail();
     // an empty device with no answer yet gets the picker once; a device that has deals never does (it gets a note on Home).
-    // An automated browser (navigator.webdriver) is not asked, so the flows that start on an empty device are not stopped by it.
+    // An automated browser (navigator.webdriver) is not asked, only because our own browser tests start on an empty device
+    // and the picker would cover their first screen. A person on an automated browser has Settings > Workspace > Show the picker again.
     if ((prefs && prefs.workspace) || navigator.webdriver) return;
     const deals = await listAllDeals().catch(() => []);
     if (!deals.length && !document.querySelector('dialog[open]')) openPicker();

@@ -214,5 +214,39 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
   errs.push(...errors);
   await browser.close();
 }
+/* ---- 3. a reload keeps the lens on every screen, and focus comes back to the switch button ---- */
+{
+  const { browser, ctx, page, errors } = await phone();
+  await notBot(ctx);
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.waitForSelector('#sheet[open]');
+  await page.click('#sheet-foot >> text=Skip');
+  await page.waitForSelector('#ws-switch');
+  await page.click('#ws-switch');
+  await page.waitForSelector('#sheet[open] [data-ws=lending]');
+  await page.click('#sheet-body [data-ws=lending]');
+  await page.waitForSelector('#sheet:not([open])', { state: 'attached' });
+  await page.waitForFunction(() => document.activeElement && document.activeElement.id === 'ws-switch');
+  check('after picking in the sheet the focus returns to the switch button', true);
+  await page.click('#ws-switch');
+  await page.waitForSelector('#sheet[open]');
+  await page.check('#sheet-body input[aria-label="Pin Investing"]');
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('#sheet:not([open])', { state: 'attached' });
+  await page.waitForFunction(() => document.activeElement && document.activeElement.id === 'ws-switch');
+  check('after pinning in the sheet the focus returns to the switch button', true);
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('#ws-switch');
+  check('after a reload Home is the Lending Home', (await wsName(page)).includes('Lending') && await page.locator('#home-ws-tools').count() === 1);
+  await go(page, 'tools');
+  await page.waitForSelector('#tool-group-ws', { timeout: 3000 }).catch(() => {});
+  const t = await toolIds(page);
+  check('after a reload Tools lists "For Lending" first', t.heading === 'For Lending' && t.firstGroup === 'For Lending' && t.first.includes('loan'), JSON.stringify([t.heading, t.firstGroup]));
+  await go(page, 'underwrite');
+  await page.waitForSelector('#uw-calc-card [data-tool=loan]', { timeout: 3000 }).catch(() => {});
+  check('after a reload Underwrite links the Lending calculators', await page.locator('#uw-calc-card [data-tool=loan]').count() === 1 && await page.locator('#uw-calc-card [data-tool=amort]').count() === 1);
+  errs.push(...errors);
+  await browser.close();
+}
 for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
 finish(R, 'errors', errs);

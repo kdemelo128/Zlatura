@@ -8,3 +8,5 @@ Zlatura has nine workspaces (Brokerage, Underwriting, Lending, Development, Inve
 - **First run.** An empty device is asked once what it works on (Skip = Brokerage). A device that already has deals starts on Brokerage with no picker and one dismissible note. Settings > Workspace has "Show the picker again".
 - **Stored.** One small device setting (`ui.prefs`, `workspace`), cleaned up on every read and carried by backups; backups from before it restore to Brokerage. No deal, no figure and no backup version changes.
 - **Tested.** `tests/workspaces.test.js` (registry, tool ids, same tool set in every workspace, cleaning rules, old-backup fixtures) and `workspace-flow` (picker, switching, axe at 390 and 1280, 150 ms switch, arrow keys, Escape). Saved results unchanged (golden: 646 figures, 0 changed).
+
+- **Restores.** The workspace choice is a device setting: a full restore replaces it with the backup's (or with Brokerage when the backup has none); a merge restore leaves this device's choice as it is, without a message. Someone on an automated browser, where the first-run picker is not shown, can use Settings > Workspace > Show the picker again.
