@@ -53,6 +53,9 @@ function sameAs(f, rec, cand) {
   return val && sqt(cand.rel) === sqt(rec.rel) && (!cand.basis || cand.basis === rec.basis);
 }
 
+/** Who said an earlier value: the original lease, or the named amendment. */
+const nameOfDoc = (docs, id) => { const d = docs.find((x) => x.id === id); return d && d.type === 'amendment' ? `‘${d.name}’` : 'The original lease'; };
+
 /** The effective date a document layers by: an amendment's asOf, else none (the original lease counts as the oldest). */
 const effOf = (docs, id) => { const d = (docs || []).find((x) => x.id === id); return d && d.type === 'amendment' && d.asOf ? d.asOf : null; };
 const nameOf = (docs, id) => { const d = (docs || []).find((x) => x.id === id); return d ? d.name : 'another document'; };
@@ -183,6 +186,7 @@ export function keepStaged(ab, rows, { doc, effective = null, docs = [], now }) 
   let kept = 0; const skipped = [];
   const termIds = new Map();
   const oldSteps = ab.steps.slice();
+  let monthsOnly = false;
   for (const r of rows) {
     if (!r.selected || !r.canKeep) continue;
     const c = r.cand;
@@ -193,11 +197,11 @@ export function keepStaged(ab, rows, { doc, effective = null, docs = [], now }) 
       if (r.effect === 'adds') { had.src = mergeSrc(had.src, readerSrc(doc, c)); kept += 1; continue; }
       if (r.effect === 'differs') { const fl = addFlag(ab, cutText(`‘${doc.name}’ says ${f.label} is ${r.text}, p.${c.page}; the abstract has ${showValue(r.key, had)}`, LIMITS.flag), { now }); if (fl.error) skipped.push(fl.error); else kept += 1; continue; }
       if (r.effect === 'older') {
-        const note = `${doc.type === 'amendment' ? `‘${doc.name}’ said` : 'The original lease said'} ${r.text}, p.${c.page}`;
+        const note = `‘${doc.name}’ said ${r.text}, p.${c.page}`;
         had.note = cutText(`${had.note ? `${had.note} ` : ''}${note}`, LIMITS.note); kept += 1; continue;
       }
       let old = '';
-      if (r.effect === 'replaces' && had && had.src[0] && had.src[0].doc !== doc.id) old = `The original lease said ${showValue(r.key, had)}, p.${had.src[0].page}`;
+      if (r.effect === 'replaces' && had && had.src[0] && had.src[0].doc !== doc.id) old = `${nameOfDoc(docs, had.src[0].doc)} said ${showValue(r.key, had)}, p.${had.src[0].page}`;
       let res;
       if (c.status === 'not-found') res = setNotFound(ab, r.key, { now });
       else if (c.status === 'ambiguous') res = setAmbiguous(ab, r.key, c.note || 'The reader could not decide', { now });
@@ -234,14 +238,22 @@ export function keepStaged(ab, rows, { doc, effective = null, docs = [], now }) 
       st.status = c.status === 'ambiguous' ? 'ambiguous' : Object.values(c.amounts).some((v) => v !== null && v !== undefined) ? 'found' : 'unread';
       st.note = cutText(c.note || '', LIMITS.note);
       st.checked = false;
-      if (amend && (st.from || st.to)) for (const old of oldSteps) {
+      if (amend && !(st.from && st.to)) monthsOnly = true;
+      if (amend && st.from && st.to) for (const old of oldSteps) {
         if (old.term === termId || old.supersededBy) continue;
         const d = stepDates(old, ab);
-        if (d.from && d.to && st.from && st.to && dayOf(d.from) <= dayOf(st.to) && dayOf(st.from) <= dayOf(d.to)) old.supersededBy = doc.id;
+        if (!(d.from && d.to) || !(dayOf(d.from) <= dayOf(st.to) && dayOf(st.from) <= dayOf(d.to))) continue;
+        if (dayOf(st.from) <= dayOf(d.from) && dayOf(d.to) <= dayOf(st.to)) old.supersededBy = doc.id; // the new dates cover the old step whole
+        else { // a partial overlap: the old step is not dropped, and the broker decides
+          const text = cutText(`‘${doc.name}’ rent ${st.from} to ${st.to} overlaps only part of “${old.label || 'a rent step'}” (${d.from} to ${d.to}): check which rent applies for the overlap`, LIMITS.flag);
+          if (!ab.flags.some((x) => x.text === text)) addFlag(ab, text, { now });
+          if (!old.checked && old.by === 'reader') { old.status = 'ambiguous'; old.note = cutText(`${old.note ? `${old.note} ` : ''}Partly overlapped by ‘${doc.name}’ (${st.from} to ${st.to}): choose which applies.`, LIMITS.note); }
+        }
       }
       kept += 1;
     }
   }
+  if (monthsOnly) { const text = cutText(`‘${doc.name}’ gives its rent in months, not dates: no earlier rent step was marked superseded. Check which earlier steps it replaces`, LIMITS.flag); if (!ab.flags.some((x) => x.text === text)) addFlag(ab, text, { now }); }
   return { kept, skipped };
 }
 

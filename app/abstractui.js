@@ -579,7 +579,7 @@ export function openAbstract(h, id, opts = {}) {
     if (s.supersededBy) {
       const by = h.docs().find((x) => x.id === s.supersededBy);
       const pg = ab.steps.map((x) => x.src.find((y) => y.doc === s.supersededBy && y.page)).find(Boolean);
-      extras.push(el('p', 'hint-sm ab-super-note', `Superseded by ‘${by ? by.name : 'a later document'}’${pg ? ` (p.${pg.page})` : ''}. Kept for the record; not counted.`));
+      extras.push(el('p', 'hint-sm ab-super-note', `Superseded by ‘${by ? by.name : 'a later document'}’${pg ? ` (p.${pg.page})` : ''}. Kept for the record; left out of the totals.`));
       card.classList.add('ab-superseded');
     }
     const figs = ['month', 'year', 'psf_year'].filter((u) => s.amounts[u] !== null);
@@ -603,9 +603,11 @@ export function openAbstract(h, id, opts = {}) {
     const yr = /^Year (\d{1,2})$/i.exec(s.label || '');
     if (yr && s.mFrom === null && s.mTo === null && !s.from && !s.to) {
       const n = +yr[1];
-      const b = btn('btn-plain btn-sm', `Count Year ${n} from rent commencement`, () => {
-        if (done(setStep(ab, s.id, { mFrom: 12 * (n - 1) + 1, mTo: 12 * n }), itemLabel(ab, key), `${itemLabel(ab, key)}: counted as months ${12 * (n - 1) + 1} to ${12 * n} from rent commencement.`)) redraw();
-      }, `Count ${s.label} from rent commencement (months ${12 * (n - 1) + 1} to ${12 * n})`);
+      const inAmend = !!(ab.terms.find((x) => x.id === s.term) || {}).supersedes; // an amendment's lease year may start on its own date
+      const from = inAmend ? 'the original rent commencement (an amendment may count from its own date)' : 'rent commencement';
+      const b = btn('btn-plain btn-sm', `Count Year ${n} from ${from}`, () => {
+        if (done(setStep(ab, s.id, { mFrom: 12 * (n - 1) + 1, mTo: 12 * n }), itemLabel(ab, key), `${itemLabel(ab, key)}: counted as months ${12 * (n - 1) + 1} to ${12 * n} from ${from}.`)) redraw();
+      }, `Count ${s.label} from ${from} (months ${12 * (n - 1) + 1} to ${12 * n})`);
       b.classList.add('ab-countyear');
       extras.push(b);
     }

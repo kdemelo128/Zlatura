@@ -344,14 +344,14 @@ test('makeQuote: the sentence or the table line, space runs collapsed, a long pa
   assert.equal(row.quote, 'Year 1 $4,250.00 $51,000.00');
   assert.equal(R.makeQuote({ n: 1, text: 'abc' }, 0, 3, 'zzz').ok, false, 'a token the quote does not hold');
 });
-test('confidence: text pages high; OCR above 90 high, 75 to 90 medium, a poor page low and never higher', () => {
+test('confidence: text pages high; OCR never above medium whatever the page average (no per-word confidence), a poor page low', () => {
   const at = (conf) => cand(R.readLease(R.pageModel(F2.map(() => ''), { ocr: Object.fromEntries(F2.map((t, i) => [i + 1, { text: t, conf }])) })), 'termMonths');
   assert.equal(cand(read(F2), 'termMonths').confidence, 'high');
-  assert.equal(at(95).confidence, 'high'); assert.equal(at(91).confidence, 'high'); assert.equal(at(90).confidence, 'medium'); assert.equal(at(75).confidence, 'medium');
+  assert.equal(at(99).confidence, 'medium'); assert.equal(at(95).confidence, 'medium'); assert.equal(at(91).confidence, 'medium'); assert.equal(at(90).confidence, 'medium'); assert.equal(at(75).confidence, 'medium');
   assert.equal(at(74).confidence, 'low'); assert.equal(at(10).confidence, 'low');
   const res = R.readLease(R.pageModel(F2.map(() => ''), { ocr: { 1: { text: F2[0], conf: 60 }, 2: { text: F2[1], conf: 95 }, 3: { text: F2[2], conf: 95 } } }));
   assert.ok(res.cands.filter((c) => c.status === 'found' && c.page === 1).every((c) => c.confidence === 'low'));
-  assert.ok(res.cands.filter((c) => c.status === 'found' && c.page === 2).every((c) => c.confidence === 'high'));
+  assert.ok(res.cands.filter((c) => c.status === 'found' && c.page === 2).every((c) => c.confidence === 'medium'));
   assert.equal(res.cands.find((c) => c.key === 'termMonths').ocrConf, 60);
   assert.deepEqual(res.pages.map((p) => p.poor), [true, false, false]);
   assert.match(res.flags[0].text, /^Pages 1 read poorly by OCR/); assert.deepEqual(res.warnings, ['Pages 1 read poorly']);
@@ -390,4 +390,73 @@ test('a lease of 40 text pages reads fast, and hostile text (very long lines, re
   const t1 = performance.now();
   for (const h of hostile) R.readLease(R.pageModel([h, h]), { as: 'lease' });
   assert.ok(performance.now() - t1 < 8000, `hostile text took ${Math.round(performance.now() - t1)} ms`);
+});
+
+/* ------------------------------------------------------------ designer review: money, meaning, evidence */
+const pad3 = (a, b, c) => a.padEnd(20) + b.padEnd(20) + c;
+const table = (m1, a1, m2, a2) => [lines('4. BASE RENT. Tenant pays as follows:', pad3('Lease Year', 'Monthly Base Rent', 'Annual Base Rent'), pad3('Year 1', m1, a1), pad3('Year 2', m2, a2), '')];
+
+test('two rent tables with the same heading but different figures are one ambiguous term showing both, never merged into four steps', () => {
+  const p1 = lines('Intro words.', '', ...table('$1,000.00', '$12,000.00', '$1,100.00', '$13,200.00'));
+  const p2 = lines('9. RENEWAL. Tenant may extend.', '', ...table('$2,000.00', '$24,000.00', '$2,100.00', '$25,200.00'), 'more.');
+  const res = lease([p1, 'x '.repeat(150), p2]);
+  assert.equal(res.terms.length, 1); assert.equal(res.terms[0].status, 'ambiguous');
+  assert.match(res.terms[0].note, /Two rent tables disagree.*1000.*2000/s);
+  assert.equal(res.steps.length, 0, 'no step is offered from either table: nothing is counted twice');
+});
+
+test('two identical rent tables collapse to one found term with each step once', () => {
+  const t = table('$1,000.00', '$12,000.00', '$1,100.00', '$13,200.00');
+  const res = lease([lines('Intro words.', '', ...t), 'x '.repeat(150), lines('Again.', '', ...t, 'more.')]);
+  assert.equal(res.terms.length, 1); assert.equal(res.terms[0].status, 'found');
+  assert.deepEqual(res.steps.map((s) => s.label), ['Year 1', 'Year 2']);
+});
+
+test('numberToken: a point or comma that could be either mark asks, a decimal part is never dropped', () => {
+  for (const [t, v] of [['3,400', 3400], ['125,000', 125000], ['3400', 3400], ['3400.5', 3400.5], ['3,400.25', 3400.25], ['8.25', 8.25]]) assert.equal(R.numberToken(t).value, v, t);
+  for (const t of ['125.000', '1.250', '1.250.000', '1.250,50', '12,50', '1250,5', '3400.500', '1,23,456']) assert.ok(R.numberToken(t).ambiguous, `${t} asks`);
+});
+
+test('square feet written 125.000 or 1.250,50 are ambiguous with a question, never 125 found; US figures and decimals still read', () => {
+  const sf = (s) => cand(lease([`1. PREMISES. The Premises contain ${s} of rentable area in the leased space for the Tenant.`]), 'sf');
+  for (const s of ['125.000 square feet', '1.250,50 square feet', '125.000 rentable square feet']) {
+    const c = sf(s);
+    assert.equal(c.status, 'ambiguous', s); assert.equal(c.value, null, s); assert.match(c.note, /thousands mark or a decimal mark/, s);
+  }
+  assert.deepEqual([sf('125,000 square feet'), sf('3,400.5 square feet'), sf('3400 square feet')].map((c) => [c.status, c.value]), [['found', 125000], ['found', 3400.5], ['found', 3400]]);
+  const lab = cand(lease([`Rentable area: 2.150 rentable square feet\nTenant: Example Tenant Inc. leases the Premises.`]), 'sf');
+  assert.ok(!lab || lab.status !== 'found', 'a label line with a European figure is not read as found');
+});
+
+test('percentages and amounts with a comma or a three-digit point are ambiguous, never guessed', () => {
+  const pr = (s) => cand(lease([`6. EXPENSES. Tenant’s pro rata share of operating expenses is ${s}.`]), 'proRata');
+  assert.deepEqual([pr('8.5%'), pr('8,5%'), pr('12.500%')].map((c) => [c.status, c.value]), [['found', 8.5], ['ambiguous', null], ['ambiguous', null]]);
+  const bad = R.amountsIn('$1.234,56 and $5.000 and $12,50 and $1,234.5');
+  assert.deepEqual(bad.map((a) => a.type), ['bad', 'bad', 'bad', 'bad'], 'a bad token is never a number');
+  assert.deepEqual(R.amountsIn('$1,234.56').map((a) => a.value), [1234.56]);
+  const row = lease([lines('4. BASE RENT. Tenant pays:', pad3('Lease Year', 'Monthly Base Rent', 'Annual Base Rent'), pad3('Year 1', '$1.000,00', '$12.000,00'), pad3('Year 2', '$1,100.00', '$13,200.00'), '')]);
+  assert.ok(row.steps.every((s) => s.label !== 'Year 1' || s.status === 'ambiguous'), 'a European rent row is ambiguous');
+});
+
+test('OCR is never above medium confidence, even at a page average of 99, so a misread digit is not "high"', () => {
+  const ocr = {}; F1.forEach((t, i) => { ocr[i + 1] = { text: t.replace('8.5%', '8.9%'), conf: 93 }; });
+  const res = R.readLease(R.pageModel(F1.map(() => ''), { ocr }));
+  const found = res.cands.filter((c) => c.status === 'found');
+  assert.ok(found.length > 8 && found.every((c) => c.confidence !== 'high'), 'no OCR value is high');
+  assert.equal(cand(res, 'proRata').value, 8.9); assert.equal(cand(res, 'proRata').confidence, 'medium');
+  assert.ok(res.steps.every((s) => s.confidence !== 'high'));
+});
+
+test('a quote for a late match in a long sentence stops at the end of its sentence, never running into the next section', () => {
+  const v = F1.map((t) => t.replace('of the Premises. Rent shall commence on the Commencement Date.', 'of the Premises, Rent shall commence on the Commencement Date,').replace('(the “Term”). The', '(the “Term”), The'));
+  const res = read(v); const c = cand(res, 'expiration');
+  assert.ok(c.quote.length <= 240); assert.doesNotMatch(c.quote, /USE|Initials/);
+  assert.match(c.quote, /Commencement Date$/);
+});
+
+test('every found quote maps back to its page text: quoteAt(text, start, len) is the quote, for all four layouts', () => {
+  for (const fx of [F1, F2, F3, F4]) {
+    const pages = R.pageModel(fx); const res = R.readLease(pages);
+    for (const c of [...res.cands, ...res.steps].filter((x) => x.quote)) assert.equal(R.quoteAt(pages[c.page - 1].text, c.start, c.len), c.quote, `${c.key || c.label}`);
+  }
 });

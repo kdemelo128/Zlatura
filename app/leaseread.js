@@ -132,12 +132,18 @@ export function makeQuote(page, start, len, token) {
   let quote = cut(s, QUOTE_MAX);
   const tok = token === undefined ? text.slice(start, start + len) : token;
   if (!squashHas(quote, tok)) { // the cut lost the match: begin at it
-    quote = cut(flat(text.slice(start, Math.min(text.length, start + QUOTE_MAX * 2))), QUOTE_MAX);
+    quote = cut(flat(text.slice(start, Math.max(b, start + len))), QUOTE_MAX); // from the match to the end of its sentence, never on into the next section
     first = start;
   }
   const v = verifyQuote([text], 1, quote, tok, 'text');
   return { quote, start: Math.max(0, first), len: quote.length, ok: v.status === 'verified' && quote.length >= 3 };
 }
+/**
+ * Where a candidate's quote sits in its page text. `start` indexes page.text itself; `len` counts the quote's own characters,
+ * which are the page text from `start` with each run of white space written as one space: quoteAt(text, start, len) is that quote.
+ * @param {string} text @param {number} start @param {number} len
+ */
+export const quoteAt = (text, start, len) => flat(String(text).slice(start)).slice(0, len);
 const squashHas = (quote, tok) => sq(quote).includes(sq(tok));
 
 /* ------------------------------------------------------------ amounts, units, dates */
@@ -149,6 +155,21 @@ const BAD_LETTERS = /[OolISB]/;
  * written to the cent (a letter is never repaired). A bare integer with no $ and no cents is not money. null when there is none.
  */
 export function readAmount(text) { return amountsIn(text)[0] || null; }
+
+/**
+ * A plain number token ("3,400", "3400.5", "125.000", "1.250,50"): { value } when it can only mean one thing, otherwise
+ * { ambiguous, why }. A comma group of three is thousands; a lone point with one or two digits after it is a decimal; a point
+ * followed by exactly three digits, a comma used as the decimal mark, or any other grouping could be either way of writing it
+ * (125,000 or 125.000?), so it is never guessed. The decimal part is never dropped.
+ * @param {string} tok
+ * @returns {{ value: number } | { ambiguous: true, why: string }}
+ */
+export function numberToken(tok) {
+  const t = String(tok);
+  if (/^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(t)) return { value: Number(t.replace(/,/g, '')) };
+  if (/^\d+(?:\.\d{1,2}|\.\d{4,})?$/.test(t)) return { value: Number(t) };
+  return { ambiguous: true, why: `${t}: a point or a comma may be a thousands mark or a decimal mark here (125,000 or 125.000?)` };
+}
 
 /** Every amount token in a text, in order (see readAmount). */
 /** @returns {any[]} */
@@ -363,7 +384,7 @@ export function docType(pages, name = '') {
 
 const confOf = (p, { loose = false, y2 = false } = {}) => {
   if (p.poor) return 'low';
-  const c = p.source === 'ocr' ? (p.conf > 90 ? 'high' : 'medium') : 'high';
+  const c = p.source === 'ocr' ? 'medium' : 'high'; // the page average cannot vouch for one digit: no per-word confidence reaches the reader, so OCR is never above medium
   return (loose || y2) && c === 'high' ? 'medium' : c;
 };
 
@@ -486,9 +507,11 @@ export function readPremises(pages, { basic } = /** @type {{ basic?: any }} */ (
   for (const p of pages) {
     const text = p.clean;
     const hits = [];
-    for (const m of text.matchAll(/(?<![\d,.$])(\d{1,3}(?:,\d{3})+|\d{3,6})(?:\.\d+)?\s*(?:(rentable|usable|net\s+rentable|gross\s+leasable|gross\s+building|gross)\s+)?(square\s+(?:feet|foot)|sq\.?\s*ft\.?|rsf|usf|sf)\b/gi)) hits.push({ m, num: m[1], word: m[2], unit: m[3], at: m.index });
-    for (const m of text.matchAll(/\b(rentable|usable|net\s+rentable|gross\s+leasable|gross\s+building)\s+(?:area|square\s+(?:feet|footage)|sf)\s*(?:of\s+the\s+premises\s*)?[:-]?\s*(?:approximately\s+)?(\d{1,3}(?:,\d{3})+|\d{3,6})/gi)) hits.push({ m, num: m[2], word: m[1], unit: '', at: m.index });
+    for (const m of text.matchAll(/(?<![\d,.$])(\d[\d.,]*\d|\d)\s*(?:(rentable|usable|net\s+rentable|gross\s+leasable|gross\s+building|gross)\s+)?(square\s+(?:feet|foot)|sq\.?\s*ft\.?|rsf|usf|sf)\b/gi)) hits.push({ m, num: m[1], word: m[2], unit: m[3], at: m.index });
+    for (const m of text.matchAll(/\b(rentable|usable|net\s+rentable|gross\s+leasable|gross\s+building)\s+(?:area|square\s+(?:feet|footage)|sf)\s*(?:of\s+the\s+premises\s*)?[:-]?\s*(?:approximately\s+)?(\d[\d.,]*\d|\d)(?![\d.,]*\d)/gi)) hits.push({ m, num: m[2], word: m[1], unit: '', at: m.index });
     for (const h of hits) {
+      const nr = numberToken(h.num);
+      if ('value' in nr && !(h.num.includes(',') || nr.value >= 100)) continue; // "5 sf" is not an area
       const end = h.at + h.m[0].length;
       const ls = text.lastIndexOf('\n', h.at) + 1;
       const around = text.slice(Math.max(ls, h.at - 40), h.at);
@@ -500,15 +523,18 @@ export function readPremises(pages, { basic } = /** @type {{ basic?: any }} */ (
       const ctx = sentenceOf(p, h.at, end);
       const bare = ctx.replace(/gross\s+building/gi, '');
       if (!PREM_CTX.test(ctx) || (/\b(?:building|project|center|property)\b/i.test(bare) && !/premises|suite/i.test(bare))) continue;
-      const value = toRate(Number(h.num.replace(/,/g, '')));
       const numAt = h.at + h.m[0].indexOf(h.num);
+      if ('ambiguous' in nr) { out.push({ ...cand(p, 'sf', numAt, h.m[0].length - (numAt - h.at), null, { token: h.m[0], basis: null, from: 'body', status: 'ambiguous', note: nr.why }), gla: false }); continue; }
+      const value = toRate(nr.value);
       out.push({ ...cand(p, 'sf', numAt, h.m[0].length - (numAt - h.at), value, { token: h.m[0], basis: basis === 'gla' ? null : basis, from: 'body', note: basis ? '' : 'basis not stated' }), gla: basis === 'gla' });
     }
-    for (const m of text.matchAll(/(\d{1,3}(?:\.\d{1,4})?)\s*%/g)) {
+    for (const m of text.matchAll(/(?<![\d.,])(\d{1,3}(?:[.,]\d+)?)\s*%/g)) {
       const w = text.slice(Math.max(0, m.index - 90), m.index + m[0].length + 60);
       if (/pro[\s-]*rata|proportionate\s+share|tenant['’]?s\s+share/i.test(w)) {
-        const v = Number(m[1]);
-        out.push(cand(p, 'proRata', m.index, m[0].length, v > 100 ? null : v, { from: 'body', status: v > 100 ? 'ambiguous' : 'found', note: v > 100 ? `${m[0]} is over 100 percent` : '' }));
+        const nr = /^\d{1,3}(?:\.\d{1,2}|\.\d{4})?$/.test(m[1]) ? { value: Number(m[1]) } : { ambiguous: true, why: `${m[0]}: a point or a comma may be a decimal or a thousands mark here (12.500 or 12,500?)` };
+        const v = 'value' in nr ? nr.value : null;
+        const bad = 'ambiguous' in nr ? nr.why : v > 100 ? `${m[0]} is over 100 percent` : '';
+        out.push(cand(p, 'proRata', m.index, m[0].length, bad ? null : v, { from: 'body', status: bad ? 'ambiguous' : 'found', note: bad }));
       }
     }
   }
@@ -751,7 +777,7 @@ export function readRentSteps(pages, { docType: type = 'lease' } = {}) {
     if (withSteps.length) {
       const sigs = new Set(withSteps.map(sigOf));
       const t0 = withSteps[0];
-      if (sigs.size === 1 || withSteps.every((t) => t.key === t0.key)) {
+      if (sigs.size === 1) { // identical tables collapse; any difference is shown, never merged (the rent would be counted twice)
         terms.push(termCand(t0, true, 'found', ''));
         const all = withSteps.flatMap((t) => t.steps);
         const seen = new Set();

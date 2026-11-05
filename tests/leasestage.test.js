@@ -231,3 +231,67 @@ test('markRead records the lease reader on the Doc, and a Doc with the reader "l
   assert.deepEqual(D.normDd(JSON.parse(JSON.stringify(dd))).docs[0].read, dd.docs[0].read, 'the registry keeps it');
   assert.equal(D.markRead(dd, 'nope', { reader: 'lease', target: 'abstracts', checks: {} }), false);
 });
+
+/* ------------------------------------------------------------ designer review: a superseded step is not counted */
+const datedAb = () => {
+  const ab = fresh();
+  const t = A.addTerm(ab, { kind: 'initial' }).term;
+  A.addStep(ab, t.id, { label: 'Y1', from: '2031-03-01', to: '2032-02-29', primary: 'month', amounts: { month: 1000 } });
+  A.addStep(ab, t.id, { label: 'Y2', from: '2032-03-01', to: '2033-02-28', primary: 'month', amounts: { month: 1030 } });
+  A.addStep(ab, t.id, { label: 'Y3', from: '2033-03-01', to: '2034-02-28', primary: 'month', amounts: { month: 1060 } });
+  return { ab, t };
+};
+const amendPage = (row) => [lineDoc(['FIRST AMENDMENT TO LEASE', '', 'This Amendment is effective as of March 1, 2032, between Larkspur Holdings LLC (“Landlord”) and Tidewater Bakery Inc. (“Tenant”).', '', 'The parties agree that the Lease is amended as set out in this Amendment and the other terms continue unchanged.', '', '1. EXTENSION. The term is extended. The new base rent is:', '', '   Period                        Monthly Rent', row, '', 'Landlord and Tenant have signed.'])];
+
+test('a superseded step is shown but left out of the term total, the annual rate and the next-date list', () => {
+  const { ab, t } = datedAb();
+  const full = A.rentBlock(ab, t.id).total;
+  run(ab, amendPage('   03/01/2032 - 02/28/2033       $2,000.00'), AMEND);
+  const b = A.rentBlock(ab, t.id);
+  assert.equal(b.rows.length, 3, 'all three are still listed');
+  assert.deepEqual(b.rows.map((r) => r.superseded), [false, true, false]);
+  assert.equal(b.rows[1].total, null); assert.equal(b.rows[1].annualPsf, null);
+  assert.equal(b.total.months, full.months - 12);
+  assert.equal(b.total.total, Math.round((1000 * 12 + 1060 * 12) * 100) / 100, '12 months of Y1 and of Y3 only: Y2 is not counted');
+  assert.deepEqual(A.checkAbstract(ab).filter((c) => /overlap/i.test(c.text)), [], 'the replaced step is not in force, so it does not overlap the new one');
+});
+
+test('exports leave a superseded step out of every total: the CSV says so, the print view shows "superseded", the workbook months stay text', async () => {
+  const X = await import('../app/abstractexport.js');
+  const { ab, t } = datedAb();
+  run(ab, amendPage('   03/01/2032 - 02/28/2033       $2,000.00'), AMEND);
+  const csv = X.abstractCsv({ name: 'Invented', figures: {}, dd: { docs: [LEASE, AMEND] } }, [ab]);
+  assert.match(csv, /Y2 \(superseded, not counted\)/); assert.doesNotMatch(csv, /Y1 \(superseded/);
+  const rows = A.rentBlock(ab, t.id).rows;
+  assert.equal(rows.filter((r) => r.superseded).length, 1);
+  assert.equal(X.currentRent({ ...ab, asOf: '2032-06-01' }), 2000, 'the new rent is current, not the replaced 1030');
+  const pass = X.nextCritical({ ...ab, asOf: '2032-01-01' }, '2032-01-01');
+  assert.ok(!pass || pass.date !== '2032-03-01' || !/Y2/.test(pass.what), 'a replaced step does not start anything');
+});
+
+test('a partial overlap does not supersede the whole old step: it is kept, marked for the broker, with a flag', () => {
+  const { ab } = datedAb();
+  ab.steps[1].by = 'reader'; // a step a reader wrote is marked; one the broker typed only gets the flag
+  run(ab, amendPage('   06/01/2032 - 02/28/2033       $2,000.00'), AMEND);
+  assert.deepEqual(ab.steps.slice(0, 3).map((s) => s.supersededBy), [null, null, null], 'nothing replaced whole');
+  assert.equal(ab.steps[1].status, 'ambiguous'); assert.match(ab.steps[1].note, /Partly overlapped/);
+  assert.ok(ab.flags.some((f) => /overlaps only part of “Y2”/.test(f.text)));
+});
+
+test('an amendment rent given in months supersedes nothing and says so in a flag', () => {
+  const { ab } = datedAb();
+  run(ab, F3, AMEND);
+  assert.ok(ab.steps.slice(0, 3).every((s) => !s.supersededBy));
+  assert.ok(ab.flags.some((f) => /gives its rent in months, not dates/.test(f.text)));
+});
+
+test('a value replaced from an older amendment says which document said it, not "the original lease"', () => {
+  const AM2 = { id: 'dd_am2', name: 'Second amendment.pdf', type: 'amendment', asOf: '2033-01-01' };
+  const ab = fresh();
+  run(ab, F1, LEASE);
+  run(ab, F3, AMEND);
+  const exp = (s) => [lineDoc(['SECOND AMENDMENT TO OFFICE LEASE', '', 'This Second Amendment is effective as of January 1, 2033, between Larkspur Holdings LLC (“Landlord”) and Tidewater Bakery Inc. (“Tenant”).', '', 'The parties agree that the Lease is amended as set out in this Amendment and all other terms continue unchanged.', '', `1. TERM. The term expires on ${s}.`, '', 'Landlord and Tenant have signed.'])];
+  run(ab, exp('August 31, 2040'), AM2, { docs: [LEASE, AMEND, AM2] });
+  assert.match(ab.fields.expiration.note, /‘First amendment\.pdf’ said 02\/28\/2037/);
+  assert.doesNotMatch(ab.fields.expiration.note, /The original lease said 2037/);
+});

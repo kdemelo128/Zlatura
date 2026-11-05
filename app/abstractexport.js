@@ -108,7 +108,7 @@ export function nextCritical(ab, today) {
   const t = dayOf(today);
   const found = [];
   const add = (iso, what) => { if (iso && dayOf(iso) !== null && t !== null && dayOf(iso) > t) found.push({ date: iso, what }); };
-  for (const s of ab.steps) add(stepDates(s, ab).from, `${s.label || 'Rent step'} starts`);
+  for (const s of ab.steps.filter((x) => !x.supersededBy)) add(stepDates(s, ab).from, `${s.label || 'Rent step'} starts`);
   const exp = valueOf(ab, 'expiration');
   add(exp, 'Expiration');
   if (exp && dayOf(exp) !== null) for (const o of ab.options) {
@@ -125,7 +125,7 @@ export function currentRent(ab) {
   if (!ab.asOf) return null;
   const t = dayOf(ab.asOf);
   let hit = null;
-  for (const term of ab.terms) for (const row of rentBlock(ab, term.id).rows) if (row.from && row.to && row.monthly !== null && dayOf(row.from) <= t && t <= dayOf(row.to)) hit = row.monthly;
+  for (const term of ab.terms) for (const row of rentBlock(ab, term.id).rows) if (row.from && row.to && row.monthly !== null && !row.superseded && dayOf(row.from) <= t && t <= dayOf(row.to)) hit = row.monthly;
   return hit;
 }
 
@@ -216,12 +216,14 @@ function fillSheet(ws, deal, ab) {
       put(ws, `A${r}`, s.label || relPeriod || 'Rent step');
       const date = (v, col) => (v ? put(ws, `${col}${r}`, toDate(v), { fmt: DATE, align: 'right' }) : put(ws, `${col}${r}`, 'depends on rent commencement', { italic: true, wrap: true, align: 'right', size: 8 }));
       date(row.from, 'B'); date(row.to, 'C');
-      if (row.months !== null) put(ws, `D${r}`, row.months, { fmt: '0.####', align: 'right' }); else put(ws, `D${r}`, NOT_YET, { italic: true, align: 'right', size: 8 });
+      if (row.superseded) put(ws, `D${r}`, 'superseded', { italic: true, align: 'right', size: 8 });
+      else if (row.months !== null) put(ws, `D${r}`, row.months, { fmt: '0.####', align: 'right' }); else put(ws, `D${r}`, NOT_YET, { italic: true, align: 'right', size: 8 });
       if (row.monthly !== null) put(ws, `E${r}`, row.monthly, { fmt: MONEY2 }); else put(ws, `E${r}`, row.reason || NOT_YET, { italic: true, wrap: true, align: 'right', size: 8 });
-      if (row.total !== null) put(ws, `F${r}`, formula(`ROUND(E${r}*D${r},2)`, row.total), { fmt: MONEY2 }); else put(ws, `F${r}`, 'no total', { italic: true, align: 'right', size: 8 });
+      if (row.total !== null) put(ws, `F${r}`, formula(`ROUND(E${r}*D${r},2)`, row.total), { fmt: MONEY2 }); else put(ws, `F${r}`, row.superseded ? 'superseded, not counted' : 'no total', { italic: true, align: 'right', size: 8 });
       if (row.annualPsf !== null) put(ws, `G${r}`, formula(`ROUND(E${r}*12/${sfAddr},4)`, row.annualPsf), { fmt: MONEY2 });
       else put(ws, `G${r}`, row.psfText || (row.monthly === null ? '' : 'needs rentable SF'), { italic: true, align: 'right', size: 8 });
       if (s.status === 'not-found') put(ws, `A${r}`, `${s.label || 'Rent step'} (${NOT_FOUND})`, { italic: true });
+      if (row.superseded) put(ws, `A${r}`, `${s.label || 'Rent step'} (superseded)`, { italic: true });
       r += 1;
     }
     const last = r - 1;
@@ -350,7 +352,7 @@ export function abstractCsv(deal, abstracts) {
     for (const t of ab.terms) {
       push('Terms', t.label || 'Term', t.ref ? `§${t.ref}` : '', '', '', t);
       for (const s of ab.steps.filter((x) => x.term === t.id)) {
-        push('Rent', `${t.label || 'Term'}: ${s.label || 'Rent step'}`, s.primary && s.amounts[s.primary] !== null ? s.amounts[s.primary] : '', s.primary || '', s.basis, s);
+        push('Rent', `${t.label || 'Term'}: ${s.label || 'Rent step'}${s.supersededBy ? ' (superseded, not counted)' : ''}`, s.primary && s.amounts[s.primary] !== null ? s.amounts[s.primary] : '', s.primary || '', s.basis, s);
       }
     }
     for (const o of ab.options) { const t = optionText(o); push('Options', t.kind, `${t.size}; ${t.notice}; ${t.reset}`, '', '', o); }
@@ -401,8 +403,8 @@ export function renderAbstractPrint(box, { deal, ab, doc = document }) {
     const b = rentBlock(ab, term.id);
     box.appendChild(h('div', 'ps-h2', [term.label || 'Term', term.ref ? `§${term.ref}` : '', term.supersedes ? `per ${termDocName(deal, term) || 'the amendment'}${term.effective ? `, effective ${fmtDate(term.effective)}` : ''}, supersedes the original` : ''].filter(Boolean).join('  ')));
     if (term.unquantified) { box.appendChild(h('p', null, `Not quantified in lease${term.ref ? ` (§${term.ref})` : ''}`)); continue; }
-    const rows = b.rows.map((r) => [r.step.label || 'Rent step', r.from ? fmtDate(r.from) : 'depends on rent commencement', r.to ? fmtDate(r.to) : 'depends on rent commencement', r.months === null ? NOT_YET : String(r.months),
-      r.monthly === null ? (r.reason || NOT_YET) : money2(r.monthly), r.total === null ? 'no total' : money2(r.total), r.annualPsf === null ? (r.psfText || '') : money2(r.annualPsf),
+    const rows = b.rows.map((r) => [r.step.label || 'Rent step', r.from ? fmtDate(r.from) : 'depends on rent commencement', r.to ? fmtDate(r.to) : 'depends on rent commencement', r.superseded ? 'superseded' : r.months === null ? NOT_YET : String(r.months),
+      r.monthly === null ? (r.reason || NOT_YET) : money2(r.monthly), r.total === null ? (r.superseded ? 'superseded, not counted' : 'no total') : money2(r.total), r.annualPsf === null ? (r.psfText || '') : money2(r.annualPsf),
       [term.ref ? `§${term.ref}` : '', ...r.step.src.filter((s) => s.page).map((s) => `p.${s.page}`)].filter(Boolean).join(', ')]);
     if (b.total) rows.push(['Total', '', '', String(b.total.months), '', money2(b.total.total), b.total.weighted === null ? '' : money2(b.total.weighted), '']);
     box.appendChild(table(['Period', 'From', 'To', 'Months', 'Monthly rent', 'Total rent', 'Annual rent $/SF', 'Source'], rows));

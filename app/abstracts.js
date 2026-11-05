@@ -596,17 +596,19 @@ export function rentBlock(ab, termId) {
     const months = stepMonths(step, ab);
     const { monthly, why } = stepMonthly(step, ab);
     const resolved = from !== null && to !== null && months !== null;
-    const total = monthly !== null && resolved ? toCents(monthly * months) : null;
+    const superseded = !!step.supersededBy; // a later document replaced it: shown, never counted
+    const total = monthly !== null && resolved && !superseded ? toCents(monthly * months) : null;
     const b = basisOf(step, ab);
     const rentable = !!s && s.basis === 'rentable' && b === 'rentable';
-    const annualPsf = monthly !== null && rentable ? toRate(monthly * 12 / s.sf) : null;
-    return { step, from, to, months, monthly, total, annualPsf, psfText: annualPsf === null && b && b !== 'rentable' ? `per ${b} SF` : null, resolved, reason: reason || (monthly === null ? why : months === null ? 'months are not known' : null) };
+    const annualPsf = monthly !== null && rentable && !superseded ? toRate(monthly * 12 / s.sf) : null;
+    return { step, from, to, months, monthly, total, annualPsf, superseded, psfText: annualPsf === null && !superseded && b && b !== 'rentable' ? `per ${b} SF` : null, resolved, reason: reason || (monthly === null ? why : months === null ? 'months are not known' : null) };
   });
+  const live = rows.filter((r) => !r.superseded);
   let total = null;
-  if (rows.length && rows.every((r) => r.monthly !== null && r.months !== null && r.total !== null)) {
-    const sum = toCents(rows.reduce((a, r) => a + r.total, 0));
-    const months = toRate(rows.reduce((a, r) => a + r.months, 0));
-    const weighted = s && s.basis === 'rentable' && months > 0 && rows.every((r) => r.annualPsf !== null) ? toRate(sum / (months / 12) / s.sf) : null;
+  if (live.length && live.every((r) => r.monthly !== null && r.months !== null && r.total !== null)) {
+    const sum = toCents(live.reduce((a, r) => a + r.total, 0));
+    const months = toRate(live.reduce((a, r) => a + r.months, 0));
+    const weighted = s && s.basis === 'rentable' && months > 0 && live.every((r) => r.annualPsf !== null) ? toRate(sum / (months / 12) / s.sf) : null;
     total = { months, total: sum, weighted };
   }
   return { term, rows, total, unquantified: !!(term && term.unquantified), sf: s ? s.sf : null };
@@ -623,7 +625,7 @@ export function asLease(ab, termId) {
   const periods = [];
   for (const step of ab.steps.filter((x) => x.term === termId)) {
     const { from, to } = stepDates(step, ab);
-    if (!from || !to || !step.primary || step.amounts[step.primary] === null) continue;
+    if (!from || !to || !step.primary || step.amounts[step.primary] === null || step.supersededBy) continue; // a replaced step is not in force
     periods.push({ start: from, end: to, rate: step.amounts[step.primary], unit: step.primary, source: 'documented', note: '', _step: step.id });
   }
   return { id: termId, unit: '', tenant: '', sf: s ? s.sf : null, vacant: false, mtm: false, leaseStart: dateOf(ab, 'commencement'), rentStart: dateOf(ab, 'rentCommencement'), leaseEnd: null, periods, abatements: [] };

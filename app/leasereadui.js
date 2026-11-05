@@ -380,9 +380,10 @@ export function leaseReadBlock(ctx) {
       return;
     }
     wrap.append(el('p', 'hint-sm', `Drawing page ${r.page}…`));
+    let pdf = null;
     try {
       const pdfjs = await getPdfjs();
-      const pdf = await pdfjs.getDocument({ data: entry.bytes.slice(), isEvalSupported: false, useSystemFonts: false }).promise;
+      pdf = await pdfjs.getDocument({ data: entry.bytes.slice(), isEvalSupported: false, useSystemFonts: false }).promise;
       const page = await pdf.getPage(r.page);
       const base = page.getViewport({ scale: 1 });
       const S = Math.min(2, 640 / base.width);
@@ -399,10 +400,12 @@ export function leaseReadBlock(ctx) {
       ctx2.strokeStyle = '#b3261e'; ctx2.lineWidth = 2;
       for (const b of boxes) ctx2.strokeRect(b.x * S, b.y * S, b.w * S, b.h * S);
       await pdf.destroy();
+      pdf = null;
       wrap.textContent = '';
       wrap.append(canvas, el('p', 'hint-sm', boxes.length ? `The boxed ${boxes.length === 1 ? 'line is' : 'lines are'} the quote.` : 'The quote could not be placed on the page; read it above.'));
       canvas.dataset.boxes = String(boxes.length);
     } catch (e) {
+      if (pdf) await pdf.destroy().catch(() => {}); // a failed draw must not leave the document open
       wrap.textContent = '';
       wrap.append(el('p', 'warn-text hint-sm', `The page could not be drawn (${(e && e.message) || e}). The quote above is the check.`));
     }
