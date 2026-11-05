@@ -57,7 +57,9 @@ function scan(b) {
 /** Up to three different words with a letter and a character outside plain ASCII (and passing `keep`), for the broker to check. */
 function samples(text, keep = (w) => true) {
   const out = [];
-  for (const m of text.matchAll(/[^\s,;"]*[^\x00-\x7f][^\s,;"]*/g)) {
+  // a match can only start at the front of a run of word characters: from every position of a long run with no
+  // such character in it (a 40,000-character name) the pattern would otherwise scan to the end again, a quadratic wait
+  for (const m of text.matchAll(/(?<![^\s,;"])[^\s,;"]*[^\x00-\x7f][^\s,;"]*/g)) {
     const w = m[0].replace(/^[()[\]'.:]+|[()[\]'.:]+$/g, '');
     if (/\p{L}/u.test(w) && keep(w) && !out.includes(w)) out.push(w);
     if (out.length === 3) break;

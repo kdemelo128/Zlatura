@@ -13,6 +13,8 @@ Zlatura has nine workspaces (Brokerage, Underwriting, Lending, Development, Inve
 
 - **Restores.** The workspace choice is a device setting: a full restore replaces it with the backup's (or with Brokerage when the backup has none); a merge restore leaves this device's choice as it is, without a message. Someone on an automated browser, where the first-run picker is not shown, can use Settings > Workspace > Show the picker again.
 
+- **A very long unbroken word no longer freezes a text file read.** The check that finds words to double-check in the encoding note re-scanned a long run of plain characters from every position (60,000 characters took about 7 seconds, a backup holding a 40,000-character name about 16). It now looks only from the start of each word, so the same words are found in milliseconds. Tested in `text-encoding.test.js` (fails on the old code) and `hostile-flow`.
+
 ## 4.7.97: Huge or mislabelled files are refused before they can freeze the tab (on the development branch; not merged or deployed)
 
 Every place that reads a PDF, an Excel template or a JSON backup or project file now looks at the file's size and its first bytes before reading it, and says so plainly when it can't be read.
