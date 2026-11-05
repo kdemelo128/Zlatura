@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.7.98: Workspaces: pick the lens that fits your work, and Home and Tools follow (on the development branch; not merged or deployed)
+## 4.7.99: Workspaces: pick the lens that fits your work, and Home and Tools follow (on the development branch; not merged or deployed)
 
 Zlatura has nine workspaces (Brokerage, Underwriting, Lending, Development, Investing, Occupier, Asset management, Capital raising, Leases and documents). A workspace is a lens, not a wall.
 
@@ -13,6 +13,14 @@ Zlatura has nine workspaces (Brokerage, Underwriting, Lending, Development, Inve
 
 - **Restores.** The workspace choice is a device setting: a full restore replaces it with the backup's (or with Brokerage when the backup has none); a merge restore leaves this device's choice as it is, without a message. Someone on an automated browser, where the first-run picker is not shown, can use Settings > Workspace > Show the picker again.
 
+## 4.7.98: Two pattern bugs: a long name no longer freezes the tab, and the Convert card works on older iPhones (on the development branch; not merged or deployed)
+
+Two regular expressions in the app were wrong in different ways. Neither changes a figure or saved data.
+
+- **A very long unbroken name no longer freezes the tab while a file is read.** The note that says "Read as UTF-8, but N characters could also be Windows-1252" searched for words with a pattern that re-scanned a long run of plain characters from every start position. A backup or CSV holding one 40,000-character field took about 16 seconds to read (7.6 seconds for 60,000 characters in the test) before the restore sheet or the import appeared. It now makes one pass over the words and takes a few milliseconds, and finds the same words.
+- **The Convert card's text-to-PDF line wrapping no longer uses a pattern that Safari before 16.4 cannot parse.** A pattern with a lookbehind makes the file that holds it fail to load on those iPhones. This one sat in the Convert worker, so it broke only that card; the same mistake in a start-up file would have stopped the whole app loading. It wraps lines the same way.
+- **A new test forbids a lookbehind anywhere in `app/`,** so the mistake cannot come back unnoticed. Another test fails if the word search becomes slow again (60,000 plain characters plus Arabic and accented words, under one second, same words found).
+- Found when the full browser check failed on the `hostile-flow` backup restore (its 250 KB backup holds a 40,000-character name): on this machine the restore sheet came after the flow's 15-second wait, on the previous code too. Saved results and golden outputs do not change; no data format change.
 ## 4.7.97: Huge or mislabelled files are refused before they can freeze the tab (on the development branch; not merged or deployed)
 
 Every place that reads a PDF, an Excel template or a JSON backup or project file now looks at the file's size and its first bytes before reading it, and says so plainly when it can't be read.

@@ -41,7 +41,8 @@ async function text(msg, id) {
   for (const para of String(msg.text).replace(/\r\n?/g, '\n').replace(/\t/g, '    ').split('\n')) {
     if (!para) { lines.push(''); continue; }
     let line = '';
-    for (const word of para.split(/(?<= )/)) {
+    // the words, each keeping the spaces after it (no lookbehind: Safari before 16.4 cannot parse one)
+    for (const word of (para.match(/[^ ]* |[^ ]+/g) || [])) {
       let w = word;
       if (font.widthOfTextAtSize((line + w).trimEnd(), PAGE.size) <= width) { line += w; continue; }
       if (line) { lines.push(line.trimEnd()); line = ''; }
