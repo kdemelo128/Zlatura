@@ -15,6 +15,8 @@ import { setTheme } from './theme.js';
 import { STAGE_LABEL, stageOf } from './pipeline.js';
 import { openShortcuts } from './shortcuts.js';
 import { startNew } from './underwrite.js';
+import { WORKSPACES } from './workspaces.js';
+import { activeWorkspace, setActive, openSwitcher } from './workspaceui.js';
 
 let api = null;
 let dlg = null;
@@ -37,6 +39,7 @@ export function rank(items, q) {
 async function sources() {
   const [deals, contacts] = await Promise.all([listAllDeals().catch(() => []), listContacts().catch(() => [])]);
   const close = () => dlg && dlg.close();
+  /** @type {any[]} */
   const items = [];
   for (const d of deals) {
     const f = d.figures || {};
@@ -52,14 +55,14 @@ async function sources() {
   for (const t of toolIndex()) items.push({ group: 'Tools', icon: 'tools', title: t.title, detail: `${t.group} · ${t.desc}`, weight: 0.2, run: () => { close(); openToolById(t.id); } });
   const go = (view, title, keywords) => ({ group: 'Go to', icon: 'arrow-right', title, keywords, weight: 0.4, run: () => { close(); api.showView(view); } });
   items.push(go('home', 'Home', 'dashboard pipeline tasks'), go('deal', 'Deals', 'deal workspace om'), go('underwrite', 'Underwrite', 'quick underwriting calculator what price cap rate dscr irr'), go('comps', 'Comps', 'comparable sales market'), go('tools', 'Tools', 'calculators'), go('review', 'Review', 'queue t-12 t12 unmapped ai readings check'), go('settings', 'Settings', 'preferences appearance backup'));
-  const act = (title, detail, run, keywords = '') => ({ group: 'Actions', icon: 'plus', title, detail, keywords, weight: 0.3, run: () => { close(); run(); } });
+  const act = (title, detail, run, keywords = '', newId = null) => ({ group: 'Actions', icon: 'plus', title, detail, keywords, newId, weight: 0.3, run: () => { close(); run(); } });
   items.push(
-    act('Read an offering memorandum…', 'Choose an OM PDF; its figures are read on this device', () => { api.showView('deal'); document.getElementById('om-file').click(); }, 'om pdf scan new deal'),
-    act('Add CoStar comp reports…', 'Choose comp report PDFs for the comp set', () => { api.showView('comps'); document.getElementById('file').click(); }, 'comps pdf'),
-    act('New deal by hand', 'Start a deal and type its figures', () => { startDealByHand(); api.showView('deal'); }, 'create'),
-    act('New quick underwriting', 'Type a price, NOI and loan terms; no deal needed', () => { api.showView('underwrite'); startNew(); }, 'underwrite calculator scratch'),
-    act('New task', 'Add a next step on Home', () => { api.showView('home'); setTimeout(() => { if (!document.activeElement?.matches('input, select, textarea')) document.getElementById('task-title')?.focus(); }, 350); }, 'todo follow up'),
-    act('New contact', 'A person on a deal: owner, broker, lender…', () => editContact(api, {}, deals.map((d) => ({ id: d.id, name: d.name || 'Untitled deal' }))), 'person'),
+    act('Read an offering memorandum…', 'Choose an OM PDF; its figures are read on this device', () => { api.showView('deal'); document.getElementById('om-file').click(); }, 'om pdf scan new deal', 'om'),
+    act('Add CoStar comp reports…', 'Choose comp report PDFs for the comp set', () => { api.showView('comps'); document.getElementById('file').click(); }, 'comps pdf', 'comps'),
+    act('New deal by hand', 'Start a deal and type its figures', () => { startDealByHand(); api.showView('deal'); }, 'create', 'deal'),
+    act('New quick underwriting', 'Type a price, NOI and loan terms; no deal needed', () => { api.showView('underwrite'); startNew(); }, 'underwrite calculator scratch', 'quick'),
+    act('New task', 'Add a next step on Home', () => { api.showView('home'); setTimeout(() => { if (!document.activeElement?.matches('input, select, textarea')) document.getElementById('task-title')?.focus(); }, 350); }, 'todo follow up', 'task'),
+    act('New contact', 'A person on a deal: owner, broker, lender…', () => editContact(api, {}, deals.map((d) => ({ id: d.id, name: d.name || 'Untitled deal' }))), 'person', 'contact'),
     act('Back up everything', 'One file with every deal, comp set, template and contact', () => makeBackup().catch((e) => toast(`The backup could not be made: ${e.message}`)), 'export save'),
     act('Template library', 'Your firm’s Excel workbooks, mapped to deal fields', () => openTemplates(), 'excel xlsx'),
     act('Edit pipeline stages', 'Rename or hide stages', () => editStages(), 'pipeline'),
@@ -68,6 +71,15 @@ async function sources() {
     act('Research briefs', 'The company briefs kept on this device', () => openBriefs(), 'research company ai'),
     act('Keyboard shortcuts', 'Every key the app answers to (or press ?)', () => openShortcuts(api), 'keys keyboard help hotkeys ?'),
   );
+  // the active workspace puts its New actions first; the same actions are all still here
+  const order = activeWorkspace().newMenu;
+  const slots = items.map((x, i) => (x.newId ? i : -1)).filter((i) => i >= 0);
+  const sorted = slots.map((i) => items[i]).sort((a, b) => order.indexOf(a.newId) - order.indexOf(b.newId));
+  slots.forEach((i, k) => { items[i] = sorted[k]; });
+  // the workspaces: a lens on Home and Tools; no tool or screen is hidden by any of them
+  const cur = activeWorkspace().id;
+  for (const w of WORKSPACES) items.push({ group: 'Workspace', icon: 'layers', title: `Workspace: ${w.name}`, detail: w.id === cur ? `Current. ${w.line}` : w.line, keywords: 'workspace lens role switch', weight: 0.5, run: () => { close(); setActive(w.id); } });
+  items.push({ group: 'Workspace', icon: 'layers', title: 'Workspace: choose and pin…', detail: 'All nine, pin up to three', keywords: 'workspaces switch lens', weight: 0.5, run: () => { close(); openSwitcher(); } });
   // the open deal: what each of its inputs affects (the dependency map)
   for (const c of impactCommands()) items.push({ group: 'This deal', icon: 'plus', title: c.title, keywords: 'affects impact depends change what if', weight: 0.6, run: () => { close(); c.run(); } });
   for (const [v, label] of [['light', 'Light'], ['dark', 'Dark'], ['system', 'System']]) {
@@ -76,7 +88,7 @@ async function sources() {
   return items;
 }
 
-const ORDER = ['Deals', 'Actions', 'This deal', 'Contacts', 'Tools', 'Go to', 'Appearance'];
+const ORDER = ['Deals', 'Actions', 'This deal', 'Contacts', 'Tools', 'Go to', 'Workspace', 'Appearance'];
 const ASKS_IMPACT = /\b(affects?|impacts?|depends?|what does)\b/i;
 
 export async function openCommand() {
@@ -123,7 +135,7 @@ export async function openCommand() {
     let r = rank(items, q);
     // "what does … affect?" only when that is what's asked: it would otherwise crowd out deals and contacts ("lender")
     if (!ASKS_IMPACT.test(q)) r = r.filter((x) => x.group !== 'This deal');
-    if (!q) r = r.filter((x) => x.group !== 'Contacts' && x.group !== 'Tools' && x.group !== 'Appearance').slice(0, 14);
+    if (!q) r = r.filter((x) => x.group !== 'Contacts' && x.group !== 'Tools' && x.group !== 'Workspace' && x.group !== 'Appearance').slice(0, 14);
     // grouped: with a query, the group holding the best match comes first; within a group, best match first
     const order = q ? [...new Set(r.map((x) => x.group))] : ORDER;
     shown = order.flatMap((g) => r.filter((x) => x.group === g).slice(0, q ? 8 : 6));

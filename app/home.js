@@ -11,6 +11,8 @@ import { taskRow, contactLinks, editContact } from './dealcrm.js';
 import { $, el, toast, actionSheet, getXlsx, deliver, printed, XLSX, short, money0, money2, pct, int, niceDate, localDate } from './kit.js';
 import { dateInput } from './dateinput.js';
 import { feesCsv } from './exporters.js';
+import { toolIndex, openToolById } from './toolsui.js';
+import { activeWorkspace, workspaceReady, workspaceBar, restoreTabFocus } from './workspaceui.js';
 
 let api = null;
 let visible = false;
@@ -44,6 +46,8 @@ async function render() {
   if (!root) return;
   const [deals, tasks, contacts, activity] = await Promise.all([listAllDeals(), crm.listTasks(), crm.listContacts(), crm.listActivity(), crm.loadStages()]);
   const lastBackup = await kvGet('backup.last');
+  await workspaceReady();
+  const ws = activeWorkspace();
   const scrollY = window.scrollY;
   root.textContent = '';
   const nameOf = Object.fromEntries(deals.map((d) => [d.id, tagged(d, d.name || d.figures.address || 'Untitled deal')]));
@@ -58,7 +62,7 @@ async function render() {
   const due = b.overdue.length + b.today.length;
   hl.appendChild(el('p', 'lede', deals.length
     ? `${plural(p.activeCount, 'active deal')}${p.activeValue ? `, ${short(p.activeValue)} asking` : ''}. ${due ? `${plural(due, 'task')} due today or overdue.` : 'Nothing due today.'}`
-    : 'Start with an offering memorandum or a set of comps. Everything you add stays on this device.'));
+    : (ws.words.empty || 'Start with an offering memorandum or a set of comps. Everything you add stays on this device.')));
   head.appendChild(hl);
   const quick = el('div', 'view-actions quick');
   const om = el('label', 'btn btn-primary', 'Read an OM');
@@ -73,6 +77,7 @@ async function render() {
   quick.append(om, cp, nt);
   head.appendChild(quick);
   root.appendChild(head);
+  root.appendChild(workspaceBar({ dealCount: deals.length }));
 
   // the four figures that summarize the day
   const weekAgo = Date.now() - 7 * 86400000;
@@ -94,26 +99,67 @@ async function render() {
   for (const k of dates.filter((x) => x.daysLeft <= 7)) att.unshift({ kind: 'date', dealId: k.dealId, text: `${k.name}: ${k.label} ${k.daysLeft < 0 ? `was ${-k.daysLeft} day${k.daysLeft === -1 ? '' : 's'} ago` : k.daysLeft === 0 ? 'is today' : `in ${k.daysLeft} day${k.daysLeft === 1 ? '' : 's'}`}.` });
   if (deals.length && (!lastBackup || Date.now() - lastBackup > 30 * 86400000)) att.push({ kind: 'backup', view: 'settings', text: lastBackup ? `No backup for ${Math.floor((Date.now() - lastBackup) / 86400000)} days: back up in Settings.` : 'No backup yet: everything is on this device only. Back up in Settings.' });
 
-  const grid = el('div', 'bento');
-  grid.appendChild(continueCard(deals, tasks));
-  const side = el('div', 'span-4 ws-main');
-  side.appendChild(attentionCard(att));
-  if (dates.length) side.appendChild(datesCard(dates));
-  grid.appendChild(side);
-  const pipe = pipelineCard(p);
-  pipe.classList.add('span-12');
-  grid.appendChild(pipe);
-  const tk = tasksCard(tasks, deals, nameOf);
-  tk.classList.add('span-7');
-  grid.appendChild(tk);
-  const ac = activityCard(activity, nameOf);
-  ac.classList.add('span-5');
-  grid.appendChild(ac);
-  const ct = contactsCard(contacts, deals, nameOf);
-  ct.classList.add('span-12');
-  grid.appendChild(ct);
-  root.appendChild(grid);
+  const parts = {
+    'home-continue': continueCard(deals, tasks),
+    'home-attention': attentionCard(att),
+    'home-dates': dates.length ? datesCard(dates) : null,
+    'home-pipeline': pipelineCard(p),
+    'home-tasks': tasksCard(tasks, deals, nameOf),
+    'home-activity': activityCard(activity, nameOf),
+    'home-contacts': contactsCard(contacts, deals, nameOf),
+  };
+  root.appendChild(composeHome(ws, parts));
   window.scrollTo({ top: scrollY });
+  restoreTabFocus();
+}
+
+/** How wide each section sits on the Home grid (the Needs attention column holds Key dates under it). */
+const SPAN = { 'home-pipeline': 'span-12', 'home-tasks': 'span-7', 'home-activity': 'span-5', 'home-contacts': 'span-12', 'home-ws-tools': 'span-12' };
+const SIDE = new Set(['home-attention', 'home-dates']);
+
+/** The Home grid for a workspace: the same sections in its order, plus its tools card; Brokerage gets today's Home. */
+export function composeHome(ws, parts) {
+  const have = { ...parts, 'home-ws-tools': ws.homeCards.includes('home-ws-tools') ? wsToolsCard(ws) : null };
+  const grid = el('div', 'bento');
+  for (const id of ws.homeCards) {
+    if (id === 'home-attention') {
+      const side = el('div', 'span-4 ws-main');
+      side.appendChild(have['home-attention']);
+      if (have['home-dates']) side.appendChild(have['home-dates']);
+      grid.appendChild(side);
+      continue;
+    }
+    const c = have[id];
+    if (!c || SIDE.has(id)) continue;
+    if (SPAN[id]) c.classList.add(SPAN[id]);
+    grid.appendChild(c);
+  }
+  // this workspace's own words, for headings only
+  const retitle = (id, text) => { const h = text && have[id] && have[id].querySelector('h2'); if (h) h.textContent = text; };
+  retitle('home-pipeline', ws.words.pipeline);
+  retitle('home-continue', ws.words.continue);
+  return grid;
+}
+
+/** "<Workspace> tools": buttons that open tools the Tools screen already has. */
+function wsToolsCard(ws) {
+  const [c] = section(`${ws.name} tools`, 'home-ws-tools');
+  const titles = new Map(toolIndex().map((t) => [t.id, t.title]));
+  const list = el('div', 'wsp-tools');
+  for (const id of ws.tools) {
+    if (!titles.has(id)) continue;
+    const b = el('button', 'btn wsp-toolbtn', titles.get(id));
+    b.type = 'button';
+    b.dataset.tool = id;
+    b.addEventListener('click', () => openToolById(id));
+    list.appendChild(b);
+  }
+  const all = el('button', 'btn btn-gray wsp-toolbtn', 'All tools');
+  all.type = 'button';
+  all.addEventListener('click', () => api.showView('tools'));
+  list.appendChild(all);
+  c.appendChild(list);
+  return c;
 }
 
 /** The deals touched most recently, with their figures and next step: one tap back into each. */
@@ -524,6 +570,7 @@ export function initHome(compsApi) {
   document.addEventListener('viewchange', (e) => { view = e.detail; visible = e.detail === 'home'; refresh(); });
   document.addEventListener('crmchange', refresh);
   document.addEventListener('dealchange', refresh);
+  document.addEventListener('workspacechange', refresh);
   // every file saved or printed is listed, with the deal it was for when made from the Deal tab
   document.addEventListener('deliverable', (e) => { crm.log('deliverable', e.detail.name, view === 'deal' ? currentDealId() : null, { kind: e.detail.kind }); });
 }

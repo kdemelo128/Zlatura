@@ -41,6 +41,8 @@ const ASSETS = [
   'app/charts.js',
   'app/package.js',
   'app/zoning.js',
+  'app/workspaces.js',
+  'app/workspaceui.js',
   'app/sample.js',
   'app/store.js',
   'app/glance.js',

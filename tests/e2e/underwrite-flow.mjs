@@ -278,7 +278,7 @@ check('#underwrite routes to the tab', await page.isVisible('#view-underwrite'))
 const D = await phone({ viewport: { width: 1360, height: 900 }, isMobile: false, hasTouch: false, userAgent: undefined, deviceScaleFactor: 1 });
 await D.page.goto(BASE, { waitUntil: 'load' });
 await D.page.waitForSelector('#view-home', { state: 'visible' });
-const side = await D.page.evaluate(() => [...document.querySelectorAll('.sidebar .tab:not([hidden])')].map((t) => t.dataset.view));
+const side = await D.page.evaluate(() => [...document.querySelectorAll('.sidebar .tab[data-view]:not([hidden])')].map((t) => t.dataset.view));
 check('desktop sidebar: Home, Deals, Underwrite, Comps, Tools, Settings', JSON.stringify(side) === JSON.stringify(['home', 'deal', 'underwrite', 'comps', 'tools', 'settings']), side.join(','));
 check('desktop: the top bar (and its gear) is not shown', !(await D.page.isVisible('.appbar')));
 await D.page.click('.sidebar .tab[data-view="underwrite"]');

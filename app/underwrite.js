@@ -8,6 +8,8 @@ import { $, el, parseNum, parsePct, int, dec, money0, money2, pct, times, short,
 import { quantizeDeal, toCents } from './engine/money.js';
 import { SALE_COST_NEGATIVE } from './deal.js';
 import { createDeal, discardDeal, showDeal, loanDefaults, scnRead, scnRefused, setRefusal } from './dealui.js';
+import { toolIndex, openToolById } from './toolsui.js';
+import { activeWorkspace, workspaceReady } from './workspaceui.js';
 import { newScratch, work, dealFields, loadScratch, saveScratch, deleteScratch, MAX_SCRATCH } from './uwstore.js';
 
 let api = null;
@@ -327,6 +329,17 @@ function draw() {
   listBox.id = 'uw-list';
   stack.appendChild(listBox);
   const calc = el('section', 'card');
+  calc.id = 'uw-calc-card';
+  fillCalculators(calc);
+  stack.appendChild(calc);
+  root.append(head, stack);
+  drawList();
+  results();
+}
+
+/** The Calculators row, and (outside Brokerage) buttons for the active workspace's tools: the same tools as in Tools. */
+function fillCalculators(calc) {
+  calc.textContent = '';
   const cl = el('button', 'li');
   cl.type = 'button';
   cl.id = 'uw-calculators';
@@ -336,10 +349,23 @@ function draw() {
   cl.append(ct, el('div', 'hint', 'Quick value, loan, offer and hold returns, in Tools'));
   cl.addEventListener('click', () => api.showView('tools'));
   calc.appendChild(cl);
-  stack.appendChild(calc);
-  root.append(head, stack);
-  drawList();
-  results();
+  const ws = activeWorkspace();
+  const titles = new Map(toolIndex().map((t) => [t.id, t.title]));
+  const ids = ws.id === 'brokerage' ? [] : ws.tools.filter((id) => titles.has(id));
+  if (ids.length) {
+    const box = el('div', 'wsp-uwtools');
+    box.appendChild(el('div', 'hint', `Calculators for ${ws.name}`));
+    const row = el('div', 'wsp-tools');
+    for (const id of ids) {
+      const b = el('button', 'btn wsp-toolbtn', titles.get(id));
+      b.type = 'button';
+      b.dataset.tool = id;
+      b.addEventListener('click', () => openToolById(id));
+      row.appendChild(b);
+    }
+    box.appendChild(row);
+    calc.appendChild(box);
+  }
 }
 
 /* ---------------------------------------------------------------- actions */
@@ -399,6 +425,9 @@ async function saveAsDeal() {
 
 export function initUnderwrite(compsApi) {
   api = compsApi;
+  const relink = () => { const c = $('uw-calc-card'); if (c) fillCalculators(c); };
+  document.addEventListener('workspacechange', relink);
+  workspaceReady().then(relink);
   // a phone suspends a page it has hidden: the last edit goes to storage the moment the app leaves the screen
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
   window.addEventListener('pagehide', () => { flush(); });
