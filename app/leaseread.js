@@ -175,8 +175,11 @@ export function numberToken(tok) {
 /** @returns {any[]} */
 export function amountsIn(text) {
   /** @type {any[]} */ const out = [];
-  const re = /\$\s?[\dOolISB,.]+|(?<![\d$,.])\d{1,3}(?:,\d{3})*\.\d{2}(?!\d)/g;
-  for (const m of String(text ?? '').matchAll(re)) {
+  const re = /\$\s?[\dOolISB,.]+|\d{1,3}(?:,\d{3})*\.\d{2}(?!\d)/g;
+  const src = String(text ?? '');
+  for (const m of src.matchAll(re)) {
+    // a bare amount may not follow a digit, $, comma or point (no lookbehind: older Safari cannot parse it)
+    if (m[0][0] !== '$' && /[\d$,.]/.test(src[m.index - 1] ?? '')) continue;
     const token = m[0].replace(/[.,]+$/, '');
     const hasDigit = /\d/.test(token);
     if (!hasDigit) continue;
@@ -412,7 +415,7 @@ const DATE_FIELDS = [
   { key: 'leaseDate', kind: 'date', stop: null, labels: [/\b(?:lease\s+date|date\s+of\s+(?:this\s+)?lease)\s*[:.-]?\s*/gi, /\b(?:made|entered\s+into|dated)(?:\s+and\s+entered\s+into)?\s+(?:as\s+of|on|this)\s+/gi] },
   { key: 'possession', kind: 'dateRel', stop: null, labels: [/\b(?:possession|delivery)\s+date\s*[:.-]?\s*/gi, /\bdate\s+of\s+possession\s*[:.-]?\s*/gi] },
   { key: 'rentCommencement', kind: 'dateRel', stop: /\b(?:expir\w*|terminat\w*)\b/i, labels: [/\brent\s+commencement(?:\s+date)?\s*[:.-]?\s*(?:shall\s+be\s+|is\s+|will\s+be\s+)?/gi, /\brent\s+(?:shall\s+)?commences?\s+(?:on\s+|in\s+)?/gi] },
-  { key: 'commencement', kind: 'dateRel', stop: /\b(?:expir\w*|terminat\w*)\b/i, labels: [/(?<!rent\s)\bcommencement\s+date\s*[:.-]?\s*(?:shall\s+be\s+|is\s+|will\s+be\s+)?/gi, /(?<!rent\s)\bshall\s+commence\s+(?:on\s+)?/gi] },
+  { key: 'commencement', kind: 'dateRel', stop: /\b(?:expir\w*|terminat\w*)\b/i, labels: [/\bcommencement\s+date\s*[:.-]?\s*(?:shall\s+be\s+|is\s+|will\s+be\s+)?/gi, /\bshall\s+commence\s+(?:on\s+)?/gi] },
   { key: 'expiration', kind: 'dateRel', stop: null, labels: [/\b(?:lease\s+)?expiration\s+date\s*[:.-]?\s*(?:shall\s+be\s+|is\s+|will\s+be\s+)?/gi, /\b(?:shall\s+)?expire(?:s)?\s+(?:on\s+)?/gi] },
 ];
 
@@ -507,7 +510,7 @@ export function readPremises(pages, { basic } = /** @type {{ basic?: any }} */ (
   for (const p of pages) {
     const text = p.clean;
     const hits = [];
-    for (const m of text.matchAll(/(?<![\d,.$])(\d[\d.,]*\d|\d)\s*(?:(rentable|usable|net\s+rentable|gross\s+leasable|gross\s+building|gross)\s+)?(square\s+(?:feet|foot)|sq\.?\s*ft\.?|rsf|usf|sf)\b/gi)) hits.push({ m, num: m[1], word: m[2], unit: m[3], at: m.index });
+    for (const m of text.matchAll(/(\d[\d.,]*\d|\d)\s*(?:(rentable|usable|net\s+rentable|gross\s+leasable|gross\s+building|gross)\s+)?(square\s+(?:feet|foot)|sq\.?\s*ft\.?|rsf|usf|sf)\b/gi)) if (!/[\d,.$]/.test(text[m.index - 1] ?? '')) hits.push({ m, num: m[1], word: m[2], unit: m[3], at: m.index });
     for (const m of text.matchAll(/\b(rentable|usable|net\s+rentable|gross\s+leasable|gross\s+building)\s+(?:area|square\s+(?:feet|footage)|sf)\s*(?:of\s+the\s+premises\s*)?[:-]?\s*(?:approximately\s+)?(\d[\d.,]*\d|\d)(?![\d.,]*\d)/gi)) hits.push({ m, num: m[2], word: m[1], unit: '', at: m.index });
     for (const h of hits) {
       const nr = numberToken(h.num);
@@ -528,7 +531,8 @@ export function readPremises(pages, { basic } = /** @type {{ basic?: any }} */ (
       const value = toRate(nr.value);
       out.push({ ...cand(p, 'sf', numAt, h.m[0].length - (numAt - h.at), value, { token: h.m[0], basis: basis === 'gla' ? null : basis, from: 'body', note: basis ? '' : 'basis not stated' }), gla: basis === 'gla' });
     }
-    for (const m of text.matchAll(/(?<![\d.,])(\d{1,3}(?:[.,]\d+)?)\s*%/g)) {
+    for (const m of text.matchAll(/(\d{1,3}(?:[.,]\d+)?)\s*%/g)) {
+      if (/[\d.,]/.test(text[m.index - 1] ?? '')) continue; // no lookbehind: older Safari cannot parse it
       const w = text.slice(Math.max(0, m.index - 90), m.index + m[0].length + 60);
       if (/pro[\s-]*rata|proportionate\s+share|tenant['’]?s\s+share/i.test(w)) {
         const nr = /^\d{1,3}(?:\.\d{1,2}|\.\d{4})?$/.test(m[1]) ? { value: Number(m[1]) } : { ambiguous: true, why: `${m[0]}: a point or a comma may be a decimal or a thousands mark here (12.500 or 12,500?)` };
@@ -608,6 +612,7 @@ export function readTerm(pages, { basic } = /** @type {{ basic?: any }} */ ({}))
   for (const f of DATE_FIELDS) {
     for (const p of pages) for (const re of f.labels) {
       for (const m of p.clean.matchAll(re)) {
+        if (f.key === 'commencement' && /rent\s$/i.test(p.clean.slice(Math.max(0, m.index - 5), m.index))) continue; // "rent commencement" is its own field
         const before = p.clean.slice(Math.max(0, m.index - 3), m.index);
         if (/["“]\s*$/.test(before) || /^["”]/.test(p.clean.slice(m.index + m[0].length, m.index + m[0].length + 1))) continue; // a definition: the date comes before the label
         const w = windowAfter(p, m.index + m[0].length, f.stop);

@@ -460,3 +460,9 @@ test('every found quote maps back to its page text: quoteAt(text, start, len) is
     for (const c of [...res.cands, ...res.steps].filter((x) => x.quote)) assert.equal(R.quoteAt(pages[c.page - 1].text, c.start, c.len), c.quote, `${c.key || c.label}`);
   }
 });
+
+test('amounts and percents keep their left-edge rule without a lookbehind', () => {
+  const a = R.amountsIn('rent 1,250.00 then 12345.67 and $9.50 ok').filter((x) => x.type === 'amount').map((x) => x.value);
+  assert.deepEqual(a, [1250, 9.5]);
+  assert.deepEqual(R.amountsIn('see 5.5.25.00 only').filter((x) => x.type === 'amount'), []);
+});
