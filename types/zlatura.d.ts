@@ -265,3 +265,12 @@ interface CompOrigin {
 interface ImportLayout {
   source: string; columns: Record<string, string>; answers: Record<string, string>; statusMap: Record<string, string>; uses: number; savedAt: number;
 }
+
+/** One workspace in app/workspaces.js: a lens over Home, Tools and the New menu (it never hides a tool or a screen). */
+interface Workspace {
+  id: string; name: string; group: string; line: string;
+  homeCards: readonly string[]; tools: readonly string[]; newMenu: readonly string[]; checklists: readonly string[]; exports: readonly string[];
+  words: { pipeline?: string; continue?: string; empty?: string };
+}
+/** The stored workspace choice (kv `ui.prefs`, key `workspace`), after workspaces.js sanitises it on read. */
+interface WorkspaceChoice { v: 1; active: string; pinned: string[]; picked: boolean }
