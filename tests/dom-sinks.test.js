@@ -173,7 +173,7 @@ const ALLOW = [
   { file: 'app/kit.js', re: /Object\.assign\(a, \{ href: url, download: filename \}\)/, n: 1, why: 'url is a blob: URL from URL.createObjectURL, made on the line above' },
   { file: 'app/kit.js', re: /^s\.src = src;/, n: 1, why: 'loadScript: every caller passes a fixed ../vendor/ path built with new URL(..., import.meta.url)' },
   { file: 'app/kit.js', re: /import\(PDFJS\)/, n: 1, why: 'PDFJS is a vendored path constant' },
-  { file: 'app/ocr.js', re: /import\(LIB\)/, n: 1, why: 'LIB is a vendored path constant' },
+  { file: 'app/ocr.js', re: /import\(LIB\)/, n: 2, why: 'LIB is a vendored path constant (read once a page by readScannedPage, once a run by openScanReader)' },
   { file: 'app/aiui.js', re: /au\.src = URL\.createObjectURL/, n: 1, why: 'blob: URL of a stored voice note' },
   { file: 'app/brief.js', re: /img\.src = url;/, n: 1, why: 'url is a blob: URL of a stored photo (brief.js builds the list)' },
   { file: 'app/dealui.js', re: /^(au|a|img)\.src = (url|u);/, n: 3, why: 'blob: URLs made with URL.createObjectURL from stored photos and voice notes' },
@@ -184,6 +184,7 @@ const ALLOW = [
   { file: 'app/icons.js', re: /^s\.setAttribute\(k, v\);$/, n: 1, why: 'the pairs come from a literal object of presentation attributes in the for header just above' },
   // ---- data fields that merely are called src: not DOM
   { file: 'app/abstracts.js', re: /^rec\.src = list;/, n: 1, why: 'a record field (source quotes), not an element' },
+  { file: 'app/leasestage.js', re: /^(rec|had)\.src = mergeSrc\(/, n: 2, why: 'a record field (the sources a lease reader found), not an element' },
   { file: 'app/t12.js', re: /Object\.assign\(line, \{ src: \{ type:/, n: 1, why: 'a record field (where a line was read from), not an element' },
   { file: 'app/omroll.js', re: /^row\.src = \{/, n: 1, why: 'a record field (page, line, cells), not an element' },
 ];

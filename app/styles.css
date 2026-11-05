@@ -745,6 +745,25 @@ dialog.sheet:has(.ab-editor) .sheet-card { height: calc(100dvh - 24px); }
 .ab-check { display: flex; align-items: center; gap: 6px; min-height: 44px; }
 .ab-check input { width: 24px; height: 24px; }
 .ab-readout, .ab-total { margin: 0; font-size: var(--t-13); color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ab-read { border: 1px solid var(--line); border-radius: var(--r-sm); padding: var(--s3); display: grid; gap: var(--s2); }
+.ab-read h3 { margin: 0; }
+.ab-read-docs, .ab-staged-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.ab-read-doc { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.ab-read-name { overflow-wrap: anywhere; }
+.ab-read-run { display: grid; gap: var(--s2); }
+.ab-read-ask { display: grid; gap: var(--s2); }
+.ab-staged { display: grid; gap: var(--s2); }
+.ab-staged-summary { margin: 0; font-weight: 600; }
+.ab-staged-row { border: 1px solid var(--line); border-radius: var(--r-sm); padding: var(--s2) var(--s3); display: grid; gap: 4px; }
+.ab-staged-row > input[type=checkbox] { width: 24px; height: 24px; }
+.ab-staged-label { overflow-wrap: anywhere; }
+.ab-staged-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ab-staged-effect { margin: 0; }
+.ab-quote { margin: 0; padding: 4px 8px; border-left: 3px solid var(--line-strong); font-size: var(--t-13); overflow-wrap: anywhere; }
+.ab-quote mark { font-weight: 700; background: var(--accent-soft); color: inherit; }
+.ab-page canvas { border: 1px solid var(--line); max-width: 100%; height: auto; }
+.ab-readout.ab-super-note, .ab-super-note { margin: 0; }
+.ab-superseded > .ab-grid input, .ab-superseded > .ab-readout { text-decoration: line-through; }
 .ab-flaglist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .ab-flaglist li { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
 @media (min-width: 900px) {

@@ -79,7 +79,6 @@ export function pageModel(texts, { ocr = {} } = {}) {
   return pages;
 }
 
-const lineText = (p, l) => p.text.slice(l.s, l.e);
 const cleanLine = (p, l) => p.clean.slice(l.s, l.e);
 
 /** The pages the model read: [{ n, source, conf, poor, chars }]. */
@@ -152,8 +151,9 @@ const BAD_LETTERS = /[OolISB]/;
 export function readAmount(text) { return amountsIn(text)[0] || null; }
 
 /** Every amount token in a text, in order (see readAmount). */
+/** @returns {any[]} */
 export function amountsIn(text) {
-  const out = [];
+  /** @type {any[]} */ const out = [];
   const re = /\$\s?[\dOolISB,.]+|(?<![\d$,.])\d{1,3}(?:,\d{3})*\.\d{2}(?!\d)/g;
   for (const m of String(text ?? '').matchAll(re)) {
     const token = m[0].replace(/[.,]+$/, '');
@@ -372,7 +372,7 @@ function cand(p, key, start, len, value, o = {}) {
   const q = makeQuote(p, start, len, o.token);
   const base = {
     key, value, unit: o.unit ?? null, basis: o.basis ?? null, rel: o.rel ?? '', status: o.status || 'found', confidence: confOf(p, o), note: o.note || '', from: o.from || 'body',
-    page: p.n, start: q.start, len: q.len, quote: q.quote, ocrConf: p.source === 'ocr' && Number.isFinite(p.conf) ? Math.round(p.conf) : null,
+    page: p.n, start: q.start, len: q.len, quote: q.quote, hit: cut(flat(o.token === undefined ? p.text.slice(start, start + len) : o.token), 80), ocrConf: p.source === 'ocr' && Number.isFinite(p.conf) ? Math.round(p.conf) : null,
   };
   if (o.choices) base.choices = o.choices;
   if (!q.ok) return { ...base, value: null, rel: '', unit: null, basis: null, status: 'not-found', note: 'The quote did not check out', quote: '', len: 0 };
@@ -411,7 +411,7 @@ function dateCand(p, f, start, w, from, loose) {
 /* ------------------------------------------------------------ the field readers */
 
 /** Parties: landlord, tenant, trade name, guarantor. Entity text as written, cut to 200. */
-export function readParties(pages, { basic } = {}) {
+export function readParties(pages, { basic } = /** @type {{ basic?: any }} */ ({})) {
   const out = [];
   const entity = (s) => cut(trimEnd(flat(s).replace(/^(?:by\s+and\s+)?between\s+/i, '').replace(/^(?:and|by)\s+/i, '')), TEXT_MAX);
   // the opening paragraph: "between X (the “Landlord”) and Y (the “Tenant”)". Found from the defined name, then looking back
@@ -471,7 +471,7 @@ const BASIS_WORD = /gross\s+leasable|\bgla\b|gross\s+building|net\s+rentable|ren
 const basisOfWord = (w) => { const t = w.toLowerCase(); return /gross\s+leasable|^gla$/.test(t) ? 'gla' : /gross/.test(t) ? 'gross' : /usable|usf/.test(t) ? 'usable' : 'rentable'; };
 
 /** Premises: suite, floor, square feet with their basis (from the adjacent words only), pro-rata share. */
-export function readPremises(pages, { basic } = {}) {
+export function readPremises(pages, { basic } = /** @type {{ basic?: any }} */ ({})) {
   const out = [];
   const inPremises = (p, s, e) => PREM_CTX.test(sentenceOf(p, s, e)) && /premises|demised|leased|suite|space|unit/i.test(sentenceOf(p, s, e));
   for (const p of pages.slice(0, 4)) {
@@ -547,7 +547,7 @@ const tailNumber = (words) => { const ws = words.trim().split(/\s+/); for (let k
 
 const TERM_RE = /\b(?:([A-Za-z]+(?:[- ][A-Za-z]+){0,2})\s*\((\d{1,3})\)|(\d{1,3}))\s*(years?|months?)\b/g;
 /** The initial term: termMonths (a whole number of months, years times 12) and termText (as written). Words and figure must agree. */
-export function readTerm(pages, { basic } = {}) {
+export function readTerm(pages, { basic } = /** @type {{ basic?: any }} */ ({})) {
   const out = [];
   const one = (p, m, from, ctxOk) => {
     const figure = m[2] !== undefined ? +m[2] : +m[3];
@@ -603,7 +603,7 @@ export function readTerm(pages, { basic } = {}) {
 }
 
 /** The security deposit (an amount, or none) and how it is held (cash or letter of credit, by the words). */
-export function readDeposit(pages, { basic } = {}) {
+export function readDeposit(pages, { basic } = /** @type {{ basic?: any }} */ ({})) {
   const out = [];
   for (const p of pages) {
     const t = p.clean;
@@ -804,7 +804,7 @@ function stepCand(p, row, cells, headers, headText) {
   return {
     label: row.label, mFrom: row.mFrom, mTo: row.mTo, from: row.from, to: row.to, amounts, primary: units.length === 1 && status === 'found' ? units[0] : null, basis: basis || null,
     status, note: notes.join('; '), figures, page: p.n, start: q.start, len: q.len, quote: q.ok ? q.quote : '', confidence: conf, ...(choices ? { choices } : {}),
-    sources: [{ page: p.n, start: q.start, len: q.len, quote: q.ok ? q.quote : '', confidence: conf, from: 'body', ocrConf: p.source === 'ocr' && Number.isFinite(p.conf) ? Math.round(p.conf) : null }],
+    sources: [{ page: p.n, start: q.start, len: q.len, quote: q.ok ? q.quote : '', confidence: conf, from: 'body', hit: row.text.trim(), ocrConf: p.source === 'ocr' && Number.isFinite(p.conf) ? Math.round(p.conf) : null }],
   };
 }
 
@@ -818,7 +818,7 @@ const NAMES = new Set(['landlord', 'tenant', 'guarantor', 'tradeName']);
 const sig = (c) => JSON.stringify([NAMES.has(c.key) ? sq(String(c.value ?? '').split(',')[0]) : typeof c.value === 'string' ? sq(c.value) : c.value, c.rel ? sq(c.rel) : '', c.unit, c.basis]);
 const RANK = { high: 3, medium: 2, low: 1 };
 const PRIORITY = { basic: 0, preamble: 1, body: 2 };
-const srcOf = (c) => ({ page: c.page, start: c.start, len: c.len, quote: c.quote, confidence: c.confidence, from: c.from, ocrConf: c.ocrConf ?? null });
+const srcOf = (c) => ({ page: c.page, start: c.start, len: c.len, quote: c.quote, hit: c.hit || '', confidence: c.confidence, from: c.from, ocrConf: c.ocrConf ?? null });
 const where = (c) => (c.from === 'basic' ? 'The basic terms page' : c.from === 'preamble' ? 'The opening paragraph' : 'The text');
 const says = (c) => `${where(c)} says ${c.status === 'ambiguous' ? `something unclear (${c.note})` : c.rel ? `“${c.rel}”` : c.value === null ? 'nothing readable' : c.value}, p.${c.page}`;
 

@@ -16,6 +16,8 @@ import {
 import { FIELDS, GROUPS, BASES, TERM_KINDS, OPTION_KINDS, RESETS, LIMITS } from './abstractfields.js';
 import { buildAbstractWorkbook, abstractCsv, abstractJson, renderAbstractPrint, RATE_NOTE } from './abstractexport.js';
 import { redrawKeepingFocus } from './focuskeep.js';
+import { leaseReadBlock } from './leasereadui.js';
+import { useFigure } from './leasestage.js';
 import { cleanName } from './dd.js';
 
 const OPEN_KEY = 'zl.ab.open';
@@ -572,7 +574,42 @@ export function openAbstract(h, id, opts = {}) {
     };
     const tl = tools(key);
     const rm = btn('btn-plain btn-sm', 'Remove step', () => { const gone = removeStep(ab, s.id); if (gone) { h.touch({ label: 'Lease abstract: removed a rent step' }); redraw(); toast('Rent step removed.', { label: 'Undo', run: () => { if (!ab.steps.some((x) => x.id === gone.item.id)) { ab.steps.splice(Math.min(gone.index, ab.steps.length), 0, gone.item); h.touch({ label: 'Lease abstract: rent step restored' }); redraw(); } } }); } });
-    card.append(grid, out, tl.node, rm);
+    // what a lease reader left for the broker (L3): a superseded step, a monthly/annual disagreement to settle, a lease year to date
+    const extras = [];
+    if (s.supersededBy) {
+      const by = h.docs().find((x) => x.id === s.supersededBy);
+      const pg = ab.steps.map((x) => x.src.find((y) => y.doc === s.supersededBy && y.page)).find(Boolean);
+      extras.push(el('p', 'hint-sm ab-super-note', `Superseded by ‘${by ? by.name : 'a later document'}’${pg ? ` (p.${pg.page})` : ''}. Kept for the record; not counted.`));
+      card.classList.add('ab-superseded');
+    }
+    const figs = ['month', 'year', 'psf_year'].filter((u) => s.amounts[u] !== null);
+    if (s.status === 'ambiguous' && figs.length >= 2) {
+      const row = el('div', 'dd-formbtns');
+      const words = { month: 'monthly', year: 'annual', psf_year: '$/SF' };
+      for (const u of figs) {
+        const b = btn('btn-plain btn-sm', `Use the ${words[u]} figure`, () => {
+          const before = JSON.parse(JSON.stringify(s));
+          const res = useFigure(ab, s.id, u);
+          if (res.error) { alert.textContent = res.error; return; }
+          h.touch({ label: `Lease abstract: ${s.label || 'rent step'}, used the ${words[u]} figure` });
+          redraw();
+          toast(`Used the ${words[u]} figure.`, { label: 'Undo', run: () => { Object.assign(s, before); h.touch({ label: `Lease abstract: ${s.label || 'rent step'}, undid the choice of a figure` }); redraw(); } });
+        }, `Use the ${words[u]} figure for ${s.label || 'this step'}`);
+        b.classList.add('ab-usefig');
+        row.appendChild(b);
+      }
+      extras.push(row);
+    }
+    const yr = /^Year (\d{1,2})$/i.exec(s.label || '');
+    if (yr && s.mFrom === null && s.mTo === null && !s.from && !s.to) {
+      const n = +yr[1];
+      const b = btn('btn-plain btn-sm', `Count Year ${n} from rent commencement`, () => {
+        if (done(setStep(ab, s.id, { mFrom: 12 * (n - 1) + 1, mTo: 12 * n }), itemLabel(ab, key), `${itemLabel(ab, key)}: counted as months ${12 * (n - 1) + 1} to ${12 * n} from rent commencement.`)) redraw();
+      }, `Count ${s.label} from rent commencement (months ${12 * (n - 1) + 1} to ${12 * n})`);
+      b.classList.add('ab-countyear');
+      extras.push(b);
+    }
+    card.append(grid, out, ...extras, tl.node, rm);
     addRow(key, card, tl.refresh);
     return card;
   }
@@ -618,6 +655,9 @@ export function openAbstract(h, id, opts = {}) {
   /* ------------------------------------------------------- the whole editor */
   const content = el('div', 'ab-content');
   root.appendChild(content);
+  // reading a lease PDF (L3): staged results the broker keeps; nothing is ticked by it
+  const reader = leaseReadBlock({ h, ab, redraw: () => redraw(), say: (t) => { status.textContent = t; }, problem: (t) => { alert.textContent = t; } });
+  root.insertBefore(reader.node, content);
   function redraw(error) {
     redrawKeepingFocus(root, () => {
       rows.length = 0;
