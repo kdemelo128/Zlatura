@@ -25,6 +25,7 @@ Last updated: 4.7.66; two Part 21.2 breaches fixed: the rent schedule uses only 
 
 ## Now
 
+- **Dev tooling (4.7.100, PR opening):** multi-model harness (`tools/harness/`) so Claude can hand task cards to Codex, Gemini, Grok, Kimi and Muse and check the drafts; no app change, no vendor run yet (`[~]`, stub-tested only).
 - **Current step (4.7.66):** the conformance check (2026-10-29) found two Part 21.2 breaches in shipped code and both
   are fixed here (PR opening): the rent schedule's rent ÷ price column now uses only a price the broker typed (never
   one worked out from the cap rate, which returned the cap rate back), and commission tiers whose limits do not

@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.7.100: A way to hand work to other AI models, with Claude checking it (on the development branch; not merged or deployed)
+
+Development tooling only; the app, saved deals and every figure are unchanged.
+
+- **Proposal approved.** `docs/proposals/multi-model-harness.md`: Claude is the hub; Codex, Gemini, Grok, Kimi and Muse take task cards and return drafts. Claude runs the real gates and the owner merges.
+- **`tools/harness/`.** A task-card format (`docs/tasks/`), a routing table (`workers.json`), and `run-task.mjs` with `plan`, `packet`, `run` and `ingest`. Workers are logged-in command-line tools or paste-in chats; no API keys are used.
+- **Guards.** A card cannot put `private/`, CI files or the harness config in scope; a worker's diff touching protected files is refused; a key or email address in a card or in output stops the run.
+- **Tested.** `tests/harness.test.js` (7 tests, stub workers only, no network). No vendor has been run yet; each worker is "not yet tested" until its dry run in the next PR.
+- Saved results unchanged; golden figures: 646 compared, 0 changed.
+
 ## 4.7.99: Workspaces: pick the lens that fits your work, and Home and Tools follow (on the development branch; not merged or deployed)
 
 Zlatura has nine workspaces (Brokerage, Underwriting, Lending, Development, Investing, Occupier, Asset management, Capital raising, Leases and documents). A workspace is a lens, not a wall.
