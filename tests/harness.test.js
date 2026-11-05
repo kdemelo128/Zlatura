@@ -1,32 +1,56 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadWorkers, route, parseCard, checkScope, checkChangedFiles, findSecret, buildPacket, diffFiles } from '../tools/harness/lib.mjs';
+import { loadWorkers, route, parseCard, checkScope, checkChangedFiles, checkDesign, findSecret, buildPacket, diffFiles } from '../tools/harness/lib.mjs';
+import { CONNECTORS, connectorFor } from '../tools/harness/connectors/index.mjs';
+import { extractDiff, haveCommand } from '../tools/harness/connectors/base.mjs';
 
 const cfg = loadWorkers();
-const card = (scope) => parseCard(`---\nid: t1\nkind: docs\ngoal: fix a typo\nscope: ${scope}\n---\nbody`);
+const card = (scope, extra = '') => parseCard(`---\nid: t1\nkind: docs\ngoal: fix a typo\nscope: ${scope}\n${extra}---\nbody`);
 
-test('every worker in the table loads and every route points at a real worker', () => {
+test('all seven workers load, each has a connector, and every role and kind points at something real', () => {
   assert.equal(cfg.workers.length, 7);
-  assert.ok(cfg.workers.every((w) => w.mode !== 'cli' || w.command.length));
+  for (const w of cfg.workers) assert.ok(connectorFor(w), w.id);
+  assert.deepEqual(Object.keys(CONNECTORS).sort(), ['claude', 'gemini', 'grok', 'kimi', 'muse', 'openai']);
 });
-test('money, parsing and security go to Opus and get a second-model review', () => {
-  for (const k of ['money', 'parsing', 'security', 'data-format']) {
+test('every one of the six AI products plays at least one role', () => {
+  const used = new Set(Object.values(cfg.roles).flatMap((r) => [r.primary, ...(r.fallbacks ?? []), r.reviewer].filter(Boolean)));
+  for (const w of cfg.workers) assert.ok(used.has(w.id), `${w.id} has no role`);
+});
+test('the roles the owner named exist: designer, researcher, bug-fixer, developer', () => {
+  for (const r of ['designer', 'researcher', 'bug-fixer', 'developer', 'reviewer', 'tester', 'writer', 'security-reviewer']) assert.ok(cfg.roles[r], r);
+});
+test('money, parsing, security and bugs get a worker and a different reviewer', () => {
+  for (const k of ['money', 'parsing', 'security', 'data-format', 'bug']) {
     const r = route(cfg, k);
-    assert.equal(r.worker, 'claude-opus');
-    assert.ok(r.reviewer && r.reviewer !== r.worker);
+    assert.ok(r.reviewer && r.reviewer !== r.worker, k);
   }
-  assert.equal(route(cfg, 'docs').reviewer, null);
+  assert.equal(route(cfg, 'money').worker, 'claude-opus');
+  assert.equal(route(cfg, 'research').worker, 'gemini');
   assert.throws(() => route(cfg, 'nonsense'));
 });
-test('a card cannot put private/ or protected files in scope', () => {
-  for (const s of ['private/leases', 'private', '.github/workflows/test.yml', 'sw.js', '../x', '.env', 'tools/harness/workers.json']) {
+test('a worker that is out of messages or not installed falls through to the next in its role', () => {
+  assert.equal(route(cfg, 'research', new Set(['claude-sonnet', 'kimi'])).worker, 'kimi');
+  assert.equal(route(cfg, 'research', new Set(['claude-sonnet'])).worker, 'claude-sonnet');
+  assert.throws(() => route(cfg, 'research', new Set(['muse'])), /no available worker/);
+});
+test('a card cannot put private/ or protected files in scope, in any project', () => {
+  for (const s of ['private/leases', 'private', '.github/workflows/test.yml', 'sw.js', '../x', '.env', 'tools/harness/workers.json', 'tools/harness/connectors/index.mjs']) {
     assert.throws(() => checkScope(cfg, [s]), /protected/, s);
+    assert.throws(() => checkScope(cfg, [s], 'zlatura'), /protected/, s);
   }
   assert.doesNotThrow(() => checkScope(cfg, ['docs/glossary.md']));
+});
+test('Zlatura engine and deal code need an approved-design line on the card', () => {
+  assert.throws(() => checkDesign(cfg, card('app/engine/noi.js', 'project: zlatura\n')), /approved-design/);
+  assert.throws(() => checkDesign(cfg, card('app/deal.js', 'project: zlatura\n')), /approved-design/);
+  assert.doesNotThrow(() => checkDesign(cfg, card('app/engine/noi.js', 'project: zlatura\napproved-design: docs/proposals/x.md\n')));
+  assert.doesNotThrow(() => checkDesign(cfg, card('app/engine/noi.js'))); // another project has its own rules
+  assert.throws(() => buildPacket(cfg, card('app/deal.js', 'project: zlatura\n'), 'r'), /approved-design/);
 });
 test('a worker diff touching protected files is refused unless the card named them', () => {
   assert.throws(() => checkChangedFiles(cfg, ['sw.js'], ['docs/a.md']));
   assert.throws(() => checkChangedFiles(cfg, ['.github/workflows/test.yml'], []));
+  assert.throws(() => checkChangedFiles(cfg, ['tools/harness/connectors/base.mjs'], ['docs/a.md']));
   assert.doesNotThrow(() => checkChangedFiles(cfg, ['docs/a.md'], ['docs/a.md']));
 });
 test('keys and the owner address are caught in cards and output', () => {
@@ -45,4 +69,36 @@ test('the packet carries the rules and the scope, and diffFiles reads a diff', (
 test('a card without required fields is refused', () => {
   assert.throws(() => parseCard('no front matter'));
   assert.throws(() => parseCard('---\nid: x\n---\nb'), /missing/);
+});
+test('extractDiff pulls a patch out of chat text, fences and trailing prose', () => {
+  const patch = '--- a/docs/a.md\n+++ b/docs/a.md\n@@ -1,1 +1,1 @@\n-old\n+new\n';
+  const chat = `Sure! Here you go:\n\n\`\`\`diff\n${patch}\`\`\`\n\nLet me know if you want changes.`;
+  assert.equal(extractDiff(chat), patch);
+  assert.equal(extractDiff(patch + '\nThanks for asking.'), patch);
+  assert.equal(extractDiff('no patch here'), '');
+  assert.equal(extractDiff(null), '');
+});
+test('connector modes: Claude is an agent, Codex and Gemini are CLIs, Grok, Kimi and Muse are paste-in', () => {
+  assert.equal(CONNECTORS.claude.mode, 'agent');
+  assert.equal(CONNECTORS.openai.mode, 'cli');
+  assert.equal(CONNECTORS.gemini.mode, 'cli');
+  for (const id of ['grok', 'kimi', 'muse']) { assert.equal(CONNECTORS[id].mode, 'relay'); assert.match(CONNECTORS[id].relayInstructions(), /unified diff/); assert.equal(CONNECTORS[id].invocation(), null); }
+  assert.deepEqual(CONNECTORS.openai.invocation().command.slice(0, 2), ['codex', 'exec']);
+});
+test('doctor checks go through an injected runner: nothing is spawned in tests, and a missing tool reports clearly', () => {
+  const missing = () => ({ error: new Error('ENOENT'), status: null });
+  const present = () => ({ status: 0 });
+  assert.equal(haveCommand('codex', missing), false);
+  assert.equal(haveCommand('codex', present), true);
+  assert.equal(CONNECTORS.gemini.check(missing).ok, false);
+  assert.match(CONNECTORS.gemini.check(missing).how, /not installed or not logged in/);
+  assert.equal(CONNECTORS.gemini.check(present).ok, true);
+  assert.equal(CONNECTORS.grok.check(missing).ok, true); // paste-in needs no install
+});
+test('no connector file holds a key, a token or a network call', async () => {
+  const fs = await import('node:fs');
+  for (const f of ['base.mjs', 'index.mjs']) {
+    const s = fs.readFileSync(new URL(`../tools/harness/connectors/${f}`, import.meta.url), 'utf8');
+    assert.equal(/\bfetch\s*\(|XMLHttpRequest|WebSocket|process\.env/.test(s), false, f);
+  }
 });

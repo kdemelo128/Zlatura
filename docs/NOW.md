@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.101 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.102 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -161,6 +161,7 @@ section with grep, never in full.
 - **Role workspaces WS0 (4.7.99, PR opening):** nine workspaces (Brokerage, Underwriting, Lending, Development, Investing, Occupier, Asset management, Capital raising, Leases and documents) as lenses over the same app: a switcher sheet, up to three pinned chips on phone Home, a Workspaces list in the desktop rail, a first-run picker that never interrupts a device that already has deals, a "For <workspace>" group first in Tools, "Workspace: X" palette actions and workspace calculator links on Underwrite. The set of tools is identical in all nine; nothing is hidden or removed; no new maths; no deal change. Stored in the new `ui.prefs` kv key (carried by backups, BACKUP_VERSION stays 2). Designer review found and fixed a reload bug (stored workspace ignored in Tools and Underwrite). Next: WS1 Lending (almost all tools exist), then Investing, Occupier, Development. See `docs/proposals/role-workspaces.md`.
 - **Regex fixes (4.7.98, PR opening):** the encoding note's word search in `app/textfile.js` was quadratic on a long unbroken word (a 40,000-character name took about 16 s to read, which made the full check's `hostile-flow` fail on this machine); rewritten as one pass with no lookbehind. A lookbehind in `app/convert-worker.js` (Safari before 16.4 cannot parse one) is gone, and `tests/regex-compat.test.js` forbids a lookbehind anywhere in `app/`. WS0 (role workspaces, branch claude/workspaces-ws0) and the lease reader L3 (claude/lease-abstract-l2) wait on this and renumber after it merges.
 - **Multi-model harness (4.7.100, PR opening):** proposal approved by the owner plus `tools/harness/` (task cards, routing table, `plan`/`packet`/`run`/`ingest`, guards for private/ files, protected paths and keys). Workers: Claude Opus and Sonnet, Codex and Gemini (logged-in CLIs on the owner's computer), Grok, Kimi and Muse (paste-in). No vendor run yet (H2 next). The Model Board page is a private artifact for the owner. Workspaces WS0 is PR #130 (4.7.99); the lease reader L3 is next (4.7.101).
+- **Harness roles and connectors (4.7.102, PR opening):** ten roles across all six AI products, one connector per vendor (`doctor` checks the machine), any project via the card's `project:` line. Codex and Gemini command lines unverified until the owner's dry run. The Model Board artifact shows it.
 - **Lease reader L3 (4.7.101, PR opening):** a lease or amendment PDF is read on the device by rules (text layer, or OCR of scans with the vendored Tesseract); every found item is staged with its page and quote, nothing is kept until the broker ticks it. Schema 9 (`abstracts-read`) is flagged for the owner. Not yet tested on a real phone or Safari.
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
