@@ -70,7 +70,7 @@ export function pageModel(texts, { ocr = {} } = {}) {
     for (const l of p.lines) {
       const t = p.text.slice(l.s, l.e);
       if (!t.trim()) continue;
-      if (/^\s*(?:page\s+)?\d{1,4}(?:\s+of\s+\d{1,4})?\s*$/i.test(t) || (edge.get(p).has(l) && !/\$\s?\d/.test(t) && (counts.get(key(p, l)) || 0) >= need)) l.furniture = true; // a rent row repeats down a table, a footer does not carry a dollar figure
+      if (/^\s*(?:page\s+)?\d{1,4}(?:\s+of\s+\d{1,4})?\s*$/i.test(t) || (edge.get(p).has(l) && !/\$\s?\d/.test(t) && !RENT_HEAD.test(t) && (counts.get(key(p, l)) || 0) >= need)) l.furniture = true; // a rent row or a rent table's heading repeats down a table; a footer carries neither
     }
     let clean = p.text;
     for (const l of p.lines) if (l.furniture) clean = clean.slice(0, l.s) + ' '.repeat(l.e - l.s) + clean.slice(l.e);
@@ -414,13 +414,29 @@ function dateCand(p, f, start, w, from, loose) {
 export function readParties(pages, { basic } = {}) {
   const out = [];
   const entity = (s) => cut(trimEnd(flat(s).replace(/^(?:by\s+and\s+)?between\s+/i, '').replace(/^(?:and|by)\s+/i, '')), TEXT_MAX);
+  // the opening paragraph: "between X (the “Landlord”) and Y (the “Tenant”)". Found from the defined name, then looking back
+  // a bounded way for the entity (a pattern that started at every word would be slow on a page of junk).
+  const anchor = (n) => new RegExp(`\\(\\s*(?:the\\s+)?["“'‘]?\\s*${n}\\s*["”'’]?\\s*\\)`, 'gi');
   for (const p of pages.slice(0, 2)) {
-    const lm = /(?:between|among)\s+([\s\S]{2,260}?)\s*\(\s*(?:the\s+)?["“'‘]?\s*Landlord\s*["”'’]?\s*\)/dgi.exec(p.clean);
-    if (lm) {
-      const [s, e] = lm.indices[1];
-      out.push(cand(p, 'landlord', s, e - s, entity(lm[1]), { from: 'preamble' }));
-      const tm = /\)\s*(?:,\s*)?and\s+([\s\S]{2,260}?)\s*\(\s*(?:the\s+)?["“'‘]?\s*Tenant\s*["”'’]?\s*\)/dgi.exec(p.clean.slice(lm.index + lm[0].length - 1));
-      if (tm) { const [ts, te] = tm.indices[1]; const off = lm.index + lm[0].length - 1; out.push(cand(p, 'tenant', off + ts, te - ts, entity(tm[1]), { from: 'preamble' })); }
+    const t = p.clean;
+    const la = anchor('Landlord').exec(t);
+    if (la) {
+      const lo = Math.max(0, la.index - 280);
+      const win = t.slice(lo, la.index);
+      const bm = [...win.matchAll(/(?:between|among)\s+/gi)].pop();
+      if (bm) {
+        const s0 = lo + bm.index + bm[0].length;
+        const text = entity(t.slice(s0, la.index));
+        if (text) out.push(cand(p, 'landlord', s0, la.index - s0, text, { from: 'preamble' }));
+        const rest = t.slice(la.index + la[0].length);
+        const ta = anchor('Tenant').exec(rest.slice(0, 300));
+        const lead = ta && /^\s*(?:,\s*)?and\s+/i.exec(rest);
+        if (ta && lead && lead[0].length < ta.index) {
+          const s1 = la.index + la[0].length + lead[0].length;
+          const tt = entity(t.slice(s1, la.index + la[0].length + ta.index));
+          if (tt) out.push(cand(p, 'tenant', s1, la.index + la[0].length + ta.index - s1, tt, { from: 'preamble' }));
+        }
+      }
     }
   }
   for (const p of pages.slice(0, 3)) {
@@ -428,10 +444,14 @@ export function readParties(pages, { basic } = {}) {
       const name = trimEnd(flat(m[1]));
       out.push(cand(p, 'tradeName', m.index + m[0].indexOf(m[1]), name.length, name, { from: 'preamble' }));
     }
-    for (const m of p.clean.matchAll(/([^()]{2,200}?)\s*\(\s*(?:the\s+)?["“]Guarantor["”]\s*\)/dg)) {
-      const [s, e] = m.indices[1];
-      const name = entity(m[1].replace(/^[\s\S]*?\b(?:guaranteed|guaranty|executed)\s+by\s+/i, ''));
-      if (name) out.push(cand(p, 'guarantor', s, e - s, name, { from: 'preamble', loose: true }));
+    const ga = anchor('Guarantor').exec(p.clean);
+    if (ga) {
+      const lo = Math.max(0, ga.index - 220);
+      const win = p.clean.slice(lo, ga.index);
+      const cutAt = Math.max(win.lastIndexOf('('), win.lastIndexOf(')'));
+      const s0 = lo + cutAt + 1;
+      const name = entity(p.clean.slice(s0, ga.index).replace(/^[\s\S]*?\b(?:guaranteed|guaranty|executed)\s+by\s+/i, ''));
+      if (name) out.push(cand(p, 'guarantor', s0, ga.index - s0, name, { from: 'preamble', loose: true }));
     }
   }
   const tables = basic ? [basic, ...basic.extra.map((x) => ({ ...x }))] : [];
@@ -673,9 +693,9 @@ function rowOf(p, l, hint) {
 function unitOfAmount(a, row, cells, nextAt) {
   const inline = unitFrom(row.text.slice(a.index + a.length, Math.min(nextAt, a.index + a.length + 40)));
   if (inline.unit || inline.unsure) return inline;
-  const lo = a.index - 6; const hi = a.index + a.length + 6;
+  const lo = a.index; const hi = a.index + a.length;
   const words = [];
-  for (const line of cells) for (const c of line) if (c.s < hi && c.e > lo) words.push(c.text);
+  for (const line of cells) for (const c of line) if (c.s - 2 < hi && c.e + 2 > lo) words.push(c.text);
   return unitFrom(words.join(' '));
 }
 

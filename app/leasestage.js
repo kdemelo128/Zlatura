@@ -73,7 +73,7 @@ export function checkRentRows(ab, steps, sfCand) {
   });
   const fails = checkAbstract(scratch).filter((c) => c.level === 'fail');
   return steps.map((s, i) => {
-    const hit = fails.filter((c) => c.key === `step:${ids[i]}`);
+    const hit = fails.filter((c) => c.key === `step:${ids[i]}` && /monthly and annual disagree|annual and \$\/SF disagree/.test(c.text)); // the arithmetic only (a month count waiting for a date is not)
     if (!hit.length || s.status !== 'found') return s;
     const a = s.amounts; const bits = [];
     if (hit.some((c) => /monthly and annual/.test(c.text))) bits.push(`${usd(a.month)} a month × 12 = ${usd(Math.round(a.month * 12 * 100) / 100)}, but the lease says ${usd(a.year)} a year, p.${s.page}`);
@@ -110,7 +110,8 @@ export function stageInto(ab, result, { doc, effective = null, docs = [] }) {
       continue;
     }
     const mine = (cand.sources || []).map((s) => srcFor(doc, s));
-    if (rec && rec.src.length && mine.length && mine.every((s) => rec.src.some((x) => sameSrc(x, s))) && sameAs(f, rec, cand)) { push({ ...base, effect: 'already', effectText: 'Already in the abstract from this page', canKeep: false }); continue; }
+    const same = sameAs(f, rec, cand) || (cand.status === 'ambiguous' && !!rec && rec.status === 'ambiguous' && sqt(rec.note) === sqt(cand.note));
+    if (rec && rec.src.length && mine.length && mine.every((s) => rec.src.some((x) => sameSrc(x, s))) && same) { push({ ...base, effect: 'already', effectText: 'Already in the abstract from this page', canKeep: false }); continue; }
     if (brokerHeld(rec)) {
       if (sameAs(f, rec, cand)) push({ ...base, effect: 'adds', effectText: 'Adds a page to your typed value', selected: true });
       else push({ ...base, effect: 'differs', effectText: 'Differs from your typed value: kept as a flag' });

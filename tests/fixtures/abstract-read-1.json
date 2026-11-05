@@ -1,0 +1,158 @@
+{
+ "docType": "lease",
+ "fields": {
+  "landlord": {
+   "status": "found",
+   "value": "Larkspur Holdings LLC",
+   "page": 1,
+   "confidence": "high"
+  },
+  "tenant": {
+   "status": "found",
+   "value": "Tidewater Bakery Inc.",
+   "page": 1,
+   "confidence": "high"
+  },
+  "tradeName": {
+   "status": "found",
+   "value": "Tidewater Bakery Cafe",
+   "page": 1,
+   "confidence": "high"
+  },
+  "guarantor": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  },
+  "suite": {
+   "status": "found",
+   "value": "210",
+   "page": 1,
+   "confidence": "high"
+  },
+  "floor": {
+   "status": "found",
+   "value": "second",
+   "page": 1,
+   "confidence": "high"
+  },
+  "sf": {
+   "status": "ambiguous",
+   "value": null,
+   "page": 1,
+   "confidence": "low"
+  },
+  "proRata": {
+   "status": "found",
+   "value": 8.5,
+   "page": 3,
+   "confidence": "high"
+  },
+  "leaseDate": {
+   "status": "found",
+   "value": "2027-02-01",
+   "page": 1,
+   "confidence": "high"
+  },
+  "possession": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  },
+  "commencement": {
+   "status": "found",
+   "value": null,
+   "page": 1,
+   "confidence": "high",
+   "rel": "90 days after the date Landlord delivers possession of the Premises"
+  },
+  "rentCommencement": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  },
+  "expiration": {
+   "status": "found",
+   "value": null,
+   "page": 2,
+   "confidence": "high",
+   "rel": "the last day of the sixtieth (60th) full calendar month following the Commencement Date"
+  },
+  "termMonths": {
+   "status": "found",
+   "value": 60,
+   "page": 1,
+   "confidence": "high"
+  },
+  "termText": {
+   "status": "found",
+   "value": "Five (5) years",
+   "page": 1,
+   "confidence": "high"
+  },
+  "deposit": {
+   "status": "found",
+   "value": 0,
+   "page": 1,
+   "confidence": "high",
+   "unit": "total"
+  },
+  "depositForm": {
+   "status": "not-found",
+   "value": null,
+   "page": null
+  },
+  "escalation": {
+   "status": "found",
+   "value": "Base rent increases 2% per annum on each anniversary of the Commencement Date",
+   "page": 3,
+   "confidence": "high"
+  }
+ },
+ "terms": [
+  {
+   "kind": "initial",
+   "status": "found",
+   "page": 3
+  }
+ ],
+ "steps": [
+  {
+   "label": "Year 1",
+   "amounts": {
+    "month": 4250,
+    "year": 51000,
+    "psf_year": 15
+   },
+   "primary": null,
+   "basis": "rentable",
+   "status": "found",
+   "page": 3
+  },
+  {
+   "label": "Year 2",
+   "amounts": {
+    "month": 4335,
+    "year": 52020,
+    "psf_year": 15.3
+   },
+   "primary": null,
+   "basis": "rentable",
+   "status": "found",
+   "page": 3
+  },
+  {
+   "label": "Year 3",
+   "amounts": {
+    "month": 4421.7,
+    "year": 53060.4,
+    "psf_year": 15.61
+   },
+   "primary": null,
+   "basis": "rentable",
+   "status": "found",
+   "page": 3
+  }
+ ],
+ "flags": []
+}
