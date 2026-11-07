@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.7.105: A local dashboard to chat with every model in one place (on the development branch; not merged or deployed)
+
+Development tooling only; the app, saved deals and every figure are unchanged.
+
+- **`npm run hub`** starts a local page (`tools/hub/`) with a status list of each model, a role picker, and a chat where replies from several models sit side by side. Auto routes through the harness roles table, among ready models only.
+- **Official routes only.** Codex through the signed-in command-line tool (tested on the owner's Mac), Claude through Claude Code if installed, and Gemini, Grok and Kimi through their official APIs with a key saved in `~/.zlatura-hub/keys.json` (owner-only, outside the repo). Muse has no official API known. No browser automation, no cookies, no passwords.
+- **Safety.** 127.0.0.1 only; a one-time token; Host and Origin checks; a message with a key, an email address or a `private/` path is refused before any model sees it; CLI models run in an empty temp folder; keys are never echoed. A test fails if the hub files mention browser automation or hold a key.
+- **Tested.** `tests/hub.test.js` (15 tests with stub processes and fetch; no network, no keys) and screenshots at desktop and phone width. Not tested: any real vendor reply through the hub, the Gemini, xAI and Moonshot request shapes and default model names against the live services.
+- Saved results and golden figures unchanged.
+
 ## 4.7.103: A step-by-step guide to connect the AI models to the harness (on the development branch; not merged or deployed)
 
 Documentation only; the app, saved deals and every figure are unchanged.
