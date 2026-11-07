@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.7.115: Measure how well your documents are read before changing anything (on the development branch; not merged or deployed)
+
+Development tooling only; the app, saved deals and every figure are unchanged.
+
+- **`tests/tools/doc-local.mjs`** walks a folder in your private area and sends each file through the same code the app uses (the upload checks, the document classifier, then the matching reader for T-12, rent roll, lease or offering memorandum). It prints a scoreboard of counts only by layout family: files, accepted, asked, refused, and, where you put a checked `<name>.answers.json` beside a document, fields right, wrong, asked and missed. File names appear as `file-01`; no tenant, address or figure is ever printed. It refuses a folder outside `private/` unless told otherwise.
+- **`tests/tools/uw-oracle.mjs`** runs invented cases through Zlatura's engine and, if you point `UW_PACKAGE_DIR` at the unzipped Codex package, compares its calculations field by field (differences over 0.01 are listed). Without the package it says "not run".
+- **`docs/measuring-documents.md`** says how to run both.
+- **Tested.** `tests/doc-local.test.js` (8 tests; a mutation that prints a value made the "no names or figures" test fail). Only CSV inputs were exercised; the PDF paths are wired but not run; the Codex package's functions were guessed (`irr`, `dscr`, `debtYield`, `capRate`), so check unit conventions before trusting a difference.
+- Saved results and golden figures unchanged.
+
 ## 4.7.114: Download your Box folders without clicking through each one (on the development branch; not merged or deployed)
 
 Development tooling only; the app, saved deals and every figure are unchanged.
