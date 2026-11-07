@@ -1,2 +1,12 @@
 # gitleaks false positive, per commit: a localStorage slot name flagged by generic-api-key because it was named NAME_KEY (renamed since). Not a credential.
 70a755d2f19c459a0f142335aa536fb69248b564:app/dealcrm.js:generic-api-key:329
+
+# gitleaks false positives, per commit: invented fake key values in tests/hub.test.js (earlier commits of the model-hub branch; the file now builds them at run time). Not credentials.
+bf61dc02473dda5c67e9fbca1b11c65263ee5ed6:tests/hub.test.js:generic-api-key:135
+bf61dc02473dda5c67e9fbca1b11c65263ee5ed6:tests/hub.test.js:generic-api-key:139
+bf61dc02473dda5c67e9fbca1b11c65263ee5ed6:tests/hub.test.js:generic-api-key:143
+bf61dc02473dda5c67e9fbca1b11c65263ee5ed6:tests/hub.test.js:generic-api-key:173
+bf61dc02473dda5c67e9fbca1b11c65263ee5ed6:tests/hub.test.js:generic-api-key:70
+bf61dc02473dda5c67e9fbca1b11c65263ee5ed6:tests/hub.test.js:generic-api-key:89
+bf61dc02473dda5c67e9fbca1b11c65263ee5ed6:tests/hub.test.js:generic-api-key:90
+cbec77bbac6f5ec7a7c2dacf2665471813765098:tests/hub.test.js:generic-api-key:70

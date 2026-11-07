@@ -90,7 +90,66 @@ export function buildPacket(cfg, card, agentsMd) {
   ].join('\n');
 }
 
-// Files named in a unified diff.
+// Files named in a unified diff (old and new side). Kept for callers that only want a list;
+// the safety check is validateDiff, which refuses what this merely lists.
 export function diffFiles(diff) {
-  return [...diff.matchAll(/^\+\+\+ b\/(.+)$/gm)].map((m) => m[1]);
+  const out = [];
+  for (const m of diff.matchAll(/^(?:\+\+\+ b|--- a)\/(.+)$/gm)) if (!out.includes(m[1])) out.push(m[1]);
+  return out;
+}
+
+const inScope = (scopeList, p) => scopeList.some((q) => { const s = q.replace(/^\.\//, ''); return p === s || (s.endsWith('/') && p.startsWith(s)); });
+const badPath = (p) => (/["\\\x00-\x1f]/.test(p) ? 'quoted, escaped or control characters' : p.startsWith('/') || /^[A-Za-z]:/.test(p) ? 'absolute path' : p.split('/').some((x) => x === '..' || x === '.' || x === '') ? 'unsafe path segment' : null);
+
+// Strict check of a model-written diff before anything is applied. Only plain edits and
+// creations of in-scope, unprotected files pass; deletions, renames, copies, mode changes,
+// binary patches, quoted paths and anything it cannot read are problems. Returns { files, problems }.
+export function validateDiff(diff, scopeList, cfg, project = 'default') {
+  const problems = [];
+  const files = [];
+  const bad = (m) => { if (!problems.includes(m)) problems.push(m); };
+  const lines = String(diff).replace(/\n$/, '').split('\n');
+  let gitPath = null; let created = false; let oldSide = null; let hunk = null; // hunk = { o, n } lines left
+  const addFile = (p) => {
+    const why = badPath(p);
+    if (why) return bad(`${why}: ${JSON.stringify(p)}`);
+    if (!inScope(scopeList, p)) bad(`outside the card scope: ${p}`);
+    else if (isProtected(cfg, p, project) && !scopeList.includes(p)) bad(`protected file: ${p}`);
+    if (!files.includes(p)) files.push(p);
+  };
+  for (const line of lines) {
+    if (hunk && (hunk.o > 0 || hunk.n > 0)) {
+      const c = line[0];
+      if (c === ' ' || line === '') { hunk.o--; hunk.n--; } else if (c === '-') hunk.o--; else if (c === '+') hunk.n--; else if (c !== '\\') bad(`bad hunk line: ${line.slice(0, 40)}`);
+      continue;
+    }
+    if (line.startsWith('\\ ')) continue;
+    let m;
+    if ((m = /^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@/.exec(line))) {
+      if (oldSide === null) bad('hunk without a file header');
+      hunk = { o: m[1] === undefined ? 1 : +m[1], n: m[2] === undefined ? 1 : +m[2] };
+    } else if (line.startsWith('diff --git ')) {
+      const rest = line.slice(11);
+      if (/["\\]/.test(rest) || !rest.startsWith('a/')) { bad(`bad diff header: ${line.slice(0, 60)}`); gitPath = null; } else {
+        const r = rest.slice(2); const p = r.slice(0, (r.length - 3) / 2);
+        if (r !== `${p} b/${p}`) { bad(`rename or odd names in header: ${line.slice(0, 60)}`); gitPath = null; } else gitPath = p;
+      }
+      created = false; oldSide = null; hunk = null;
+    } else if (/^index [0-9a-f]+\.\.[0-9a-f]+( 100644)?$/.test(line)) { /* plain */ } else if (/^new file mode 100644$/.test(line)) created = true;
+    else if (line.startsWith('--- ')) {
+      oldSide = line.slice(4); hunk = null;
+      if (oldSide !== '/dev/null' && !oldSide.startsWith('a/')) bad(`bad old-side header: ${line.slice(0, 60)}`);
+    } else if (line.startsWith('+++ ')) {
+      const t = line.slice(4);
+      if (oldSide === null) { bad('+++ without ---'); continue; }
+      if (t === '/dev/null') { bad('deletion (+++ /dev/null)'); oldSide = null; continue; }
+      if (!t.startsWith('b/')) { bad(`bad new-side header: ${line.slice(0, 60)}`); oldSide = null; continue; }
+      const p = t.slice(2);
+      if (oldSide === '/dev/null') { if (gitPath !== null && !created) bad(`creation without "new file mode": ${p}`); } else if (oldSide !== `a/${p}`) bad(`rename or odd names: ${oldSide} -> ${t}`);
+      if (gitPath !== null && gitPath !== p) bad(`header names differ: ${gitPath} vs ${p}`);
+      addFile(p);
+    } else if (line !== '') bad(`not allowed in a worker diff: ${line.slice(0, 60)}`);
+  }
+  if (!files.length) bad('no valid file header (--- a/<path> then +++ b/<path>)');
+  return { files, problems };
 }
