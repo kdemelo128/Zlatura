@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.7.103: A step-by-step guide to connect the AI models to the harness (on the development branch; not merged or deployed)
+
+Documentation only; the app, saved deals and every figure are unchanged.
+
+- **`docs/harness-setup.md`.** Answers "do I add the repo to each AI?" (no: the harness runs on the owner's computer in a copy of the repo), lists how each of the six connects (Claude hub, Codex and Gemini as signed-in command-line tools, Grok, Kimi and Muse as paste-in chats), the one-time Mac setup, the full task loop, and where Claude fits.
+- The two vendor install lines are marked unverified until the owner's `doctor` run.
+- Saved results unchanged; golden figures unchanged.
+
 ## 4.7.102: Every AI model gets a role, on any project (on the development branch; not merged or deployed)
 
 Development tooling only; the app, saved deals and every figure are unchanged.
