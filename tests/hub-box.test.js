@@ -117,7 +117,7 @@ test('downloadPlan writes via .part then rename, and skips files with the same s
   assert.ok(!existsSync(target + '.part'));
   assert.ok(!readdirSync(join(dest, 'R')).some((n) => n.endsWith('.part')));
   // the pre-signed address never receives the token
-  const dl = calls.filter((c) => c.url.startsWith('https://dl.example.test'));
+  const dl = calls.filter((c) => new URL(c.url).host === 'dl.example.test');
   assert.equal(dl.length, 2);
   for (const c of dl) assert.equal(c.init.headers.Authorization, undefined);
   const before = calls.length;
