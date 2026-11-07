@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.110 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.115 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -44,6 +44,8 @@ section with grep, never in full.
   - the rent roll PDF upload (#45, 4.7.23): *Import from PDF…* with preview,
     Data QC, layout guard, Undo; source kind `pdf` and file name per lease
     (schema 4, silent migration step `rr-pdf-source`).
+- **UW-0 measuring tools (PR opening):** `tests/tools/doc-local.mjs` (counts-only scoreboard of how your documents are read, by layout family) and `uw-oracle.mjs` (engine versus the Codex package's math); no app change. First local run on your documents comes next.
+- **Box downloader (PR opening):** `npm run box` (search, plan, download, save-token) pulls Box folders to a folder outside the project; stub-tested only, never run against a real Box account.
 - **Merged:** the property-manager profile (4.7.24, #46): "Monthly Charges"/fees are a recovery column, never rent; two
   rent columns that disagree are one failed check; Past Due/Balance noted,
   not failed; a "4 Units" subtotal; a lease-to year split onto the next line.
@@ -167,9 +169,11 @@ section with grep, never in full.
 - **Harness diff guard (4.7.107, shipped inside #136; #138 redundant):** found by the security review: a model's draft could change files outside its card's scope. `validateDiff` now refuses quoted names, deletes, renames, mode changes, binary patches and out-of-scope or protected paths, and the staged files are re-checked after `git apply`. Seven reproduction drafts all passed the old check and are all refused now.
 - **Model Hub (4.7.108, merged #136):** `npm run hub` starts a local dashboard (`tools/hub/`, guide `docs/hub.md`) to chat with every model through official routes only: Codex CLI (tested), Claude Code if installed, Gemini/Grok/Kimi APIs with a key in `~/.zlatura-hub/keys.json`; Muse unavailable (no API). Free only for now. Not yet tried against the real vendors.
 - **Document learning (4.7.109, PR opening):** `docs/proposals/document-learning.md`: what documents to add and the routine used each time (private/ by default, structure-only report, invented lookalike fixtures, reader fix, regression set). **Reminders for the owner (repeat in every report): (1) upload the Codex zip with the advanced underwriting tool and UI; it is the next big item after the Model Hub. (2) Keep adding documents. (3) Box folder downloader goes in the hub as its own PR after the hub merges.** **The full list of everything the owner has asked for, with status, is `docs/owner-requests.md`: check it at the start of every session.**
+- **UW integration plan (4.7.112, PR opening):** `docs/proposals/uw-filler-integration.md` for the owner's Codex underwriting package: ideas and the four-step flow on Zlatura's engine, package used as a local test oracle, 11 PRs UW-0 to UW-11. Rename to Monal paused by the owner. Next: UW-0 (measure) and UW-1 (Start from documents).
 - **Harness diff guard (4.7.107, PR opening):** found by the security review: a model's draft could change files outside its card's scope. `validateDiff` now refuses quoted names, deletes, renames, mode changes, binary patches and out-of-scope or protected paths, and the staged files are re-checked after `git apply`. Seven reproduction drafts all passed the old check and are all refused now.
 - **Model Hub (4.7.108, PR opening):** `npm run hub` starts a local dashboard (`tools/hub/`, guide `docs/hub.md`) to chat with every model through official routes only: Codex CLI (tested), Claude Code if installed, Gemini/Grok/Kimi APIs with a key in `~/.zlatura-hub/keys.json`; Muse unavailable (no API). Free only for now. Not yet tried against the real vendors.
 - **Hub connect and launcher (4.7.110, PR opening):** a "Connect your models" panel with official sign-in or key pages per model, a double-click `Start Model Hub.command`, and the strict draft check in the Agents tab. The hub does not sign in for the owner and cannot reach Muse. Not yet tried against real vendors or on a Mac.
+- **Hub ask and cheap-first (4.7.113, PR opening):** `npm run ask -- "question"` and a "Save my usage" switch that tries free models first (never for money, parsing, security, data-format or bug tasks). Stub-tested only; no real vendor called.
 - **Lease reader L3 (4.7.101, PR opening):** a lease or amendment PDF is read on the device by rules (text layer, or OCR of scans with the vendored Tesseract); every found item is staged with its page and quote, nothing is kept until the broker ticks it. Schema 9 (`abstracts-read`) is flagged for the owner. Not yet tested on a real phone or Safari.
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
