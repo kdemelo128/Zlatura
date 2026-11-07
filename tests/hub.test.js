@@ -191,3 +191,72 @@ test('the hub files hold no key, no browser automation and no cookie access', as
   assert.equal(existsSync(new URL('../tools/hub/public/index.html', import.meta.url)), true);
   void readFileSync;
 });
+
+import { listCards, runAgent, applyDiff } from '../tools/hub/agents.mjs';
+import { loadWorkers } from '../tools/harness/lib.mjs';
+import { mkdirSync, writeFileSync } from 'node:fs';
+
+function repoWith(card) {
+  const root = mkdtempSync(join(tmpdir(), 'hubrepo-'));
+  mkdirSync(join(root, 'docs', 'tasks'), { recursive: true });
+  writeFileSync(join(root, 'AGENTS.md'), 'RULES');
+  writeFileSync(join(root, 'docs', 'tasks', 'one.md'), card);
+  return root;
+}
+const CARD = '---\nid: one\nkind: docs\ngoal: add a line\nscope: docs/a.md\n---\nbody';
+const ready = (...ids) => PROVIDERS.map((p) => ({ id: p.id, state: ids.includes(p.id) ? 'ready' : 'needs-key' }));
+const PATCH = (f) => `--- a/${f}\n+++ b/${f}\n@@ -1,1 +1,2 @@\n x\n+new\n`;
+
+test('listCards reads docs/tasks safely and skips a broken card', () => {
+  const root = repoWith(CARD);
+  writeFileSync(join(root, 'docs', 'tasks', 'broken.md'), 'no front matter');
+  writeFileSync(join(root, 'docs', 'tasks', '.hidden.md'), CARD);
+  assert.deepEqual(listCards(root).map((c) => c.file), ['one.md']);
+  assert.deepEqual(listCards(mkdtempSync(join(tmpdir(), 'empty-'))), []);
+});
+
+test('runAgent: a clean in-scope diff is ok; the packet carries the rules; a bad card name is refused', async () => {
+  const root = repoWith(CARD); const cfg = loadWorkers(); let seen;
+  const ask = async (id, packet) => { seen = { id, packet }; return 'Here:\n```diff\n' + PATCH('docs/a.md') + '```'; };
+  const r = await runAgent({ root, file: 'one.md', to: 'codex', stats: ready('codex'), cfg, ask });
+  assert.equal(r.ok, true); assert.deepEqual(r.files, ['docs/a.md']); assert.equal(seen.id, 'codex'); assert.match(seen.packet, /RULES/);
+  await assert.rejects(runAgent({ root, file: '../../etc/passwd', to: 'codex', stats: ready('codex'), cfg, ask }), /bad card name/);
+  await assert.rejects(runAgent({ root, file: 'missing.md', to: 'codex', stats: ready('codex'), cfg, ask }), /no such card/);
+});
+
+test('runAgent flags a draft outside scope, in protected files, with a secret, or with no diff', async () => {
+  const root = repoWith(CARD); const cfg = loadWorkers();
+  const go = (reply) => runAgent({ root, file: 'one.md', to: 'codex', stats: ready('codex'), cfg, ask: async () => reply });
+  assert.match((await go(PATCH('docs/other.md'))).problems.join(' '), /outside the card's scope/);
+  assert.match((await go(PATCH('sw.js'))).problems.join(' '), /protected files/);
+  assert.match((await go(PATCH('docs/a.md') + '+sk-abcdefghijklmnopqrstuvwx\n')).problems.join(' '), /key or an email/);
+  const none = await go('I could not do that.');
+  assert.equal(none.ok, false); assert.match(none.problems[0], /did not return a diff/);
+  const noReady = await runAgent({ root, file: 'one.md', to: 'auto', stats: ready(), cfg, ask: async () => '' });
+  assert.equal(noReady.ok, false);
+});
+
+test('applyDiff re-checks scope server-side and then calls the harness ingest', async () => {
+  const root = repoWith(CARD); let call;
+  const exec = (bin, args, opts, cb) => { call = { args, opts }; cb(null, 'Committed on agent/codex/one.', ''); };
+  assert.equal(await applyDiff({ root, file: 'one.md', provider: 'codex', diff: PATCH('docs/a.md'), exec }), 'Committed on agent/codex/one.');
+  assert.deepEqual(call.args.slice(0, 2), ['tools/harness/run-task.mjs', 'ingest']); assert.equal(call.args[3], 'codex'); assert.equal(call.opts.cwd, root);
+  await assert.rejects(applyDiff({ root, file: 'one.md', provider: 'codex', diff: PATCH('docs/zzz.md'), exec }), /outside the card's scope/);
+  await assert.rejects(applyDiff({ root, file: 'one.md', provider: 'muse-nope', diff: PATCH('docs/a.md'), exec }), /cannot own a branch/);
+  await assert.rejects(applyDiff({ root, file: 'one.md', provider: 'codex', diff: '', exec }), /empty diff/);
+});
+
+test('the agent endpoints need the token and run a card end to end with a stub model', async () => {
+  const root = repoWith(CARD); const fx = fakeSpawn({ reply: '```diff\n' + PATCH('docs/a.md') + '```' });
+  const hub = createHub({ env: home(), spawn: fx.spawn, root, page: 'x', exec: (b, a, o, cb) => cb(null, 'ok-branch', '') });
+  const port = await hub.listen(0); const base = `http://127.0.0.1:${port}`; const h = { 'x-hub-token': hub.token, 'content-type': 'application/json' };
+  try {
+    assert.equal((await fetch(base + '/api/cards')).status, 401);
+    assert.deepEqual((await (await fetch(base + '/api/cards', { headers: h })).json()).cards.map((c) => c.id), ['one']);
+    const r = await (await fetch(base + '/api/agent', { method: 'POST', headers: h, body: JSON.stringify({ card: 'one.md', to: 'codex' }) })).json();
+    assert.equal(r.ok, true); assert.equal(r.provider, 'codex');
+    const a = await (await fetch(base + '/api/agent/apply', { method: 'POST', headers: h, body: JSON.stringify({ card: 'one.md', provider: 'codex', diff: r.diff }) })).json();
+    assert.deepEqual(a, { ok: true, message: 'ok-branch' });
+    assert.equal((await fetch(base + '/api/agent/apply', { method: 'POST', headers: h, body: JSON.stringify({ card: 'one.md', provider: 'codex', diff: 'sk-abcdefghijklmnopqrstuvwx' }) })).status, 400);
+  } finally { await hub.close(); }
+});

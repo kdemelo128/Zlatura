@@ -50,6 +50,12 @@ textarea{flex:1;min-height:48px;max-height:180px;resize:vertical}
 button{font:600 14px var(--sans);background:var(--accent);color:var(--accent-fg);border:0;border-radius:6px;padding:8px 16px;cursor:pointer}
 button.small{padding:6px 10px;font-size:13px}button:disabled{opacity:.5;cursor:default}
 @media(max-width:760px){body{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line);max-height:44vh}main{height:auto;min-height:60vh}}
+.tabs{display:flex;gap:6px;padding:10px 20px 0;background:var(--panel)}
+.tab{background:transparent;color:var(--muted);border:0;border-bottom:2px solid transparent;border-radius:0;padding:8px 12px}
+.tab.on{color:var(--fg);border-bottom-color:var(--accent)}
+.agentOut{flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:12px}
+.diff{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;font:13px/1.45 var(--mono);white-space:pre-wrap;overflow-x:auto}
+.prob{color:var(--bad)}
 </style>
 </head>
 <body>
@@ -59,6 +65,8 @@ button.small{padding:6px 10px;font-size:13px}button:disabled{opacity:.5;cursor:d
   <section><h2>Roles</h2><div id="roles"></div></section>
 </aside>
 <main>
+  <div class="tabs"><button class="tab on" id="tabChat" type="button">Chat</button><button class="tab" id="tabAgents" type="button">Agents</button></div>
+  <div id="chatView" style="display:contents">
   <div class="bar">
     <label>Send to<select id="to"></select></label>
     <label>Role<select id="role"><option value="">None</option></select></label>
@@ -66,6 +74,15 @@ button.small{padding:6px 10px;font-size:13px}button:disabled{opacity:.5;cursor:d
   </div>
   <div id="log"><div class="empty" id="empty"><b>Ask anything.</b><br>Pick one model, all ready models, or Auto to let the role table choose. Replies appear here side by side. Nothing from your private folder is ever sent, and keys stay on this computer.</div></div>
   <form id="f"><textarea id="msg" placeholder="Message" aria-label="Message" autofocus></textarea><button id="send" type="submit">Send</button></form>
+  </div>
+  <div id="agentView" hidden>
+    <div class="bar">
+      <label>Task card<select id="card"></select></label>
+      <label>Run with<select id="agentTo"><option value="auto">Auto (by role)</option></select></label>
+      <button id="runAgent" type="button">Run agent</button>
+    </div>
+    <div id="agentOut" class="agentOut"><div class="empty">Pick a task card and run it. The model drafts a change; the hub checks it against the card's scope and the protected-files rules, and you decide whether to put it on a local branch. Nothing is pushed.</div></div>
+  </div>
 </main>
 <script>
 const token = new URLSearchParams(location.search).get('t') || '';
@@ -112,6 +129,31 @@ $('f').addEventListener('submit', async (e) => {
   $('send').disabled = false; log.scrollTop = log.scrollHeight;
 });
 $('msg').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) $('f').requestSubmit(); });
+const showTab = (agents) => { $('chatView').style.display = agents ? 'none' : 'contents'; $('agentView').hidden = !agents; $('tabChat').classList.toggle('on', !agents); $('tabAgents').classList.toggle('on', agents); if (agents) loadCards(); };
+$('tabChat').onclick = () => showTab(false); $('tabAgents').onclick = () => showTab(true);
+let cards = [];
+async function loadCards() {
+  cards = (await api('/api/cards')).cards; const sel = $('card'); sel.replaceChildren(...cards.map((c) => el('option', { value: c.file, textContent: c.id + ' (' + c.kind + ')' })));
+  const to = $('agentTo'); const first = to.options[0]; to.replaceChildren(first, ...[...$('to').options].filter((o) => o.value !== 'auto' && o.value !== 'all').map((o) => el('option', { value: o.value, textContent: o.textContent })));
+}
+$('runAgent').onclick = async () => {
+  const out = $('agentOut'); const file = $('card').value; if (!file) return;
+  const c = cards.find((x) => x.file === file); $('runAgent').disabled = true;
+  out.replaceChildren(el('div', { className: 'why', textContent: 'Running ' + c.id + '…' }));
+  try {
+    const r = await api('/api/agent', { card: file, to: $('agentTo').value });
+    out.replaceChildren(el('div', { className: 'why', textContent: 'Goal: ' + c.goal + ' · Scope: ' + c.scope.join(', ') + (r.why ? ' · ' + r.why : '') }));
+    for (const p of r.problems || []) out.append(el('div', { className: 'prob', textContent: p }));
+    if (r.diff) out.append(el('pre', { className: 'diff', textContent: r.diff }));
+    else if (r.reply) out.append(el('pre', { className: 'diff', textContent: r.reply }));
+    if (r.ok) {
+      const b = el('button', { type: 'button', textContent: 'Put on a local branch (not pushed)' });
+      b.onclick = async () => { b.disabled = true; try { const a = await api('/api/agent/apply', { card: file, provider: r.provider, diff: r.diff }); out.append(el('div', { className: a.ok ? 'why' : 'prob', textContent: a.message })); } catch (e) { out.append(el('div', { className: 'prob', textContent: e.message })); } };
+      out.append(b);
+    }
+  } catch (e) { out.replaceChildren(el('div', { className: 'prob', textContent: e.message })); }
+  $('runAgent').disabled = false;
+};
 refresh().catch((e) => { $('empty').textContent = e.message; });
 setInterval(() => { if (![...document.querySelectorAll('.keyrow input')].some((i) => i.value || i === document.activeElement)) refresh().catch(() => {}); }, 30000);
 </script>
