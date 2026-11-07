@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { spawn as spawnProc } from 'node:child_process';
 import { PROVIDERS, statuses, saveKey } from './providers.mjs';
-import { screenPrompt, pick, frame } from './hub-lib.mjs';
+import { screenPrompt, pick, frame, connectSummary } from './hub-lib.mjs';
 import { loadWorkers, findSecret } from '../harness/lib.mjs';
 import { listCards, runAgent, applyDiff } from './agents.mjs';
 
@@ -43,7 +43,9 @@ export function createHub({ token = randomBytes(24).toString('hex'), env = proce
       if (!same(given, token)) return send(res, 401, { error: 'missing or wrong token: open the address the hub printed' });
       if (req.method === 'GET' && url.pathname === '/') return send(res, 200, page, 'text/html; charset=utf-8');
       if (req.method === 'GET' && url.pathname === '/api/state') {
-        return send(res, 200, { providers: await statuses({ env, spawn }), roles: Object.fromEntries(Object.entries(cfg.roles).map(([k, r]) => [k, { what: r.what, primary: r.primary }])), kinds: Object.keys(cfg.kinds) });
+        const stats = await statuses({ env, spawn });
+        const providers = stats.map((s) => ({ ...s, connect: PROVIDERS.find((p) => p.id === s.id).connect }));
+        return send(res, 200, { providers, summary: connectSummary(stats), roles: Object.fromEntries(Object.entries(cfg.roles).map(([k, r]) => [k, { what: r.what, primary: r.primary }])), kinds: Object.keys(cfg.kinds) });
       }
       if (req.method === 'POST' && url.pathname === '/api/key') {
         const b = await body(req); const p = PROVIDERS.find((x) => x.id === b.provider && x.keyName);

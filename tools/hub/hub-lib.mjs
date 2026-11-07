@@ -38,3 +38,10 @@ export function frame(prompt, roleName, cfg = loadWorkers()) {
   const r = roleName && cfg.roles[roleName];
   return r ? `You are acting as the ${roleName}. ${r.what}\n\n${prompt}` : prompt;
 }
+
+/** "N of M ready" for the Connect panel; `next` is the first model that is not ready and has an official page to open (Muse never is). */
+export function connectSummary(stats) {
+  const ready = stats.filter((s) => s.state === 'ready').length;
+  const next = stats.find((s) => s.state !== 'ready' && PROVIDERS.find((p) => p.id === s.id)?.connect?.url)?.id ?? null;
+  return { ready, total: stats.length, next };
+}

@@ -29,6 +29,11 @@ h2{font:600 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;col
 .prov b{font-weight:600}.prov small{grid-column:2;color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
 .keyrow{grid-column:2;display:flex;gap:6px;margin-top:4px;min-width:0}
 .keyrow input{flex:1;min-width:0}
+.conn{border-top:1px solid var(--line);padding:6px 0;min-width:0}
+.conn summary{cursor:pointer;font-weight:600;overflow-wrap:anywhere}
+.conn ol{margin:6px 0;padding-left:20px;color:var(--muted);font-size:13px}.conn li{overflow-wrap:anywhere}
+.conn a{color:var(--accent);font-size:13px;overflow-wrap:anywhere}
+.conn small{display:block;color:var(--muted);font-size:12.5px}
 .role{font-size:13px;color:var(--muted);padding:4px 0;overflow-wrap:anywhere}.role b{color:var(--fg);font-weight:600}
 main{display:flex;flex-direction:column;min-width:0;height:100vh}
 .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
@@ -61,6 +66,7 @@ button.small{padding:6px 10px;font-size:13px}button:disabled{opacity:.5;cursor:d
 <body>
 <aside>
   <div><h1>Model Hub</h1><div class="why">Runs on this computer only.</div></div>
+  <section><h2>Connect your models</h2><div id="summary" class="why"></div><div id="connect"></div></section>
   <section><h2>Models</h2><div id="providers"></div></section>
   <section><h2>Roles</h2><div id="roles"></div></section>
 </aside>
@@ -94,8 +100,26 @@ const api = async (path, body) => {
 };
 const el = (tag, props = {}, ...kids) => { const n = document.createElement(tag); Object.assign(n, props); kids.forEach((k) => n.append(k)); return n; };
 const $ = (id) => document.getElementById(id);
+const safeUrl = (u) => { try { const x = new URL(u); return x.protocol === 'https:' && !x.username && !x.password ? x.href : null; } catch { return null; } };
+function connectBlock(p, onSaved) {
+  const c = p.connect; const d = el('details', { className: 'conn' }, el('summary', { textContent: p.label }));
+  const ol = el('ol'); for (const t of c.steps) ol.append(el('li', { textContent: t })); d.append(ol);
+  const href = c.url && safeUrl(c.url);
+  if (href) d.append(el('a', { href, target: '_blank', rel: 'noopener noreferrer', textContent: c.urlLabel || ('Open ' + p.label + ' sign-in page') }));
+  d.append(el('small', { textContent: c.free }));
+  if (p.keyName && p.state === 'needs-key') {
+    const input = el('input', { type: 'password', placeholder: 'Paste ' + p.keyName, autocomplete: 'off', ariaLabel: p.keyName + ' (connect)' });
+    const save = el('button', { className: 'small', type: 'button', textContent: 'Save' });
+    save.onclick = async () => { try { await api('/api/key', { provider: p.id, key: input.value }); input.value = ''; await onSaved(); } catch (e) { alert(e.message); } };
+    d.append(el('div', { className: 'keyrow' }, input, save));
+  }
+  return d;
+}
 async function refresh() {
   const s = await api('/api/state');
+  $('summary').textContent = s.summary.ready + ' of ' + s.summary.total + ' models ready';
+  const conn = $('connect'); const open = new Set([...conn.querySelectorAll('details[open]')].map((d) => d.dataset.id)); conn.replaceChildren();
+  for (const p of s.providers) if (p.state !== 'ready' && p.connect) { const d = connectBlock(p, refresh); d.dataset.id = p.id; d.open = open.has(p.id) || (s.summary.next === p.id && !open.size); conn.append(d); }
   const box = $('providers'); box.replaceChildren();
   const to = $('to'); const keep = to.value; to.replaceChildren(el('option', { value: 'auto', textContent: 'Auto (by role)' }), el('option', { value: 'all', textContent: 'All ready models' }));
   for (const p of s.providers) {

@@ -62,3 +62,13 @@ not built here.
   send to that vendor.
 - The model names the hub uses are defaults and may be wrong: change them with `HUB_GEMINI_MODEL`,
   `HUB_XAI_MODEL`, `HUB_KIMI_MODEL`, `HUB_OPENROUTER_MODEL`.
+
+## Connect your models
+The top of the left panel says "N of M models ready". Each model that is not ready has a small
+expandable block with the official steps, a link to the vendor's own sign-in or key page (it opens
+in a new tab), a note on whether it is free, and a box to paste the key where one is needed. The
+links and the free-tier notes are UNVERIFIED: check each page is current.
+
+What it cannot do: it does not sign in to any account for you, and it never sees a password or a
+session. You sign in on the vendor's page, or in the vendor's own command-line tool, yourself. Muse
+(Meta AI) has no official way for a program to use it, so the hub cannot connect it.
