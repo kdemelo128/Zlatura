@@ -13,7 +13,8 @@
     "bump": "node tests/tools/bump-version.mjs",
     "sync-main": "node tests/tools/sync-main.mjs",
     "serve": "python3 -m http.server 8080",
-    "hub": "node tools/hub/server.mjs"
+    "hub": "node tools/hub/server.mjs",
+    "box": "node tools/hub/box-cli.mjs"
   },
   "devDependencies": {
     "@xmldom/xmldom": "0.9.12",
