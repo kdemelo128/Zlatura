@@ -73,6 +73,22 @@ What it cannot do: it does not sign in to any account for you, and it never sees
 session. You sign in on the vendor's page, or in the vendor's own command-line tool, yourself. Muse
 (Meta AI) has no official way for a program to use it, so the hub cannot connect it.
 
+## Type a command
+The same screening, routing and models are available from a terminal, with no page to open:
+
+```
+npm run ask -- "Summarise the pros and cons of a triple-net lease"          # Auto picks by role
+npm run ask -- --cheap --kind research "Compare two ways to model CAM"     # free models first
+npm run ask -- --to codex "Explain this regex: ^\d{3}-\d{4}$"              # one specific model
+npm run ask -- --to all "Is 'cap rate' the same as 'yield'?"               # every ready model
+```
+
+Add `--json` for machine-readable output, or pipe text in with no words. `--cheap` (the checkbox
+"Save my usage: try free models first" on the page) tries the free models before the paid ones, so your
+paid plans last longer. Money, parsing, security, data-format and bug tasks always use the strongest
+model, because a wrong answer there costs more than the saved usage. The exit code is 0 if any model
+answered, 1 if every model failed, and 2 if the message was refused.
+
 ## Download your Box folders
 `npm run box -- <command>` downloads due-diligence, analysis and recent-sale folders from Box so
 you do not have to do it by hand. It uses Box's official REST API with an access token you create.

@@ -1,5 +1,22 @@
 # Changelog
 
+## 4.7.113: Type one command to ask your models, and try the free ones first (on the development branch; not merged or deployed)
+
+Development tooling only; the app, saved deals and every figure are unchanged.
+
+- **`npm run ask -- "your question"`** sends one message through the same hub without opening the page. Options: `--to auto|all|<model>`, `--role`, `--kind`, `--cheap`, `--json`. It uses the same checks as the page (a key, an email address or a private-folder path is refused before any model sees it) and prints each model's reply under its name and time. Exit codes: 0 answered, 1 every model failed or none is ready, 2 refused.
+- **Save my usage.** A switch on the page (and `--cheap`) tries the cheapest ready model in a task's role first (free, then standard, then premium). For money, parsing, security, data-format and bug tasks it is ignored and the strongest model is used, and the reply says why. It never overrides a model you name or "all".
+- **Tested.** `tests/hub-ask.test.js` (9 tests, stub models only, no network). The page switch and the real command line were not exercised in a browser or terminal.
+- Saved results and golden figures unchanged.
+
+## 4.7.112: Plan: bringing the owner's underwriting filler into the Underwrite tab (on the development branch; not merged or deployed)
+
+Documentation only; the app, saved deals and every figure are unchanged.
+
+- **`docs/proposals/uw-filler-integration.md`.** Reads the owner's Codex-built package for structure and says what to bring and what not to: port the four-step flow and the ideas onto Zlatura's own engine and readers, copy almost no code (the package does money in floating point, reads a blank as 0 and mixes monthly and annual figures, and stores an API key in browser storage), use it as a local test oracle on the owner's machine, add no library. Maps each package module to a Zlatura module, sketches the four screens, and lays out eleven PRs (UW-0 measure first, then documents intake, evidence, reconcile, monthly cash flow, property details, template filling, bridge, overrides, debt and waterfall extras, development, integrations last), with the gates each needs.
+- `docs/owner-requests.md` updated: zip received, rename paused by the owner, the Gemini key handling.
+- Saved results unchanged; golden figures unchanged.
+
 ## 4.7.110: Easier to start and to connect the Model Hub, and a stricter draft preview (on the development branch; not merged or deployed)
 
 Development tooling only; the app, saved deals and every figure are unchanged.
