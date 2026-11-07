@@ -12,7 +12,8 @@
     "check:full": "node tests/tools/check.mjs full",
     "bump": "node tests/tools/bump-version.mjs",
     "sync-main": "node tests/tools/sync-main.mjs",
-    "serve": "python3 -m http.server 8080"
+    "serve": "python3 -m http.server 8080",
+    "hub": "node tools/hub/server.mjs"
   },
   "devDependencies": {
     "@xmldom/xmldom": "0.9.12",
