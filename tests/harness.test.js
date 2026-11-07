@@ -1,6 +1,10 @@
 import test from 'node:test';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import assert from 'node:assert/strict';
-import { loadWorkers, route, parseCard, checkScope, checkChangedFiles, checkDesign, findSecret, buildPacket, diffFiles } from '../tools/harness/lib.mjs';
+import { loadWorkers, route, parseCard, checkScope, checkChangedFiles, checkDesign, findSecret, buildPacket, diffFiles, validateDiff } from '../tools/harness/lib.mjs';
 import { CONNECTORS, connectorFor } from '../tools/harness/connectors/index.mjs';
 import { extractDiff, haveCommand } from '../tools/harness/connectors/base.mjs';
 
@@ -64,7 +68,7 @@ test('keys and the owner address are caught in cards and output', () => {
 test('the packet carries the rules and the scope, and diffFiles reads a diff', () => {
   const p = buildPacket(cfg, card('docs/a.md'), 'RULES-HERE');
   assert.match(p, /RULES-HERE/); assert.match(p, /Only touch: docs\/a.md/);
-  assert.deepEqual(diffFiles('--- a/x\n+++ b/docs/a.md\n@@'), ['docs/a.md']);
+  assert.deepEqual(diffFiles('--- a/x\n+++ b/docs/a.md\n@@'), ['x', 'docs/a.md']);
 });
 test('a card without required fields is refused', () => {
   assert.throws(() => parseCard('no front matter'));
@@ -102,4 +106,65 @@ test('no connector file holds a key, a token or a network call', async () => {
     const s = fs.readFileSync(new URL(`../tools/harness/connectors/${f}`, import.meta.url), 'utf8');
     assert.equal(/\bfetch\s*\(|XMLHttpRequest|WebSocket|process\.env/.test(s), false, f);
   }
+});
+
+const HUNK = '@@ -1,2 +1,2 @@\n a\n-b\n+EVIL\n';
+const DIFFS = {
+  deletion: '--- a/app/engine/m.js\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-a\n-b\n',
+  mismatchedNames: `--- a/app/engine/m.js\n+++ b/docs/s.md\n${HUNK}`,
+  mismatchedGit: `diff --git a/app/engine/m.js b/app/engine/m.js\n--- a/app/engine/m.js\n+++ b/docs/s.md\n${HUNK}`,
+  renameHeader: 'diff --git a/app/engine/m.js b/docs/n.md\nsimilarity index 100%\nrename from app/engine/m.js\nrename to docs/n.md\n',
+  gitDeletion: 'diff --git a/app/engine/m.js b/app/engine/m.js\n--- a/app/engine/m.js\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-a\n-b\n',
+  quoted: `diff --git "a/app/engine/m.js" "b/app/engine/m.js"\n--- "a/app/engine/m.js"\n+++ "b/app/engine/m.js"\n${HUNK}`,
+  trailingTab: `--- a/app/engine/m.js\n+++ b/app/engine/m.js\t\n${HUNK}`,
+  modeChange: 'diff --git a/docs/s.md b/docs/s.md\nold mode 100644\nnew mode 100755\n',
+  binary: 'diff --git a/docs/s.md b/docs/s.md\nindex 1111111..2222222 100644\nGIT binary patch\nliteral 0\nHcmV?d00001\n',
+  dotdot: `--- a/docs/s.md\n+++ b/../x\n${HUNK}`,
+  absolute: `--- a//etc/x\n+++ b//etc/x\n${HUNK}`,
+};
+const cfgScope = ['docs/s.md', 'docs/new.md'];
+test('validateDiff refuses every deletion, rename, quoted, mode, binary and unsafe-path diff', () => {
+  for (const [name, d] of Object.entries(DIFFS)) {
+    const v = validateDiff(d, cfgScope, cfg);
+    assert.ok(v.problems.length > 0, `${name} should be refused`);
+  }
+});
+test('validateDiff accepts a plain in-scope edit and an in-scope creation', () => {
+  const edit = validateDiff(`diff --git a/docs/s.md b/docs/s.md\nindex 1111111..2222222 100644\n--- a/docs/s.md\n+++ b/docs/s.md\n${HUNK}`, cfgScope, cfg);
+  assert.deepEqual(edit, { files: ['docs/s.md'], problems: [] });
+  const make = validateDiff('--- /dev/null\n+++ b/docs/new.md\n@@ -0,0 +1,2 @@\n+x\n+--- not a header\n', cfgScope, cfg);
+  assert.deepEqual(make, { files: ['docs/new.md'], problems: [] });
+  const made = validateDiff('diff --git a/docs/new.md b/docs/new.md\nnew file mode 100644\nindex 0000000..1111111\n--- /dev/null\n+++ b/docs/new.md\n@@ -0,0 +1 @@\n+x\n', cfgScope, cfg);
+  assert.deepEqual(made.problems, []);
+});
+test('validateDiff refuses out-of-scope files, protected files and a diff with no file header', () => {
+  assert.ok(validateDiff(`--- a/docs/other.md\n+++ b/docs/other.md\n${HUNK}`, cfgScope, cfg).problems.some((p) => /scope/.test(p)));
+  assert.ok(validateDiff(`--- a/sw.js\n+++ b/sw.js\n${HUNK}`, [], cfg).problems.length > 0);
+  assert.ok(validateDiff(`--- a/.github/x.yml\n+++ b/.github/x.yml\n${HUNK}`, [], cfg).problems.length > 0);
+  assert.equal(validateDiff(`--- a/sw.js\n+++ b/sw.js\n${HUNK}`, ['sw.js'], cfg).problems.length, 0, 'a card that names the file may touch it');
+  assert.ok(validateDiff('hello\n', cfgScope, cfg).problems.length > 0);
+});
+test('diffFiles also lists old-side paths', () => {
+  assert.deepEqual(diffFiles('--- a/x/y.js\n+++ b/docs/a.md\n'), ['x/y.js', 'docs/a.md']);
+});
+test('real git: whenever git would touch a path outside scope, validateDiff refuses', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hv-'));
+  try {
+    const git = (...a) => spawnSync('git', a, { cwd: dir, encoding: 'utf8' });
+    git('init', '-q');
+    mkdirSync(join(dir, 'app/engine'), { recursive: true }); mkdirSync(join(dir, 'docs'));
+    writeFileSync(join(dir, 'app/engine/m.js'), 'a\nb\n'); writeFileSync(join(dir, 'docs/s.md'), 'a\nb\n');
+    git('add', '.'); git('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-qm', 'x');
+    let dangerous = 0;
+    for (const [name, d] of Object.entries(DIFFS)) {
+      writeFileSync(join(dir, 'p.diff'), d);
+      const chk = git('apply', '--numstat', '--summary', 'p.diff');
+      if (chk.status !== 0) continue; // git itself refuses it
+      const v = validateDiff(d, cfgScope, cfg);
+      const touched = git('apply', '--check', 'p.diff').status === 0 ? `${chk.stdout}\n${d}` : '';
+      if (/app\/engine/.test(touched) || /rename|delete/.test(chk.stdout)) { dangerous++; assert.ok(v.problems.length > 0, `${name}: git touches outside scope but validateDiff passed`); }
+    }
+    assert.ok(dangerous >= 4, `expected several dangerous diffs git accepts, got ${dangerous}`);
+    assert.ok(existsSync(join(dir, 'app/engine/m.js')) && readFileSync(join(dir, 'docs/s.md'), 'utf8') === 'a\nb\n');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
