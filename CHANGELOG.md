@@ -8,6 +8,15 @@ Documentation only; the app, saved deals and every figure are unchanged.
 - Says plainly that loan-risk prediction needs hundreds of outcomes and is a later project, and that fine-tuning a large model is not needed for parsing.
 - Saved results unchanged; golden figures unchanged.
 
+## 4.7.104: The harness matches what works on the owner's Mac: Codex runs, Gemini is paste-in (on the development branch; not merged or deployed)
+
+Development tooling and docs only; the app, saved deals and every figure are unchanged.
+
+- **Found by testing on a real machine (2026-11-07).** `codex exec -` reads the packet on stdin and answers (in a read-only sandbox); the Codex connector is now marked verified. The free Gemini command-line tool signs in but Google refuses every request ("no longer supported for Gemini Code Assist for individuals", pointing to Antigravity), so Gemini is now a paste-in chat at gemini.google.com like Grok, Kimi and Muse.
+- **`harness-out/` is git-ignored** (packets and worker worktrees land there).
+- **Docs.** `docs/harness-setup.md` updated to match. Antigravity has not been evaluated and nothing about it is installed or assumed.
+- **Tested.** `tests/harness.test.js` (15 tests, no network). Saved results and golden figures unchanged.
+
 ## 4.7.103: A step-by-step guide to connect the AI models to the harness (on the development branch; not merged or deployed)
 
 Documentation only; the app, saved deals and every figure are unchanged.
