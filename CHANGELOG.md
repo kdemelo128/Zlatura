@@ -6,6 +6,7 @@ Development tooling only; the app, saved deals and every figure are unchanged.
 
 - **Double-click to start.** `Start Model Hub.command` in the project folder starts the hub without typing anything. It gets the latest code first, but only when nothing has been changed by hand, installs the project's tools if they are missing, then runs `npm run hub`. If Node is missing it says so and waits.
 - **The Agents tab uses the strict draft check.** The preview and the "put on a local branch" step now both refuse a model draft that uses quoted names, deletes a file, renames a file, changes modes, adds a binary patch, or touches anything outside the task card's scope or a protected path. Before, only the branch step was strict.
+- **Connect your models.** A panel at the top of the left side shows "N of M models ready" and, for each model that is not ready, its steps and a link to the official sign-in or key page (Codex and Claude: sign in with your plan; Gemini, Grok, Kimi, OpenRouter: create a key and paste it in; Muse: not available). The hub does not sign in for you. The links and the free-tier notes are unverified and say so.
 - **Tested.** `tests/hub.test.js` (new tests for quoted-name and deletion drafts fail on the old code; a rename draft and the launcher file are regression guards). The `.command` file itself has not been run on a Mac.
 - Saved results and golden figures unchanged.
 
