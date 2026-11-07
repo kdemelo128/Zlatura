@@ -88,3 +88,42 @@ Add `--json` for machine-readable output, or pipe text in with no words. `--chea
 paid plans last longer. Money, parsing, security, data-format and bug tasks always use the strongest
 model, because a wrong answer there costs more than the saved usage. The exit code is 0 if any model
 answered, 1 if every model failed, and 2 if the message was refused.
+
+## Download your Box folders
+`npm run box -- <command>` downloads due-diligence, analysis and recent-sale folders from Box so
+you do not have to do it by hand. It uses Box's official REST API with an access token you create.
+Everything about the Box API here is from memory and UNVERIFIED, and it was **not tested against a
+real Box account** (only against a stand-in that answers like the API is remembered to).
+
+**Get a token (UNVERIFIED steps).** Open https://app.box.com/developers/console, create an app
+(a custom app using standard OAuth 2.0 is the usual choice), open its Configuration tab and press
+"Generate Developer Token". A developer token expires quickly (about an hour, UNVERIFIED), so make
+a new one when the tool says "the token was refused or expired". Then save it (it is read from
+standard input, so it never lands in your shell history):
+
+    pbpaste | node tools/hub/box-cli.mjs save-token      # or: node tools/hub/box-cli.mjs save-token, paste, Ctrl-D
+
+It is stored in `~/.zlatura-hub/keys.json` (owner-only), the same place as the hub's keys. You can
+also set `BOX_ACCESS_TOKEN` in the environment instead.
+
+**Three commands**
+- `npm run box -- search --names "due diligence,analysis,sale"` lists matching folders (id and path).
+  The names are optional; those three are the default.
+- `npm run box -- plan 12345 67890` lists counts and total size by file type. Nothing is downloaded.
+- `npm run box -- download 12345 67890 --to ~/Zlatura-data/box --yes` downloads. Without `--yes` it
+  only plans. Run it again later to resume: files with the same size and checksum are skipped.
+
+**Safety rules**
+- The destination must be outside the Zlatura folder and outside any git repository (default
+  `~/Zlatura-data/box`); otherwise the tool refuses. Downloaded files are confidential: never move
+  them into the repository.
+- Only these types are downloaded: pdf, xls, xlsx, xlsm, csv, doc, docx, txt, rtf, msg, eml. Other
+  types are counted as skipped, by type, and never saved.
+- Folder and file names from Box are cleaned before they become local names, so a hostile name
+  cannot write outside the destination. A name clash gets " (2)".
+- Nothing is uploaded anywhere. The token stays on this computer and is never printed or logged; it
+  is not sent to the download address Box redirects to.
+- Limits: 30 folder levels deep, 50,000 files per run, 60 seconds per request, up to 5 waits when
+  Box says "too many requests".
+
+Not tested against a real Box account.

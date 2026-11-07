@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.7.114: Download your Box folders without clicking through each one (on the development branch; not merged or deployed)
+
+Development tooling only; the app, saved deals and every figure are unchanged.
+
+- **`npm run box`** pulls due-diligence, analysis and sale folders from Box to a folder on your Mac that is outside the project. Commands: `search` (finds folders by name; default names are "due diligence", "analysis", "sale"), `plan` (counts and sizes by file type, nothing downloaded), `download ... --yes`, and `save-token` (reads the token from standard input so it never lands in your shell history).
+- **Safe by design.** Only office and document file types are downloaded; a hostile folder or file name cannot write outside the destination; a destination inside any git repository or the project is refused; downloads resume (same size and checksum are skipped), write to a temporary file first, and handle Box's rate limits; the token is never printed and is saved only in your private keys file.
+- **Tested** with a stand-in for Box (`tests/hub-box.test.js`, 14 tests; a mutation of the name sanitiser made two of them fail). **Never run against a real Box account**: the Box paths, the redirect, the rate-limit header and the developer-token steps are from memory and marked unverified in `docs/hub.md`.
+- Saved results and golden figures unchanged.
+
 ## 4.7.113: Type one command to ask your models, and try the free ones first (on the development branch; not merged or deployed)
 
 Development tooling only; the app, saved deals and every figure are unchanged.
