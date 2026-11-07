@@ -9,7 +9,7 @@ import { sanitizeName, searchFolders, listTree, planDownload, downloadPlan } fro
 import { run } from '../tools/hub/box-cli.mjs';
 
 // fake token built at run time (the secret scan reads every branch)
-const TOKEN = ['fake', 'box', 'token', 'abcdefgh1234'].join('_');
+const TOKEN = Array.from({ length: 4 }, (_, i) => 'fz'.repeat(i + 2)).join('_'); // computed: no key-looking literal
 const tmp = (p = 'boxt-') => mkdtempSync(join(tmpdir(), p));
 const sha = (s) => createHash('sha1').update(s).digest('hex');
 const noSleep = async () => {};
