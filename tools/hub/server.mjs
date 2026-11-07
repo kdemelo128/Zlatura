@@ -60,7 +60,7 @@ export function createHub({ token = randomBytes(24).toString('hex'), env = proce
         return send(res, 200, { why: chosen.why, replies });
       }
       return send(res, 404, { error: 'not found' });
-    } catch (e) { return send(res, 500, { error: String(e.message ?? e) }); }
+    } catch (e) { console.error('Hub request failed:', e?.stack ?? e); return send(res, 500, { error: 'internal server error' }); }
   });
   return {
     token,
