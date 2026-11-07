@@ -9,7 +9,7 @@
 // Never pushes, never merges. Claude reviews the branch and runs the gates; the owner merges.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { loadWorkers, route, parseCard, buildPacket, diffFiles, checkChangedFiles, findSecret } from './lib.mjs';
+import { loadWorkers, route, parseCard, buildPacket, validateDiff, findSecret } from './lib.mjs';
 import { CONNECTORS, connectorFor } from './connectors/index.mjs';
 
 const argv = process.argv.slice(2);
@@ -45,28 +45,45 @@ if (cmd === 'doctor') {
     const c = connectorFor(w);
     const branch = `agent/${w.id}/${card.meta.id}`;
     const tree = `harness-out/wt-${w.id}-${card.meta.id}`;
-    let reply;
+    const addTree = () => { const t = sh(['git', 'worktree', 'add', '-b', branch, tree, 'origin/main']); if (t.status !== 0) throw new Error(`git worktree add failed: ${(t.stderr || '').slice(0, 200)}`); };
+    const cleanup = () => { sh(['git', 'worktree', 'remove', '--force', tree]); sh(['git', 'branch', '-D', branch]); }; // a refused draft leaves no tree or branch behind
+    const check = (reply) => {
+      const diff = c.parseReply(reply);
+      if (!diff) throw new Error('no unified diff found in the reply');
+      const hit = findSecret(diff);
+      if (hit) throw new Error(`worker output contains something that looks like a key or address (${hit}); not applied`);
+      const v = validateDiff(diff, card.meta.scopeList, cfg, project);
+      if (v.problems.length) throw new Error(`diff refused:\n - ${v.problems.join('\n - ')}`);
+      return { diff, v };
+    };
+    let checked;
     if (cmd === 'run') {
       const inv = c.invocation();
       if (!inv) throw new Error(`${w.id} is "${c.mode}": use packet, then ingest`);
-      sh(['git', 'worktree', 'add', '-b', branch, tree, 'origin/main']); // built from git: private/ is not in it
-      const r = sh(inv.command, { input: buildPacket(cfg, card, rules()), cwd: tree, timeout: 20 * 60 * 1000 });
-      if (r.status !== 0) throw new Error(`worker exited ${r.status}: ${(r.stderr || '').slice(0, 200)}`);
-      reply = r.stdout;
+      addTree(); // built from git: private/ is not in it
+      try {
+        const r = sh(inv.command, { input: buildPacket(cfg, card, rules()), cwd: tree, timeout: 20 * 60 * 1000 });
+        if (r.status !== 0) throw new Error(`worker exited ${r.status}: ${(r.stderr || '').slice(0, 200)}`);
+        checked = check(r.stdout);
+      } catch (e) { cleanup(); throw e; }
     } else {
-      reply = readFileSync(replyPath, 'utf8');
-      sh(['git', 'worktree', 'add', '-b', branch, tree, 'origin/main']);
+      checked = check(readFileSync(replyPath, 'utf8')); // validate first: a refused reply creates nothing
+      addTree();
     }
-    const diff = c.parseReply(reply);
-    if (!diff) throw new Error('no unified diff found in the reply');
-    const hit = findSecret(diff);
-    if (hit) throw new Error(`worker output contains something that looks like a key or address (${hit}); not applied`);
-    checkChangedFiles(cfg, diffFiles(diff), card.meta.scopeList, project);
+    const { diff, v } = checked;
+    try {
     writeFileSync(`${tree}/.harness.diff`, diff);
     const a = sh(['git', 'apply', '--index', '.harness.diff'], { cwd: tree });
     if (a.status !== 0) throw new Error(`diff does not apply: ${a.stderr.slice(0, 200)}`);
     sh(['rm', '.harness.diff'], { cwd: tree });
+    // Defence in depth: what git actually staged must be plain edits or creations inside the scope.
+    const ns = sh(['git', 'diff', '--cached', '--name-status', '-z'], { cwd: tree });
+    const parts = ns.status === 0 ? ns.stdout.split('\0').filter(Boolean) : null;
+    let ok = parts !== null && parts.length % 2 === 0;
+    for (let i = 0; ok && i < parts.length; i += 2) if (!['M', 'A'].includes(parts[i]) || !v.files.includes(parts[i + 1])) ok = false;
+    if (!ok) { sh(['git', 'reset', '--hard'], { cwd: tree }); throw new Error('staged changes differ from the validated scope; reset, nothing committed'); }
     sh(['git', 'commit', '-m', `${card.meta.id}: ${w.id} draft (unreviewed)`], { cwd: tree });
+    } catch (e) { cleanup(); throw e; }
     console.log(`Committed on ${branch}. Reviewer for this kind: ${plan.reviewer ?? 'Claude only'}. Nothing was pushed.`);
   }
 } else {
