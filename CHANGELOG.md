@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.7.105: A local dashboard to chat with every model in one place (on the development branch; not merged or deployed)
+## 4.7.108: A local dashboard to chat with every model in one place (on the development branch; not merged or deployed)
 
 Development tooling only; the app, saved deals and every figure are unchanged.
 
@@ -12,6 +12,14 @@ Development tooling only; the app, saved deals and every figure are unchanged.
 - **Tested.** `tests/hub.test.js` (15 tests with stub processes and fetch; no network, no keys) and screenshots at desktop and phone width. Not tested: any real vendor reply through the hub, the Gemini, xAI and Moonshot request shapes and default model names against the live services.
 - Saved results and golden figures unchanged.
 
+## 4.7.107: A model's draft can no longer change files outside its task card (on the development branch; not merged or deployed)
+
+Development tooling only; the app, saved deals and every figure are unchanged.
+
+- **Found by the security review of the harness and hub.** The check on a model's draft change read only one kind of header line, so a draft using quoted names, a delete, or a rename-by-mismatched-names could change files outside the card's scope (including protected ones such as CI files or the engine) and still pass. Seven such drafts were reproduced against real git.
+- **`validateDiff`** now reads every header strictly and refuses quoted or odd paths, deletions, renames, copies, mode changes, binary patches, any path outside the card's scope, protected paths the card does not name, and anything it does not recognise. After git applies a draft, the staged file list is checked again against the scope; a mismatch resets and commits nothing.
+- **A refused draft leaves nothing behind** (no worktree, no branch), and a failed `git worktree add` is an error instead of being ignored.
+- **Tested.** `tests/harness.test.js` (26 tests): a table of 11 refused drafts, accepted edits and creations, and a real-git test that every draft git would apply outside scope is refused. Also ran `ingest` end to end with a good and a refused draft. The seven reproduction drafts all passed the old check.
 ## 4.7.104: The harness matches what works on the owner's Mac: Codex runs, Gemini is paste-in (on the development branch; not merged or deployed)
 
 Development tooling and docs only; the app, saved deals and every figure are unchanged.
