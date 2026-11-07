@@ -37,6 +37,7 @@ h2{font:600 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;col
 .role{font-size:13px;color:var(--muted);padding:4px 0;overflow-wrap:anywhere}.role b{color:var(--fg);font-weight:600}
 main{display:flex;flex-direction:column;min-width:0;height:100vh}
 .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+.bar label.chk{align-content:end;text-transform:none;letter-spacing:0;font-size:12px}
 .bar label{display:grid;gap:3px;font:500 11px var(--mono);color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
 select,input,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
 select:focus-visible,input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
@@ -77,6 +78,7 @@ button.small{padding:6px 10px;font-size:13px}button:disabled{opacity:.5;cursor:d
     <label>Send to<select id="to"></select></label>
     <label>Role<select id="role"><option value="">None</option></select></label>
     <label>Kind of task (Auto only)<select id="kind"><option value="">Any</option></select></label>
+    <label class="chk"><span><input type="checkbox" id="cheap"> Save my usage: try free models first</span></label>
   </div>
   <div id="log"><div class="empty" id="empty"><b>Ask anything.</b><br>Pick one model, all ready models, or Auto to let the role table choose. Replies appear here side by side. Messages that mention the private folder, a key or an email address are refused. Models run from an empty folder. Keys stay on this computer.</div></div>
   <form id="f"><textarea id="msg" placeholder="Message" aria-label="Message" autofocus></textarea><button id="send" type="submit">Send</button></form>
@@ -100,6 +102,8 @@ const api = async (path, body) => {
 };
 const el = (tag, props = {}, ...kids) => { const n = document.createElement(tag); Object.assign(n, props); kids.forEach((k) => n.append(k)); return n; };
 const $ = (id) => document.getElementById(id);
+try { $('cheap').checked = sessionStorage.getItem('hubCheap') === '1'; } catch { /* none */ }
+$('cheap').onchange = () => { try { sessionStorage.setItem('hubCheap', $('cheap').checked ? '1' : '0'); } catch { /* private window */ } };
 const safeUrl = (u) => { try { const x = new URL(u); return x.protocol === 'https:' && !x.username && !x.password ? x.href : null; } catch { return null; } };
 function connectBlock(p, onSaved) {
   const c = p.connect; const d = el('details', { className: 'conn' }, el('summary', { textContent: p.label }));
@@ -145,7 +149,7 @@ $('f').addEventListener('submit', async (e) => {
   const log = $('log'); log.append(el('div', { className: 'me', textContent: message })); $('msg').value = '';
   const pending = el('div', { className: 'why', textContent: 'Waiting for replies…' }); log.append(pending); log.scrollTop = log.scrollHeight;
   try {
-    const r = await api('/api/chat', { message, to: $('to').value, role: $('role').value, kind: $('kind').value });
+    const r = await api('/api/chat', { message, to: $('to').value, role: $('role').value, kind: $('kind').value, prefer: $('cheap').checked ? 'cheap' : 'quality' });
     pending.textContent = 'Sent to: ' + (r.why || '');
     if (r.note) log.append(el('div', { className: 'why', textContent: r.note }));
     const grid = el('div', { className: 'replies' });
