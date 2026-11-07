@@ -18,17 +18,33 @@ export function screenPrompt(text) {
 
 export const providerForWorker = (workerId) => PROVIDERS.find((p) => p.workers.includes(workerId))?.id ?? null;
 
-/** Pick providers: a named one, all ready ones, or Auto (role or kind via the harness routing table). */
-export function pick({ to, role, kind }, stats, cfg = loadWorkers()) {
+const TIER_RANK = { free: 0, standard: 1, premium: 2 };
+export const HIDDEN = 'the error text contained something that looks like a key and was hidden';
+/** Error text safe to show: anything that looks like a key is replaced. */
+export const safeText = (s) => (findSecret(String(s)) ? HIDDEN : String(s));
+
+/** Pick providers: a named one, all ready ones, or Auto (role or kind via the harness routing table).
+ *  prefer 'cheap' (Auto only) tries the lowest tier first among ready models, except for kinds that need a second-model review. */
+export function pick({ to, role, kind, prefer }, stats, cfg = loadWorkers()) {
   const ready = new Set(stats.filter((s) => s.state === 'ready').map((s) => s.id));
   if (to === 'all') return { ids: [...ready], why: 'all ready models' };
   if (to && to !== 'auto') return { ids: ready.has(to) ? [to] : [], why: ready.has(to) ? 'chosen by you' : 'that model is not ready' };
   const availableWorkers = new Set(cfg.workers.filter((w) => ready.has(providerForWorker(w.id))).map((w) => w.id));
   const k = kind || (role ? Object.entries(cfg.kinds).find(([, r]) => r === role)?.[0] : null) || 'brainstorm';
+  let keptStrong = false;
+  if (prefer === 'cheap') {
+    if (cfg.secondModelReviewKinds.includes(k)) keptStrong = true;
+    else if (cfg.kinds[k]) {
+      const rl = cfg.roles[cfg.kinds[k]];
+      const tier = (id) => TIER_RANK[cfg.workers.find((w) => w.id === id)?.tier] ?? 1;
+      const worker = [rl.primary, ...(rl.fallbacks ?? [])].filter((id) => availableWorkers.has(id)).sort((a, b) => tier(a) - tier(b))[0]; // sort is stable: ties keep role order
+      if (worker) return { ids: [providerForWorker(worker)].filter(Boolean), role: cfg.kinds[k], worker, why: `cheap first: ${worker} (${cfg.workers.find((w) => w.id === worker).tier}) for ${cfg.kinds[k]}` };
+    }
+  }
   try {
     const r = route(cfg, k, availableWorkers);
     const ids = [providerForWorker(r.worker)];
-    return { ids: ids.filter(Boolean), role: r.role, worker: r.worker, why: `${r.role} role, ${r.worker}` };
+    return { ids: ids.filter(Boolean), role: r.role, worker: r.worker, why: `${r.role} role, ${r.worker}${keptStrong ? ' (kept the strongest model for this kind of task)' : ''}` };
   } catch (e) {
     return { ids: [], why: e.message };
   }
