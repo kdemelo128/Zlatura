@@ -48,9 +48,10 @@ not built here.
 ## Safety
 - Listens on `127.0.0.1` only. Every request needs the token; the Host and Origin must be this
   machine. Messages are limited in size.
-- A message with a key, an email address or a path under `private/` is refused before any model
-  sees it. Nothing from your project folder is attached to a message: CLI models run in an empty
-  temporary folder.
+- A message that mentions a key, an email address or the `private/` folder is refused before any
+  model sees it (a simple text check, not a guarantee). Nothing from your project folder is attached
+  to a message: CLI models start in an empty temporary folder, though a CLI may still be able to read
+  files elsewhere on your computer depending on its own sandbox.
 - Your message goes to the vendors you pick, and only to them. Do not type anything you would not
   send to that vendor.
 - The model names the hub uses are defaults and may be wrong: change them with `HUB_GEMINI_MODEL`,

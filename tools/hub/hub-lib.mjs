@@ -2,6 +2,8 @@
 import { loadWorkers, route, findSecret } from '../harness/lib.mjs';
 import { PROVIDERS } from './providers.mjs';
 
+const PRIVATE_PATH = [/(^|[^A-Za-z0-9_])private[\/\\]/i, /[\/\\]private(?![A-Za-z0-9_])/i, /(^|[^A-Za-z0-9_])priv[*?[]/i];
+
 /** A prompt may not carry a key, an email address or a path under private/. */
 export function screenPrompt(text) {
   const t = String(text ?? '');
@@ -9,7 +11,8 @@ export function screenPrompt(text) {
   if (t.length > 20000) return { ok: false, why: 'That message is too long (limit 20,000 characters).' };
   const hit = findSecret(t);
   if (hit) return { ok: false, why: `This looks like it contains a key or an email address (${hit}). Remove it before sending.` };
-  if (/(^|[\s"'`(])(?:~\/|\/Users\/[^\s]*\/)?(?:[\w./-]*\/)?private\//i.test(t)) return { ok: false, why: 'This mentions the private/ folder. Nothing from it may be sent to any model.' };
+  // Heuristic, not a guarantee: a path-like "private/" or ".../private", or a priv* glob that could reach it.
+  if (PRIVATE_PATH.some((re) => re.test(t))) return { ok: false, why: 'This mentions the private/ folder. Nothing from it may be sent to any model.' };
   return { ok: true };
 }
 

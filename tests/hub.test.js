@@ -264,3 +264,99 @@ test('the agent endpoints need the token and run a card end to end with a stub m
     assert.equal((await fetch(base + '/api/agent/apply', { method: 'POST', headers: h, body: JSON.stringify({ card: 'one.md', provider: 'codex', diff: 'sk-abcdefghijklmnopqrstuvwx' }) })).status, 400);
   } finally { await hub.close(); }
 });
+
+// ---- security review fixes ----
+import { chmodSync, writeFileSync as wf, readdirSync, mkdirSync as mkd } from 'node:fs';
+import { KEYS_DIR, haveCommand } from '../tools/hub/providers.mjs';
+
+test('screenPrompt refuses wider private-path forms but keeps ordinary words', () => {
+  for (const t of ['see:private/x', '[private/notes.txt]', 'cat ~/zlatura/priv*/rent.csv', 'ls ./private', 'PRIVATE\\folder', 'cat priv?/a']) assert.equal(screenPrompt(t).ok, false, t);
+  for (const t of ['a private matter', 'privately held', 'this is private info']) assert.equal(screenPrompt(t).ok, true, t);
+});
+
+test('runAgent refuses a card whose text mentions private/ before asking a model', async () => {
+  const root = repoWith('---\nid: one\nkind: docs\ngoal: add a line\nscope: docs/a.md\n---\nuse ./private notes');
+  let asked = false;
+  const r = await runAgent({ root, file: 'one.md', to: 'codex', stats: ready('codex'), cfg: loadWorkers(), ask: async () => { asked = true; return ''; } });
+  assert.equal(r.ok, false); assert.equal(asked, false); assert.match(r.problems[0], /private/);
+});
+
+test('the API needs the header: ?t= works for the page only', async () => {
+  await withHub(async ({ url, h }) => {
+    assert.equal((await fetch(url('/api/state?t=' + h['x-hub-token']))).status, 401);
+    assert.equal((await fetch(url('/?t=' + h['x-hub-token']))).status, 200);
+  });
+});
+
+test('saveKey tightens an existing folder and file, writes atomically, and refuses a damaged file', () => {
+  const env = home(); mkd(KEYS_DIR(env), { mode: 0o755 }); chmodSync(KEYS_DIR(env), 0o755);
+  wf(KEYS_FILE(env), JSON.stringify({ OTHER_API_KEY: fake('other') }), { mode: 0o644 }); chmodSync(KEYS_FILE(env), 0o644);
+  saveKey('GEMINI_API_KEY', fake('new'), env);
+  assert.equal(statSync(KEYS_DIR(env)).mode & 0o777, 0o700);
+  assert.equal(statSync(KEYS_FILE(env)).mode & 0o777, 0o600);
+  assert.deepEqual(readdirSync(KEYS_DIR(env)), ['keys.json']);
+  assert.equal(readKeys(env).OTHER_API_KEY, fake('other'));
+  const bad = home(); mkd(KEYS_DIR(bad)); wf(KEYS_FILE(bad), '{not json');
+  assert.throws(() => saveKey('GEMINI_API_KEY', fake('new'), bad), /keys file is damaged/);
+  assert.equal(readFileSync(KEYS_FILE(bad), 'utf8'), '{not json');
+  wf(KEYS_FILE(bad), '[1]'); assert.throws(() => saveKey('GEMINI_API_KEY', fake('new'), bad), /damaged/);
+  assert.deepEqual(readKeys(home()), {});
+});
+
+test('statuses are cached for 30 s and a hung --version probe is killed after its timeout', async () => {
+  const fx = fakeSpawn(); const env = home();
+  await statuses({ env, spawn: fx.spawn, now: 1000 });
+  const n = fx.calls.length;
+  await statuses({ env, spawn: fx.spawn, now: 20000 });
+  assert.equal(fx.calls.length, n);
+  await statuses({ env, spawn: fx.spawn, now: 32000 });
+  assert.equal(fx.calls.length, n * 2);
+  let killed = false;
+  const hang = () => { const c = new EventEmitter(); c.kill = () => { killed = true; }; return c; };
+  assert.equal(await haveCommand('codex', hang, 20), false); assert.equal(killed, true);
+});
+
+test('a CLI reply over 1 MB and an API reply over 1 MB are refused', async () => {
+  let killed = false;
+  const big = (bin, args, opts) => {
+    const c = new EventEmitter(); c.stdout = new EventEmitter(); c.stderr = new EventEmitter(); c.kill = () => { killed = true; };
+    c.stdin = { end: () => setImmediate(() => c.stdout.emit('data', 'x'.repeat(1024 * 1024 + 1))) };
+    return c;
+  };
+  await assert.rejects(runCli({ bin: 'codex', args: [], prompt: 'x', spawn: big }), /reply too large/); assert.equal(killed, true);
+  const f = async () => ({ ok: true, status: 200, text: async () => 'x'.repeat(1024 * 1024 + 1) });
+  await assert.rejects(PROVIDERS.find((p) => p.id === 'gemini-api').ask('hi', { env: { GEMINI_API_KEY: fake('gem') }, fetch: f }), /reply too large/);
+});
+
+test('only one agent run or apply at a time; the lock is released afterwards', async () => {
+  const root = repoWith(CARD); let release; const gate = new Promise((r) => { release = r; });
+  const fx = fakeSpawn({ reply: '```diff\n' + PATCH('docs/a.md') + '```' });
+  const slow = (bin, args, opts) => { const c = fx.spawn(bin, args, opts); if (args[0] !== '--version') { const end = c.stdin.end; c.stdin.end = (d) => gate.then(() => end(d)); } return c; };
+  const hub = createHub({ env: home(), spawn: slow, root, page: 'x', exec: (b, a, o, cb) => cb(null, 'ok', '') });
+  const port = await hub.listen(0); const base = `http://127.0.0.1:${port}`; const h = { 'x-hub-token': hub.token, 'content-type': 'application/json' };
+  const post = (p, b) => fetch(base + p, { method: 'POST', headers: h, body: JSON.stringify(b) }).then((r) => r.json());
+  try {
+    const first = post('/api/agent', { card: 'one.md', to: 'codex' });
+    await new Promise((r) => setTimeout(r, 150));
+    assert.deepEqual(await post('/api/agent', { card: 'one.md', to: 'codex' }), { ok: false, problems: ['Another agent run is in progress.'] });
+    assert.equal((await post('/api/agent/apply', { card: 'one.md', provider: 'codex', diff: PATCH('docs/a.md') })).ok, false);
+    release(); assert.equal((await first).ok, true);
+    assert.equal((await post('/api/agent/apply', { card: 'one.md', provider: 'codex', diff: PATCH('docs/a.md') })).ok, true);
+  } finally { release(); await hub.close(); }
+});
+
+test('an error text that looks like a key is hidden in chat and in agent endpoints', async () => {
+  const leaked = ['sk', 'abcdefghijklmnopqrstuvwx'].join('-');
+  const f = async () => ({ ok: false, status: 401, text: async () => JSON.stringify({ error: { message: `bad ${leaked}` } }) });
+  await withHub(async ({ url, h }) => {
+    const j = await (await fetch(url('/api/chat'), { method: 'POST', headers: { ...h, 'content-type': 'application/json' }, body: JSON.stringify({ message: 'hi', to: 'gemini-api' }) })).json();
+    assert.equal(j.replies[0].text, 'the error text contained something that looks like a key and was hidden');
+  }, { env: { GEMINI_API_KEY: fake('gem') }, fetch: f });
+  const root = repoWith(CARD);
+  const hub = createHub({ env: home(), spawn: fakeSpawn().spawn, root, page: 'x', exec: (b, a, o, cb) => cb(new Error('boom ' + leaked), '', '') });
+  const port = await hub.listen(0); const h = { 'x-hub-token': hub.token, 'content-type': 'application/json' };
+  try {
+    const r = await (await fetch(`http://127.0.0.1:${port}/api/agent/apply`, { method: 'POST', headers: h, body: JSON.stringify({ card: 'one.md', provider: 'codex', diff: PATCH('docs/a.md') }) })).json();
+    assert.match(r.message, /was hidden/);
+  } finally { await hub.close(); }
+});

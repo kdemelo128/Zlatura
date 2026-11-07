@@ -3,7 +3,7 @@
 // to ('cli'), a vendor's official HTTPS API with a key the owner created ('api'), or 'none'.
 // Nothing here drives a browser, reads a cookie or signs in with the owner's account password.
 import { spawn as nodeSpawn } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, chmodSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, chmodSync, existsSync, renameSync } from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -18,20 +18,32 @@ export function saveKey(name, value, env = process.env) {
   if (!/^[A-Z][A-Z0-9_]{2,40}$/.test(name)) throw new Error('bad key name');
   if (typeof value !== 'string' || value.length < 8 || value.length > 400 || /\s/.test(value)) throw new Error('that does not look like a key');
   mkdirSync(KEYS_DIR(env), { recursive: true, mode: 0o700 });
-  const all = { ...readKeys(env), [name]: value };
-  writeFileSync(KEYS_FILE(env), JSON.stringify(all), { mode: 0o600 });
-  try { chmodSync(KEYS_FILE(env), 0o600); } catch { /* best effort */ }
+  try { chmodSync(KEYS_DIR(env), 0o700); } catch { /* best effort */ }
+  let current = {};
+  if (existsSync(KEYS_FILE(env))) {
+    try { current = JSON.parse(readFileSync(KEYS_FILE(env), 'utf8')); } catch { current = null; }
+    if (!current || typeof current !== 'object' || Array.isArray(current)) throw new Error('keys file is damaged; fix or delete it');
+  }
+  const tmp = `${KEYS_FILE(env)}.tmp`;
+  writeFileSync(tmp, JSON.stringify({ ...current, [name]: value }), { mode: 0o600 });
+  try { chmodSync(tmp, 0o600); } catch { /* best effort */ }
+  renameSync(tmp, KEYS_FILE(env));
 }
 const keyFor = (name, env) => env[name] || readKeys(env)[name] || null;
 
-/** Run a CLI with the prompt on stdin, in an empty temp folder so it cannot see any project files. */
+const MAX_REPLY = 1024 * 1024; // characters; a model reply bigger than this is refused
+
+/** Run a CLI with the prompt on stdin. The working folder is an empty temp folder; the CLI may still be able to read files elsewhere on the computer, depending on its own sandbox. */
 export function runCli({ bin, args, prompt, spawn = nodeSpawn, timeoutMs = 180000, cwd = null }) {
   return new Promise((resolve, reject) => {
     const dir = cwd ?? mkdtempSync(join(tmpdir(), 'hub-'));
     let out = '', err = '', done = false;
     const child = spawn(bin, args, { cwd: dir, stdio: ['pipe', 'pipe', 'pipe'] });
     const timer = setTimeout(() => { if (!done) { done = true; try { child.kill(); } catch { /* gone */ } reject(new Error(`${bin} took longer than ${timeoutMs / 1000}s`)); } }, timeoutMs);
-    child.stdout.on('data', (d) => { out += d; });
+    child.stdout.on('data', (d) => {
+      out += d;
+      if (!done && out.length > MAX_REPLY) { done = true; clearTimeout(timer); try { child.kill(); } catch { /* gone */ } reject(new Error('reply too large')); }
+    });
     child.stderr.on('data', (d) => { err += d; });
     child.on('error', (e) => { if (!done) { done = true; clearTimeout(timer); reject(new Error(`${bin}: ${e.message}`)); } });
     child.on('close', (code) => {
@@ -48,6 +60,7 @@ async function postJson(url, headers, body, fetchFn, timeoutMs = 120000) {
   try {
     const r = await fetchFn(url, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body), signal: ctl.signal });
     const text = await r.text();
+    if (text.length > MAX_REPLY) throw new Error('reply too large');
     let json; try { json = JSON.parse(text); } catch { json = null; }
     if (!r.ok) throw new Error(`${r.status}: ${(json?.error?.message ?? json?.error ?? text).toString().slice(0, 300)}`);
     return json;
@@ -100,18 +113,27 @@ export const PROVIDERS = [
 ];
 for (const p of PROVIDERS) p.workers ??= [];
 
-export const haveCommand = (bin, spawn = nodeSpawn) => new Promise((resolve) => {
+export const haveCommand = (bin, spawn = nodeSpawn, timeoutMs = 10000) => new Promise((resolve) => {
+  let c; let settled = false;
+  const end = (v) => { if (settled) return; settled = true; clearTimeout(timer); resolve(v); };
+  const timer = setTimeout(() => { try { c?.kill(); } catch { /* gone */ } end(false); }, timeoutMs);
   try {
-    const c = spawn(bin, ['--version'], { stdio: 'ignore' });
-    c.on('error', () => resolve(false)); c.on('close', (code) => resolve(code === 0));
-  } catch { resolve(false); }
+    c = spawn(bin, ['--version'], { stdio: 'ignore' });
+    c.on('error', () => end(false)); c.on('close', (code) => end(code === 0));
+  } catch { end(false); }
 });
 
+const STATUS_TTL = 30000;
+let statusCache = null; // { at, found } : which CLIs exist, kept 30 s so a page refresh does not start two processes every time
+
 /** Status of every provider (never includes a key). */
-export async function statuses({ env = process.env, spawn = nodeSpawn } = {}) {
+export async function statuses({ env = process.env, spawn = nodeSpawn, now = Date.now(), probeMs = 10000 } = {}) {
   const bins = ['codex', 'claude'];
-  const found = Object.fromEntries(await Promise.all(bins.map(async (b) => [b, await haveCommand(b, spawn)])));
-  const have = (b) => !!found[b];
+  if (!statusCache || now - statusCache.at >= STATUS_TTL || now < statusCache.at || statusCache.spawn !== spawn) {
+    const found = Object.fromEntries(await Promise.all(bins.map(async (b) => [b, await haveCommand(b, spawn, probeMs)])));
+    statusCache = { at: now, found, spawn };
+  }
+  const have = (b) => !!statusCache.found[b];
   return PROVIDERS.map((p) => ({ id: p.id, label: p.label, kind: p.kind, cost: p.cost, keyName: p.keyName ?? null, ...p.status(env, have) }));
 }
 void existsSync;

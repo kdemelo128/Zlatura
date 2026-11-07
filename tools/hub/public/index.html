@@ -72,7 +72,7 @@ button.small{padding:6px 10px;font-size:13px}button:disabled{opacity:.5;cursor:d
     <label>Role<select id="role"><option value="">None</option></select></label>
     <label>Kind of task (Auto only)<select id="kind"><option value="">Any</option></select></label>
   </div>
-  <div id="log"><div class="empty" id="empty"><b>Ask anything.</b><br>Pick one model, all ready models, or Auto to let the role table choose. Replies appear here side by side. Nothing from your private folder is ever sent, and keys stay on this computer.</div></div>
+  <div id="log"><div class="empty" id="empty"><b>Ask anything.</b><br>Pick one model, all ready models, or Auto to let the role table choose. Replies appear here side by side. Messages that mention the private folder, a key or an email address are refused. Models run from an empty folder. Keys stay on this computer.</div></div>
   <form id="f"><textarea id="msg" placeholder="Message" aria-label="Message" autofocus></textarea><button id="send" type="submit">Send</button></form>
   </div>
   <div id="agentView" hidden>
@@ -85,7 +85,9 @@ button.small{padding:6px 10px;font-size:13px}button:disabled{opacity:.5;cursor:d
   </div>
 </main>
 <script>
-const token = new URLSearchParams(location.search).get('t') || '';
+let token = new URLSearchParams(location.search).get('t') || '';
+if (token) { try { sessionStorage.setItem('hubToken', token); } catch { /* private window: keep it in memory */ } history.replaceState(null, '', location.pathname); }
+else { try { token = sessionStorage.getItem('hubToken') || ''; } catch { /* none */ } }
 const api = async (path, body) => {
   const r = await fetch(path, { method: body ? 'POST' : 'GET', headers: { 'x-hub-token': token, ...(body ? { 'content-type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
   const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || r.status); return j;

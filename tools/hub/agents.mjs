@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseCard, buildPacket, diffFiles, checkChangedFiles, findSecret } from '../harness/lib.mjs';
 import { extractDiff } from '../harness/connectors/base.mjs';
-import { pick, providerForWorker } from './hub-lib.mjs';
+import { pick, providerForWorker, screenPrompt } from './hub-lib.mjs';
 import { PROVIDERS } from './providers.mjs';
 
 const CARD_NAME = /^[A-Za-z0-9][\w.-]*\.md$/;
@@ -33,6 +33,9 @@ export async function runAgent({ root, file, to, stats, cfg, ask }) {
   if (!chosen.ids.length) return { ok: false, why: chosen.why, problems: ['No ready model for this card. Check the left panel.'] };
   const provider = chosen.ids[0];
   const packet = buildPacket(cfg, card, readFileSync(join(root, 'AGENTS.md'), 'utf8')); // throws on a protected scope, a missing design line or a secret
+  // AGENTS.md is the owner's own rules file and names private/ on purpose, so it gets the secret check only (buildPacket did that); the card text gets the full screen.
+  const screened = screenPrompt(`${card.meta.goal}\n${card.meta.scope}\n${card.body}`);
+  if (!screened.ok) return { ok: false, why: chosen.why, problems: [screened.why] };
   const reply = await ask(provider, packet);
   const diff = extractDiff(reply);
   const problems = [];
