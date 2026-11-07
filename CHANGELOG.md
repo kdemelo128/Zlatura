@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.7.111: Type one command to ask your models, and try the free ones first (on the development branch; not merged or deployed)
+
+Development tooling only; the app, saved deals and every figure are unchanged.
+
+- **`npm run ask -- "your question"`** sends one message through the same hub without opening the page. Options: `--to auto|all|<model>`, `--role`, `--kind`, `--cheap`, `--json`. It uses the same checks as the page (a key, an email address or a private-folder path is refused before any model sees it) and prints each model's reply under its name and time. Exit codes: 0 answered, 1 every model failed or none is ready, 2 refused.
+- **Save my usage.** A switch on the page (and `--cheap`) tries the cheapest ready model in a task's role first (free, then standard, then premium). For money, parsing, security, data-format and bug tasks it is ignored and the strongest model is used, and the reply says why. It never overrides a model you name or "all".
+- **Tested.** `tests/hub-ask.test.js` (9 tests, stub models only, no network). The page switch and the real command line were not exercised in a browser or terminal.
+- Saved results and golden figures unchanged.
+
 ## 4.7.110: Easier to start and to connect the Model Hub, and a stricter draft preview (on the development branch; not merged or deployed)
 
 Development tooling only; the app, saved deals and every figure are unchanged.
