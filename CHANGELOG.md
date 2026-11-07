@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.7.106: How your documents are used to improve reading and data transfer (on the development branch; not merged or deployed)
+
+Documentation only; the app, saved deals and every figure are unchanged.
+
+- **`docs/proposals/document-learning.md`.** Which documents help most (rent rolls and T-12s from every source system first, then leases, OMs, finished underwriting workbooks with their sources), a useful amount of each, the routine run every time you add documents (structure-only report, invented lookalike fixtures that fail on old code, reader fix, regression set), and how improvement is measured (field-level scoreboard, zero wrong).
+- Says plainly that loan-risk prediction needs hundreds of outcomes and is a later project, and that fine-tuning a large model is not needed for parsing.
+- Saved results unchanged; golden figures unchanged.
+
 ## 4.7.103: A step-by-step guide to connect the AI models to the harness (on the development branch; not merged or deployed)
 
 Documentation only; the app, saved deals and every figure are unchanged.

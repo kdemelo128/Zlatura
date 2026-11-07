@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.103 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.106 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -163,6 +163,7 @@ section with grep, never in full.
 - **Multi-model harness (4.7.100, PR opening):** proposal approved by the owner plus `tools/harness/` (task cards, routing table, `plan`/`packet`/`run`/`ingest`, guards for private/ files, protected paths and keys). Workers: Claude Opus and Sonnet, Codex and Gemini (logged-in CLIs on the owner's computer), Grok, Kimi and Muse (paste-in). No vendor run yet (H2 next). The Model Board page is a private artifact for the owner. Workspaces WS0 is PR #130 (4.7.99); the lease reader L3 is next (4.7.101).
 - **Harness roles and connectors (4.7.102, PR opening):** ten roles across all six AI products, one connector per vendor (`doctor` checks the machine), any project via the card's `project:` line. Codex and Gemini command lines unverified until the owner's dry run. The Model Board artifact shows it.
 - **Harness setup guide (4.7.103, PR opening):** `docs/harness-setup.md`: how the owner connects Codex, Gemini, Grok, Kimi and Muse (on their own computer, no repo upload, no keys). Next: the owner runs `doctor`, then the H2 dry runs.
+- **Document learning (4.7.106, PR opening):** `docs/proposals/document-learning.md`: what documents to add and the routine used each time (private/ by default, structure-only report, invented lookalike fixtures, reader fix, regression set). **Reminders for the owner (repeat in every report): (1) upload the Codex zip with the advanced underwriting tool and UI; it is the next big item after the Model Hub. (2) Keep adding documents. (3) Box folder downloader goes in the hub as its own PR after the hub merges.**
 - **Lease reader L3 (4.7.101, PR opening):** a lease or amendment PDF is read on the device by rules (text layer, or OCR of scans with the vendored Tesseract); every found item is staged with its page and quote, nothing is kept until the broker ticks it. Schema 9 (`abstracts-read`) is flagged for the owner. Not yet tested on a real phone or Safari.
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
