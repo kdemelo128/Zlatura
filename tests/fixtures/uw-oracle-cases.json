@@ -1,0 +1,5 @@
+[
+  { "name": "case-a: small retail, 65% loan, 5-year hold", "price": 5000000, "noi": 350000, "growth": 3, "hold": 5, "exitCap": 7.25, "saleCost": 1.5, "loan": { "ltv": 65, "rate": 6.5, "amort": 30, "io": 0, "closing": 1 } },
+  { "name": "case-b: interest-only loan, 3-year hold", "price": 12000000, "noi": 780000, "growth": 2, "hold": 3, "exitCap": 6.75, "saleCost": 2, "loan": { "ltv": 60, "rate": 7, "amort": 30, "io": 3, "closing": 0.5 } },
+  { "name": "case-c: no loan, 7-year hold, flat NOI", "price": 2400000, "noi": 168000, "growth": 0, "hold": 7, "exitCap": 7.5, "saleCost": 1, "loan": {} }
+]
