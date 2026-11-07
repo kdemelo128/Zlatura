@@ -113,6 +113,18 @@ export const PROVIDERS = [
 ];
 for (const p of PROVIDERS) p.workers ??= [];
 
+/** How to connect each model through its official route. Plain text and links only, never a key. The URLs and the free-tier claims are UNVERIFIED: the owner checks each page. */
+const CONNECT = {
+  codex: { steps: ['Already signed in on your Mac.', 'If not: in Terminal run codex, choose Sign in with ChatGPT, then Ctrl+C twice.'], url: 'https://chatgpt.com', urlLabel: 'Open ChatGPT (check the page is current)', free: 'Uses your ChatGPT plan' },
+  claude: { steps: ['Install Claude Code from the official page.', 'In Terminal run claude once and sign in with your Claude account (Pro works).'], url: 'https://docs.claude.com/en/docs/claude-code/overview', urlLabel: 'Open the Claude Code page (check the page is current)', free: 'Uses your Claude plan' },
+  'gemini-api': { steps: ['Open Google AI Studio and choose Get API key (sign in with your Google account).', 'Create a key, copy it, paste it into the box below.'], url: 'https://aistudio.google.com', urlLabel: 'Open Google AI Studio (check the page is current)', free: 'Free tier key (unverified)' },
+  'xai-api': { steps: ['Open the xAI console and create an API key.', 'Paste it below.'], url: 'https://console.x.ai', urlLabel: 'Open the xAI console (check the page is current)', free: 'Probably paid credits (unverified)' },
+  'moonshot-api': { steps: ['Open the Moonshot platform and create an API key.', 'Paste it below.'], url: 'https://platform.moonshot.ai', urlLabel: 'Open the Moonshot platform (check the page is current)', free: 'Probably paid credits (unverified)' },
+  'openrouter-api': { steps: ['Open OpenRouter and create a key (one key reaches many models, some free).', 'Paste it below. Your prompts pass through OpenRouter.'], url: 'https://openrouter.ai/keys', urlLabel: 'Open OpenRouter keys (check the page is current)', free: 'Free key; some models free (unverified)' },
+  muse: { steps: ['Meta AI has no official way for a program to use it, so the hub cannot connect it.', 'You can still use it at meta.ai yourself.'], url: null, urlLabel: '', free: 'Not available' },
+};
+for (const p of PROVIDERS) p.connect = CONNECT[p.id];
+
 export const haveCommand = (bin, spawn = nodeSpawn, timeoutMs = 10000) => new Promise((resolve) => {
   let c; let settled = false;
   const end = (v) => { if (settled) return; settled = true; clearTimeout(timer); resolve(v); };

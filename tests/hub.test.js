@@ -231,8 +231,8 @@ test('runAgent: a clean in-scope diff is ok; the packet carries the rules; a bad
 test('runAgent flags a draft outside scope, in protected files, with a secret, or with no diff', async () => {
   const root = repoWith(CARD); const cfg = loadWorkers();
   const go = (reply) => runAgent({ root, file: 'one.md', to: 'codex', stats: ready('codex'), cfg, ask: async () => reply });
-  assert.match((await go(PATCH('docs/other.md'))).problems.join(' '), /outside the card's scope/);
-  assert.match((await go(PATCH('sw.js'))).problems.join(' '), /protected files/);
+  assert.match((await go(PATCH('docs/other.md'))).problems.join(' '), /outside the card scope/);
+  assert.match((await go(PATCH('sw.js'))).problems.join(' '), /outside the card scope/);
   assert.match((await go(PATCH('docs/a.md') + '+sk-abcdefghijklmnopqrstuvwx\n')).problems.join(' '), /key or an email/);
   const none = await go('I could not do that.');
   assert.equal(none.ok, false); assert.match(none.problems[0], /did not return a diff/);
@@ -245,7 +245,7 @@ test('applyDiff re-checks scope server-side and then calls the harness ingest', 
   const exec = (bin, args, opts, cb) => { call = { args, opts }; cb(null, 'Committed on agent/codex/one.', ''); };
   assert.equal(await applyDiff({ root, file: 'one.md', provider: 'codex', diff: PATCH('docs/a.md'), exec }), 'Committed on agent/codex/one.');
   assert.deepEqual(call.args.slice(0, 2), ['tools/harness/run-task.mjs', 'ingest']); assert.equal(call.args[3], 'codex'); assert.equal(call.opts.cwd, root);
-  await assert.rejects(applyDiff({ root, file: 'one.md', provider: 'codex', diff: PATCH('docs/zzz.md'), exec }), /outside the card's scope/);
+  await assert.rejects(applyDiff({ root, file: 'one.md', provider: 'codex', diff: PATCH('docs/zzz.md'), exec }), /outside the card scope/);
   await assert.rejects(applyDiff({ root, file: 'one.md', provider: 'muse-nope', diff: PATCH('docs/a.md'), exec }), /cannot own a branch/);
   await assert.rejects(applyDiff({ root, file: 'one.md', provider: 'codex', diff: '', exec }), /empty diff/);
 });
@@ -359,4 +359,29 @@ test('an error text that looks like a key is hidden in chat and in agent endpoin
     const r = await (await fetch(`http://127.0.0.1:${port}/api/agent/apply`, { method: 'POST', headers: h, body: JSON.stringify({ card: 'one.md', provider: 'codex', diff: PATCH('docs/a.md') }) })).json();
     assert.match(r.message, /was hidden/);
   } finally { await hub.close(); }
+});
+
+const SHAPES = {
+  quoted: ['diff --git "a/app/engine/m.js" "b/app/engine/m.js"', '--- "a/app/engine/m.js"', '+++ "b/app/engine/m.js"', '@@ -1,2 +1,2 @@', ' a', '-b', '+x'].join('\n') + '\n',
+  deletion: ['--- a/docs/a.md', '+++ /dev/null', '@@ -1,1 +0,0 @@', '-x'].join('\n') + '\n',
+  rename: ['diff --git a/app/engine/m.js b/app/engine/m.js', '--- a/app/engine/m.js', '+++ b/docs/a.md', '@@ -1,1 +1,1 @@', '-a', '+b'].join('\n') + '\n',
+};
+for (const [name, diff] of Object.entries(SHAPES)) {
+  test(`a ${name} draft is refused by runAgent and by applyDiff`, async () => {
+    const root = repoWith(CARD); const cfg = loadWorkers(); let ingested = false;
+    const r = await runAgent({ root, file: 'one.md', to: 'codex', stats: ready('codex'), cfg, ask: async () => '```diff\n' + diff + '```' });
+    assert.equal(r.ok, false); assert.ok(r.problems.length > 0);
+    const exec = (b, a, o, cb) => { ingested = true; cb(null, 'x', ''); };
+    await assert.rejects(applyDiff({ root, file: 'one.md', provider: 'codex', diff, exec }));
+    assert.equal(ingested, false);
+  });
+}
+
+test('the Mac launcher exists, is executable, starts the hub and holds no key-like text', () => {
+  const f = new URL('../Start Model Hub.command', import.meta.url);
+  const txt = readFileSync(f, 'utf8');
+  assert.ok(txt.startsWith('#!/bin/bash'));
+  assert.ok(statSync(f).mode & 0o111);
+  assert.match(txt, /npm run hub/);
+  assert.equal(/sk-[A-Za-z0-9]{8,}|AIza|xai-/.test(txt), false);
 });
