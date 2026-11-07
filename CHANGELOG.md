@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.7.112: Plan: bringing the owner's underwriting filler into the Underwrite tab (on the development branch; not merged or deployed)
+
+Documentation only; the app, saved deals and every figure are unchanged.
+
+- **`docs/proposals/uw-filler-integration.md`.** Reads the owner's Codex-built package for structure and says what to bring and what not to: port the four-step flow and the ideas onto Zlatura's own engine and readers, copy almost no code (the package does money in floating point, reads a blank as 0 and mixes monthly and annual figures, and stores an API key in browser storage), use it as a local test oracle on the owner's machine, add no library. Maps each package module to a Zlatura module, sketches the four screens, and lays out eleven PRs (UW-0 measure first, then documents intake, evidence, reconcile, monthly cash flow, property details, template filling, bridge, overrides, debt and waterfall extras, development, integrations last), with the gates each needs.
+- `docs/owner-requests.md` updated: zip received, rename paused by the owner, the Gemini key handling.
+- Saved results unchanged; golden figures unchanged.
+
 ## 4.7.110: Easier to start and to connect the Model Hub, and a stricter draft preview (on the development branch; not merged or deployed)
 
 Development tooling only; the app, saved deals and every figure are unchanged.
