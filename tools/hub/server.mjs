@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { spawn as spawnProc } from 'node:child_process';
 import { PROVIDERS, statuses, saveKey } from './providers.mjs';
-import { screenPrompt, pick, frame, connectSummary } from './hub-lib.mjs';
+import { screenPrompt, pick, frame, connectSummary, safeText } from './hub-lib.mjs';
 import { loadWorkers, findSecret } from '../harness/lib.mjs';
 import { listCards, runAgent, applyDiff } from './agents.mjs';
 
@@ -21,8 +21,6 @@ export function createHub({ token = randomBytes(24).toString('hex'), env = proce
   const cfg = loadWorkers();
   let port = 0;
   let busy = false; // one agent run or apply at a time
-  const HIDDEN = 'the error text contained something that looks like a key and was hidden';
-  const safeText = (s) => (findSecret(String(s)) ? HIDDEN : String(s));
   const hostOk = (h) => h === `127.0.0.1:${port}` || h === `localhost:${port}`;
   const originOk = (o) => !o || o === `http://127.0.0.1:${port}` || o === `http://localhost:${port}`;
   const send = (res, code, body, type = 'application/json; charset=utf-8') => {
@@ -58,7 +56,7 @@ export function createHub({ token = randomBytes(24).toString('hex'), env = proce
         const s = screenPrompt(b.message);
         if (!s.ok) return send(res, 400, { error: s.why });
         const stats = await statuses({ env, spawn });
-        const chosen = pick({ to: b.to, role: b.role, kind: b.kind }, stats, cfg);
+        const chosen = pick({ to: b.to, role: b.role, kind: b.kind, prefer: b.prefer === 'cheap' ? 'cheap' : 'quality' }, stats, cfg);
         if (!chosen.ids.length) return send(res, 200, { why: chosen.why, replies: [], note: 'No ready model for that. Check the left panel.' });
         const prompt = frame(b.message, b.role, cfg);
         const replies = await Promise.all(chosen.ids.map(async (id) => {

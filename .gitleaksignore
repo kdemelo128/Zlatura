@@ -10,3 +10,6 @@ bf61dc02473dda5c67e9fbca1b11c65263ee5ed6:tests/hub.test.js:generic-api-key:70
 bf61dc02473dda5c67e9fbca1b11c65263ee5ed6:tests/hub.test.js:generic-api-key:89
 bf61dc02473dda5c67e9fbca1b11c65263ee5ed6:tests/hub.test.js:generic-api-key:90
 cbec77bbac6f5ec7a7c2dacf2665471813765098:tests/hub.test.js:generic-api-key:70
+
+# gitleaks false positive, per commit: a fake token in tests/hub-box.test.js (an earlier commit of this branch; the line now computes it). Not a credential.
+3ba268d23dd1ea4c549e8308add4a59b1db3130c:tests/hub-box.test.js:generic-api-key:12
