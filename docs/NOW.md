@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.106 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.109 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -164,7 +164,9 @@ section with grep, never in full.
 - **Harness roles and connectors (4.7.102, PR opening):** ten roles across all six AI products, one connector per vendor (`doctor` checks the machine), any project via the card's `project:` line. Codex and Gemini command lines unverified until the owner's dry run. The Model Board artifact shows it.
 - **Harness setup guide (4.7.103, PR opening):** `docs/harness-setup.md`: how the owner connects Codex, Gemini, Grok, Kimi and Muse (on their own computer, no repo upload, no keys). Next: the owner runs `doctor`, then the H2 dry runs.
 - **Harness on the owner's Mac (4.7.104, PR opening):** the owner installed Node 22, cloned the repo and ran `doctor`. Tested: `codex exec -` works (read-only sandbox); the free Gemini CLI is refused by Google (individual accounts), so Gemini is paste-in; `harness-out/` is git-ignored. Next: a first real card through Codex, then one paste-in round trip.
-- **Document learning (4.7.106, PR opening):** `docs/proposals/document-learning.md`: what documents to add and the routine used each time (private/ by default, structure-only report, invented lookalike fixtures, reader fix, regression set). **Reminders for the owner (repeat in every report): (1) upload the Codex zip with the advanced underwriting tool and UI; it is the next big item after the Model Hub. (2) Keep adding documents. (3) Box folder downloader goes in the hub as its own PR after the hub merges.** **The full list of everything the owner has asked for, with status, is `docs/owner-requests.md`: check it at the start of every session.**
+- **Harness diff guard (4.7.107, PR opening):** found by the security review: a model's draft could change files outside its card's scope. `validateDiff` now refuses quoted names, deletes, renames, mode changes, binary patches and out-of-scope or protected paths, and the staged files are re-checked after `git apply`. Seven reproduction drafts all passed the old check and are all refused now.
+- **Model Hub (4.7.108, PR opening):** `npm run hub` starts a local dashboard (`tools/hub/`, guide `docs/hub.md`) to chat with every model through official routes only: Codex CLI (tested), Claude Code if installed, Gemini/Grok/Kimi APIs with a key in `~/.zlatura-hub/keys.json`; Muse unavailable (no API). Free only for now. Not yet tried against the real vendors.
+- **Document learning (4.7.109, PR opening):** `docs/proposals/document-learning.md`: what documents to add and the routine used each time (private/ by default, structure-only report, invented lookalike fixtures, reader fix, regression set). **Reminders for the owner (repeat in every report): (1) upload the Codex zip with the advanced underwriting tool and UI; it is the next big item after the Model Hub. (2) Keep adding documents. (3) Box folder downloader goes in the hub as its own PR after the hub merges.** **The full list of everything the owner has asked for, with status, is `docs/owner-requests.md`: check it at the start of every session.**
 - **Lease reader L3 (4.7.101, PR opening):** a lease or amendment PDF is read on the device by rules (text layer, or OCR of scans with the vendored Tesseract); every found item is staged with its page and quote, nothing is kept until the broker ticks it. Schema 9 (`abstracts-read`) is flagged for the owner. Not yet tested on a real phone or Safari.
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the

@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.7.106: How your documents are used to improve reading and data transfer (on the development branch; not merged or deployed)
+## 4.7.109: How your documents are used to improve reading and data transfer (on the development branch; not merged or deployed)
 
 Documentation only; the app, saved deals and every figure are unchanged.
 
@@ -8,6 +8,26 @@ Documentation only; the app, saved deals and every figure are unchanged.
 - Says plainly that loan-risk prediction needs hundreds of outcomes and is a later project, and that fine-tuning a large model is not needed for parsing.
 - Saved results unchanged; golden figures unchanged.
 
+## 4.7.108: A local dashboard to chat with every model in one place (on the development branch; not merged or deployed)
+
+Development tooling only; the app, saved deals and every figure are unchanged.
+
+- **`npm run hub`** starts a local page (`tools/hub/`) with a status list of each model, a role picker, and a chat where replies from several models sit side by side. Auto routes through the harness roles table, among ready models only.
+- **Official routes only.** Codex through the signed-in command-line tool (tested on the owner's Mac), Claude through Claude Code if installed, and Gemini, Grok and Kimi through their official APIs with a key saved in `~/.zlatura-hub/keys.json` (owner-only, outside the repo). Muse has no official API known. No browser automation, no cookies, no passwords.
+- **Safety.** 127.0.0.1 only; a one-time token; Host and Origin checks; a message with a key, an email address or a `private/` path is refused before any model sees it; CLI models run in an empty temp folder; keys are never echoed. A test fails if the hub files mention browser automation or hold a key.
+- **One place, no tabs.** The hub opens itself in the browser, and OpenRouter (one key that reaches many models, some free; unverified) is offered so Grok-class and Kimi-class models need no separate website or key. Your prompts then pass through OpenRouter as well as the model's company.
+- **Security review fixes (Opus reviewer, then verified).** The private-folder check refuses more spellings (`see:private/x`, `[private/x]`, globs like `priv*/`) and the card text is screened too; the page and docs now claim only what the code does (an empty working folder and refused messages, not a sandbox); the one-time token is accepted in the address for the page only (every `/api/` call needs the header) and is removed from the address bar; the key file is written atomically with owner-only permissions and a damaged file is refused instead of wiped; status checks are cached and time out, replies are capped at 1 MB, only one agent run at a time; error text containing a key-like string is hidden. A model draft escaping its task scope was fixed separately in the harness (#138).
+- **Tested.** `tests/hub.test.js` (15 tests with stub processes and fetch; no network, no keys) and screenshots at desktop and phone width. Not tested: any real vendor reply through the hub, the Gemini, xAI and Moonshot request shapes and default model names against the live services.
+- Saved results and golden figures unchanged.
+
+## 4.7.107: A model's draft can no longer change files outside its task card (on the development branch; not merged or deployed)
+
+Development tooling only; the app, saved deals and every figure are unchanged.
+
+- **Found by the security review of the harness and hub.** The check on a model's draft change read only one kind of header line, so a draft using quoted names, a delete, or a rename-by-mismatched-names could change files outside the card's scope (including protected ones such as CI files or the engine) and still pass. Seven such drafts were reproduced against real git.
+- **`validateDiff`** now reads every header strictly and refuses quoted or odd paths, deletions, renames, copies, mode changes, binary patches, any path outside the card's scope, protected paths the card does not name, and anything it does not recognise. After git applies a draft, the staged file list is checked again against the scope; a mismatch resets and commits nothing.
+- **A refused draft leaves nothing behind** (no worktree, no branch), and a failed `git worktree add` is an error instead of being ignored.
+- **Tested.** `tests/harness.test.js` (26 tests): a table of 11 refused drafts, accepted edits and creations, and a real-git test that every draft git would apply outside scope is refused. Also ran `ingest` end to end with a good and a refused draft. The seven reproduction drafts all passed the old check.
 ## 4.7.104: The harness matches what works on the owner's Mac: Codex runs, Gemini is paste-in (on the development branch; not merged or deployed)
 
 Development tooling and docs only; the app, saved deals and every figure are unchanged.

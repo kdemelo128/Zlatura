@@ -2,7 +2,7 @@
 
 Everything the owner has asked for or decided, with where it stands. Updated with every PR
 (the `release` step). Status words: **done** (merged), **open PR**, **in progress**, **waiting on
-owner**, **not started**. Last updated: 4.7.106.
+owner**, **not started**. Last updated: 4.7.109.
 
 ## Standing directions (always in force)
 | Direction | Status |
@@ -44,8 +44,8 @@ owner**, **not started**. Last updated: 4.7.106.
 | Setup guide; walk-through on the owner's Mac | done: #134; owner installed Node, repo, Codex |
 | Tested on the owner's Mac: Codex works; free Gemini CLI refused by Google | done: #135 |
 | Model Board page, shown after each response | done (private page, republished each time) |
-| One dashboard, no tabs, run models and agents from one place | open PR: #136 (chat, role routing, OpenRouter, auto-open, Agents tab); security fixes in progress |
-| Fix a model draft escaping its task scope (security review, high) | in progress: `claude/harness-diff-guard` |
+| One dashboard, no tabs, run models and agents from one place | open PR: #136 (chat, role routing, OpenRouter, auto-open, Agents tab; security-review fixes done) |
+| Fix a model draft escaping its task scope (security review, high) | open PR: #138 (merge before #136) |
 | Free only for now | kept: only Codex (your plan), Claude Code if installed, and free keys are active |
 | Muse (Meta AI) | no official API known; unavailable in the hub |
 | Sign in on the owner's behalf / drive the chat websites | not built: it cannot be done safely from here; offered as a separate proposal if the owner wants it |
