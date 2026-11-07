@@ -67,16 +67,16 @@ test('runCli sends the prompt on stdin, runs in an empty temp folder (not the re
 });
 
 test('Gemini and the chat APIs send the key in a header (never in the URL) and read the reply', async () => {
-  const env = { ...home(), GEMINI_API_KEY: 'g-key-12345678', XAI_API_KEY: 'x-key-12345678', MOONSHOT_API_KEY: 'm-key-12345678' };
+  const env = { ...home(), GEMINI_API_KEY: 'g-key-12345678', XAI_API_KEY: 'x-key-12345678', MOONSHOT_API_KEY: 'm-key-12345678', OPENROUTER_API_KEY: 'o-key-12345678' };
   const g = fakeFetch({ candidates: [{ content: { parts: [{ text: 'hello ' }, { text: 'world' }] } }] });
   assert.equal(await PROVIDERS.find((p) => p.id === 'gemini-api').ask('hi', { env, fetch: g.f }), 'hello world');
   assert.match(g.calls[0].url, /^https:\/\/generativelanguage\.googleapis\.com\/v1beta\/models\/[^?]+:generateContent$/);
   assert.equal(g.calls[0].init.headers['x-goog-api-key'], 'g-key-12345678');
   assert.equal(g.calls[0].url.includes('key'), false);
-  for (const [id, host] of [['xai-api', 'api.x.ai'], ['moonshot-api', 'api.moonshot.ai']]) {
+  for (const [id, host] of [['xai-api', 'api.x.ai'], ['moonshot-api', 'api.moonshot.ai'], ['openrouter-api', 'openrouter.ai']]) {
     const c = fakeFetch({ choices: [{ message: { content: ' hi ' } }] });
     assert.equal(await PROVIDERS.find((p) => p.id === id).ask('yo', { env, fetch: c.f }), 'hi');
-    assert.equal(c.calls[0].url, `https://${host}/v1/chat/completions`);
+    assert.equal(c.calls[0].url, `https://${host}${id === 'openrouter-api' ? '/api' : ''}/v1/chat/completions`);
     assert.match(c.calls[0].init.headers.authorization, /^Bearer /);
     assert.equal(c.calls[0].url.includes('key'), false);
   }
@@ -99,7 +99,7 @@ test('statuses report ready / needs-key / missing-tool / unavailable and never c
   const env = { ...home(), GEMINI_API_KEY: 'secret-value-123456' };
   const s = await statuses({ env, spawn: fakeSpawn({ bins: ['codex'] }).spawn });
   const by = Object.fromEntries(s.map((x) => [x.id, x.state]));
-  assert.deepEqual(by, { codex: 'ready', claude: 'missing-tool', 'gemini-api': 'ready', 'xai-api': 'needs-key', 'moonshot-api': 'needs-key', muse: 'unavailable' });
+  assert.deepEqual(by, { codex: 'ready', claude: 'missing-tool', 'gemini-api': 'ready', 'xai-api': 'needs-key', 'moonshot-api': 'needs-key', 'openrouter-api': 'needs-key', muse: 'unavailable' });
   assert.equal(JSON.stringify(s).includes('secret-value-123456'), false);
 });
 

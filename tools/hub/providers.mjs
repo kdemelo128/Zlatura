@@ -91,6 +91,7 @@ export const PROVIDERS = [
   },
   { ...chat('xai-api', 'Grok', 'api.x.ai', '/v1/chat/completions', 'XAI_API_KEY', 'HUB_XAI_MODEL', 'grok-3', 'paid credits likely (unverified)'), workers: ['grok'] },
   { ...chat('moonshot-api', 'Kimi', 'api.moonshot.ai', '/v1/chat/completions', 'MOONSHOT_API_KEY', 'HUB_KIMI_MODEL', 'kimi-k2-0905-preview', 'paid credits likely (unverified)'), workers: ['kimi'] },
+  { ...chat('openrouter-api', 'OpenRouter (many models, one key)', 'openrouter.ai', '/api/v1/chat/completions', 'OPENROUTER_API_KEY', 'HUB_OPENROUTER_MODEL', 'meta-llama/llama-3.3-70b-instruct:free', 'free key; some models free (unverified)'), workers: [] },
   {
     id: 'muse', label: 'Muse (Meta AI)', kind: 'none', cost: 'n/a', workers: ['muse'],
     status: () => ({ state: 'unavailable', how: 'no official API known; chat site only' }),

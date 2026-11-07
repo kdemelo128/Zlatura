@@ -6,6 +6,7 @@ import http from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { spawn as spawnProc } from 'node:child_process';
 import { PROVIDERS, statuses, saveKey } from './providers.mjs';
 import { screenPrompt, pick, frame } from './hub-lib.mjs';
 import { loadWorkers } from '../harness/lib.mjs';
@@ -72,5 +73,7 @@ export function createHub({ token = randomBytes(24).toString('hex'), env = proce
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const hub = createHub();
   const port = await hub.listen(Number(process.env.HUB_PORT) || 4747);
+  const address = `http://127.0.0.1:${port}/?t=${hub.token}`;
+  if (!process.env.HUB_NO_OPEN) { try { spawnProc(process.platform === 'darwin' ? 'open' : 'xdg-open', [address], { stdio: 'ignore', detached: true }).on('error', () => {}).unref(); } catch { /* the address is printed below */ } }
   console.log(`\nModel hub is running.\nOpen this address in your browser:\n\n  http://127.0.0.1:${port}/?t=${hub.token}\n\nPress Ctrl+C to stop. The address changes each time you start it.\n`);
 }

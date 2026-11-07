@@ -7,7 +7,7 @@ Zlatura folder:
 npm run hub
 ```
 
-It prints an address like `http://127.0.0.1:4747/?t=…`. Open it in your browser. Press Ctrl+C in
+It opens the dashboard in your browser by itself (set `HUB_NO_OPEN=1` to stop that) and also prints the address. Press Ctrl+C in
 Terminal to stop. The address changes each time, on purpose: the `t=` part is a one-time token
 that keeps other websites and other programs from using the hub.
 
@@ -28,6 +28,7 @@ that keeps other websites and other programs from using the hub.
 | Gemini | Google's official API with a free key from Google AI Studio (UNVERIFIED: check Google's page) | create a key, paste it in the hub |
 | Grok | xAI's official API, a key; probably paid credits (UNVERIFIED) | optional, only if you choose |
 | Kimi | Moonshot's official API, a key; probably paid credits (UNVERIFIED) | optional, only if you choose |
+| OpenRouter | one key that reaches many models, some free (UNVERIFIED); your prompts pass through OpenRouter as well as the model's company | optional: create a key, paste it in the hub |
 | Muse (Meta AI) | no official API known | unavailable for now |
 
 Why not "sign in for you": the hub never sees your Google password or any session. A Google
@@ -53,4 +54,4 @@ not built here.
 - Your message goes to the vendors you pick, and only to them. Do not type anything you would not
   send to that vendor.
 - The model names the hub uses are defaults and may be wrong: change them with `HUB_GEMINI_MODEL`,
-  `HUB_XAI_MODEL`, `HUB_KIMI_MODEL`.
+  `HUB_XAI_MODEL`, `HUB_KIMI_MODEL`, `HUB_OPENROUTER_MODEL`.
