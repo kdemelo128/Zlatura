@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.7.110: Easier to start and to connect the Model Hub, and a stricter draft preview (on the development branch; not merged or deployed)
+
+Development tooling only; the app, saved deals and every figure are unchanged.
+
+- **Double-click to start.** `Start Model Hub.command` in the project folder starts the hub without typing anything. It gets the latest code first, but only when nothing has been changed by hand, installs the project's tools if they are missing, then runs `npm run hub`. If Node is missing it says so and waits.
+- **The Agents tab uses the strict draft check.** The preview and the "put on a local branch" step now both refuse a model draft that uses quoted names, deletes a file, renames a file, changes modes, adds a binary patch, or touches anything outside the task card's scope or a protected path. Before, only the branch step was strict.
+- **Tested.** `tests/hub.test.js` (new tests for quoted-name and deletion drafts fail on the old code; a rename draft and the launcher file are regression guards). The `.command` file itself has not been run on a Mac.
+- Saved results and golden figures unchanged.
+
 ## 4.7.108: A local dashboard to chat with every model in one place (on the development branch; not merged or deployed)
 
 Development tooling only; the app, saved deals and every figure are unchanged.

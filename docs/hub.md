@@ -11,6 +11,12 @@ It opens the dashboard in your browser by itself (set `HUB_NO_OPEN=1` to stop th
 Terminal to stop. The address changes each time, on purpose: the `t=` part is a one-time token
 that keeps other websites and other programs from using the hub.
 
+## Double-click to start
+In Finder, double-click `Start Model Hub.command` in the Zlatura folder. The first time, right-click
+it, choose Open, then click Open again, because macOS warns about scripts that were downloaded. It
+needs Node 22 (see `docs/harness-setup.md`). It fetches the latest code only when you have no unsaved
+changes, installs what is missing, and starts the hub.
+
 ## What you see
 - **Left:** each model with a coloured dot. Green = ready. Amber = needs a key or a tool.
   Grey = unavailable. Below that, the roles (designer, researcher, bug-fixer and so on).

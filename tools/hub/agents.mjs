@@ -4,7 +4,7 @@ import { readdirSync, readFileSync, writeFileSync, mkdtempSync, existsSync } fro
 import { execFile as nodeExecFile } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseCard, buildPacket, diffFiles, checkChangedFiles, findSecret } from '../harness/lib.mjs';
+import { parseCard, buildPacket, loadWorkers, validateDiff, findSecret } from '../harness/lib.mjs';
 import { extractDiff } from '../harness/connectors/base.mjs';
 import { pick, providerForWorker, screenPrompt } from './hub-lib.mjs';
 import { PROVIDERS } from './providers.mjs';
@@ -44,20 +44,19 @@ export async function runAgent({ root, file, to, stats, cfg, ask }) {
   else {
     const hit = findSecret(diff);
     if (hit) problems.push(`The draft contains something that looks like a key or an email address (${hit}).`);
-    files = diffFiles(diff);
-    try { checkChangedFiles(cfg, files, card.meta.scopeList, card.meta.project || 'default'); } catch (e) { problems.push(e.message); }
-    const outside = files.filter((f) => !card.meta.scopeList.includes(f));
-    if (outside.length) problems.push(`The draft changes files outside the card's scope: ${outside.join(', ')}`);
+    const v = validateDiff(diff, card.meta.scopeList, cfg, card.meta.project || 'default');
+    files = v.files; problems.push(...v.problems);
   }
   return { ok: !problems.length, why: chosen.why, provider, diff, files, problems, reply: diff ? undefined : String(reply).slice(0, 2000) };
 }
 
 /** Put a checked diff on a local branch through the harness's own ingest (worktree + commit; no push). */
-export function applyDiff({ root, file, provider, diff, exec = nodeExecFile }) {
+export function applyDiff({ root, file, provider, diff, cfg = loadWorkers(), exec = nodeExecFile }) {
   const path = cardPath(root, file);
   const card = parseCard(readFileSync(path, 'utf8'));
-  const outside = diffFiles(diff).filter((f) => !card.meta.scopeList.includes(f)); // the page could send any diff: re-check scope here
-  if (!diff.trim() || outside.length) return Promise.reject(new Error(outside.length ? `outside the card's scope: ${outside.join(', ')}` : 'empty diff'));
+  if (!String(diff).trim()) return Promise.reject(new Error('empty diff'));
+  const { problems } = validateDiff(String(diff), card.meta.scopeList, cfg, card.meta.project || 'default'); // the page could send any diff: re-check it strictly here
+  if (problems.length) return Promise.reject(new Error(problems.join('; ')));
   const worker = PROVIDERS.find((p) => p.id === provider)?.workers[0];
   if (!worker) return Promise.reject(new Error('that model cannot own a branch'));
   const tmp = join(mkdtempSync(join(tmpdir(), 'hubdiff-')), 'reply.diff');

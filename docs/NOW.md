@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.108 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.110 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -166,6 +166,7 @@ section with grep, never in full.
 - **Harness on the owner's Mac (4.7.104, PR opening):** the owner installed Node 22, cloned the repo and ran `doctor`. Tested: `codex exec -` works (read-only sandbox); the free Gemini CLI is refused by Google (individual accounts), so Gemini is paste-in; `harness-out/` is git-ignored. Next: a first real card through Codex, then one paste-in round trip.
 - **Harness diff guard (4.7.107, PR opening):** found by the security review: a model's draft could change files outside its card's scope. `validateDiff` now refuses quoted names, deletes, renames, mode changes, binary patches and out-of-scope or protected paths, and the staged files are re-checked after `git apply`. Seven reproduction drafts all passed the old check and are all refused now.
 - **Model Hub (4.7.108, PR opening):** `npm run hub` starts a local dashboard (`tools/hub/`, guide `docs/hub.md`) to chat with every model through official routes only: Codex CLI (tested), Claude Code if installed, Gemini/Grok/Kimi APIs with a key in `~/.zlatura-hub/keys.json`; Muse unavailable (no API). Free only for now. Not yet tried against the real vendors.
+- **Hub connect and launcher (4.7.110, PR opening):** a "Connect your models" panel with official sign-in or key pages per model, a double-click `Start Model Hub.command`, and the strict draft check in the Agents tab. The hub does not sign in for the owner and cannot reach Muse. Not yet tried against real vendors or on a Mac.
 - **Lease reader L3 (4.7.101, PR opening):** a lease or amendment PDF is read on the device by rules (text layer, or OCR of scans with the vendored Tesseract); every found item is staged with its page and quote, nothing is kept until the broker ticks it. Schema 9 (`abstracts-read`) is flagged for the owner. Not yet tested on a real phone or Safari.
 - **Usage limit (owner, 2026-10-28):** when the session's usage runs out,
   stop everything, background agents included, and resume nothing until the
