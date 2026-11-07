@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.115 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.116 (development branch; GitHub Pages deploys from main).
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
@@ -44,6 +44,7 @@ section with grep, never in full.
   - the rent roll PDF upload (#45, 4.7.23): *Import from PDF…* with preview,
     Data QC, layout guard, Undo; source kind `pdf` and file name per lease
     (schema 4, silent migration step `rr-pdf-source`).
+- **UW money notes (PR opening):** `docs/proposals/uw-money-notes.md`: how units are asked rather than guessed (UW-2) and how the monthly cash-flow view stays exact to the cent (UW-5); 9 owner questions with defaults.
 - **UW-0 measuring tools (PR opening):** `tests/tools/doc-local.mjs` (counts-only scoreboard of how your documents are read, by layout family) and `uw-oracle.mjs` (engine versus the Codex package's math); no app change. First local run on your documents comes next.
 - **Box downloader (PR opening):** `npm run box` (search, plan, download, save-token) pulls Box folders to a folder outside the project; stub-tested only, never run against a real Box account.
 - **Merged:** the property-manager profile (4.7.24, #46): "Monthly Charges"/fees are a recovery column, never rent; two

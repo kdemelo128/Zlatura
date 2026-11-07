@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.7.116: Decision notes for reading units and for the monthly cash-flow view (on the development branch; not merged or deployed)
+
+Documentation only; the app, saved deals and every figure are unchanged.
+
+- **`docs/proposals/uw-money-notes.md`** (designer notes the next two builds follow):
+  - **Units asked, not guessed (UW-2).** The order of evidence for what a rent roll or T-12 column means (header text, a stated total, other columns on the same rows, a range check that can only rule readings out, convention last) and exactly when to stop and ask. Found five problems in today's spreadsheet import (for example "Months Remaining" and "Free Rent (months)" columns read as monthly rent, and a per-SF monthly rent read as square feet), each with a worked example and a test that must fail on old code.
+  - **Monthly cash-flow view (UW-5).** Reads only what the existing lease projection already computes; prorates partial months by actual days (the existing rule); rounds each row's month once to cents with a largest-remainder pass so months add up to the year to the cent; shows a free-rent month as 0 and an unknown as blank; refuses (never silently adjusts) when months do not add to the annual figure.
+  - Nine questions for the owner, each with a recommended default.
+- Saved results and golden figures unchanged.
+
 ## 4.7.115: Measure how well your documents are read before changing anything (on the development branch; not merged or deployed)
 
 Development tooling only; the app, saved deals and every figure are unchanged.
