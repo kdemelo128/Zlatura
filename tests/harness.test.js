@@ -78,11 +78,11 @@ test('extractDiff pulls a patch out of chat text, fences and trailing prose', ()
   assert.equal(extractDiff('no patch here'), '');
   assert.equal(extractDiff(null), '');
 });
-test('connector modes: Claude is an agent, Codex and Gemini are CLIs, Grok, Kimi and Muse are paste-in', () => {
+test('connector modes: Claude is an agent, Codex is a CLI, Gemini, Grok, Kimi and Muse are paste-in', () => {
   assert.equal(CONNECTORS.claude.mode, 'agent');
   assert.equal(CONNECTORS.openai.mode, 'cli');
-  assert.equal(CONNECTORS.gemini.mode, 'cli');
-  for (const id of ['grok', 'kimi', 'muse']) { assert.equal(CONNECTORS[id].mode, 'relay'); assert.match(CONNECTORS[id].relayInstructions(), /unified diff/); assert.equal(CONNECTORS[id].invocation(), null); }
+  assert.equal(CONNECTORS.openai.verified, true);
+  for (const id of ['gemini', 'grok', 'kimi', 'muse']) { assert.equal(CONNECTORS[id].mode, 'relay'); assert.match(CONNECTORS[id].relayInstructions(), /unified diff/); assert.equal(CONNECTORS[id].invocation(), null); }
   assert.deepEqual(CONNECTORS.openai.invocation().command.slice(0, 2), ['codex', 'exec']);
 });
 test('doctor checks go through an injected runner: nothing is spawned in tests, and a missing tool reports clearly', () => {
@@ -90,9 +90,10 @@ test('doctor checks go through an injected runner: nothing is spawned in tests, 
   const present = () => ({ status: 0 });
   assert.equal(haveCommand('codex', missing), false);
   assert.equal(haveCommand('codex', present), true);
-  assert.equal(CONNECTORS.gemini.check(missing).ok, false);
-  assert.match(CONNECTORS.gemini.check(missing).how, /not installed or not logged in/);
-  assert.equal(CONNECTORS.gemini.check(present).ok, true);
+  assert.equal(CONNECTORS.openai.check(missing).ok, false);
+  assert.match(CONNECTORS.openai.check(missing).how, /not installed or not logged in/);
+  assert.equal(CONNECTORS.openai.check(present).ok, true);
+  assert.equal(CONNECTORS.gemini.check(missing).ok, true); // paste-in needs no install
   assert.equal(CONNECTORS.grok.check(missing).ok, true); // paste-in needs no install
 });
 test('no connector file holds a key, a token or a network call', async () => {
