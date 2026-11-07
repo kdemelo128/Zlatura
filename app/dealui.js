@@ -35,7 +35,8 @@ import { readScannedPage, readPhotoText, ocrSupported } from './ocr.js';
 import { pending as stepsDue, applyStep } from './migrate.js';
 import { renderRentRollWorkspace } from './rentrollui.js';
 import { redrawKeepingFocus } from './focuskeep.js';
-import { renderT12Card } from './t12ui.js';
+import { renderT12Card, importFile as importT12File } from './t12ui.js';
+import { typeLabel } from './ddtypes.js';
 import { renderFeeCard } from './feeui.js';
 import { renderCreditCard } from './creditui.js';
 import { renderDocsCard, recordFileRead } from './ddui.js';
@@ -292,6 +293,41 @@ export async function discardDeal(id) {
   const done = await store.deleteDeal(id);
   if (deal && deal.id === id) { deal = null; closeDeal(); }
   return done;
+}
+/** What the Start from documents card (intake.js) needs to look at a file: the same readers the Documents card uses. */
+export const intakeDeps = () => ({
+  getFflate, getXlsx,
+  readPdf: async (bytes) => { const layouts = []; const pages = await api.pdfPages(await getPdfjs(), bytes, { layouts }); return { pages, layouts }; },
+  problem: (err, file) => pdfProblem(err, file),
+});
+/**
+ * "Use": attach staged documents to a deal through the deal's own paths. `dealId` null makes a new deal first (the same
+ * path every deal takes). A T-12 goes through the T-12 import (which asks about its sheet and number format when the file
+ * can't say); every other document is recorded in the deal's Documents list (deal.dd) as received, typed by what read
+ * it or by the broker's answer. A rent roll is recorded only: its import asks which column is which, and is opened from
+ * the deal. No figure changes here. items: [{ id, file, name, kind, size, sha256, pages, type, typeBy }].
+ * Resolves { deal, created, done: [{ id, note }] }; throws when a new deal can't be stored.
+ */
+export async function useDocuments(dealId, items) {
+  let d;
+  let created = false;
+  if (dealId) { await openDeal(dealId); d = deal && deal.id === dealId ? deal : null; if (!d) throw new Error('that deal could not be opened'); }
+  else { d = await createDeal({}, 'Created from documents'); created = true; await openDeal(d.id); d = deal; }
+  const done = [];
+  for (const it of items) {
+    if (it.type === 't12') {
+      const before = d.t12;
+      await importT12File(t12Host(d), it.file);
+      if (d.t12 && d.t12 !== before) done.push({ id: it.id, note: 'T-12 read.' });
+      continue;
+    }
+    const r = addDoc(ddOf(d), { name: it.name, kind: it.kind, size: it.size, sha256: it.sha256, pages: it.pages, type: it.type, typeBy: it.typeBy });
+    if (r.error) { done.push({ id: it.id, note: r.error, failed: true }); continue; }
+    touch(d, { label: `Documents: added ${r.doc.name}${it.type ? ` as ${typeLabel(it.type)}` : ''}` });
+    done.push({ id: it.id, note: it.type === 'rentroll' ? 'Added to Documents. Open the rent roll to import it: it asks which column is which.' : 'Added to Documents.' });
+  }
+  if (deal === d) render();
+  return { deal: d, created, done };
 }
 export const currentDealName = () => (deal && hasFigures() ? (deal.name || deal.figures.address || 'Untitled deal') : null);
 const hasFigures = () => deal && Object.values(deal.figures).some((v) => v !== null && v !== undefined && v !== '');
@@ -890,8 +926,11 @@ function showPane(key, { focus = true } = {}) {
 function drawT12() {
   const box = $('deal-t12');
   if (!box || !deal) return;
-  const d = deal;
-  renderT12Card(box, {
+  renderT12Card(box, t12Host(deal));
+}
+/** What the T-12 card (t12ui.js) needs of this screen for deal `d`; the Start from documents card uses it to import a staged statement. */
+function t12Host(d) {
+  return {
     deal: d,
     touch: (meta) => touch(d, meta),
     snapshot: (reason) => snapshotBefore(d, reason),
@@ -910,7 +949,7 @@ function drawT12() {
       projectionLater(d.rr, { years: 1 }).then(() => { if (deal === d) renderDerived(); }, () => { /* the comparison is left out */ });
       return undefined;
     },
-  });
+  };
 }
 
 /* --------------------------------------------------------------- rent roll */
