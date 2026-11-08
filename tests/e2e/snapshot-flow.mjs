@@ -92,7 +92,7 @@ const count = () => page.evaluate(() => Number(document.querySelector('#deal-ren
 const lastImport = () => page.evaluate(() => new Promise((res) => { const r = indexedDB.open('zlatura'); r.onsuccess = () => { const g = r.result.transaction('history').objectStore('history').getAll(); g.onsuccess = () => { const e = g.result.filter((x) => x.kind === 'import').pop(); res(e && { stepwise: Array.isArray(e.changes), snapshot: e.snapshot || null, size: e.size || 0 }); r.result.close(); }; }; }));
 async function importRows(n, name) {
   let csv = 'Suite,Tenant,Square Feet,Lease Start,Lease Expiration,Annual Base Rent\n';
-  for (let i = 0; i < n; i++) csv += `${1000 + i},${name} ${i},${1000 + (i % 7) * 250},2022-0${1 + (i % 9)}-01,20${28 + (i % 8)}-12-31,${30000 + i * 37}\n`;
+  for (let i = 0; i < n; i++) csv += `${1000 + i},"${name} ${i}",${1000 + (i % 7) * 250},2022-0${1 + (i % 9)}-01,20${28 + (i % 8)}-12-31,${30000 + i * 37}\n`;
   fs.writeFileSync(`${F}rr-snap.csv`, csv);
   await page.click('#tab-rentroll');
   await page.locator('#deal-rentroll button[aria-label="More rent roll actions"]').click();
