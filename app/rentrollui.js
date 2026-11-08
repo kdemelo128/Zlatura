@@ -11,6 +11,9 @@ import { readText } from './textfile.js';
 import { checkUpload, checkReader } from './filekind.js';
 import { calDay } from './pipeline.js';
 import { waltMethod } from './engine/walt.js';
+import { toCents } from './engine/money.js';
+import { scaleOf } from './scale.js';
+import { rentReading, psfPeriod, cellKind, median, plausible, READING_NAME } from './units.js';
 import {
   project, rentRollSummary, validateRentRoll, validateLease, generateSteps, monthlyAmount, inPlace, rollover,
   dayOf, isoOf, addDays, addMonths, UNITS, DEFAULT_SETTINGS, fromOmRows,
@@ -802,27 +805,31 @@ async function exportWorkbook(deal, rr) {
 /* --------------------------------------------------------------- import */
 
 /**
- * Which field a rent-roll column heading names.
+ * Which field a rent-roll column heading names. A count of months ("Months Remaining", "Term (months)", "Free Rent
+ * (months)") is none of them. A rate per SF is read before an area, so "Rent/SF/Mo" is rent, not square feet. A bare
+ * "Rent" is `rent`: whether it is a month's or a year's is decided from the figures (units.js), or asked.
  * @type {[string, RegExp][]}
  */
 export const IMPORT_FIELDS = [
   ['unit', /^(unit|suite|ste|space|apt|apartment|unit\s*#|suite\s*#)\b/i],
   ['tenant', /tenant|lessee|occupant|resident|name/i],
   ['unitType', /unit type|bed|br\/ba|floor ?plan/i],
+  ['mpsf', /(?:psf|\/\s?sf|per\s?sf|sq\.?\s?ft\.?)[^a-z]*(?:\/\s?mo\b|\/\s?month|per\s?month|monthly|\bmo\b|\bmonth\b)|(?:monthly|per\s?month|\bmo\b)[^a-z]*(?:rent\s*)?(?:\$\s*\/?\s*sf|psf|per\s?sf)/i],
+  ['psf', /(rent|rate).*(psf|\/\s?sf|per sf)|^psf$|\$\/sf/i],
   ['sf', /\b(sf|rsf|nra|gla|sq\.?\s?ft\.?|size|area)\b|square\s*f(?:ee|oo)?t/i],
   ['leaseStart', /(lease )?(start|commence|from|move[- ]?in)/i],
   ['leaseEnd', /(lease )?(end|expir|exp\b|to\b|move[- ]?out|lxd)/i],
-  ['psf', /(rent|rate).*(psf|\/\s?sf|per sf)|^psf$|\$\/sf/i],
-  // annual before monthly: "Annual Base Rent" is annual; a bare "Rent" column is taken as monthly last
-  ['annual', /annual|yearly|\/yr|per year|base rent/i],
-  ['monthly', /monthly|month|\/mo|per month|contract rent|current rent|rent$/i],
+  ['annual', /annual|yearly|\/yr|per year/i],
+  ['monthly', /monthly|\bmonth\b|\/mo\b|per month/i],
+  ['rent', /^(?:(?:base|contract|current|total|tenant)\s+)?rent\s*\$?$|^\$\s*rent$|^rate$/i],
   ['marketRent', /market/i],
   ['deposit', /deposit/i],
   ['status', /status|occupied|vacan/i],
 ];
+const MONTHS_COUNT = /\bmonths\b|\b(?:remaining|free|abate\w*|term)\b[^a-z]*\(?\s*(?:mo|months?)\b/i;
 export function guessField(header) {
   const h = String(header || '').trim();
-  if (!h) return null;
+  if (!h || MONTHS_COUNT.test(h)) return null;
   for (const [k, re] of IMPORT_FIELDS) if (re.test(h)) return k;
   return null;
 }
@@ -1079,14 +1086,22 @@ function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
   draw();
 }
 
-/** Show how each column will be read, let the broker change it, then add the rows. */
+/** The fields a scale ("in thousands") can apply to. Rates per SF, areas and dates are never scaled. */
+const MONEY_FIELDS = new Set(['monthly', 'annual', 'rent', 'marketRent', 'deposit']);
+const SCALE_WORD = { 1: '×1 (dollars)', 1000: '×1,000 (thousands)' };
+
+/** Show how each column will be read, let the broker change it, then add the rows. A column or row the evidence cannot settle is asked, and its rows are held. */
 function mapImport(rr, table, fileLabel, changed) {
   const guess = table.headers.map(guessField);
+  const scales = [];            // the broker's answer per column: 1 or 1000; undefined = not answered (the heading's own, else asked)
+  const chosen = new Set();     // columns whose field the broker set by hand: not second-guessed
   const done = el('button', 'btn btn-primary', 'Import');
   done.type = 'button';
   const body = api.sheetOpen({ eyebrow: 'Import rent roll', title: fileLabel, sub: `${table.sheet} · ${table.rows.length} rows. Check how each column is read.`, foot: [done] });
   if (table.note) { const n = el('p', 'warn-text', table.note); n.id = 'rr-encoding'; body.appendChild(n); }
-  const fields = [['', '— skip —'], ['unit', 'Unit / suite'], ['tenant', 'Tenant'], ['unitType', 'Unit type'], ['sf', 'SF'], ['status', 'Status'], ['leaseStart', 'Lease start'], ['leaseEnd', 'Lease end'], ['monthly', 'Monthly rent'], ['annual', 'Annual rent'], ['psf', 'Rent / SF / yr'], ['marketRent', 'Market rent'], ['deposit', 'Security deposit']];
+  const fields = [['', '— skip —'], ['unit', 'Unit / suite'], ['tenant', 'Tenant'], ['unitType', 'Unit type'], ['sf', 'SF'], ['status', 'Status'], ['leaseStart', 'Lease start'], ['leaseEnd', 'Lease end'], ['monthly', 'Monthly rent'], ['annual', 'Annual rent'], ['rent', 'Rent (month or year not stated)'], ['psf', 'Rent / SF / yr'], ['mpsf', 'Rent / SF / month'], ['marketRent', 'Market rent'], ['deposit', 'Security deposit']];
+  const asksBox = el('div'); asksBox.id = 'rr-asks';
+  const rows = [];
   table.headers.forEach((h, i) => {
     if (!h) return;
     const r = el('div', 'map-row');
@@ -1094,34 +1109,108 @@ function mapImport(rr, table, fileLabel, changed) {
     const sample = table.rows.slice(0, 2).map((x) => x[i]).filter((x) => x !== null && x !== undefined && x !== '').join(', ');
     hh.appendChild(el('small', null, sample ? `e.g. ${sample}` : 'empty'));
     r.appendChild(hh);
+    const cell = el('div');
     const sel = el('select', 'compact');
     sel.setAttribute('aria-label', `Read column ${h} as`);
     for (const [v, l] of fields) { const o = el('option', null, l); o.value = v; sel.appendChild(o); }
     sel.value = guess[i] || '';
-    sel.addEventListener('change', () => { guess[i] = sel.value || null; });
-    r.appendChild(sel);
+    const sc = el('select', 'compact');
+    sc.setAttribute('aria-label', `Figures in column ${h} are`);
+    for (const [v, l] of [['', 'Scale not stated'], ['1', SCALE_WORD[1]], ['1000', SCALE_WORD[1000]]]) { const o = el('option', null, l); o.value = v; sc.appendChild(o); }
+    const ev = el('small', 'map-evidence');
+    const own = scaleOf(h).scale;
+    sc.value = own === 1000 ? '1000' : '';
+    const showScale = () => { sc.hidden = !MONEY_FIELDS.has(guess[i]); };
+    showScale();
+    sel.addEventListener('change', () => { guess[i] = sel.value || null; chosen.add(i); showScale(); refresh(); });
+    sc.addEventListener('change', () => { scales[i] = sc.value ? Number(sc.value) : undefined; refresh(); });
+    cell.append(sel, sc, ev);
+    r.appendChild(cell);
     body.appendChild(r);
+    rows.push({ i, ev });
   });
+  body.appendChild(asksBox);
   const mode = el('label', 'chk');
   const rep = el('input'); rep.type = 'checkbox'; rep.checked = !rr.leases.length;
   mode.append(rep, document.createTextNode(' Replace the current rent roll (otherwise the rows are added)'));
   body.appendChild(mode);
+  // a Replace would lose what the broker typed: kept unless unticked
+  const nEdited = rr.leases.filter(hasHandEdits).length;
+  const keep = el('label', 'chk-keep'); keep.id = 'rr-keep-edits';
+  const keepBox = el('input'); keepBox.type = 'checkbox'; keepBox.checked = true;
+  keep.append(keepBox, document.createTextNode(` Keep my edits (${nEdited} unit${nEdited === 1 ? '' : 's'} with rent you changed by hand stay as they are)`));
+  if (nEdited) body.appendChild(keep);
+  const showKeep = () => { keep.hidden = !rep.checked; };
+  rep.addEventListener('change', showKeep); showKeep();
+
+  const run = () => rowsToLeases(rr, table, guess, { scales, chosen });
+  let last = run();
+  function refresh() {
+    last = run();
+    for (const { i, ev } of rows) { const e = last.evidence.find((x) => x.col === i); ev.textContent = e ? e.text : ''; }
+    asksBox.textContent = '';
+    const all = [...last.colAsks.map((a) => a.text), ...last.asks.map((a) => a.text)];
+    if (all.length) {
+      const ul = el('ul', 'checks');
+      for (const x of all.slice(0, 8)) { const li = el('li', 'warn'); li.appendChild(el('span', null, x)); ul.appendChild(li); }
+      if (all.length > 8) { const li = el('li', 'warn'); li.appendChild(el('span', null, `…and ${all.length - 8} more.`)); ul.appendChild(li); }
+      asksBox.append(el('h3', null, `${last.held} row${last.held === 1 ? '' : 's'} held until you answer`), ul);
+    }
+  }
+  refresh();
   done.addEventListener('click', () => {
-    const { leases, skipped } = rowsToLeases(rr, table, guess);
+    const { leases, skipped, held } = last;
     const snap = changed.snapshot('Before importing a rent roll');
     const old = rr.leases;
-    rr.leases = rep.checked ? leases : [...rr.leases, ...leases];
+    let next = rep.checked ? leases : [...rr.leases, ...leases];
+    let kept = 0;
+    if (rep.checked && keepBox.checked && nEdited) { const k = keepEdited(old, leases); next = k.leases; kept = k.kept; }
+    rr.leases = next;
     api.sheetClose();
-    changed(true, { kind: 'import', label: `Imported ${leases.length} unit${leases.length === 1 ? '' : 's'} from a spreadsheet${rep.checked ? ', replacing the rent roll' : ''}`, snapshot: snap });
-    toast(`${leases.length} unit${leases.length === 1 ? '' : 's'} imported${skipped ? `; ${skipped} row${skipped === 1 ? '' : 's'} skipped (no unit, tenant or rent)` : ''}. Each rent is one documented period from the lease start to the lease end.`,
+    changed(true, { kind: 'import', label: `Imported ${leases.length} unit${leases.length === 1 ? '' : 's'} from a spreadsheet${rep.checked ? ', replacing the rent roll' : ''}${kept ? `, keeping ${kept} edited unit${kept === 1 ? '' : 's'}` : ''}${held ? `; ${held} held for a question` : ''}`, snapshot: snap });
+    toast(`${leases.length} unit${leases.length === 1 ? '' : 's'} imported${skipped ? `; ${skipped} row${skipped === 1 ? '' : 's'} skipped (no unit, tenant or rent)` : ''}${held ? `; ${held} held (a question about the rent: choose how its column reads, then import again)` : ''}${kept ? `; ${kept} unit${kept === 1 ? '' : 's'} with your edits kept` : ''}. Each rent is one documented period from the lease start to the lease end.`,
       { label: 'Undo', run: () => { rr.leases = old; changed(); } }, 9000);
   });
 }
 
-/** Imported rows as leases: the rent in force becomes one documented period over the lease dates. */
-export function rowsToLeases(rr, table, mapping) {
+/** A lease whose rent the broker changed by hand (a period marked `edited`, or the lease itself). */
+export const hasHandEdits = (L) => L.edited === true || (L.periods || []).some((p) => p && p.edited === true);
+
+/**
+ * "Replace" with the broker's edits kept: a lease with a hand-edited rent period stays as it is (it is the broker's
+ * work, not the file's); an imported unit with the same unit number is dropped in its favour, the rest follow.
+ * @returns {{ leases: any[], kept: number }}
+ */
+export function keepEdited(old, incoming) {
+  const key = (L) => String(L.unit || '').trim().toLowerCase();
+  const mine = old.filter(hasHandEdits);
+  const byUnit = new Map(mine.filter((L) => key(L)).map((L) => [key(L), L]));
+  const used = new Set();
+  const leases = incoming.map((L) => { const m = byUnit.get(key(L)); if (m && key(L)) { used.add(m); return m; } return L; });
+  for (const L of mine) if (!used.has(L)) leases.push(L);
+  return { leases, kept: mine.length };
+}
+
+const FREE_ASK = (label) => `${label} says Free. Type its contract rent and when the free period ends.`;
+
+/**
+ * Imported rows as leases: the rent in force becomes one documented period over the lease dates.
+ *
+ * What each rent column holds comes from evidence, in order (units.js): the broker's choice or the heading, then the
+ * figures; when two readings are left the column is ASKED and its rows are held (not imported), the others stay.
+ * A blank or dash rent is "not stated" (the lease has no rent period), a typed 0 is a documented zero, "Free" and
+ * a negative or a word in a rent cell are asked, naming the row. A scale ("($000)") is the heading's or the
+ * broker's, never inferred from the size of the figures; it never applies to rates per SF, areas or dates.
+ * `opts.scales[col]` is the broker's scale (1 or 1000), `opts.chosen` the columns whose field the broker set by hand.
+ * @param {any} rr @param {{ sheet: string, headers?: string[], rows: any[][] }} table @param {(string|null)[]} mapping
+ * @param {{ scales?: (number|undefined)[], chosen?: Set<number> }} [opts]
+ */
+export function rowsToLeases(rr, table, mapping, opts = {}) {
   const asOf = rr.settings.asOf;
-  const at = (row, k) => { const i = mapping.indexOf(k); return i < 0 ? null : row[i]; };
+  const chosen = opts.chosen || new Set();
+  const heads = table.headers || [];
+  const colOf = (k) => mapping.indexOf(k);
+  const at = (row, k) => { const i = colOf(k); return i < 0 ? null : row[i]; };
   const num = (x) => (typeof x === 'number' ? x : parseNum(x));
   const date = (x) => {
     if (x === null || x === undefined || x === '') return null;
@@ -1133,32 +1222,115 @@ export function rowsToLeases(rr, table, mapping) {
     const t = Date.parse(s);
     return Number.isFinite(t) ? new Date(calDay(s, t)).toISOString().slice(0, 10) : null;
   };
-  const leases = []; let skipped = 0;
-  for (const row of table.rows) {
+  /** @type {{ col: number, label: string, kind: string, text: string }[]} */
+  const colAsks = [];
+  /** @type {{ col: number, text: string }[]} */
+  const evidence = [];
+  const label = (i) => `“${heads[i] || `column ${i + 1}`}”`;
+  const open = new Set();   // columns with an open ask: their rows are held
+
+  // the scale of each money column: the broker's, else the heading's own. Never from the size of the figures.
+  const scaleOfCol = (i) => (opts.scales && opts.scales[i] ? opts.scales[i] : scaleOf(heads[i]).scale);
+  const sfOf = (row) => { const v = num(at(row, 'sf')); return pos(v) ? v : null; };
+  const isVacant = (row) => /vacan/i.test(String(at(row, 'tenant') || '')) || /vacan/i.test(String(at(row, 'status') || ''));
+  const scaled = (i, v) => { const s = scaleOfCol(i); return s === 1 || !ok(v) ? v : toCents(v * s); };
+  const kindOf = (row, k) => { const i = colOf(k); if (i < 0) return null; const c = cellKind(row[i], parseNum); return MONEY_FIELDS.has(k) && (c.kind === 'amount' || c.kind === 'zero' || c.kind === 'negative') ? { ...c, value: scaled(i, c.value) } : c; };
+  const live = table.rows.filter((r) => !isVacant(r));
+
+  // a scale on a column of rates is a contradiction: asked
+  for (const k of ['psf', 'mpsf']) {
+    const i = colOf(k);
+    if (i >= 0 && scaleOf(heads[i]).scale !== 1 && !(opts.scales && opts.scales[i])) { colAsks.push({ col: i, label: heads[i], kind: 'scale-rate', text: `${label(i)} has a scale (“${scaleOf(heads[i]).text}”) but holds rent per SF, which a scale never applies to. Choose ×1 for the column to read it as printed.` }); open.add(i); }
+  }
+  // the period of each rate column
+  /** @type {Record<string, 'annual'|'monthly'|'psf'|'mpsf'>} */
+  const reading = {};
+  for (const k of /** @type {const} */ (['annual', 'monthly', 'psf', 'mpsf'])) { const i = colOf(k); if (i >= 0) { reading[k] = k; evidence.push({ col: i, text: chosen.has(i) ? 'Your choice' : 'Stated by the heading' }); } }
+  // a per-SF column whose heading does not give the period: its figures can rule a period out, never choose between two
+  const psfI = colOf('psf');
+  if (psfI >= 0 && !chosen.has(psfI) && !/\b(annual|yearly|yr|year|annum)\b/i.test(heads[psfI] || '')) {
+    const p = psfPeriod(live.map((r) => num(r[psfI])));
+    const e = evidence.find((x) => x.col === psfI);
+    if (p.basis === 'ask') { colAsks.push({ col: psfI, label: heads[psfI], kind: 'period', text: `${label(psfI)} is a rent per SF, and its figures fit both a year's and a month's. Choose “Rent / SF / yr” or “Rent / SF / month” for it.` }); open.add(psfI); if (e) e.text = 'Asked: year or month?'; }
+    else if (p.reading === 'mpsf') { reading.psf = 'mpsf'; if (e) e.text = 'Inferred from the figures (a month’s)'; }
+    else if (e) e.text = p.basis === 'convention' ? 'Read as a year’s (the usual)' : e.text;
+  }
+  // a bare "Rent": checked against the figures
+  const rentI = colOf('rent');
+  if (rentI >= 0) {
+    const pairs = live.map((r) => [num(r[rentI]), sfOf(r)]).filter(([v, s]) => ok(v) && v > 0 && s).map(([v, s]) => /** @type {[number, number]} */ ([scaled(rentI, v), s]));
+    const rd = rentReading(pairs, { label: heads[rentI], resi: mapping.includes('unitType') });
+    if (rd.basis === 'ask') {
+      colAsks.push({ col: rentI, label: heads[rentI], kind: 'period', text: `${label(rentI)} doesn't say whether it is monthly or annual, and its figures fit ${[rd.reading, ...(rd.alt || [])].map((r) => READING_NAME[r]).join(' or ') || 'no reading I can check (no SF)'}. Choose “Monthly rent” or “Annual rent” for it.` });
+      open.add(rentI); evidence.push({ col: rentI, text: 'Asked: month or year?' });
+    } else { reading.rent = rd.reading; evidence.push({ col: rentI, text: `Inferred from the figures: ${READING_NAME[rd.reading]}` }); }
+  }
+  // a figure that only fits as thousands: asked, never scaled by its size
+  for (const k of ['annual', 'monthly']) {
+    const i = colOf(k);
+    if (i < 0 || chosen.has(i) || (opts.scales && opts.scales[i]) || scaleOf(heads[i]).scale !== 1) continue;
+    const pairs = live.map((r) => [num(r[i]), sfOf(r)]).filter(([v, s]) => ok(v) && v > 0 && s);
+    const m = median(pairs.map(([v, s]) => (k === 'annual' ? v : 12 * v) / s));
+    const m3 = median(pairs.map(([v, s]) => (k === 'annual' ? 1000 * v : 12000 * v) / s));
+    if (m !== null && !plausible(m) && plausible(m3)) { colAsks.push({ col: i, label: heads[i], kind: 'scale', text: `${label(i)} holds figures that are too small to be a ${k === 'annual' ? 'year’s' : 'month’s'} rent for their SF, and fit only if they are in thousands. The heading doesn't say. Choose ×1,000 (thousands) or ×1 (dollars) for it.` }); open.add(i); const e = evidence.find((x) => x.col === i); if (e) e.text = 'Asked: dollars or thousands?'; }
+  }
+  for (const i of open) if (!evidence.some((x) => x.col === i)) evidence.push({ col: i, text: 'Asked' });
+  for (const k of Object.keys(reading)) { const i = colOf(k); if (i >= 0 && scaleOfCol(i) !== 1 && MONEY_FIELDS.has(k)) { const e = evidence.find((x) => x.col === i); if (e) e.text += `; read ${SCALE_WORD[scaleOfCol(i)] || `×${scaleOfCol(i)}`}`; } }
+
+  const leases = []; const asks = []; let skipped = 0; let held = 0; let noRent = 0;
+  const rateCols = ['annual', 'monthly', 'rent', 'psf', 'mpsf'].filter((k) => colOf(k) >= 0);
+  table.rows.forEach((row, n) => {
     const unit = at(row, 'unit'); const tenant = at(row, 'tenant');
     const sf = num(at(row, 'sf'));
-    const status = String(at(row, 'status') || '');
-    const vacant = /vacan/i.test(String(tenant || '')) || /vacan/i.test(status);
-    const monthly = num(at(row, 'monthly')); const annual = num(at(row, 'annual')); const psf = num(at(row, 'psf'));
-    if (!unit && !tenant && !ok(monthly) && !ok(annual)) { skipped += 1; continue; }
+    const vacant = isVacant(row);
+    const who = unit ? `Suite ${unit}` : tenant ? String(tenant) : `Row ${n + 1}`;
+    const cells = Object.fromEntries(rateCols.map((k) => [k, kindOf(row, k)]));
+    const numeric = (c) => c && (c.kind === 'amount' || c.kind === 'zero');
+    if (!unit && !tenant && !numeric(cells.monthly) && !numeric(cells.annual) && !numeric(cells.rent)) { skipped += 1; return; }
+    // the rent cell, row by row
+    let ask = null;
+    /** @type {[RentInUnit, RentUnit] | null} */
+    let rate = null;
+    if (!vacant) {
+      for (const k of rateCols) {
+        const c = cells[k];
+        if (!c) continue;
+        if (open.has(colOf(k)) && (numeric(c) || c.kind === 'negative')) { ask = { kind: 'column', text: null }; break; }
+        if (c.kind === 'free') { ask = { kind: 'free', text: FREE_ASK(who) }; break; }
+        if (c.kind === 'negative') { ask = { kind: 'negative', text: `${who} has a negative rent (${c.value.toLocaleString('en-US')}) in ${label(colOf(k))}. Is it a credit or a concession? It was not read as a rent.` }; break; }
+        if (c.kind === 'text') { ask = { kind: 'text', text: `${who} has “${c.text}” in ${label(colOf(k))}, which is not a number. Type its rent.` }; break; }
+      }
+      if (!ask) {
+        const a = cells.annual; const m = cells.monthly;
+        if (numeric(a) && numeric(m) && Math.abs(a.value - 12 * m.value) > Math.max(12, Math.abs(a.value) * 0.005)) ask = { kind: 'conflict', text: `${who}: the annual rent (${a.value.toLocaleString('en-US')}) and the monthly rent (${m.value.toLocaleString('en-US')}) disagree. Skip one of the two columns.` };
+      }
+      if (!ask) {
+        /** @type {(k: string, unitName: RentUnit) => [RentInUnit, RentUnit] | null} */
+        const pick = (k, unitName) => (numeric(cells[k]) ? [cells[k].value, unitName] : null);
+        const byRent = cells.rent && numeric(cells.rent) ? pick('rent', /** @type {RentUnit} */ ({ annual: 'year', monthly: 'month', psf: 'psf_year', mpsf: 'psf_month' }[reading.rent])) : null;
+        const psfName = reading.psf === 'mpsf' ? 'psf_month' : 'psf_year';
+        rate = pick('annual', 'year') || pick('monthly', 'month') || byRent || pick('psf', psfName) || pick('mpsf', 'psf_month');
+        if (rate && /psf/.test(rate[1]) && !pos(sf)) ask = { kind: 'nosf', text: `${who} has a rent per SF but no SF, so its rent can't be worked out. Type its SF.` };
+      }
+    }
+    if (ask) { held += 1; if (ask.text) asks.push({ row: n + 1, unit: unit === null ? '' : String(unit), tenant: tenant ? String(tenant) : '', kind: ask.kind, text: ask.text }); return; }
     const L = newLease(rr, {
       unit: unit === null ? '' : String(unit), tenant: vacant ? '' : (tenant ? String(tenant) : ''), sf: pos(sf) ? sf : null, vacant,
       unitType: at(row, 'unitType') ? String(at(row, 'unitType')) : '', leaseStart: date(at(row, 'leaseStart')), leaseEnd: date(at(row, 'leaseEnd')),
-      marketRent: num(at(row, 'marketRent')), deposit: num(at(row, 'deposit')), source: { kind: 'import', file: table.sheet },
+      marketRent: scaled(colOf('marketRent'), num(at(row, 'marketRent'))), deposit: scaled(colOf('deposit'), num(at(row, 'deposit'))), source: { kind: 'import', file: table.sheet },
     });
     if (!vacant) {
-      /** @type {[RentInUnit, RentUnit] | null} */
-      const rate = ok(annual) ? [annual, 'year'] : ok(monthly) ? [monthly, 'month'] : ok(psf) && pos(L.sf) ? [psf, 'psf_year'] : null;
-      if (rate) {
+      const r = rate;
+      if (r) {
         const start = L.leaseStart || asOf;
         const end = L.leaseEnd || addDays(addMonths(asOf, 1), -1);
         if (!L.leaseEnd) L.mtm = true;
-        L.periods.push({ start, end, rate: rate[0], unit: rate[1], source: 'documented', note: `imported from ${table.sheet}` });
-      }
+        L.periods.push({ start, end, rate: r[0], unit: r[1], source: 'documented', note: `imported from ${table.sheet}` });
+      } else noRent += 1;   // blank or a dash: not stated, never a zero
     }
     leases.push(L);
-  }
-  return { leases, skipped };
+  });
+  return { leases, skipped, held, asks, colAsks, evidence, noRent };
 }
 
 /* ------------------------------------------------------- lease schedule */

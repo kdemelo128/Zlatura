@@ -411,8 +411,8 @@ select.compact {
 .chip-brass { background: var(--brass-soft); color: var(--brass); }
 button.chip { cursor: pointer; }
 button.src, button.chip { min-height: 24px; }
-.chk { display: flex; align-items: center; gap: 8px; font-size: var(--t-14); margin: 8px 0; }
-.chk input { width: 24px; height: 24px; accent-color: var(--accent); }
+.chk, .chk-keep { display: flex; align-items: center; gap: 8px; font-size: var(--t-14); margin: 8px 0; }
+.chk input, .chk-keep input { width: 24px; height: 24px; accent-color: var(--accent); }
 .warn-text { color: var(--warn); font-weight: 600; }
 .linkish { min-height: 24px; display: inline-flex; align-items: center; color: var(--accent); font: inherit; text-align: left; padding: 0; background: none; border: 0; cursor: pointer; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); text-underline-offset: 3px; }
 .linkish:hover { text-decoration-color: currentColor; }
@@ -1220,6 +1220,8 @@ dialog.cmdk[open] { animation: pop var(--d2) var(--ease); }
 .map-row .h { font-weight: 600; font-size: var(--t-14); overflow-wrap: anywhere; }
 .map-row .h small { display: block; font-weight: 400; color: var(--faint); font-size: var(--t-12); }
 .map-row select { width: 100%; }
+.map-row select + select { margin-top: 6px; }
+.map-row .map-evidence { display: block; color: var(--faint); font-size: var(--t-12); margin-top: 4px; }
 
 /* ================================================================ sheets */
 dialog.sheet { border: 0; padding: 0; margin: auto auto 0; width: 100%; max-width: 680px; max-height: calc(100dvh - 24px); background: transparent; color: var(--ink); overflow: visible; }
