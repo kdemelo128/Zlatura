@@ -1512,3 +1512,19 @@ input.ci44, select.ci44 { height: 44px; }
   .sidebar .wsp-rail-tab[aria-current="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1px var(--line), var(--shadow); }
   .sidebar .wsp-rail-all { color: var(--muted); padding-left: 40px; }
 }
+/* Start from documents (intakeui.js): a drop zone, the files, what was found; status is words, every target 44px */
+.uwi-body { padding: 0 var(--s5) var(--s4); display: grid; gap: var(--s3); }
+.uwi-step { display: grid; gap: var(--s2); min-width: 0; }
+.uwi-step h3 { font: 600 var(--t-13)/1.3 var(--ui); margin: var(--s2) 0 0; }
+.uwi-drop { display: grid; justify-items: start; gap: var(--s2); padding: var(--s4); border: 1px dashed var(--line-strong); border-radius: var(--r-sm); background: var(--surface); }
+.uwi-over .uwi-drop, body.dragging .uwi-drop { border-color: var(--accent); background: var(--accent-soft); }
+.uwi .btn { min-height: 44px; min-width: 44px; }
+.uwi-files .dd-open, .uwi-items .dd-open { min-height: 44px; }
+.uwi-ask { display: grid; gap: var(--s2); padding: var(--s3); border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--warn-soft); }
+.uwi-q { margin: 0; font-weight: 600; font-size: var(--t-14); }
+.uwi-ask .dd-formbtns, .uwi-itemacts { flex-wrap: wrap; }
+.uwc-missing, .uwc-ask { background: var(--warn-soft); }
+.uwc-used, .uwc-on-the-deal { background: var(--good-soft); }
+.uwi-skipped .dd-name, .uwi-skipped .dd-type { color: var(--muted); }
+.uwi-acts { display: grid; gap: var(--s2); justify-items: start; }
+.uwi button:disabled { opacity: .55; cursor: not-allowed; }

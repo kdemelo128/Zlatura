@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.7.117: Start an underwriting from your documents (on the development branch; not merged or deployed)
+
+Before, the Underwrite tab only took typed figures. Now a "Start from documents" card sits at the top of it.
+
+- **Step 1, Files.** Drop or pick several files at once (rent roll, T-12, lease, offering memorandum). Each is checked and read by the existing readers on this device; a file that cannot be used says why. A drop on the Underwrite tab stays on it (before, it was sent to the template filler).
+- **Step 2, What was found.** For each kind it shows what was found, why, and the proposed use. If two documents of one kind compete (two rent rolls, two T-12s) or one is already on the deal, it asks which controls; it never guesses. The same file twice is kept once. A checklist shows what is still missing. Nothing enters the deal until you tap **Use**; **Skip** leaves it out.
+- **Make a deal from these** creates a deal with the used documents and offers Undo. A T-12 goes through the existing T-12 import (which asks about the sheet and number format itself); other documents are recorded in the deal's Documents list as received. No new stored field, no engine change; a confidential deal makes no outside call.
+- **Tested.** `tests/intake.test.js` (12 tests; fail on the old code) and a new browser flow `uw-intake-flow` (20 checks: three files dropped at once, a duplicate asks, nothing is used before Use, Undo, axe clean at phone and desktop width, no sideways scroll). The two figures sets and all saved results are unchanged.
+- **Not done yet:** a rent roll's "Use" only records the file in Documents (the rent-roll import needs its column and unit questions, which come with the evidence step); no "add to an existing deal" picker; PDF and scanned documents are covered by unit tests only, not in the browser.
+
 ## 4.7.116: Decision notes for reading units and for the monthly cash-flow view (on the development branch; not merged or deployed)
 
 Documentation only; the app, saved deals and every figure are unchanged.

@@ -10,6 +10,7 @@ import { SALE_COST_NEGATIVE } from './deal.js';
 import { createDeal, discardDeal, showDeal, loanDefaults, scnRead, scnRefused, setRefusal } from './dealui.js';
 import { toolIndex, openToolById } from './toolsui.js';
 import { activeWorkspace, workspaceReady } from './workspaceui.js';
+import { intakeCard, initIntake } from './intakeui.js';
 import { newScratch, work, dealFields, loadScratch, saveScratch, deleteScratch, MAX_SCRATCH } from './uwstore.js';
 
 let api = null;
@@ -324,6 +325,7 @@ function draw() {
   head.appendChild(el('h1', null, 'Underwrite'));
   head.appendChild(el('p', null, 'Type a price, NOI and loan terms and see the answer. It is not a deal until you save it as one.'));
   const stack = el('div', 'stack');
+  stack.appendChild(intakeCard(api));
   stack.appendChild(card());
   const listBox = el('section', 'card');
   listBox.id = 'uw-list';
@@ -425,6 +427,7 @@ async function saveAsDeal() {
 
 export function initUnderwrite(compsApi) {
   api = compsApi;
+  initIntake();
   const relink = () => { const c = $('uw-calc-card'); if (c) fillCalculators(c); };
   document.addEventListener('workspacechange', relink);
   workspaceReady().then(relink);
