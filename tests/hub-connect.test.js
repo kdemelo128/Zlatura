@@ -78,3 +78,14 @@ test('the page builds links safely: https only, noopener, no innerHTML', () => {
   assert.match(page, /rel: 'noopener noreferrer'/);
   assert.ok(!/innerHTML/.test(page));
 });
+
+test('the page layout does not depend on what sits directly under the body', () => {
+  const page = readFileSync(new URL('../tools/hub/public/index.html', import.meta.url), 'utf8');
+  // A browser extension can add an element to the body; if aside and main were
+  // laid out by the body's grid, that element would take the first slot.
+  assert.match(page, /<div id="app">\s*<aside>/);
+  assert.match(page, /<\/main>\s*<\/div>\s*<script>/);
+  assert.match(page, /#app>aside\{grid-column:1;grid-row:1\}/);
+  assert.match(page, /#app>main\{grid-column:2;grid-row:1\}/);
+  assert.ok(!/body\{[^}]*display:grid/.test(page));
+});
