@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.7.119: The rent roll import asks when a rent column could be monthly or yearly, instead of guessing (on the development branch; not merged or deployed)
+
+The spreadsheet rent roll import chose a column's meaning from its header words alone. "Months Remaining" or "Term (months)" was read as monthly rent, "Rent/SF/Mo" was read as square feet, a "($000)" heading was ignored, and a bare "Rent" was taken as monthly whatever the figures said. A per-SF rate with no period in an OM table was read as per year even when per month was just as likely. Now a column's meaning comes from its own heading first, then from the other columns on the same rows, and when two readings are still possible Zlatura asks.
+
+- **Asked, not guessed:** a bare "Rent" of 6,000 on 1,000 SF could be $6,000 or $72,000 a year, so the import asks. A rent that only makes sense one way (5,000 on 2,000 SF is monthly) is read that way and the reason is shown in words. A scale (thousands) is taken only from a heading or your choice, never from how big the figures are.
+- **Held rows:** a cell that says "Free", "TBD" or a negative gives a question that names the row and holds that row; the other rows stay usable. A blank rent is "not stated", never zero: the lease imports with no rent and is counted.
+- **Fixed headers:** month counts are no longer rent; "Rent/SF/Mo" is its own choice; the mapping sheet gains "Rent (month or year not stated)", "Rent / SF / month" and a thousands choice.
+- **Replace keeps your edits:** importing with Replace keeps leases whose rent you edited, unless you untick "Keep my edits".
+- **One definition:** the unit readings moved into `app/units.js`; the OM reader and the import use it. `1,200-` now reads as -1,200, matching the T-12 reader.
+- **Not done yet (listed in the acceptance matrix):** percent-versus-decimal and usable/gross area rules are built and tested but no import column uses them yet; per-unit T-12 columns; pre-selecting an earlier answer for a file seen before; "Market Rent PSF" still maps as before.
+- **Tested:** 17 new unit tests all fail on the old code; five mutation checks are each caught; a new browser flow at phone and desktop size with axe. Saved deal results and displayed figures are unchanged (646 figures compared, 0 changed).
+
 ## 4.7.118: The Model Hub page keeps its two columns when a browser extension adds something to the page (on the development branch; not merged or deployed)
 
 The Model Hub (`npm run hub`) could show its Chat controls squashed into a narrow strip with the model list clipped to a thin band at the top and an empty main area. The page laid out its sidebar and chat area straight under the page body, so one extra element added to the body by a browser extension took the first slot: the sidebar moved to the second column and the chat to the second row. Reproduced in a browser with an added element; the old page gave exactly that picture.
