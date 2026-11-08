@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.7.118: The Model Hub page keeps its two columns when a browser extension adds something to the page (on the development branch; not merged or deployed)
+
+The Model Hub (`npm run hub`) could show its Chat controls squashed into a narrow strip with the model list clipped to a thin band at the top and an empty main area. The page laid out its sidebar and chat area straight under the page body, so one extra element added to the body by a browser extension took the first slot: the sidebar moved to the second column and the chat to the second row. Reproduced in a browser with an added element; the old page gave exactly that picture.
+
+- **Fixed:** the sidebar and chat sit inside their own container with fixed places, so anything added to the body no longer moves them. Phone width stacks them as before.
+- **Tested:** a new test fails on the old page and passes on this one; a browser check with an added element shows the two columns side by side. The hub is a local tool: no app screen, saved result or data format changed (golden outputs unaffected).
+
 ## 4.7.117: Start an underwriting from your documents (on the development branch; not merged or deployed)
 
 Before, the Underwrite tab only took typed figures. Now a "Start from documents" card sits at the top of it.
