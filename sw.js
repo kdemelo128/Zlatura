@@ -62,6 +62,7 @@ const ASSETS = [
   'app/deal.js',
   'app/dealui.js',
   'app/uwstore.js',
+  'app/units.js',
   'app/underwrite.js',
   'app/intake.js',
   'app/intakeui.js',

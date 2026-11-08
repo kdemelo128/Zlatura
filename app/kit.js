@@ -26,12 +26,13 @@ export const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml
 
 const ok = (n) => typeof n === 'number' && Number.isFinite(n);
 
-/** Numbers as brokers type them: "$5,200,000", "5.2m", "5.2MM", "850k", "6.25%", "(12,000)". */
+/** Numbers as brokers type them: "$5,200,000", "5.2m", "5.2MM", "850k", "6.25%", "(12,000)", "1,200-" (a trailing minus, as t12.amountOf reads it). */
 export function parseNum(s) {
   if (s === null || s === undefined) return null;
   let t = String(s).trim().toLowerCase().replace(/[$,\s]/g, '').replace(/%$/, '');
   let neg = false;
   if (/^\(.*\)$/.test(t)) { neg = true; t = t.slice(1, -1); }
+  if (/^[^-].*-$/.test(t)) { neg = !neg; t = t.slice(0, -1); }
   if (t === '') return null;
   const m = /^(-?\d*\.?\d+)(k|mm|m|b)?$/.exec(t);
   if (!m) return null;
