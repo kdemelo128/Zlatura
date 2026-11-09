@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.7.120: Proposal: use the UW Filler as it is inside the Underwrite tab, with your UI unchanged (on the development branch; not merged or deployed)
+
+A design proposal only (`docs/proposals/uw-embed-as-is.md`). No app change, no saved result changed, nothing built until you approve it.
+
+- **As is:** the filler's screens, the Monal bird and every small feature are kept byte for byte. A local check runs the untouched package next to the embedded copy and compares them state by state.
+- **Private:** the package carries the firm's workbook and firm-specific details, so it cannot be committed to the public repo. You load the zip once from your own computer; Zlatura keeps it on the device and serves it to an iframe inside the Underwrite tab.
+- **Connected:** staged files and deal facts go into the filler; its tenants, statement lines and assumptions come back as inputs you tap Use on, and Zlatura's engine works out the deal's figures.
+- **Its math is labelled:** seven places where its math differs from Zlatura's rules are listed with invented examples, left unchanged, labelled "filler model" and cross-checked.
+- **Security:** a strict content policy plus six small patches applied at load time; the filler's own files are not edited.
+- **Questions:** ten owner questions, each with a recommended default.
+
 ## 4.7.119: The rent roll import asks when a rent column could be monthly or yearly, instead of guessing (on the development branch; not merged or deployed)
 
 The spreadsheet rent roll import chose a column's meaning from its header words alone. "Months Remaining" or "Term (months)" was read as monthly rent, "Rent/SF/Mo" was read as square feet, a "($000)" heading was ignored, and a bare "Rent" was taken as monthly whatever the figures said. A per-SF rate with no period in an OM table was read as per year even when per month was just as likely. Now a column's meaning comes from its own heading first, then from the other columns on the same rows, and when two readings are still possible Zlatura asks.
