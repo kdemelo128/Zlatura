@@ -18,7 +18,9 @@
   --ok:#7fd6a4; --warn:#f1c36a; --bad:#f5a97f; --off:#6d8089; color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--sans);display:grid;grid-template-columns:320px minmax(0,1fr);min-height:100%}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--sans)}
+#app{display:grid;grid-template-columns:320px minmax(0,1fr);grid-template-rows:minmax(0,1fr);min-height:100vh}
+#app>aside{grid-column:1;grid-row:1}#app>main{grid-column:2;grid-row:1}
 aside{min-width:0;background:var(--panel);border-right:1px solid var(--line);padding:18px 16px;overflow:auto;display:flex;flex-direction:column;gap:20px}
 h1{font-size:18px;margin:0}
 h2{font:600 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
@@ -55,7 +57,7 @@ form{display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--line);ba
 textarea{flex:1;min-height:48px;max-height:180px;resize:vertical}
 button{font:600 14px var(--sans);background:var(--accent);color:var(--accent-fg);border:0;border-radius:6px;padding:8px 16px;cursor:pointer}
 button.small{padding:6px 10px;font-size:13px}button:disabled{opacity:.5;cursor:default}
-@media(max-width:760px){body{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line);max-height:44vh}main{height:auto;min-height:60vh}}
+@media(max-width:760px){#app{grid-template-columns:1fr;grid-template-rows:auto auto}#app>aside{grid-column:1;grid-row:1;border-right:0;border-bottom:1px solid var(--line);max-height:44vh}#app>main{grid-column:1;grid-row:2;height:auto;min-height:60vh}}
 .tabs{display:flex;gap:6px;padding:10px 20px 0;background:var(--panel)}
 .tab{background:transparent;color:var(--muted);border:0;border-bottom:2px solid transparent;border-radius:0;padding:8px 12px}
 .tab.on{color:var(--fg);border-bottom-color:var(--accent)}
@@ -65,6 +67,7 @@ button.small{padding:6px 10px;font-size:13px}button:disabled{opacity:.5;cursor:d
 </style>
 </head>
 <body>
+<div id="app">
 <aside>
   <div><h1>Model Hub</h1><div class="why">Runs on this computer only.</div></div>
   <section><h2>Connect your models</h2><div id="summary" class="why"></div><div id="connect"></div></section>
@@ -92,6 +95,7 @@ button.small{padding:6px 10px;font-size:13px}button:disabled{opacity:.5;cursor:d
     <div id="agentOut" class="agentOut"><div class="empty">Pick a task card and run it. The model drafts a change; the hub checks it against the card's scope and the protected-files rules, and you decide whether to put it on a local branch. Nothing is pushed.</div></div>
   </div>
 </main>
+</div>
 <script>
 let token = new URLSearchParams(location.search).get('t') || '';
 if (token) { try { sessionStorage.setItem('hubToken', token); } catch { /* private window: keep it in memory */ } history.replaceState(null, '', location.pathname); }
