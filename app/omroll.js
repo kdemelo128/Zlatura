@@ -44,6 +44,7 @@
 import { splitCells, parseDate } from './om.js';
 import { toCents, toRate } from './engine/money.js';
 import { scaleOf } from './scale.js';
+import { RENT_KINDS, plausible, median, readings, competing, READING_NAME as READING_WORD } from './units.js';
 
 /* ------------------------------------------------------------ the lines */
 
@@ -142,7 +143,6 @@ export function kindScores(text) {
 const MONEY_KINDS = new Set(['annual', 'monthly', 'rent', 'psf', 'mpsf', 'market', 'recov', 'deposit']);
 const NUM_KINDS = new Set([...MONEY_KINDS, 'sf', 'share']);
 const DATE_KINDS = new Set(['start', 'end', 'term']);
-const RENT_KINDS = ['annual', 'monthly', 'rent', 'psf', 'mpsf'];
 const TEXT_KINDS = new Set(['tenant', 'suite', 'status', 'type', 'notes', 'bumps', 'other', 'remaining']);
 
 /** The best assignment of kinds to header cells, or null if it isn't a rent roll header. */
@@ -612,79 +612,7 @@ function joinLines(seg, geo) {
 
 /* ------------------------------------------------------------ the units */
 
-const plausible = (psfYear) => psfYear >= 3 && psfYear <= 300;
-const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
-
-/**
- * What each rent column holds, from its header first and its figures second:
- * { kind, reading: 'annual'|'monthly'|'psf'|'mpsf', basis: 'stated'|'convention'|'inferred'|'guessed', note }.
- */
-function readings(t) {
-  const rows = t.rows.map((r) => r.raw);
-  const resi = t.cols.some((c) => /resident|\bapt\b|\bbr\b|bed|unit type|bd\/ba/i.test(c.label)) || (t.cols.some((c) => c.kind === 'suite' && /\bunit\b/i.test(c.label)) && median(rows.map((r) => r.rent).filter((v) => v > 0)) < 6000);
-  const out = {};
-  for (const col of t.cols) {
-    const k = col.kind;
-    if (!RENT_KINDS.includes(k)) continue;
-    const pairs = rows.filter((r) => r[k] > 0 && r.sf > 0).map((r) => [r[k], r.sf]);
-    // a column with nothing in it needs no reading
-    if (!rows.some((r) => Number.isFinite(r[k]))) { out[k] = { kind: k, reading: k === 'rent' ? 'annual' : k, basis: 'empty', label: col.label }; continue; }
-    if (k === 'annual' || k === 'monthly' || k === 'mpsf') { out[k] = { kind: k, reading: k, basis: 'stated', label: col.label }; continue; }
-    if (k === 'psf') {
-      const yearly = /\b(annual|yearly|yr|year|annum)\b/i.test(col.label);
-      // a total-rent column on the same rows settles whether "per SF" is a year or a month
-      const tot = rows.filter((r) => r.psf > 0 && r.sf > 0 && (r.annual > 0 || r.monthly > 0)).map((r) => (r.annual > 0 ? r.annual : r.monthly * 12) / r.sf / r.psf);
-      const ratio = median(tot);
-      if (!yearly && ratio !== null && Math.abs(ratio - 12) / 12 < 0.03) out.psf = { kind: 'psf', reading: 'mpsf', basis: 'inferred', label: col.label, note: `rent per SF here is a month's: it times the SF times 12 gives the annual rent printed beside it` };
-      else out.psf = { kind: 'psf', reading: 'psf', basis: yearly ? 'stated' : 'convention', label: col.label };
-      continue;
-    }
-    // "Rent", "Base Rent", "Rate": the header doesn't say. Each reading, tried against rent per SF a year
-    const per = (fn) => median(pairs.map(([v, sf]) => fn(v, sf)).filter(Number.isFinite));
-    const tries = [
-      ['annual', per((v, sf) => v / sf)],
-      ['monthly', per((v, sf) => (12 * v) / sf)],
-      ['psf', per((v) => (v < 1000 ? v : NaN))],
-      ['mpsf', per((v) => (v < 100 ? 12 * v : NaN))],
-    ].filter(([, x]) => x !== null && Number.isFinite(x) && plausible(x));
-    if (tries.length === 1) out.rent = { kind: 'rent', reading: tries[0][0], basis: 'inferred', label: col.label, alt: null };
-    else {
-      const pref = /\brate\b/i.test(col.label) && !/\brent\b/i.test(col.label) ? 'psf' : resi ? 'monthly' : 'annual';
-      const pick = tries.find(([r]) => r === pref) || tries[0] || [pref];
-      out.rent = { kind: 'rent', reading: pick[0], basis: 'guessed', label: col.label, alt: tries.filter(([r]) => r !== pick[0]).map(([r]) => r) };
-    }
-  }
-  return out;
-}
-
-/**
- * Two rent columns that give the same reading ("Rent" and "Monthly Rent", both monthly) and disagree on a row:
- * the reader can't tell which is the rent, so it asks (a fail holds the roll). Equal on every row is the same
- * figure printed twice, and only noted. The column read first is the one used.
- * @returns {{ used: any, other: any, differs: boolean }[]}
- */
-function competing(t) {
-  const by = new Map();
-  for (const c of t.cols) {
-    const u = t.units[c.kind];
-    if (!RENT_KINDS.includes(c.kind) || !u || u.basis === 'empty') continue;
-    if (!by.has(u.reading)) by.set(u.reading, []);
-    by.get(u.reading).push(c);
-  }
-  const out = [];
-  for (const cols of by.values()) {
-    if (cols.length < 2) continue;
-    const [used, ...others] = cols.sort((x, y) => RENT_KINDS.indexOf(x.kind) - RENT_KINDS.indexOf(y.kind));
-    for (const o of others) {
-      const k = t.rows.findIndex((r) => Number.isFinite(r.raw[used.kind]) && Number.isFinite(r.raw[o.kind]) && Math.abs(r.raw[used.kind] - r.raw[o.kind]) > Math.max(1, Math.abs(r.raw[o.kind]) * 0.002));
-      out.push({ used, other: o, differs: k >= 0 });
-    }
-  }
-  return out;
-}
-
-const READING_WORD = { annual: 'annual rent', monthly: 'monthly rent', psf: 'rent per SF a year', mpsf: 'rent per SF a month' };
-
+// the readings of each rent column (annual, monthly, per SF) live in units.js, which asks when two remain
 
 /* ------------------------------------------------------------ the scale */
 
@@ -785,9 +713,9 @@ function finishRow(r, t, U, issues, rowNo) {
     const reading = u ? u.reading : k;
     if (by[reading] === null) by[reading] = raw[k];
     else if (by[reading] !== raw[k]) { score -= 0.2; why.push(`the “${u ? u.label : k}” column gave a different ${READING_WORD[reading]}: the first column read was used`); }
-    if (u && u.basis !== 'stated' && u.basis !== 'convention') {
-      score -= u.basis === 'guessed' ? 0.35 : 0.15;
-      why.push(u.basis === 'guessed' ? `the “${u.label}” column doesn't say whether it is monthly or annual: read as ${READING_WORD[reading]}` : `the “${u.label}” column was read as ${READING_WORD[reading]} from its figures`);
+    if (u && u.basis !== 'stated' && u.basis !== 'convention' && u.basis !== 'reconciled') {
+      score -= u.basis === 'ask' ? 0.35 : 0.15;
+      why.push(u.basis === 'ask' ? `the “${u.label}” column doesn't say whether it is monthly or annual: read as ${READING_WORD[reading]}` : `the “${u.label}” column was read as ${READING_WORD[reading]} from its figures`);
     }
   }
   if (by.annual !== null) row.annual = by.annual;
@@ -979,10 +907,10 @@ export function rentRoll(pages, { layouts = null } = {}) {
           : `The “${cp.used.label}” and “${cp.other.label}” columns on page ${t.page} print the same figures; the “${cp.used.label}” column was used.`, amount: 0 });
     }
     for (const [k, u] of Object.entries(t.units)) {
-      if (u.basis === 'inferred' || u.basis === 'guessed') {
+      if (u.basis === 'inferred' || u.basis === 'ask') {
         const col = t.cols.find((c) => c.kind === k);
-        issues.push({ kind: 'unit', level: u.basis === 'guessed' ? 'fail' : 'warn', col: col.idx, page: t.page, line: t.line, row: null, cell: { page: t.page, line: t.line, col: col.idx, text: col.label }, lineText: col.label,
-          text: u.basis === 'guessed'
+        issues.push({ kind: 'unit', level: u.basis === 'ask' ? 'fail' : 'warn', col: col.idx, page: t.page, line: t.line, row: null, cell: { page: t.page, line: t.line, col: col.idx, text: col.label }, lineText: col.label,
+          text: u.basis === 'ask'
             ? `The “${u.label}” column doesn't say whether it is monthly or annual, and its figures fit more than one reading${u.alt && u.alt.length ? ` (${[u.reading, ...u.alt].map((r) => READING_WORD[r]).join(' or ')})` : ''}. It was read as ${READING_WORD[u.reading]}: confirm before using it.`
             : `The “${u.label}” column doesn't say monthly or annual; its figures only make sense as ${READING_WORD[u.reading]}${u.note ? ` (${u.note})` : ''}, so that is how it was read.`,
           amount: 0 });

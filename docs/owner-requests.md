@@ -34,7 +34,7 @@ owner**, **not started**. Last updated: 4.7.112.
 | Comps: render cap | done; recovery-copy write fix needs the owner's approval and a designer note |
 | Comp importer C2; online zoning and flood lookups C3/C4 | not started |
 | Start from documents (P2), Reconcile view (P3), template safety fixes, cash-flow A2 to A10, UI D3 to D7 | not started |
-| Advanced underwriting tool built on the owner's Codex tool and its better UI | zip received 2026-11-07; integration plan `docs/proposals/uw-filler-integration.md` (ideas and the four-step flow ported onto Zlatura's engine; the package's own math stays out: floating point, blank read as 0); phases UW-0 to UW-11 |
+| Advanced underwriting tool built on the owner's Codex tool and its better UI | zip received 2026-11-07; integration plan `docs/proposals/uw-filler-integration.md` (ideas and the four-step flow ported onto Zlatura's engine; the package's own math stays out: floating point, blank read as 0); phases UW-0 to UW-11; UW-0, UW-1 merged, UW-2 (units asked, not guessed) PR open |
 | Rename to Monal | **paused by the owner (2026-11-07: "don't worry about the rename")**; inventory of everything it touches is done (storage keys, IndexedDB, backup formats, PWA, install URL); no proposal written |
 
 ## Multi-model workflow
