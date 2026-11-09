@@ -1,5 +1,7 @@
 # Bringing the UW Filler package into the Underwrite tab
 
+> **Superseded in part (2026-11-09):** the owner asked for the filler to be used as it is, with its UI unchanged. See `docs/proposals/uw-embed-as-is.md`. UW-0, UW-1 and UW-2 stay; UW-3 to UW-11 as rebuilds are replaced by that plan.
+
 Designer proposal, 2026-11-07, on main at 4.7.109 (`701c4fa`). Docs only:
 nothing is built. The owner approves before any PR starts.
 
