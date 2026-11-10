@@ -1,7 +1,7 @@
 # All-in-one real estate platform: research, connectivity matrix and roadmap
 
-Status: **research and proposal, docs only, 2026-11-10. Nothing in the plan or build order changes until the
-owner approves.** Nothing is built. No app code, version or test was touched.
+Status: **research and proposal, docs only, 2026-11-10. Approved by the owner 2026-11-10 with the recommended
+answer to all five questions (section 6): free only until items 1-17 are done; professional-first.** Nothing is built. No app code, version or test was touched.
 
 The owner's ask (2026-11-10): Zlatura should rival existing underwriting and CRM systems, connect with the ones people
 already use, and be a one-stop shop for brokers, investors, developers, home owners, lenders, sellers, buyers and

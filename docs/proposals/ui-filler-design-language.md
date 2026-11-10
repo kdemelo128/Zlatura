@@ -1,6 +1,6 @@
 # The filler's design language across the rest of Zlatura
 
-**Status: proposed. Nothing is built.** Docs only; no file in `app/` changes.
+**Status: approved by the owner 2026-11-10, with the recommended answer to all eight questions (section 8). Nothing is built yet.** Docs only; no file in `app/` changes.
 Written 2026-11-10 against 4.7.122 (`main` c1540ca). The owner approves it
 before any code is written. It builds on `ui-revamp.md` (approved),
 `ui-revamp-addendum.md` (D1 and D2 built: `app/look.js`, `app/theme.js`,

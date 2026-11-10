@@ -67,6 +67,9 @@ section with grep, never in full.
   2. Stop and ask only for: a decision not yet made, a data-format change, a
      figure that would change, a check that can't be fixed, or the end of the
      queue. Never merge; the owner merges or turns on auto-merge.
+     **Changed by the owner 2026-11-10:** Claude may merge its own PRs once every check is green and there
+     is no conflict (squash, as before). It still stops for the owner before any change to saved-deal
+     data or the data format.
   3. `check:full` runs in the background (in a separate worktree if the next
      item is started meanwhile), only for PRs that touch `app/` or `tests/`;
      docs or CI-config-only PRs run `check:quick` and rely on GitHub CI.

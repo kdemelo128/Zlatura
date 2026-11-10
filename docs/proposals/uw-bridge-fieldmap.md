@@ -2,7 +2,7 @@
 
 The designer note that `uw-embed-as-is.md` (sections 5, 8 and 9) requires
 before **P3, Bridge in**, is built. It also previews the way back (P5), which
-gets its own gate. **Status: proposed. Nothing is built.** Every name and
+gets its own gate. **Status: approved by the owner 2026-11-10, with the recommended answer to all five questions. Nothing is built yet.** Every name and
 figure here is invented. Package paths are written `pkg/<file>:<line>` and
 mean `private/uw-claude-zip/x/public/tool/<file>`. The package is private:
 this note lists only field names and units (structure). No code, figures,
