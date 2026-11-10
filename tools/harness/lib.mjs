@@ -2,7 +2,11 @@
 import { readFileSync } from 'node:fs';
 
 export function loadWorkers(path = new URL('./workers.json', import.meta.url)) {
-  const cfg = JSON.parse(readFileSync(path, 'utf8'));
+  return validateCfg(JSON.parse(readFileSync(path, 'utf8')));
+}
+
+/** Every role names known workers and every kind names a known role (throws otherwise). Returns cfg. */
+export function validateCfg(cfg) {
   const ids = new Set(cfg.workers.map((w) => w.id));
   for (const [role, r] of Object.entries(cfg.roles)) {
     for (const id of [r.primary, ...(r.fallbacks ?? []), ...(r.reviewer ? [r.reviewer] : [])]) {
@@ -13,6 +17,21 @@ export function loadWorkers(path = new URL('./workers.json', import.meta.url)) {
     if (!cfg.roles[role]) throw new Error(`kind ${kind}: unknown role ${role}`);
   }
   return cfg;
+}
+
+// Always protected, whatever a project's own config says: the private folder, secrets, git internals and CI.
+export const HARD_PROTECTED = ['private/', '.env', '.git/', '.github/'];
+
+/** A copy of cfg for ONE project: its own protected paths (or the shared list), its extra protected and design-required
+ *  paths, and the hard floor above. Every project name a card may use resolves to this one profile. */
+export function applyProfile(cfg, profile) {
+  if (!profile) return cfg;
+  const prof = { extraProtected: [...(profile.extraProtected ?? [])], requiresDesign: [...(profile.requiresDesign ?? [])] };
+  return {
+    ...cfg,
+    protectedPaths: [...new Set([...(profile.protectedPaths ?? cfg.protectedPaths), ...HARD_PROTECTED])],
+    projects: { ...Object.fromEntries(Object.keys(cfg.projects ?? {}).map((k) => [k, prof])), default: prof },
+  };
 }
 
 // Pick a worker for a task kind. `available` (a Set of worker ids) lets a worker that is

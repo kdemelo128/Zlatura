@@ -9,14 +9,15 @@
 // Never pushes, never merges. Claude reviews the branch and runs the gates; the owner merges.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { loadWorkers, route, parseCard, buildPacket, validateDiff, findSecret } from './lib.mjs';
+import { loadWorkers, applyProfile, route, parseCard, buildPacket, validateDiff, findSecret } from './lib.mjs';
 import { CONNECTORS, connectorFor } from './connectors/index.mjs';
 
 const argv = process.argv.slice(2);
 const flag = (n) => { const i = argv.indexOf(n); if (i < 0) return null; const v = argv[i + 1]; argv.splice(i, 2); return v; };
 const availableArg = flag('--available');
 const [cmd, cardPath, workerArg, replyPath] = argv;
-const cfg = loadWorkers();
+// The hub passes the chosen project's own protected paths here (HARNESS_PROFILE, JSON); a bad value stops the run.
+const cfg = process.env.HARNESS_PROFILE ? applyProfile(loadWorkers(), JSON.parse(process.env.HARNESS_PROFILE)) : loadWorkers();
 const sh = (args, o = {}) => spawnSync(args[0], args.slice(1), { encoding: 'utf8', ...o });
 const byId = (id) => cfg.workers.find((w) => w.id === id) || (() => { throw new Error(`unknown worker ${id}`); })();
 
