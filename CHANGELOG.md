@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.7.127: Macro workbooks are refused with the real reason, and a workbook with both a rent roll and a statement is offered as both (on the development branch; not merged or deployed)
+
+Two reader fixes from the first round of the owner's documents (`docs/proposals/document-learning-round-1.md`).
+
+- **Macro workbooks:** a workbook that holds macros is refused in the rent roll import, the T-12 import, the comps import and Start from documents, with a message that says it has macros, that macros are never run, and to save a copy as .xlsx. Before, such a file could be read, or fail as "damaged or password protected". It is judged by what is inside the file, not its name. Convert still opens these workbooks as before.
+- **Both in one workbook:** when a workbook holds a rent roll sheet and an operating statement sheet, Start from documents now lists it twice, "Use as rent roll" and "Use as T-12"; each goes through its own import with its sheet picker, checks and Undo. Before, it asked one question and read nothing. Four of the owner's files were this kind (a count).
+- **Tested:** 9 new tests on invented workbooks; the new-behaviour tests fail on the old code. Displayed figures unchanged (646 compared, 0 changed). No browser flow was run for these; the screens' own code did not change.
+
 ## 4.7.126: The New look now carries your underwriting tool's design: its colours, type and base parts (on the development branch; not merged or deployed)
 
 Step 1 of taking the underwriting tool's design across Zlatura (`docs/proposals/ui-filler-design-language.md`). Only the New look changes (Settings, Look); the Classic look is unchanged, and nothing switches by default.
