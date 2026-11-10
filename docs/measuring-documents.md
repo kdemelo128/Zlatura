@@ -31,6 +31,22 @@ No file name, tenant, address or figure is printed. Files appear as `file-01`,
 folder (inside `private/`) so you can tell which is which. `--verbose-files`
 adds one line of counts per file.
 
+**Why did a file end where it did?** Add `--reasons`. After the table you get
+`reason | files` and `family | reason | files`, counts only. The codes come
+from the app's own code paths: `zip-not-opened`, `zip-not-workbook`,
+`docx-later`, `old-xls`, `old-doc`, `encrypted`, `too-big`, `macro-flag`,
+`sheet-read-failed:<error class>` and `pdf-read-failed:<error class>` (the
+class only, such as `RangeError`, never a message), `no-text-layer:<characters
+bucket>`, `no-reader-for-type:<type>`, `both-readers-accept`,
+`text-names-reader-type:<type>`, `om-wording-also-other-type`,
+`classifier-broad:<N> candidates`, `unknown-title` and `word-narrative` (a long
+text with few digits and no title the classifier knows: a prose narrative, a
+heuristic). A file also gets shape buckets, never exact counts: `pages:`,
+`sheets:` and `hidden-sheets:`. A file the classifier typed confidently but for
+which the app has no reader (a budget, a pricing summary, a projection) is
+counted as **identified, no reader**, an extra last column, rather than as
+asked or refused. Without `--reasons` the output is exactly as before.
+
 ## 2. Do the numbers agree?  `uw-oracle`
 
 `node tests/tools/uw-oracle.mjs` runs three invented deals (price, NOI, loan,
