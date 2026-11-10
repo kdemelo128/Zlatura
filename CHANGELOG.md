@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.7.124: Three planning documents: your tool's look for the whole app, how figures move to and from your tool, and what an all-in-one product needs (on the development branch; not merged or deployed)
+
+Documents only; no app change, nothing built until you approve.
+
+- **Look and feel** (`docs/proposals/ui-filler-design-language.md`): the underwriting tool's design (warm off-white, plum accent, soft cards, the four-step flow) recorded as rules and carried to every other Zlatura screen, behind the existing New look switch, one area per pull request. It also lists what to do better than the tool does today: readable contrast, no tiny text, 44 px touch targets, glass only on floating controls, and matching light or dark. It has eight questions for you; three of them reverse earlier look decisions (palette, fonts, glass), and the fonts are new files to add.
+- **The bridge** (`docs/proposals/uw-bridge-fieldmap.md`): the note needed before figures can move between Zlatura and the tool: 40 mapped fields with their units (the tool holds rent per month and rates as decimals), blanks kept blank, one deal's project never shown under another, and the tests the build must pass. Five questions for you.
+- **All-in-one research** (`docs/proposals/all-in-one-research.md`): what the leading underwriting, deal, brokerage, investor and data tools do, a table of 35 outside systems with the lawful way to connect to each (12 free from the browser, 5 through your own account, 9 by files you export yourself, 6 only with a paid licence or partnership, 3 not to be connected), and a 20-item order of work mapped onto the existing plan. Written from search summaries; no vendor site was opened, and each unverified cell is marked.
+
 ## 4.7.123: A workbook with a date cell that can't be read is no longer refused whole (on the development branch; not merged or deployed)
 
 A spreadsheet can hold a date cell whose stored number is no real date. One such cell made the rent roll and T-12 imports refuse the whole workbook ("Invalid time value"). In the owner's own document folder, 7 workbooks failed this way (a count from the scoreboard; nothing from those files is kept).
