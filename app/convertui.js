@@ -287,7 +287,7 @@ export function openConvert(api) {
     }
     if (m.id === 'xlsx-csv') {
       let wb;
-      try { wb = await loadXlsx(file, getXlsx, info); } catch (e) { throw new Error(String(e.message).startsWith(name) ? e.message : `${name}: ${e.message}`); }
+      try { wb = await loadXlsx(file, getXlsx, info, { allowMacros: true }); } catch (e) { throw new Error(String(e.message).startsWith(name) ? e.message : `${name}: ${e.message}`); }
       stopped(ctl);
       const { sheets, notes } = workbookToCsvs(wb);
       if (!sheets.length) throw new Error(`${name} has no visible sheet to convert.${notes.length ? ` ${notes.join(' ')}` : ''}`);

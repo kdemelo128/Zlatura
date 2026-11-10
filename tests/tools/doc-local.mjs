@@ -137,6 +137,7 @@ async function reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridE
   else if (k === 'ole') out.push('ole-unknown');
   else if (k === 'unknown') out.push('binary-unknown');
   else if (upRes.refuse && /^That file is \d/.test(upRes.refuse)) out.push('too-big');
+  else if (k === 'xlsx' && upRes.macros) out.push('macro-flag'); // refused by content (sheetread.js loadXlsx): its sheets are not opened, so no shape either
   else if (intakeErr) out.push(`${k === 'pdf' ? 'pdf' : 'sheet'}-read-failed:${errClass(intakeErr)}`);
   else if (k === 'pdf' && !pages) out.push(`pdf-read-failed:${errClass(pdfErr)}`);
   else if ((k === 'xlsx' || k === 'text') && !grids && gridErr) out.push(`sheet-read-failed:${errClass(gridErr)}`);
@@ -153,9 +154,8 @@ async function reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridE
     const t = pages.pages.join('').replace(/\s/g, '');
     out.push(t.length / Math.max(pages.pages.length, 1) >= 2000 && (t.match(/\d/g) || []).length / Math.max(t.length, 1) < 0.1 ? 'word-narrative' : 'unknown-title');
   } else out.push('unknown-title');
-  if (upRes.macros) out.push('macro-flag');
   if (k === 'pdf' && info.pages) out.push(`pages:${bucket(info.pages, PAGE_BUCKETS)}`);
-  if (k === 'xlsx') {
+  if (k === 'xlsx' && !upRes.macros) {
     let all = grids; // the shape counts hidden sheets too; the readers' own read above is untouched
     try { all = await readGrids(file, getXlsx, { maxRows: 1, includeHidden: true, getFflate }); } catch { /* the shape of an unreadable workbook is unknown */ }
     if (all) { out.push(`sheets:${bucket(all.length, SHEET_BUCKETS)}`); out.push(`hidden-sheets:${bucket(all.filter((g) => g.hidden).length, HIDDEN_BUCKETS)}`); }

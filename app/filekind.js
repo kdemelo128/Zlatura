@@ -48,6 +48,9 @@ export function zipKind(bytes, unzipSync) {
   return { kind: 'zip', macros: false, refuse: null };
 }
 
+/** Why a workbook with macros is not imported (checked on its parts, never its name). */
+export const MACRO_REFUSAL = 'That workbook has macros. Zlatura never runs macros, so it does not read a workbook that has them. Save a copy as .xlsx in Excel and import that.';
+
 const MISMATCH = 'That file’s parts are not the size the file says they are, which is how a decompression bomb looks. It was not opened.';
 const BAD_ZIP = 'That file could not be opened as an Excel workbook. It may be damaged, password protected or not really .xlsx.';
 

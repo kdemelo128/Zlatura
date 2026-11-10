@@ -2,7 +2,7 @@
  * the rent roll import and the T-12 import both start here. Pure apart from
  * readGrids(), which loads ExcelJS when a workbook needs it. */
 import { readText } from './textfile.js';
-import { checkUpload, hardenZip } from './filekind.js';
+import { checkUpload, hardenZip, MACRO_REFUSAL } from './filekind.js';
 
 /** A date cell that holds no real date (a workbook can store a serial no calendar has), directly or as a formula's result. */
 export function badDate(v) {
@@ -94,7 +94,7 @@ export function pastedRows(text) {
 /** Files a spreadsheet import refuses, with what to do instead; null when it can be read. */
 export function unreadable(file, what) {
   if (/\.xls$/i.test(file.name)) return `That is an old .xls file. Open it in Excel and save it as .xlsx (or CSV), then import it.`;
-  if (/\.xlsm$/i.test(file.name)) return `That workbook has macros. Save a copy as .xlsx or CSV to import its ${what}.`;
+  if (/\.xlsm$/i.test(file.name)) return `${MACRO_REFUSAL} (to import its ${what})`;
   return null;
 }
 export const isCsv = (file) => /\.csv$/i.test(file.name) || file.type === 'text/csv';
@@ -111,12 +111,13 @@ export function guardedBuffer(buffer, fflate) {
  * checked (filekind.js): `up` is checkUpload's result, or it is run here.
  * Throws the reason when the file is refused or can't be opened.
  */
-export async function loadXlsx(file, getXlsx, up = null) {
+export async function loadXlsx(file, getXlsx, up = null, { allowMacros = false } = {}) {
   const { ExcelJS, fflate } = await getXlsx();
   const NOT_XLSX = 'That file could not be opened as an Excel workbook. It may be damaged, password protected or not really .xlsx.';
   up = up || await checkUpload(file, { getFflate: async () => fflate });
   if (up.refuse) throw new Error(up.refuse);
   if (up.kind !== 'xlsx') throw new Error(NOT_XLSX);
+  if (up.macros && !allowMacros) throw new Error(MACRO_REFUSAL); // refused by content, before ExcelJS sees it: macros are never run and their values are not read
   const buffer = up.guarded ? up.buffer : guardedBuffer(up.buffer || await file.arrayBuffer(), fflate);
   const wb = new ExcelJS.Workbook();
   try { await wb.xlsx.load(buffer); } catch { throw new Error(NOT_XLSX); }

@@ -71,13 +71,12 @@ test('[old] an .xlsx saved with a .csv name is read as a workbook', async () => 
   assert.ok(g[0].rows.length > 10);
 });
 
-test('[old] an .xlsm (a workbook with macros) is read, and says it has macros', async () => {
+test('an .xlsm (a workbook with macros) is refused by readGrids with the macro reason; a plain .xlsx is read', async () => {
   const bytes = await layoutFile(LAYOUTS[1], ExcelJS);
   const z = fflate.unzipSync(bytes);
   z['xl/vbaProject.bin'] = Uint8Array.from([1, 2, 3, 4]);
-  const g = await readGrids(new File([fflate.zipSync(z)], 'statement.xlsm'), getXlsx, { getFflate });
-  assert.equal(g[0].macros, true);
-  assert.ok(g[0].rows.length > 10);
+  await assert.rejects(readGrids(new File([fflate.zipSync(z)], 'statement.xlsm'), getXlsx, { getFflate }), /never runs macros/);
+  await assert.rejects(readGrids(new File([fflate.zipSync(z)], 'renamed.xlsx'), getXlsx, { getFflate }), /never runs macros/);
   const plain = await readGrids(new File([bytes], 'statement.xlsx'), getXlsx, { getFflate });
   assert.equal(plain[0].macros, false);
 });
