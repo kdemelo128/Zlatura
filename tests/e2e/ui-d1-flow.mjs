@@ -20,7 +20,7 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
     return { filter: s.backdropFilter || s.webkitBackdropFilter || 'none', bg: s.backgroundColor, ui: getComputedStyle(document.body).fontFamily };
   });
   const c = await bars();
-  check(`${size}: Classic is the default (no data-look) and its bar still blurs`, (await page.getAttribute('html', 'data-look')) === null && /blur/.test(c.filter) && !/^"?Public Sans/.test(c.ui), JSON.stringify(c));
+  check(`${size}: Classic is the default (no data-look) and its bar still blurs`, (await page.getAttribute('html', 'data-look')) === null && /blur/.test(c.filter) && !/^"?IBM Plex Sans/.test(c.ui), JSON.stringify(c));
 
   // turn it on in Settings
   await page.evaluate(() => { location.hash = '#settings'; });
@@ -38,8 +38,8 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
     await page.evaluate(() => document.fonts.ready);
     const b = await bars();
     const solid = /^rgb\(/.test(b.bg) && b.filter === 'none';
-    check(`${size}, ${scheme}: the bar is solid (no blur, opaque) and our sans comes first`, solid && /^"?Public Sans/.test(b.ui), JSON.stringify(b));
-    const want = scheme === 'light' ? 'rgb(244, 245, 247)' : 'rgb(17, 19, 22)';
+    check(`${size}, ${scheme}: the bar is solid (no blur, opaque) and our sans comes first`, solid && /^"?IBM Plex Sans/.test(b.ui), JSON.stringify(b));
+    const want = scheme === 'light' ? 'rgb(247, 244, 239)' : 'rgb(33, 30, 37)';
     check(`${size}, ${scheme}: the page takes the New look's colour`, (await page.evaluate(() => getComputedStyle(document.body).backgroundColor)) === want, want);
     for (const v of ['home', 'deal', 'comps', 'tools', 'settings']) {
       await page.evaluate((x) => { location.hash = `#${x}`; }, v);
@@ -53,11 +53,11 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
       check(`${size}, ${scheme}: axe on ${v} finds nothing`, res.length === 0, res.join('\n    '));
     }
   }
-  // the serif face is the vendored one: a title in the New look loads it
+  // the sans face is the vendored one: a title in the New look loads it
   await page.evaluate(() => { location.hash = '#settings'; });
   await page.waitForTimeout(300);
-  const serif = await page.evaluate(async () => { await document.fonts.load('600 24px "Zlatura Serif"'); return document.fonts.check('600 24px "Zlatura Serif"') && [...document.fonts].some((f) => f.family.includes('Zlatura Serif') && f.status === 'loaded'); });
-  check(`${size}: the vendored Source Serif 4 loads in the New look`, serif);
+  const plex = await page.evaluate(async () => { await document.fonts.load('600 24px "IBM Plex Sans"'); return document.fonts.check('600 24px "IBM Plex Sans"') && [...document.fonts].some((f) => f.family.includes('IBM Plex Sans') && f.status === 'loaded'); });
+  check(`${size}: the vendored IBM Plex Sans loads in the New look`, plex);
   check(`${size}: nothing was requested outside the app`, ext.length === 0, ext.join(', '));
 
   // and back

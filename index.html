@@ -26,6 +26,8 @@
   } catch (e) { /* storage blocked: follow the system */ }
   /* The look the person chose (Settings > Appearance): Classic unless they turned the New look on. */
   try { if (localStorage.getItem('zlatura.look') === 'new') document.documentElement.dataset.look = 'new'; } catch (e) { /* Classic */ }
+  /* Solid controls (Settings > Appearance): the New look's floating controls opaque. Only the New look reads it. */
+  try { if (localStorage.getItem('zlatura.solid') === '1') document.documentElement.dataset.solid = '1'; } catch (e) { /* frosted */ }
 </script>
 <title>Zlatura</title>
 <meta name="description" content="Zlatura, a commercial real estate brokerage workspace. Every source. Every assumption. Every number. Offering memoranda read and underwritten, comps, rent rolls, your firm's Excel models and the calculators a deal needs, on your device.">
@@ -343,12 +345,12 @@
       if (bad.length) noteFailure(bad.join(', '), 'could not be downloaded; a content blocker or the connection may be the cause');
     }).catch(function () {});
   }
-  /* Clears the offline copy only: the service worker and Cache Storage. Deals live in IndexedDB and
+  /* Clears the offline copy only: the service worker and Cache Storage (not the underwriting filler the broker loaded). Deals live in IndexedDB and
      localStorage and are never touched. */
   document.getElementById('load-error-reset').addEventListener('click', function () {
     var go = function () { location.reload(); };
     var regs = navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }) : Promise.resolve();
-    regs.catch(function () {}).then(function () { return window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }) : 0; }).catch(function () {}).then(go);
+    regs.catch(function () {}).then(function () { return window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return k !== 'zlatura-uwfiller'; }).map(function (k) { return caches.delete(k); })); }) : 0; }).catch(function () {}).then(go);
   });
 </script>
 <script>

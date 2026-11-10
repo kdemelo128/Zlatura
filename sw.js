@@ -26,7 +26,7 @@
  * a cache of its own, named for its version and kept across app updates: after
  * the first use it works offline too. Before that, offline, it says it needs
  * a connection once. */
-const VERSION = '4.7.124';
+const VERSION = '4.7.126';
 const CACHE = `zlatura-${VERSION}`;
 const ASSETS = [
   './',
@@ -62,6 +62,9 @@ const ASSETS = [
   'app/deal.js',
   'app/dealui.js',
   'app/uwstore.js',
+  'app/uwfiller/hashes.js',
+  'app/uwfiller/pkg.js',
+  'app/uwfiller/ui.js',
   'app/units.js',
   'app/underwrite.js',
   'app/intake.js',
@@ -169,6 +172,11 @@ const ASSETS = [
   'fonts/public-sans-latin-700-normal.woff2',
   'fonts/source-serif-4-latin-400-normal.woff2',
   'fonts/source-serif-4-latin-600-normal.woff2',
+  'fonts/ibm-plex-sans-latin-400-normal.woff2',
+  'fonts/ibm-plex-sans-latin-500-normal.woff2',
+  'fonts/ibm-plex-sans-latin-600-normal.woff2',
+  'fonts/ibm-plex-mono-latin-400-normal.woff2',
+  'fonts/ibm-plex-mono-latin-500-normal.woff2',
 ];
 
 const IMMUTABLE = /\/(vendor|fonts|icons)\//;
@@ -176,6 +184,14 @@ const IMMUTABLE = /\/(vendor|fonts|icons)\//;
 const OCR = /\/vendor\/ocr\//;
 const OCR_CACHE = 'zlatura-ocr-tesseract-7.0.0';
 const NETWORK_WAIT_MS = 3500;
+// the underwriting filler the broker loaded from their own zip (app/uwfiller/): never in the install set, never
+// fetched from the network, kept across app updates, and answered only with the policy below
+const UW_CACHE = 'zlatura-uwfiller';
+const UW_CSP = [
+  "script-src 'self'", "worker-src 'self' blob:", "style-src 'self' 'unsafe-inline'", "font-src 'self'",
+  "img-src 'self' data: blob:", "connect-src 'self' blob: data:", "frame-ancestors 'self'",
+  "object-src 'none'", "base-uri 'none'", "form-action 'none'",
+].join('; ');
 
 self.addEventListener('install', (e) => {
   // cache: 'reload' skips the browser's HTTP cache (GitHub Pages lets it keep a
@@ -188,7 +204,7 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== OCR_CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== OCR_CACHE && k !== UW_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -236,8 +252,22 @@ function ocrFile(request) {
   })));
 }
 
+/* A file of the filler package, from its bucket and nowhere else: a miss is a page saying to load the package, never a
+ * network request. The Content-Security-Policy header is added here, so the package's own bytes stay as they were. */
+function uwFile(request, url) {
+  const headers = (type) => ({ 'content-type': type, 'content-security-policy': UW_CSP, 'x-content-type-options': 'nosniff', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
+  const missing = () => new Response('<!doctype html><meta charset="utf-8"><title>Filler not loaded</title><p>The underwriting filler is not loaded on this device. Load the package from the Underwrite tab.</p>', { status: 404, headers: headers('text/html; charset=utf-8') });
+  const path = url.pathname.endsWith('/') ? `${url.pathname}index.html` : url.pathname;
+  return caches.open(UW_CACHE).then((c) => c.match(new Request(url.origin + path))).then((hit) => {
+    if (!hit) return missing();
+    return hit.arrayBuffer().then((body) => new Response(body, { status: 200, headers: headers(hit.headers.get('content-type') || 'application/octet-stream') }));
+  }).catch(missing);
+}
+const UW_ROOT = () => new URL('uw-filler/', self.registration.scope).pathname;
+
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith(UW_ROOT())) { e.respondWith(uwFile(e.request, url)); return; }
   e.respondWith(OCR.test(url.pathname) ? ocrFile(e.request) : IMMUTABLE.test(url.pathname) ? cacheFirst(e.request) : networkFirst(e.request));
 });

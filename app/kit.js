@@ -3,7 +3,7 @@
  * a finished file to the person. */
 
 import { signOf } from './numtext.js';
-import { icon } from './icons.js';
+import { icon, hydrateIcons } from './icons.js';
 
 export const $ = (id) => document.getElementById(id);
 export const el = (tag, cls, text) => {
@@ -224,6 +224,80 @@ export function actionSheet(title, items) {
     dlg.addEventListener('click', (e) => { if (e.target === dlg) done(null); });
     openSheet(dlg);
   });
+}
+
+/* ------------------------------------------------- base components */
+/* The New look's shared pieces (styles in styles.css: .stepper-bar, .dropzone, .chip, .notice). The notice's icon is drawn by
+ * hydrateIcons (icons.js), so this file gains no HTML sink. */
+
+/**
+ * A step bar: a row of numbered steps on a wide screen, "Step n of N: name" with Back and Next on a phone.
+ * `current` is 0-based; with `onStep` the steps are buttons (a step you cannot go back to should not be offered).
+ * @param {string[]} steps @param {number} current @param {{ onStep?: (i: number) => void, label?: string }} [opts]
+ */
+export function stepper(steps, current, { onStep = null, label = 'Steps' } = {}) {
+  const nav = el('nav', 'stepper stepper-bar');
+  nav.setAttribute('aria-label', label);
+  const ol = el('ol', 'stepper-list');
+  steps.forEach((name, i) => {
+    const li = el('li');
+    const s = el(onStep ? 'button' : 'span', `step${i < current ? ' done' : ''}`);
+    if (onStep) { s.type = 'button'; s.addEventListener('click', () => onStep(i)); }
+    if (i === current) s.setAttribute('aria-current', 'step');
+    s.append(el('span', 'step-n', String(i + 1)), el('span', null, name));
+    li.appendChild(s);
+    ol.appendChild(li);
+  });
+  const phone = el('div', 'stepper-phone');
+  const go = (text, to) => { const b = el('button', 'btn', text); b.type = 'button'; b.disabled = to < 0 || to >= steps.length || !onStep; b.addEventListener('click', () => onStep && onStep(to)); return b; };
+  phone.append(go('Back', current - 1), el('p', 'step-of', `Step ${current + 1} of ${steps.length}: ${steps[current]}`), go('Next', current + 1));
+  nav.append(ol, phone);
+  return nav;
+}
+
+/**
+ * A place to drop files that is also a real button opening the picker. Nothing is read here: `onFiles` gets the files.
+ * @param {{ title: string, hint?: string, accept?: string, multiple?: boolean, onFiles: (files: File[]) => void }} o
+ */
+export function dropZone({ title, hint = '', accept = '', multiple = false, onFiles }) {
+  const wrap = el('div', 'dropzone');
+  const input = el('input');
+  input.type = 'file';
+  input.tabIndex = -1;
+  input.setAttribute('aria-hidden', 'true');
+  if (accept) input.accept = accept;
+  input.multiple = multiple;
+  const b = el('button', 'dropzone-btn');
+  b.type = 'button';
+  b.append(el('span', 'dropzone-title', title));
+  if (hint) b.appendChild(el('span', 'dropzone-sub', hint));
+  b.addEventListener('click', () => input.click());
+  const take = (list) => { const f = [...(list || [])]; if (f.length) onFiles(multiple ? f : f.slice(0, 1)); };
+  input.addEventListener('change', () => { take(input.files); input.value = ''; });
+  wrap.addEventListener('dragover', (e) => { e.preventDefault(); wrap.classList.add('over'); });
+  wrap.addEventListener('dragleave', () => wrap.classList.remove('over'));
+  wrap.addEventListener('drop', (e) => { e.preventDefault(); wrap.classList.remove('over'); take(e.dataTransfer && e.dataTransfer.files); });
+  wrap.append(b, input);
+  return wrap;
+}
+
+const CHIP = { good: 'chip-good', warn: 'chip-warn', bad: 'chip-bad', plain: 'chip-plain', accent: 'chip-accent' };
+/** A status chip: a shape (drawn by the style) and a word; the colour is the last signal. `kind`: good, warn, bad, plain or accent. */
+export const statusChip = (kind, word) => el('span', `chip ${CHIP[kind] || CHIP.plain}`, word);
+
+const NOTICE = { info: ['notice-info', 'info'], good: ['notice-good', 'check'], warn: ['notice-warn', 'warn'], bad: ['notice-bad', 'warn'] };
+/** A notice: an icon, a sentence and, when there is one, the next step as a button. No side stripe. */
+export function notice(kind, text, action = null) {
+  const [cls, ic] = NOTICE[kind] || NOTICE.info;
+  const n = el('div', `notice ${cls}`);
+  n.setAttribute('role', kind === 'bad' ? 'alert' : 'status');
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '18'); svg.setAttribute('height', '18'); svg.dataset.icon = ic;
+  n.appendChild(svg);
+  hydrateIcons(n);
+  n.appendChild(el('p', 'notice-tx', text));
+  if (action) { const b = el('button', 'btn btn-sm notice-act', action.label); b.type = 'button'; b.addEventListener('click', action.run); n.appendChild(b); }
+  return n;
 }
 
 /* ---------------------------------------------------------- libraries */

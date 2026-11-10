@@ -117,57 +117,224 @@
 
 /* ====================================================== New look tokens
  * Only under [data-look="new"] (Settings > Appearance > Look); Classic is the
- * rules above, untouched. Cool slate neutrals under one brass accent, solid
- * bars, ink rules instead of shadows, two type families, six sizes
- * (docs/proposals/ui-revamp-addendum.md 3.2-3.4). Every text pair is checked
- * in tests/look-tokens.test.js; the dark values are set twice, as above. */
+ * rules above, untouched. The palette is a warm off-white page, white cards,
+ * one plum accent and three quiet status colours, with IBM Plex Sans (figures
+ * and labels) and Plex Mono (file names and cell references only), large soft
+ * radii, and frosted glass on the floating controls only
+ * (docs/proposals/ui-filler-design-language.md sections 1 and 2). Every text
+ * pair, edge and the worst-case glass are checked in tests/look-tokens.test.js;
+ * the dark values are set twice, as above. */
+/* IBM Plex (OFL-1.1, @fontsource 5.3.0), the New look's faces. A face costs nothing until a rule names it, and
+   only the New look's tokens do. Plex's digits are already tabular. */
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("../fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("../fonts/ibm-plex-sans-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url("../fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("../fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("../fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2"); }
 :root[data-look="new"] {
-  /* type: our faces first, then the system's; sizes in rem so they follow the reader's text size */
-  --ui: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* type: Plex first, then the system's; sizes in rem so they follow the reader's text size; nothing under 13 px (the tab labels keep their 11 px) */
+  --ui: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --display: var(--ui);
-  --serif: "Zlatura Serif", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --serif: var(--ui);
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --fs-cap: .8125rem; --fs-small: .9375rem; --fs-body: 1rem; --fs-h3: 1.1875rem; --fs-h2: 1.5rem; --fs-fig: 1.875rem;
-  --t-11: .6875rem; --t-12: .8125rem; --t-13: .8125rem; --t-14: .9375rem; --t-15: 1rem; --t-17: 1rem; --t-20: 1.1875rem; --t-24: 1.5rem; --t-30: 1.5rem; --t-36: 1.875rem;
+  --t-11: .8125rem; --t-12: .8125rem; --t-13: .8125rem; --t-14: .9375rem; --t-15: 1rem; --t-17: 1rem; --t-20: 1.1875rem; --t-24: 1.5rem; --t-30: 1.5rem; --t-36: 1.875rem;
   /* radius by the size of the thing */
-  --r-xs: 6px; --r-sm: 8px; --r-md: 10px; --r: 14px; --r-lg: 14px;
-  --bg: #F4F5F7; --side: #FFFFFF; --surface: #FFFFFF; --surface-2: #ECEEF1; --surface-3: #E1E4E9; --fill: rgba(20, 24, 29, .06);
-  --ink: #14181D; --muted: #4E5661; --faint: #5F6773; --line: #DFE3E8; --line-strong: #868E99;
-  --primary: #8A6118; --primary-ink: #FFFFFF; --accent: #8A6118; --accent-ink: #FFFFFF; --accent-soft: #F4EEE3;
-  --brass: #8A6118; --brass-mark: #8A6118; --brass-soft: #F4EEE3;
-  --good: #0F7356; --warn: #93500A; --critical: #B42318;
+  --r-xs: 6px; --r-sm: 8px; --r-md: 12px; --r: 16px; --r-lg: 22px; --r-pill: 999px;
+  /* motion: one more step, for panels entering (off with reduced motion) */
+  --d3: 260ms;
+  /* glass: floating controls only, 92% or more opaque, one blur (see "glass" below) */
+  --blur: 20px;
+  --bg: #F7F4EF; --side: #FFFDF9; --surface: #FFFDF9; --surface-2: #F5F0EB; --surface-3: #ECE5E0; --fill: rgba(53, 43, 53, .06);
+  --ink: #352B35; --muted: #62575F; --faint: #6B5F69; --line: #E5DCE1; --line-strong: #8A7D88; --edge: #8A7D88;
+  --primary: #78516C; --primary-ink: #FFF9F4; --accent: #78516C; --accent-ink: #FFF9F4; --accent-soft: #F1E7EE;
+  /* brass is a swatch for the accent choice; in this look the names carry the plum */
+  --brass: #78516C; --brass-mark: #78516C; --brass-soft: #F1E7EE;
+  --good: #47785D; --warn: #906122; --critical: #A74F58;
+  --good-soft: #EDF4E9; --warn-soft: #FFF2DB; --critical-soft: #FFF0ED;
+  /* four tones and washes: tool and workspace tiles only, never data or status */
+  --tone-1: #78516C; --wash-1: #F1E7EE; --tone-2: #43705A; --wash-2: #E9F0EA; --tone-3: #8F5A2B; --wash-3: #FBEBDD; --tone-4: #9A4A5C; --wash-4: #F8E6EA;
   --sale: #0072B2; --list: #B85000; --trend: #5F6570;
-  --shadow: none; --shadow-md: none; --shadow-lg: 0 8px 28px rgba(20, 24, 29, .16), 0 1px 3px rgba(20, 24, 29, .10);
-  --bar: #F4F5F7; --scrim: rgba(18, 18, 16, .38);
+  --shadow: none; --shadow-md: none; --shadow-lg: 0 12px 34px rgba(53, 43, 53, .08), 0 2px 6px rgba(53, 43, 53, .05);
+  --glass: rgba(255, 253, 249, .92); --glint: inset 0 1px 0 rgba(255, 255, 255, .75);
+  --bar: #F7F4EF; --scrim: rgba(33, 30, 37, .4);
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root[data-look="new"]:not([data-theme="light"]) {
-    --bg: #111316; --side: #171A1E; --surface: #171A1E; --surface-2: #1F2328; --surface-3: #2A2F36; --fill: rgba(255, 255, 255, .07);
-    --ink: #E8EAED; --muted: #A9B0B9; --faint: #8F96A0; --line: #2B3037; --line-strong: #6E7682;
-    --primary: #DDB466; --primary-ink: #111316; --accent: #DDB466; --accent-ink: #111316; --accent-soft: #2A261D;
-    --brass: #DDB466; --brass-mark: #DDB466; --brass-soft: #2A261D;
-    --good: #4DCB97; --warn: #F0AB52; --critical: #FF7A70;
+    --bg: #211E25; --side: #2C2730; --surface: #2C2730; --surface-2: #342D38; --surface-3: #3D3541; --fill: rgba(255, 255, 255, .07);
+    --ink: #F5E9EF; --muted: #C3AEBA; --faint: #B3A0AB; --line: #4D414E; --line-strong: #8D818E; --edge: #8D818E;
+    --primary: #D7A1BB; --primary-ink: #30212D; --accent: #D7A1BB; --accent-ink: #30212D; --accent-soft: #3A2B36;
+    --brass: #D7A1BB; --brass-mark: #D7A1BB; --brass-soft: #3A2B36;
+    --good: #A4C59B; --warn: #EDC58D; --critical: #F0A4AA;
+    --good-soft: #2C3A31; --warn-soft: #3D3326; --critical-soft: #422D32;
+    --tone-1: #D7A1BB; --wash-1: #3A2B36; --tone-2: #A9CDB6; --wash-2: #28352D; --tone-3: #F0BE8C; --wash-3: #3B2F25; --tone-4: #F0A9BA; --wash-4: #3E2A2F;
     --sale: #56B4E9; --list: #E69F00; --trend: #979CA4;
-    --shadow: none; --shadow-md: none; --shadow-lg: 0 10px 32px rgba(0, 0, 0, .55);
-    --bar: #111316; --scrim: rgba(0, 0, 0, .6);
+    --shadow: none; --shadow-md: none; --shadow-lg: 0 12px 34px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .3);
+    --glass: rgba(44, 39, 48, .92); --glint: inset 0 1px 0 rgba(255, 255, 255, .08);
+    --bar: #211E25; --scrim: rgba(0, 0, 0, .6);
     color-scheme: dark;
   }
 }
 :root[data-look="new"][data-theme="dark"] {
-  --bg: #111316; --side: #171A1E; --surface: #171A1E; --surface-2: #1F2328; --surface-3: #2A2F36; --fill: rgba(255, 255, 255, .07);
-  --ink: #E8EAED; --muted: #A9B0B9; --faint: #8F96A0; --line: #2B3037; --line-strong: #6E7682;
-  --primary: #DDB466; --primary-ink: #111316; --accent: #DDB466; --accent-ink: #111316; --accent-soft: #2A261D;
-  --brass: #DDB466; --brass-mark: #DDB466; --brass-soft: #2A261D;
-  --good: #4DCB97; --warn: #F0AB52; --critical: #FF7A70;
+  --bg: #211E25; --side: #2C2730; --surface: #2C2730; --surface-2: #342D38; --surface-3: #3D3541; --fill: rgba(255, 255, 255, .07);
+  --ink: #F5E9EF; --muted: #C3AEBA; --faint: #B3A0AB; --line: #4D414E; --line-strong: #8D818E; --edge: #8D818E;
+  --primary: #D7A1BB; --primary-ink: #30212D; --accent: #D7A1BB; --accent-ink: #30212D; --accent-soft: #3A2B36;
+  --brass: #D7A1BB; --brass-mark: #D7A1BB; --brass-soft: #3A2B36;
+  --good: #A4C59B; --warn: #EDC58D; --critical: #F0A4AA;
+  --good-soft: #2C3A31; --warn-soft: #3D3326; --critical-soft: #422D32;
+  --tone-1: #D7A1BB; --wash-1: #3A2B36; --tone-2: #A9CDB6; --wash-2: #28352D; --tone-3: #F0BE8C; --wash-3: #3B2F25; --tone-4: #F0A9BA; --wash-4: #3E2A2F;
   --sale: #56B4E9; --list: #E69F00; --trend: #979CA4;
-  --shadow: none; --shadow-md: none; --shadow-lg: 0 10px 32px rgba(0, 0, 0, .55);
-  --bar: #111316; --scrim: rgba(0, 0, 0, .6);
+  --shadow: none; --shadow-md: none; --shadow-lg: 0 12px 34px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .3);
+  --glass: rgba(44, 39, 48, .92); --glint: inset 0 1px 0 rgba(255, 255, 255, .08);
+  --bar: #211E25; --scrim: rgba(0, 0, 0, .6);
   color-scheme: dark;
 }
 /* a hovered primary button moves toward the ink, so its label keeps its contrast (toward the page it would not) */
 :root[data-look="new"] .btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--primary) 88%, var(--ink)); }
 /* solid bars: no blur, no translucency over changing content */
 :root[data-look="new"] .appbar, :root[data-look="new"] .tabbar { -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* ---- type: figures, labels, and the 13 px floor
+   Plex's digits are tabular already; the property is set anyway so a fallback face stays aligned. The Classic rules
+   that capitalise a label, or set one under 13 px, are undone here (fixes F2 and F7); tests/look-tokens.test.js
+   fails if a new Classic rule does either without being listed. The 11 px tab labels and the chart's SVG labels are
+   left for the screen PRs. */
+:root[data-look="new"] :is(table, .num, .tnum, input.n, .input.n, .kpi .v, .tile .v) { font-variant-numeric: tabular-nums; }
+:root[data-look="new"] :is(.mono, code, kbd, .file-name) { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+:root[data-look="new"] :is(
+  .view-head .eyebrow-line, .sidebar .nav-label, .sec-label, .ctable thead th, .mini th, .rr-grid th .rr-sort, .home-head .date,
+  .cont-figs span, .task-group h3, .crm-sec h3, .cmdk-group, .tool-group, .rows-edit th, .facts dt, .sheet-head .eyebrow,
+  .sheet-body h3, .wsp-group,
+  .brand-name small, .cmd-trigger kbd, .kbd, .chip, .ctable td.f::before, .ctable tfoot td[data-label]::before, .src,
+  .photo .photo-read, .qc-line, .mini.sched td::before, .tool-tag, .tpl-icon, .tpl-grid th, .ctable td.f .dateinput .di-text, .mini.scn
+) { font-size: var(--fs-cap); text-transform: none; letter-spacing: 0; }
+:root[data-look="new"] :is(.brand-mark, .hero-icon) { color: var(--primary-ink); }
+
+/* ---- focus: 3 px in the accent (3:1 against the page and the cards), never removed */
+:root[data-look="new"] :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+:root[data-look="new"] :is(.input, .field input, .field select, .field textarea):focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; box-shadow: none; }
+
+/* ---- buttons: filled primary, outlined secondary, quiet, danger; the edge is the 3:1 one */
+:root[data-look="new"] .btn { border-color: var(--edge); background: var(--surface); color: var(--ink); }
+:root[data-look="new"] .btn:not(.btn-primary):hover:not(:disabled) { background: var(--surface-2); border-color: var(--edge); }
+:root[data-look="new"] .btn:active:not(:disabled) { transform: scale(.97); }
+:root[data-look="new"] .btn-primary { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
+:root[data-look="new"] .btn-plain { color: var(--accent); }
+:root[data-look="new"] .btn-gray { background: var(--fill); border-color: transparent; }
+:root[data-look="new"] .btn-danger { background: var(--critical-soft); color: var(--critical); border-color: transparent; }
+:root[data-look="new"] .btn-sm { border-radius: var(--r-sm); }
+:root[data-look="new"] .btn-lg { border-radius: var(--r-md); }
+
+/* ---- fields: the field colour, a 3:1 edge */
+:root[data-look="new"] :is(.input, .field input:not([type=checkbox]), .field select, .field textarea, .dd-preset select) { background: var(--surface-2); border-color: var(--edge); border-radius: var(--r-sm); color: var(--ink); }
+:root[data-look="new"] :is(.input, .field input, .field select, .field textarea):focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+:root[data-look="new"] :is(input, textarea)::placeholder { color: var(--faint); }
+:root[data-look="new"] .field > label, :root[data-look="new"] .field > .lbl { color: var(--muted); font-weight: 500; }
+
+/* ---- cards and sheets: a hairline and no resting shadow; the large radius is the character */
+:root[data-look="new"] .card { background: var(--surface); border-color: var(--line); border-radius: var(--r); box-shadow: none; }
+:root[data-look="new"] .sheet-card { border-radius: var(--r-lg) var(--r-lg) 0 0; }
+
+/* ---- status chips: a shape and a word, colour last; sentence case */
+:root[data-look="new"] .chip { gap: 6px; padding: 3px 10px; font-weight: 500; line-height: 1.4; }
+:root[data-look="new"] :is(.chip-good, .chip-warn, .chip-bad)::before { content: ""; width: 8px; height: 8px; flex: none; background: currentColor; }
+:root[data-look="new"] .chip-good::before { border-radius: 50%; }
+:root[data-look="new"] .chip-warn::before { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+:root[data-look="new"] .chip-bad::before { transform: rotate(45deg) scale(.85); }
+:root[data-look="new"] .chip-good { background: var(--good-soft); color: var(--good); }
+:root[data-look="new"] .chip-warn { background: var(--warn-soft); color: var(--warn); }
+:root[data-look="new"] .chip-bad { background: var(--critical-soft); color: var(--critical); }
+:root[data-look="new"] .chip-accent, :root[data-look="new"] .chip-brass { background: var(--accent-soft); color: var(--accent); }
+:root[data-look="new"] .chip-plain { background: var(--surface-3); color: var(--muted); }
+
+/* ---- notices: an icon, a sentence and a next step; a tint and no side stripe */
+.notice { display: flex; gap: var(--s3); align-items: flex-start; padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); color: var(--ink); font-size: var(--t-14); line-height: 1.5; }
+.notice > svg, .notice > .notice-ic { flex: none; margin-top: 2px; }
+.notice > .notice-tx { flex: 1; min-width: 0; }
+.notice .notice-act { margin-left: auto; flex: none; }
+:root[data-look="new"] .notice-info { background: var(--accent-soft); }
+:root[data-look="new"] .notice-info > svg { color: var(--accent); }
+:root[data-look="new"] .notice-good { background: var(--good-soft); }
+:root[data-look="new"] .notice-good > svg { color: var(--good); }
+:root[data-look="new"] .notice-warn { background: var(--warn-soft); }
+:root[data-look="new"] .notice-warn > svg { color: var(--warn); }
+:root[data-look="new"] .notice-bad { background: var(--critical-soft); }
+:root[data-look="new"] .notice-bad > svg { color: var(--critical); }
+
+/* ---- disclosure: one style for a <details> and for the Documents toggle; 44 px summary */
+:root[data-look="new"] details.disclosure > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--s2); min-height: 44px; color: var(--accent); font-weight: 600; border-radius: var(--r-sm); }
+:root[data-look="new"] details.disclosure > summary::-webkit-details-marker { display: none; }
+:root[data-look="new"] details.disclosure > summary::after { content: "+"; margin-left: auto; color: var(--muted); font-weight: 600; }
+:root[data-look="new"] details.disclosure[open] > summary::after { content: "\2013"; }
+:root[data-look="new"] .dd-toggle::after { color: var(--muted); }
+
+/* ---- a switch button (Settings > Solid controls): filled with a tick when on */
+.btn[role="switch"][aria-checked="true"] { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
+.btn[role="switch"][aria-checked="true"]::after { content: "\2713" / ""; }
+
+/* ---- stepper: a sticky glass bar of equal steps on a wide screen; on a phone "Step n of N: name" with Back and Next */
+.stepper-bar { position: sticky; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px)); z-index: 30; margin: 0 0 var(--s4); padding: var(--s1); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+.stepper-list { display: flex; gap: var(--s1); list-style: none; margin: 0; padding: 0; }
+.stepper-list > li { flex: 1 1 0; min-width: 0; display: flex; }
+.step { flex: 1; display: flex; align-items: center; justify-content: center; gap: var(--s2); min-height: 44px; padding: 0 var(--s3); border: 0; border-radius: var(--r-pill); background: none; color: var(--muted); font: 500 var(--t-14)/1.2 var(--ui); text-decoration: none; cursor: pointer; min-width: 0; }
+.step > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.step-n { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; border: 1px solid currentColor; font-size: var(--t-13); font-variant-numeric: tabular-nums; }
+.step[aria-current="step"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.step.done { color: var(--ink); }
+.step:disabled { cursor: default; }
+.stepper-phone { display: none; align-items: center; gap: var(--s2); }
+.stepper-phone .step-of { flex: 1; min-width: 0; text-align: center; font: 600 var(--t-14)/1.25 var(--ui); font-variant-numeric: tabular-nums; }
+@media (max-width: 599px) {
+  .stepper-list { display: none; }
+  .stepper-phone { display: flex; }
+}
+
+/* ---- drop zone: a real button that opens the picker, and a place to drop */
+.dropzone { position: relative; }
+.dropzone-btn { display: flex; flex-direction: column; align-items: center; gap: var(--s1); width: 100%; min-height: 44px; padding: var(--s6) var(--s4); border: 1.5px dashed var(--edge); border-radius: var(--r-md); background: var(--surface-2); color: var(--ink); text-align: center; cursor: pointer; transition: background var(--d1), border-color var(--d1); }
+.dropzone-btn:hover, .dropzone.over .dropzone-btn { background: var(--accent-soft); border-color: var(--accent); }
+.dropzone-title { font-weight: 600; font-size: var(--t-15); }
+.dropzone-sub { color: var(--muted); font-size: var(--t-14); }
+
+/* ---- tables: quiet, no glass, no tone colours; figures line up */
+:root[data-look="new"] table { border-color: var(--line); }
+:root[data-look="new"] :is(th, td) { border-color: var(--line); }
+:root[data-look="new"] th { color: var(--muted); font-weight: 600; }
+
+/* ---- toast: Undo lives in it; a floating control, so glass */
+:root[data-look="new"] .toast { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-md); }
+:root[data-look="new"] .toast button { color: var(--accent); }
+
+/* ---- glass: the floating controls and nothing else (no table, bar, card or sheet), 92% opaque or more, one blur.
+   Where the browser cannot blur, the controls stay solid; where the person asks for less transparency or more
+   contrast, or turns Solid controls on, the glass is the surface colour and the blur is off. */
+:root[data-look="new"] .tip-bubble { position: relative; padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); color: var(--ink); font-size: var(--t-14); }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-look="new"] .stepper-bar,
+  :root[data-look="new"] .cmdk-card,
+  :root[data-look="new"] .toast,
+  :root[data-look="new"] .tip-bubble { background: var(--glass-bg, var(--glass)); -webkit-backdrop-filter: blur(var(--glass-blur, var(--blur))); backdrop-filter: blur(var(--glass-blur, var(--blur))); box-shadow: var(--glass-glint, var(--glint)), var(--shadow-lg); }
+}
+@media (prefers-reduced-transparency: reduce) { :root[data-look="new"] { --glass-bg: var(--surface); --glass-blur: 0px; --glass-glint: inset 0 0 0 0 transparent; } }
+@media (prefers-contrast: more) { :root[data-look="new"] { --glass-bg: var(--surface); --glass-blur: 0px; --glass-glint: inset 0 0 0 0 transparent; } }
+:root[data-look="new"][data-solid] { --glass-bg: var(--surface); --glass-blur: 0px; --glass-glint: inset 0 0 0 0 transparent; }
+
+/* ---- touch: every control 44 px on a coarse pointer */
+@media (pointer: coarse) {
+  :root[data-look="new"] { --ctl-h: 44px; --ctl-h-sm: 44px; }
+  :root[data-look="new"] :is(.btn, .btn-sm, .btn-lg, .btn-plain, .dd-toggle, .toast button, .seg:not([role=tablist]) button, .seg[role=tablist] button, .step, .src, summary) { min-height: 44px; min-width: 44px; }
+  :root[data-look="new"] :is(input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]), select, textarea, .input) { min-height: 44px; }
+  :root[data-look="new"] :is(.cmd-trigger, .appbar-gear, .linkish) { min-height: 44px; min-width: 44px; }
+  :root[data-look="new"] .linkish { display: inline-flex; align-items: center; }
+  :root[data-look="new"] :is(input[type=checkbox], input[type=radio]) { width: 24px; height: 24px; }
+}
+
+/* ---- press and reduced motion: a press scales to 97%; none of it moves when the person asks for stillness */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-look="new"] .btn:active:not(:disabled) { transform: none; }
+  :root[data-look="new"] .stepper-bar, :root[data-look="new"] .dropzone-btn { transition: none; }
+}
 @media (min-width: 960px) { :root { --gutter: 32px; } }
 
 /* ================================================================== base */
@@ -1515,6 +1682,10 @@ input.ci44, select.ci44 { height: 44px; }
   .sidebar .wsp-rail-all { color: var(--muted); padding-left: 40px; }
 }
 /* Start from documents (intakeui.js): a drop zone, the files, what was found; status is words, every target 44px */
+.uwf-body { padding: 0 var(--s5) var(--s4); display: grid; gap: var(--s3); min-width: 0; }
+.uwf-acts { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.uwf .btn { min-height: 44px; min-width: 44px; }
+.uwf-frame { width: 100%; height: 78vh; min-height: 480px; border: 1px solid var(--line-strong); border-radius: 0; background: #fff; }
 .uwi-body { padding: 0 var(--s5) var(--s4); display: grid; gap: var(--s3); }
 .uwi-step { display: grid; gap: var(--s2); min-width: 0; }
 .uwi-step h3 { font: 600 var(--t-13)/1.3 var(--ui); margin: var(--s2) 0 0; }
