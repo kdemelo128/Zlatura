@@ -29,7 +29,7 @@ export function saveKey(name, value, env = process.env) {
   try { chmodSync(tmp, 0o600); } catch { /* best effort */ }
   renameSync(tmp, KEYS_FILE(env));
 }
-const keyFor = (name, env) => env[name] || readKeys(env)[name] || null;
+export const keyFor = (name, env) => env[name] || readKeys(env)[name] || null;
 
 const MAX_REPLY = 1024 * 1024; // characters; a model reply bigger than this is refused
 
@@ -106,6 +106,12 @@ export const PROVIDERS = [
   { ...chat('moonshot-api', 'Kimi', 'api.moonshot.ai', '/v1/chat/completions', 'MOONSHOT_API_KEY', 'HUB_KIMI_MODEL', 'kimi-k2-0905-preview', 'paid credits likely (unverified)'), workers: ['kimi'] },
   { ...chat('openrouter-api', 'OpenRouter (many models, one key)', 'openrouter.ai', '/api/v1/chat/completions', 'OPENROUTER_API_KEY', 'HUB_OPENROUTER_MODEL', 'meta-llama/llama-3.3-70b-instruct:free', 'free key; some models free (unverified)'), workers: [] },
   {
+    // Not a chat model: its token lets the hub list, create and merge pull requests (tools/hub/github.mjs). `chat: false` keeps it out of the model lists and counts.
+    id: 'github', label: 'GitHub (pull requests)', kind: 'api', chat: false, keyName: 'HUB_GITHUB_TOKEN', cost: 'free (your GitHub account)',
+    status: (env) => (keyFor('HUB_GITHUB_TOKEN', env) ? { state: 'ready', how: 'token set (HUB_GITHUB_TOKEN)' } : { state: 'needs-key', how: 'needs a GitHub token' }),
+    ask: async () => { throw new Error('GitHub is not a chat model'); },
+  },
+  {
     id: 'muse', label: 'Muse (Meta AI)', kind: 'none', cost: 'n/a', workers: ['muse'],
     status: () => ({ state: 'unavailable', how: 'no official API known; chat site only' }),
     ask: async () => { throw new Error('Muse has no official API that this hub can use'); },
@@ -121,6 +127,7 @@ const CONNECT = {
   'xai-api': { steps: ['Open the xAI console and create an API key.', 'Paste it below.'], url: 'https://console.x.ai', urlLabel: 'Open the xAI console (check the page is current)', free: 'Probably paid credits (unverified)' },
   'moonshot-api': { steps: ['Open the Moonshot platform and create an API key.', 'Paste it below.'], url: 'https://platform.moonshot.ai', urlLabel: 'Open the Moonshot platform (check the page is current)', free: 'Probably paid credits (unverified)' },
   'openrouter-api': { steps: ['Open OpenRouter and create a key (one key reaches many models, some free).', 'Paste it below. Your prompts pass through OpenRouter.'], url: 'https://openrouter.ai/keys', urlLabel: 'Open OpenRouter keys (check the page is current)', free: 'Free key; some models free (unverified)' },
+  github: { steps: ['Open GitHub, then Settings, Developer settings, Personal access tokens, Fine-grained tokens, Generate new token.', 'Give it a name and an expiry, and under Repository access choose Only select repositories and pick your ONE repository.', 'Under Repository permissions set Pull requests to Read and write, Contents to Read and write (needed to merge and to update a branch), Checks to Read, Commit statuses to Read. Metadata (Read) is added for you.', 'Generate the token, copy it and paste it into the box below. The hub keeps it on this computer and never shows it again.'], url: 'https://github.com/settings/personal-access-tokens/new', urlLabel: 'Open GitHub new token page (check the page is current)', free: 'Free. Uses your GitHub account (permission names UNVERIFIED: check the page)' },
   muse: { steps: ['Meta AI has no official way for a program to use it, so the hub cannot connect it.', 'You can still use it at meta.ai yourself.'], url: null, urlLabel: '', free: 'Not available' },
 };
 for (const p of PROVIDERS) p.connect = CONNECT[p.id];
@@ -146,6 +153,6 @@ export async function statuses({ env = process.env, spawn = nodeSpawn, now = Dat
     statusCache = { at: now, found, spawn };
   }
   const have = (b) => !!statusCache.found[b];
-  return PROVIDERS.map((p) => ({ id: p.id, label: p.label, kind: p.kind, cost: p.cost, keyName: p.keyName ?? null, ...p.status(env, have) }));
+  return PROVIDERS.map((p) => ({ id: p.id, label: p.label, chat: p.chat !== false, kind: p.kind, cost: p.cost, keyName: p.keyName ?? null, ...p.status(env, have) }));
 }
 void existsSync;

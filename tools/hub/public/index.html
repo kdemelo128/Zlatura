@@ -64,6 +64,19 @@ button.small{padding:6px 10px;font-size:13px}button:disabled{opacity:.5;cursor:d
 .agentOut{flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:12px}
 .diff{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;font:13px/1.45 var(--mono);white-space:pre-wrap;overflow-x:auto}
 .prob{color:var(--bad)}
+#prView{display:flex;flex-direction:column;flex:1;min-height:0}#prView[hidden]{display:none}
+.prOut{flex:1;min-height:0;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:12px}
+.pr{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0;display:grid;gap:8px}
+.pr h3{margin:0;font-size:15px;overflow-wrap:anywhere}.pr h3 a{color:var(--fg)}
+.badges{display:flex;flex-wrap:wrap;gap:6px}
+.badge{font:12px var(--mono);border:1px solid var(--line);border-radius:999px;padding:2px 9px;color:var(--muted);overflow-wrap:anywhere}
+.badge.ok{color:var(--ok);border-color:var(--ok)}.badge.warn{color:var(--warn);border-color:var(--warn)}.badge.bad{color:var(--bad);border-color:var(--bad)}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.confirm{border:1px solid var(--accent);border-radius:8px;padding:10px 12px;display:grid;gap:8px;background:var(--bg)}
+.confirm ul{margin:0;padding-left:20px}
+.mk{display:grid;gap:8px;max-width:760px}.mk label{display:grid;gap:3px;font:500 11px var(--mono);color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.mk textarea{min-height:140px}
 </style>
 </head>
 <body>
@@ -75,7 +88,7 @@ button.small{padding:6px 10px;font-size:13px}button:disabled{opacity:.5;cursor:d
   <section><h2>Roles</h2><div id="roles"></div></section>
 </aside>
 <main>
-  <div class="tabs"><button class="tab on" id="tabChat" type="button">Chat</button><button class="tab" id="tabAgents" type="button">Agents</button></div>
+  <div class="tabs"><button class="tab on" id="tabChat" type="button">Chat</button><button class="tab" id="tabAgents" type="button">Agents</button><button class="tab" id="tabPr" type="button">Pull requests</button></div>
   <div id="chatView" style="display:contents">
   <div class="bar">
     <label>Send to<select id="to"></select></label>
@@ -93,6 +106,14 @@ button.small{padding:6px 10px;font-size:13px}button:disabled{opacity:.5;cursor:d
       <button id="runAgent" type="button">Run agent</button>
     </div>
     <div id="agentOut" class="agentOut"><div class="empty">Pick a task card and run it. The model drafts a change; the hub checks it against the card's scope and the protected-files rules, and you decide whether to put it on a local branch. Nothing is pushed.</div></div>
+  </div>
+  <div id="prView" hidden>
+    <div class="bar">
+      <label>Project<select id="prProject"></select></label>
+      <button id="prRefresh" type="button">Refresh</button>
+      <span class="why" id="prRepo"></span>
+    </div>
+    <div id="prOut" class="prOut"></div>
   </div>
 </main>
 </div>
@@ -130,7 +151,7 @@ async function refresh() {
   for (const p of s.providers) if (p.state !== 'ready' && p.connect) { const d = connectBlock(p, refresh); d.dataset.id = p.id; d.open = open.has(p.id) || (s.summary.next === p.id && !open.size); conn.append(d); }
   const box = $('providers'); box.replaceChildren();
   const to = $('to'); const keep = to.value; to.replaceChildren(el('option', { value: 'auto', textContent: 'Auto (by role)' }), el('option', { value: 'all', textContent: 'All ready models' }));
-  for (const p of s.providers) {
+  for (const p of s.providers.filter((x) => x.chat !== false)) {
     const row = el('div', { className: 'prov' }, el('span', { className: 'dot ' + p.state }), el('b', { textContent: p.label }), el('small', { textContent: p.how + ' · ' + p.cost }));
     if (p.keyName && p.state === 'needs-key') {
       const input = el('input', { type: 'password', placeholder: 'Paste ' + p.keyName, autocomplete: 'off', ariaLabel: p.keyName });
@@ -163,8 +184,12 @@ $('f').addEventListener('submit', async (e) => {
   $('send').disabled = false; log.scrollTop = log.scrollHeight;
 });
 $('msg').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) $('f').requestSubmit(); });
-const showTab = (agents) => { $('chatView').style.display = agents ? 'none' : 'contents'; $('agentView').hidden = !agents; $('tabChat').classList.toggle('on', !agents); $('tabAgents').classList.toggle('on', agents); if (agents) loadCards(); };
-$('tabChat').onclick = () => showTab(false); $('tabAgents').onclick = () => showTab(true);
+const showTab = (name) => {
+  $('chatView').style.display = name === 'chat' ? 'contents' : 'none'; $('agentView').hidden = name !== 'agents'; $('prView').hidden = name !== 'pr';
+  $('tabChat').classList.toggle('on', name === 'chat'); $('tabAgents').classList.toggle('on', name === 'agents'); $('tabPr').classList.toggle('on', name === 'pr');
+  if (name === 'agents') loadCards(); if (name === 'pr') prOpen();
+};
+$('tabChat').onclick = () => showTab('chat'); $('tabAgents').onclick = () => showTab('agents'); $('tabPr').onclick = () => showTab('pr');
 let cards = [];
 async function loadCards() {
   cards = (await api('/api/cards')).cards; const sel = $('card'); sel.replaceChildren(...cards.map((c) => el('option', { value: c.file, textContent: c.id + ' (' + c.kind + ')' })));
@@ -188,6 +213,86 @@ $('runAgent').onclick = async () => {
   } catch (e) { out.replaceChildren(el('div', { className: 'prob', textContent: e.message })); }
   $('runAgent').disabled = false;
 };
+
+// ----- Pull requests: the token stays on the server; this page only asks and shows -----
+const prState = { project: '', projects: [] };
+const badge = (text, kind) => el('span', { className: 'badge ' + (kind || ''), textContent: text });
+const checksBadge = (c) => {
+  const word = { green: 'checks passed', pending: 'checks running', red: 'checks failed', none: 'no checks yet', unknown: 'checks unclear' }[c.state] || c.state;
+  return badge(word + (c.total ? ' (' + c.passing + '/' + c.total + ')' : ''), { green: 'ok', pending: 'warn', red: 'bad' }[c.state] || 'warn');
+};
+const mergeBadge = (m) => badge({ clean: 'can merge', conflict: 'conflict', behind: 'behind main', blocked: 'blocked', checking: 'checking', draft: 'draft', unstable: 'unstable' }[m] || m, { clean: 'ok', conflict: 'bad', blocked: 'warn', behind: 'warn', checking: 'warn', draft: 'warn' }[m] || '');
+const prPost = (path, extra) => api('/api/pr/' + path, { project: prState.project, ...extra });
+const prMsg = (text, bad) => el('div', { className: bad ? 'prob' : 'why', textContent: text });
+async function prOpen() {
+  const out = $('prOut');
+  try {
+    const j = await api('/api/pr/projects'); prState.projects = j.projects;
+    const sel = $('prProject'); const keep = sel.value; sel.replaceChildren(...j.projects.map((p) => el('option', { value: p, textContent: p }))); if (j.projects.includes(keep)) sel.value = keep;
+    prState.project = sel.value; sel.parentElement.style.display = j.projects.length > 1 ? '' : 'none';
+    if (!j.hasToken) { out.replaceChildren(el('div', { className: 'empty', textContent: 'GitHub is not connected. Open "Connect your models" on the left, choose GitHub (pull requests), follow the steps and paste the token.' })); $('prRepo').textContent = ''; return; }
+    await prLoad();
+  } catch (e) { out.replaceChildren(prMsg(e.message, true)); }
+}
+async function prLoad() {
+  const out = $('prOut'); out.replaceChildren(prMsg('Loading…'));
+  try {
+    const j = await prPost('list', {}); $('prRepo').textContent = j.repo + ' (from ' + j.source + ')';
+    out.replaceChildren(...(j.prs.length ? j.prs.map(prCard) : [prMsg('No open pull requests.')]), prCreateForm());
+  } catch (e) { out.replaceChildren(prMsg(e.message, true), prCreateForm()); }
+}
+function prCard(p) {
+  const href = p.url && safeUrl(p.url); const note = el('div');
+  const title = el('h3', {}, '#' + p.number + ' ');
+  title.append(href ? el('a', { href, target: '_blank', rel: 'noopener noreferrer', textContent: p.title }) : document.createTextNode(p.title));
+  const badges = el('div', { className: 'badges' }, checksBadge(p.checks), mergeBadge(p.mergeState), badge('review: ' + p.review, p.review === 'approved' ? 'ok' : p.review === 'changes requested' ? 'bad' : ''));
+  if (p.autoMerge) badges.append(badge('auto-merge on', 'ok'));
+  const act = el('div', { className: 'acts' });
+  const mk = (label, fn, ghost) => { const b = el('button', { className: 'small' + (ghost ? ' ghost' : ''), type: 'button', textContent: label }); b.onclick = async () => { b.disabled = true; try { await fn(); } catch (e) { note.replaceChildren(prMsg(e.message, true)); } b.disabled = false; }; act.append(b); };
+  mk('Merge…', () => prConfirmMerge(p, note));
+  mk('Update branch from main', async () => { if (!confirm('Bring #' + p.number + ' up to date with main? This adds a commit to the branch.')) return; const r = await prPost('update', { number: p.number, sha: p.sha, confirm: true }); note.replaceChildren(prMsg(r.message)); }, true);
+  if (p.autoMerge) mk('Turn auto-merge off', async () => { const r = await prPost('automerge', { number: p.number, sha: p.sha, enable: false, confirm: true }); note.replaceChildren(prMsg(r.message)); await prLoad(); }, true);
+  else mk('Auto-merge when checks pass…', async () => { if (!confirm('Ask GitHub to squash-merge #' + p.number + ' by itself when its required checks pass? GitHub, not this page, does the merge later.')) return; const r = await prPost('automerge', { number: p.number, sha: p.sha, enable: true, confirm: true }); note.replaceChildren(prMsg(r.message)); }, true);
+  return el('div', { className: 'pr' }, title, el('div', { className: 'why', textContent: p.branch + ' into ' + p.base + ' · ' + p.author }), badges, act, note);
+}
+async function prConfirmMerge(p, note) {
+  const r = await prPost('check', { number: p.number }); const f = r.pr; // fresh, not the list from a while ago
+  const box = el('div', { className: 'confirm' }, el('b', { textContent: 'Squash-merge #' + f.number + ' "' + f.title + '" into ' + f.base + '?' }), el('div', { className: 'badges' }, checksBadge(f.checks), mergeBadge(f.mergeState), badge('review: ' + f.review)));
+  if (f.reasons.length) {
+    const ul = el('ul'); for (const x of f.reasons) ul.append(el('li', { className: 'prob', textContent: x })); box.append(el('div', { className: 'prob', textContent: 'This cannot be merged right now:' }), ul);
+  }
+  const row = el('div', { className: 'acts' });
+  if (!f.reasons.length) {
+    const ok = el('button', { type: 'button', textContent: 'Confirm: squash and merge' });
+    ok.onclick = async () => { ok.disabled = true; try { const m = await prPost('merge', { number: f.number, sha: f.sha, confirm: true }); note.replaceChildren(prMsg(m.merged ? 'Merged #' + f.number + '.' : (m.message || 'Not merged.'), !m.merged)); await prLoad(); } catch (e) { note.replaceChildren(prMsg(e.message, true)); } };
+    row.append(ok);
+  }
+  const no = el('button', { className: 'ghost', type: 'button', textContent: f.reasons.length ? 'Close' : 'Cancel' }); no.onclick = () => note.replaceChildren(); row.append(no);
+  box.append(row); note.replaceChildren(box);
+}
+function prCreateForm() {
+  const d = el('details', { className: 'conn' }, el('summary', { textContent: 'Create a pull request from a local branch' }));
+  const sel = el('select', { ariaLabel: 'Local branch' }); const title = el('input', { type: 'text', ariaLabel: 'Title', maxLength: 256 }); const body = el('textarea', { ariaLabel: 'Description' });
+  const draft = el('input', { type: 'checkbox' }); const msg = el('div'); const go = el('button', { type: 'button', textContent: 'Create (this also pushes the branch)' });
+  const notes = el('div', { className: 'why' });
+  const load = async () => {
+    try { const r = await prPost('prefill', { branch: sel.value }); title.value = r.title; body.value = r.body; notes.textContent = r.notes.join(' '); } catch (e) { notes.textContent = e.message; }
+  };
+  sel.onchange = load;
+  d.ontoggle = async () => {
+    if (!d.open || sel.options.length) return;
+    try { const r = await prPost('branches', {}); sel.replaceChildren(...r.branches.map((b) => el('option', { value: b, textContent: b }))); if (r.branches.length) await load(); else notes.textContent = 'No local branches other than ' + r.base + '.'; } catch (e) { notes.textContent = e.message; }
+  };
+  go.onclick = async () => {
+    if (!sel.value || !confirm('Push "' + sel.value + '" to GitHub and open a pull request?')) return; go.disabled = true;
+    try { const r = await prPost('create', { branch: sel.value, title: title.value, body: body.value, draft: draft.checked, confirm: true }); msg.replaceChildren(prMsg('Opened #' + r.number + (r.pushed ? ' (branch pushed).' : '.'))); await prLoad(); } catch (e) { msg.replaceChildren(prMsg(e.message, true)); }
+    go.disabled = false;
+  };
+  d.append(el('div', { className: 'mk' }, el('label', {}, 'Branch', sel), el('label', {}, 'Title', title), el('label', {}, 'Description', body), el('label', {}, 'Draft ', draft), notes, go, msg));
+  return d;
+}
+$('prProject').onchange = () => { prState.project = $('prProject').value; prLoad(); };
+$('prRefresh').onclick = () => prOpen();
 refresh().catch((e) => { $('empty').textContent = e.message; });
 setInterval(() => { if (![...document.querySelectorAll('.keyrow input')].some((i) => i.value || i === document.activeElement)) refresh().catch(() => {}); }, 30000);
 </script>

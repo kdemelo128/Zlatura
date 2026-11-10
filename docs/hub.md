@@ -35,6 +35,7 @@ changes, installs what is missing, and starts the hub.
 | Grok | xAI's official API, a key; probably paid credits (UNVERIFIED) | optional, only if you choose |
 | Kimi | Moonshot's official API, a key; probably paid credits (UNVERIFIED) | optional, only if you choose |
 | OpenRouter | one key that reaches many models, some free (UNVERIFIED); your prompts pass through OpenRouter as well as the model's company | optional: create a key, paste it in the hub |
+| GitHub (pull requests) | GitHub's REST API with a fine-grained token you create, for the Pull requests tab | create a token, paste it in the hub (not a chat model) |
 | Muse (Meta AI) | no official API known | unavailable for now |
 
 Why not "sign in for you": the hub never sees your Google password or any session. A Google
@@ -127,3 +128,42 @@ also set `BOX_ACCESS_TOKEN` in the environment instead.
   Box says "too many requests".
 
 Not tested against a real Box account.
+
+## Pull requests (no trip to the GitHub website)
+The third tab, **Pull requests**, and `npm run pr` do the routine pull request jobs for the project's
+repository. Nothing was tested against the real GitHub: the tests use a stand-in that answers as the
+API is remembered to, and the token permission names below are UNVERIFIED (check GitHub's page).
+
+**Connect.** In the left panel open "GitHub (pull requests)" and follow the steps: a fine-grained
+token for ONE repository with Pull requests Read and write, Contents Read and write (merging and
+updating a branch need write; Read alone is not enough, UNVERIFIED), Checks Read, Commit statuses
+Read (Metadata Read is added for you). Paste it into the box. It is saved like the model keys
+(`~/.zlatura-hub/keys.json`, owner-only), goes only to `api.github.com`, and is never sent to the
+page, printed, logged or committed. From a terminal: `pbpaste | npm run pr -- save-token`.
+
+**Which repository.** The project's `"github": "owner/repo"` in `tools/harness/workers.json` if it
+has one, else the `origin` address of the project folder (`"folder"` in the project, default the
+Zlatura folder). The page cannot name a repository or a folder.
+
+**What you can do**
+- **See** every open pull request: title, branch, checks (passed / running / failed), whether it can
+  merge (clean, conflict, behind, blocked, draft), and the review state.
+- **Create** one from a local branch: the title is the first `# ` line of the branch's file in
+  `docs/changelog/unreleased/`, the description is the rest of it plus the repository's pull request
+  template if there is one. Edit both, press Create, confirm. This pushes only that branch (never
+  forced) with your own git sign-in, then opens the pull request. A title or description with a key,
+  an email address or `private/` in it is refused.
+- **Merge** (squash): press Merge, the hub fetches the checks again, shows them, and you confirm. It
+  refuses, with the reasons and no override, when any check is failing or still running, when no check has reported, when the
+  checks cannot be read in full, or when there is a conflict, the branch is behind, it is a draft, or GitHub says
+  it is blocked. If the branch moved after you looked, it refuses and asks you to look again.
+- **Update branch** from main (confirmed).
+- **Auto-merge when checks pass** (confirmed): GitHub's own feature, so GitHub, not this page, does the
+  merge later; it needs "Allow auto-merge" and required checks on the repository. It is refused for
+  failing checks or a conflict. Turn it off from the same card.
+
+Nothing merges without your click and confirm, and the hub never merges in the background.
+
+**Terminal.** `npm run pr -- list`, `check 7`, `create <branch>`, `merge 7`, `update 7`, `auto 7`
+(`--off` to cancel), `--project <name>`. Anything that changes GitHub only runs with `--yes`; without
+it you see what would happen. The same refusals apply.

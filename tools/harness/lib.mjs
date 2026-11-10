@@ -69,7 +69,7 @@ export function checkChangedFiles(cfg, changed, scopeList, project = 'default') 
   if (bad.length) throw new Error(`worker changed protected files: ${bad.join(', ')}`);
 }
 
-const SECRET = [/sk-[A-Za-z0-9_-]{20,}/, /AIza[0-9A-Za-z_-]{30,}/, /gh[pousr]_[A-Za-z0-9]{30,}/, /xai-[A-Za-z0-9]{20,}/, /-----BEGIN [A-Z ]*PRIVATE KEY-----/, /\b[A-Za-z0-9._%+-]+@gmail\.com\b/];
+const SECRET = [/sk-[A-Za-z0-9_-]{20,}/, /AIza[0-9A-Za-z_-]{30,}/, /gh[pousr]_[A-Za-z0-9]{30,}/, /github_pat_[A-Za-z0-9_]{22,}/, /xai-[A-Za-z0-9]{20,}/, /-----BEGIN [A-Z ]*PRIVATE KEY-----/, /\b[A-Za-z0-9._%+-]+@gmail\.com\b/];
 export function findSecret(text) {
   for (const re of SECRET) { const m = re.exec(text); if (m) return m[0].slice(0, 6) + '…'; }
   return null;

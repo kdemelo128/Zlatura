@@ -15,7 +15,8 @@
     "serve": "python3 -m http.server 8080",
     "hub": "node tools/hub/server.mjs",
     "ask": "node tools/hub/ask.mjs",
-    "box": "node tools/hub/box-cli.mjs"
+    "box": "node tools/hub/box-cli.mjs",
+    "pr": "node tools/hub/pr-cli.mjs"
   },
   "devDependencies": {
     "@xmldom/xmldom": "0.9.12",
