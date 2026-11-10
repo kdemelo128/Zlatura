@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.7.122: The document scoreboard can now say why a file was refused or asked about (on the development branch; not merged or deployed)
+
+A findings note and a tool change from the first round of owner-supplied documents (counts only; nothing from the documents is kept). The note (`docs/proposals/document-learning-round-1.md`) explains why none of 26 files from three zips was accepted: most are pages exported from the broker's own underwriting model (to be recognised and kept, not read as inputs); the rest are PDF statements with no route yet, property-manager rent roll PDFs, one workbook refused whole because of 11 unreadable date cells, two macro workbooks reported as "damaged", and three PDFs whose text is drawn as outlines.
+
+- **New:** `node tests/tools/doc-local.mjs <folder> --reasons` adds a counts-only table of reason codes (for example `zip-not-opened`, `no-text-layer`, `sheet-read-failed:RangeError`, `classifier-broad:3 candidates`, `no-reader-for-type:budget`) and a new outcome, "identified, no reader", for files the classifier typed confidently but no reader exists for. Page, sheet and hidden-sheet counts are bucketed. No file name, text or figure is ever printed.
+- **Unchanged:** without `--reasons` the output is byte for byte what it was; no app file changed.
+- **Tested:** three new tests on invented files (nine kinds, including a decompression-bomb zip and a workbook with an impossible date); one fails on the old tool, and two pin that nothing leaks and the old output is unchanged. Saved results and the golden figures are unchanged.
+
 ## 4.7.121: Open, check and merge pull requests from the Model Hub, without the GitHub website (on the development branch; not merged or deployed)
 
 The Model Hub gets a third tab, Pull requests, and `npm run pr` does the same from Terminal. It lists the open pull requests with their checks, merge state and review state, creates one from a local branch (title and description prefilled from the branch's changelog fragment and the repo's template), updates a branch from main, merges, and can turn on GitHub's own auto-merge.
