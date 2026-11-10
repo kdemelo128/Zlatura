@@ -325,7 +325,7 @@ test('a CLI reply over 1 MB and an API reply over 1 MB are refused', async () =>
   };
   await assert.rejects(runCli({ bin: 'codex', args: [], prompt: 'x', spawn: big }), /reply too large/); assert.equal(killed, true);
   const f = async () => ({ ok: true, status: 200, text: async () => 'x'.repeat(1024 * 1024 + 1) });
-  await assert.rejects(PROVIDERS.find((p) => p.id === 'gemini-api').ask('hi', { env: { GEMINI_API_KEY: fake('gem') }, fetch: f }), /reply too large/);
+  await assert.rejects(PROVIDERS.find((p) => p.id === 'gemini-api').ask('hi', { env: { ...home(), GEMINI_API_KEY: fake('gem') }, fetch: f }), /reply too large/);
 });
 
 test('only one agent run or apply at a time; the lock is released afterwards', async () => {

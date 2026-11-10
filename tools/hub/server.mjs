@@ -7,7 +7,8 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { spawn as spawnProc } from 'node:child_process';
-import { PROVIDERS, statuses, saveKey } from './providers.mjs';
+import { PROVIDERS, statuses, saveKey, LIMITS, PLAN_USAGE } from './providers.mjs';
+import { usageStore } from './usage.mjs';
 import { screenPrompt, pick, frame, connectSummary, safeText } from './hub-lib.mjs';
 import { loadWorkers, findSecret } from '../harness/lib.mjs';
 import { listCards, runAgent, applyDiff } from './agents.mjs';
@@ -45,6 +46,12 @@ export function createHub({ token = randomBytes(24).toString('hex'), env = proce
         const stats = await statuses({ env, spawn });
         const providers = stats.map((s) => ({ ...s, connect: PROVIDERS.find((p) => p.id === s.id).connect }));
         return send(res, 200, { providers, summary: connectSummary(stats), roles: Object.fromEntries(Object.entries(cfg.roles).map(([k, r]) => [k, { what: r.what, primary: r.primary }])), kinds: Object.keys(cfg.kinds) });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/usage') {
+        // counts only: what this hub sent, with the approximate limit and the vendor's own page to check. Never a plan balance.
+        const snap = usageStore(env).snapshot();
+        const providers = Object.fromEntries(PROVIDERS.filter((p) => p.kind !== 'none' && p.chat !== false).map((p) => [p.id, { ...(snap.providers[p.id] ?? { today: { requests: 0, ok: 0, errors: 0, rateLimited: 0, inputTokens: 0, outputTokens: 0 }, last: null, inflight: 0, rateLimitedNow: false, retryAfterSec: null }), tokens: p.kind === 'api' ? 'reported' : 'not reported by this tool', limit: LIMITS[p.id] ?? null, plan: PLAN_USAGE[p.id] ?? null }]));
+        return send(res, 200, { day: snap.day, at: snap.at, providers });
       }
       if (req.method === 'POST' && url.pathname === '/api/key') {
         const b = await body(req); const p = PROVIDERS.find((x) => x.id === b.provider && x.keyName);
