@@ -102,7 +102,7 @@ test('statuses report ready / needs-key / missing-tool / unavailable and never c
   const secretValue = fake('secret'); const env = { ...home(), GEMINI_API_KEY: secretValue };
   const s = await statuses({ env, spawn: fakeSpawn({ bins: ['codex'] }).spawn });
   const by = Object.fromEntries(s.map((x) => [x.id, x.state]));
-  assert.deepEqual(by, { codex: 'ready', claude: 'missing-tool', 'gemini-api': 'ready', 'xai-api': 'needs-key', 'moonshot-api': 'needs-key', 'openrouter-api': 'needs-key', muse: 'unavailable' });
+  assert.deepEqual(by, { codex: 'ready', claude: 'missing-tool', 'gemini-api': 'ready', 'xai-api': 'needs-key', 'moonshot-api': 'needs-key', 'openrouter-api': 'needs-key', github: 'needs-key', muse: 'unavailable' });
   assert.equal(JSON.stringify(s).includes(secretValue), false);
 });
 

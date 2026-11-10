@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.7.121: Open, check and merge pull requests from the Model Hub, without the GitHub website (on the development branch; not merged or deployed)
+
+The Model Hub gets a third tab, Pull requests, and `npm run pr` does the same from Terminal. It lists the open pull requests with their checks, merge state and review state, creates one from a local branch (title and description prefilled from the branch's changelog fragment and the repo's template), updates a branch from main, merges, and can turn on GitHub's own auto-merge.
+
+- **Safe by design:** nothing is sent to GitHub without a confirm. Merge is refused unless every check is green, there is no conflict, it is not a draft and the branch is not behind; it is pinned to the commit you saw, so a moved branch is refused. There is no override, and a repo with no checks at all also refuses.
+- **Your token stays on your Mac:** you paste a fine-grained GitHub token for one repository into the hub's key box (the same 0600 file as the model keys). It goes only to `api.github.com`, never to the page, a log or an error. The secret screen now also recognises `github_pat_` tokens.
+- **Tested:** 31 new tests; a merge gate that always said yes fails 12 of them, and 13 deliberately broken copies of the gate are each caught. Run only against a mock; not tried against the real GitHub. No app screen, saved result or data format changed.
+
 ## 4.7.120: Proposal: use the UW Filler as it is inside the Underwrite tab, with your UI unchanged (on the development branch; not merged or deployed)
 
 A design proposal only (`docs/proposals/uw-embed-as-is.md`). No app change, no saved result changed, nothing built until you approve it.
