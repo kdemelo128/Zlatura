@@ -25,7 +25,7 @@ const READER_TYPES = ['om', 'rentroll', 't12'];
 /**
  * What a file is, from what was read of it. Input: { name, pages (a PDF's text per page), layouts, grids (a workbook's
  * or CSV's sheets: [{ sheet, rows: [{ r, cells }] }]) }. Output: { type, typeBy ('reader'|null), reader, looks (a type
- * the text clearly reads as, to be confirmed with a tap: never set by itself), ask (the types to offer, best first),
+ * the text clearly reads as, to be confirmed with a tap: never set by itself), readers (only when two readers both accept a workbook: ['t12', 'rrsheet']), ask (the types to offer, best first),
  * suggest (from the name), scanned, text }. Only a reader sets `type`. A budget, an annual-only statement, a T-12 or an
  * appraisal in a PDF, or text that reads as an OM, rent roll or T-12, is never typed by its text: it asks.
  * @param {{ name?: string, pages?: string[] | null, layouts?: any, grids?: any[] | null }} f
@@ -55,8 +55,9 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
     const candidates = picked.refuse ? [] : (picked.choice ? [picked.choice] : picked.ask.filter((c) => !c.projection));
     const accepted = candidates.some((c) => accepts(() => layoutOf(grids[c.i].rows, { sheet: grids[c.i].sheet }).monthCols.length >= 3));
     const roll = grids.some((g) => accepts(() => headerAndRows(g.rows.map((r) => r.cells), g.sheet)));
-    // both readers accept it: nothing decides, so the broker is asked
-    if (accepted && roll) return { ...out, ask: ['t12', 'rentroll'] };
+    // both readers accept it (one workbook holding a rent roll sheet and a statement sheet): no reader is chosen, so
+    // `readers` names both and the screen offers a Use for each; each import then picks its own sheet by its own tests
+    if (accepted && roll) return { ...out, ask: ['t12', 'rentroll'], readers: ['t12', 'rrsheet'] };
     if (accepted) return { ...out, type: 't12', typeBy: 'reader', reader: 't12' };
     if (roll) return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrsheet' };
     out.text = cellText(grids);

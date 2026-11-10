@@ -4,6 +4,8 @@
  * checkUpload(), which reads the file's first 8 KB and, for a workbook, the
  * rest. Design: docs/proposals/t12-formats.md. */
 
+import { PRODUCT } from './brand.js';
+
 /** The most bytes each kind is read at: a bigger file is refused before it is read. */
 export const LIMITS = { workbook: 25e6, text: 10e6, pdf: 50e6, image: 20e6, zipTotal: 100e6, zipRatio: 200, zipEntries: 10000,
   pdfPages: 500, // pages a PDF may have to be read (pdftext.js); the longest real OM seen is about 120
@@ -49,7 +51,7 @@ export function zipKind(bytes, unzipSync) {
 }
 
 /** Why a workbook with macros is not imported (checked on its parts, never its name). */
-export const MACRO_REFUSAL = 'That workbook has macros. Zlatura never runs macros, so it does not read a workbook that has them. Save a copy as .xlsx in Excel and import that.';
+export const MACRO_REFUSAL = `That workbook has macros. ${PRODUCT} never runs macros, so it does not read a workbook that has them. Save a copy as .xlsx in Excel and import that.`;
 
 const MISMATCH = 'That file’s parts are not the size the file says they are, which is how a decompression bomb looks. It was not opened.';
 const BAD_ZIP = 'That file could not be opened as an Excel workbook. It may be damaged, password protected or not really .xlsx.';

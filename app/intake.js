@@ -68,6 +68,15 @@ export function stage(plan, info, file, dd = null) {
     item.state = 'skipped'; item.use = null;
   }
   plan.items.push(item);
+  // one workbook that both the rent roll and the T-12 readers accept: two uses of the one file, neither chosen for the broker.
+  // Each goes through its own import (which asks which sheet); the second is not "the same file twice".
+  const rs = Array.isArray(v.readers) ? v.readers : [];
+  if (!item.refuse && !item.dup && !type && rs.includes('t12') && rs.includes('rrsheet')) {
+    const both = 'This workbook has a rent roll and an operating statement. Each Use goes through its own import, which asks which sheet.';
+    const mate = { ...item, id: `f${++plan.seq}` };
+    for (const [it, t] of [[item, 'rentroll'], [mate, 't12']]) Object.assign(it, { type: t, typeBy: 'reader', confidence: 'Read', reason: both, ask: [], use: useLabel(t), pair: item.id });
+    plan.items.push(mate);
+  }
   return item;
 }
 
