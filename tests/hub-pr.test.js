@@ -66,11 +66,17 @@ function makeRepo({ fragment = '# Brokers can pay a fee twice a year\n\nThe entr
 /** Real git for reads; pushes and ls-remote are answered here and recorded, so nothing leaves the machine. */
 function gitExec() {
   const pushes = [];
-  const exec = (cmd, args, opts, cb) => {
+  const seen = [];
+  const exec = (cmd, full, opts, cb) => {
+    // every git call must carry the guard that stops a remote address from running a program
+    const guarded = full[0] === '-c' && full[1] === 'protocol.ext.allow=never';
+    seen.push(guarded);
+    const args = guarded ? full.slice(2) : full;
     if (cmd === 'git' && args[0] === 'push') { pushes.push(args); return cb(null, '', ''); }
-    if (cmd === 'git' && args[0] === 'ls-remote') return cb(null, '', '');
-    return execFile(cmd, args, opts, cb);
+    if (cmd === 'git' && args[0] === 'ls-remote') { pushes.lsRemote = args; return cb(null, '', ''); }
+    return execFile(cmd, full, opts, cb);
   };
+  pushes.seen = seen;
   return { exec, pushes };
 }
 
@@ -351,6 +357,8 @@ test('create needs confirm; it pushes only the named branch (never forced), then
     const r = await post('/api/pr/create', { ...P, branch: 'claude/feat-x', title: 'Brokers can pay a fee twice a year', body: 'Body text', confirm: true });
     assert.equal(r.status, 200); const j = await r.json(); assert.equal(j.number, 9); assert.equal(j.url, 'https://github.com/acme/widgets/pull/9'); assert.equal(j.pushed, true);
     assert.equal(pushes.length, 1); assert.deepEqual(pushes[0], ['push', 'origin', 'refs/heads/claude/feat-x:refs/heads/claude/feat-x']);
+    assert.ok(pushes.seen.length > 0 && pushes.seen.every(Boolean), 'every git call carries protocol.ext.allow=never');
+    assert.deepEqual(pushes.lsRemote, ['ls-remote', '--heads', '--', 'origin', 'refs/heads/claude/feat-x']);
     assert.ok(!pushes[0].some((a) => /force|-f$|\+/.test(a)));
     const w = gh.writes(); assert.equal(w.length, 1); assert.deepEqual({ ...w[0].body }, { title: 'Brokers can pay a fee twice a year', head: 'claude/feat-x', base: 'main', body: 'Body text', draft: false });
     // the default branch cannot be the source; a secret in the text is refused before any push
@@ -436,3 +444,13 @@ test('npm run pr save-token reads the token from stdin into the key store', asyn
   assert.ok(!out.join().includes(TOKEN));
 });
 void copyFileSync;
+
+test('an option-like branch name never reaches git from the push helper', async () => {
+  const { createPr } = await import('../tools/hub/github.mjs');
+  const { exec, pushes } = gitExec();
+  const gh = { get: async () => ({ default_branch: 'main' }), post: async () => ({}) };
+  for (const bad of ['--upload-pack=evil', '-x', 'a..b', 'x.lock']) {
+    await assert.rejects(createPr({ gh, repo: 'o/r', folder: process.cwd(), branch: bad, title: 't', body: '', confirm: true, exec }), /Bad branch name/);
+  }
+  assert.equal(pushes.length, 0);
+});

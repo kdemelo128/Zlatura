@@ -58,7 +58,8 @@ export function slugFromRemote(url) {
 }
 
 const git = (exec, folder, args, { timeout = 20000 } = {}) => new Promise((resolve, reject) => {
-  exec('git', args, { cwd: folder, timeout, maxBuffer: 4 * 1024 * 1024, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }, (err, out, errOut) => (err ? reject(new Error(String(errOut || err.message).trim().slice(0, 300))) : resolve(String(out))));
+  // never let a remote address run a program (ext::), whatever the folder's own config says
+  exec('git', ['-c', 'protocol.ext.allow=never', ...args], { cwd: folder, timeout, maxBuffer: 4 * 1024 * 1024, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }, (err, out, errOut) => (err ? reject(new Error(String(errOut || err.message).trim().slice(0, 300))) : resolve(String(out))));
 });
 
 /** The projects the panel offers. The folder and repo come only from the hub's own config, never from the page. */
@@ -156,8 +157,9 @@ export async function prefill({ folder, branch, exec = nodeExecFile }) {
 const need = (confirm) => { if (confirm !== true) throw new PrError('Confirmation is required. Nothing was changed.', { status: 400 }); };
 
 async function ensurePushed({ folder, branch, exec }) {
+  if (!isBranch(branch)) throw new PrError('Bad branch name.'); // checked again here so no other caller can pass an option-like value to git
   const local = (await git(exec, folder, ['rev-parse', `refs/heads/${branch}`])).trim();
-  const remote = (await git(exec, folder, ['ls-remote', '--heads', 'origin', `refs/heads/${branch}`]).catch(() => '')).split(/\s+/)[0];
+  const remote = (await git(exec, folder, ['ls-remote', '--heads', '--', 'origin', `refs/heads/${branch}`]).catch(() => '')).split(/\s+/)[0];
   if (remote === local) return false;
   await git(exec, folder, ['push', 'origin', `refs/heads/${branch}:refs/heads/${branch}`], { timeout: 120000 }); // never forced, never another ref
   return true;
