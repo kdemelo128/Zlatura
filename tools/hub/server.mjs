@@ -11,6 +11,7 @@ import { PROVIDERS, statuses, saveKey } from './providers.mjs';
 import { screenPrompt, pick, frame, connectSummary, safeText } from './hub-lib.mjs';
 import { loadWorkers, findSecret } from '../harness/lib.mjs';
 import { listCards, runAgent, applyDiff } from './agents.mjs';
+import { PrError, getToken, ghClient, listProjects, projectInfo, listPrs, checkPr, localBranches, prefill, createPr, mergePr, updateBranch, setAutoMerge } from './github.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -87,6 +88,38 @@ export function createHub({ token = randomBytes(24).toString('hex'), env = proce
         try { return send(res, 200, { ok: true, message: await applyDiff({ root, file: b.card, provider: b.provider, diff: String(b.diff ?? ''), exec }) }); }
         catch (e) { return send(res, 200, { ok: false, message: safeText(e.message) }); }
         finally { busy = false; }
+      }
+      if (url.pathname.startsWith('/api/pr/')) {
+        const token = getToken(env);
+        const fail = (e) => {
+          const msg = safeText(String(e?.message ?? 'failed').split(token || '\u0000').join('…'));
+          const code = e?.status === 400 || e?.status === 409 ? e.status : 502;
+          return send(res, code, { error: msg, ...(e?.reasons ? { reasons: e.reasons } : {}), ...(e?.needsToken ? { needsToken: true } : {}) });
+        };
+        try {
+          if (req.method === 'GET' && url.pathname === '/api/pr/projects') return send(res, 200, { projects: listProjects(cfg), hasToken: !!token });
+          if (req.method !== 'POST') return send(res, 404, { error: 'not found' });
+          const b = await body(req);
+          const mutating = ['create', 'merge', 'update', 'automerge'].includes(url.pathname.slice('/api/pr/'.length));
+          if (mutating && b.confirm !== true) return send(res, 400, { error: 'Confirmation is required. Nothing was changed.' });
+          const info = await projectInfo({ cfg, project: b.project, root, exec });
+          const gh = ghClient({ token, fetch: fetchFn });
+          const common = { gh, repo: info.repo, number: b.number, sha: b.sha, confirm: b.confirm };
+          switch (url.pathname) {
+            case '/api/pr/list': return send(res, 200, { repo: info.repo, source: info.source, prs: await listPrs(gh, info.repo) });
+            case '/api/pr/check': return send(res, 200, { repo: info.repo, pr: await checkPr(gh, info.repo, b.number) });
+            case '/api/pr/branches': {
+              const base = (await gh.get(`/repos/${info.repo}`)).default_branch;
+              return send(res, 200, { repo: info.repo, base, branches: await localBranches({ folder: info.folder, base, exec }) });
+            }
+            case '/api/pr/prefill': return send(res, 200, await prefill({ folder: info.folder, branch: b.branch, exec }));
+            case '/api/pr/create': return send(res, 200, await createPr({ gh, repo: info.repo, folder: info.folder, branch: b.branch, title: b.title, body: b.body, draft: b.draft === true, confirm: b.confirm, exec }));
+            case '/api/pr/merge': return send(res, 200, await mergePr(common));
+            case '/api/pr/update': return send(res, 200, await updateBranch(common));
+            case '/api/pr/automerge': return send(res, 200, await setAutoMerge({ ...common, enable: b.enable === true }));
+            default: return send(res, 404, { error: 'not found' });
+          }
+        } catch (e) { if (!(e instanceof PrError)) console.error('Hub pull request call failed:', safeText(String(e?.message ?? e).split(token || '\u0000').join('…'))); return fail(e); }
       }
       return send(res, 404, { error: 'not found' });
     } catch (e) { console.error('Hub request failed:', e?.stack ?? e); return send(res, 500, { error: 'internal server error' }); }

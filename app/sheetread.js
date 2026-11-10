@@ -4,10 +4,25 @@
 import { readText } from './textfile.js';
 import { checkUpload, hardenZip } from './filekind.js';
 
-/** A cell's value as text, a number or an ISO date (YYYY-MM-DD): formulas give their cached result. */
+/** A date cell that holds no real date (a workbook can store a serial no calendar has), directly or as a formula's result. */
+export function badDate(v) {
+  if (v instanceof Date) return Number.isNaN(v.getTime());
+  return !!v && typeof v === 'object' && 'result' in v && badDate(v.result);
+}
+/** The one note an import shows when date cells could not be read: the count, and that they were left blank. */
+export function badDateNote(n) {
+  if (!n) return '';
+  return n === 1 ? '1 date cell in this workbook could not be read and was left blank. Check the dates.'
+    : `${n} date cells in this workbook could not be read and were left blank. Check the dates.`;
+}
+
+/**
+ * A cell's value as text, a number or an ISO date (YYYY-MM-DD): formulas give their cached result.
+ * A date cell that holds no real date is blank (null): never 0, never today, never the raw serial.
+ */
 export function cellValue(v) {
   if (v === null || v === undefined) return null;
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : v.toISOString().slice(0, 10);
   if (typeof v === 'object') {
     if ('result' in v) return cellValue(v.result);
     if ('richText' in v) return v.richText.map((x) => x.text).join('');
@@ -115,7 +130,9 @@ export async function loadXlsx(file, getXlsx, up = null) {
  * from its bytes (filekind.js checkUpload; pass its result as `upload`, or it
  * is run here), never from its name. A text file's grid also has `delimiter`,
  * `encoding` and `note` (textfile.js): the note says when it wasn't plain UTF-8.
- * `includeHidden` lists hidden sheets too, marked `hidden: true`.
+ * `includeHidden` lists hidden sheets too, marked `hidden: true`. A workbook
+ * with date cells that could not be read has `badDates` (the count) on each
+ * sheet's grid and the same `note` on every grid (badDateNote of the total).
  * @param {any} file
  * @param {() => Promise<any>} getXlsx
  * @param {{ maxRows?: number, includeHidden?: boolean, upload?: any, getFflate?: () => Promise<any> }} [opts]
@@ -130,7 +147,9 @@ export async function readGrids(file, getXlsx, { maxRows = 400, includeHidden = 
     return [{ sheet: 'CSV', hidden: false, rows, delimiter, encoding, note, macros: false }];
   }
   const wb = await loadXlsx(file, getXlsx, up);
-  return gridsOf(wb, { maxRows, includeHidden }).map((g) => ({ ...g, macros: !!up.macros }));
+  const grids = gridsOf(wb, { maxRows, includeHidden });
+  const note = badDateNote(grids.reduce((n, g) => n + g.badDates, 0));
+  return grids.map((g) => ({ ...g, macros: !!up.macros, ...(note ? { note } : {}) }));
 }
 
 /** The same for an ExcelJS workbook already loaded (the tests read their invented files this way). */
@@ -140,16 +159,19 @@ export function gridsOf(wb, { maxRows = 400, includeHidden = false } = {}) {
     const hidden = !!ws.state && ws.state !== 'visible';
     if (hidden && !includeHidden) return;
     const rows = [];
+    let badDates = 0;
     ws.eachRow({ includeEmpty: false }, (row, r) => {
       if (r > maxRows) return;
       const cells = [];
       row.eachCell({ includeEmpty: true }, (cell, c) => {
         // a merged cell's value sits in its first cell only
-        cells[c - 1] = cell.isMerged && cell.master && cell.master !== cell ? null : cellValue(cell.value);
+        const own = !(cell.isMerged && cell.master && cell.master !== cell);
+        if (own && badDate(cell.value)) badDates++;
+        cells[c - 1] = own ? cellValue(cell.value) : null;
       });
       rows.push({ r, cells });
     });
-    out.push({ sheet: ws.name, hidden, rows });
+    out.push({ sheet: ws.name, hidden, rows, badDates });
   });
   return out;
 }

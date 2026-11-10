@@ -1,5 +1,37 @@
 # Changelog
 
+## 4.7.124: Three planning documents: your tool's look for the whole app, how figures move to and from your tool, and what an all-in-one product needs (on the development branch; not merged or deployed)
+
+Documents only; no app change, nothing built until you approve.
+
+- **Look and feel** (`docs/proposals/ui-filler-design-language.md`): the underwriting tool's design (warm off-white, plum accent, soft cards, the four-step flow) recorded as rules and carried to every other Zlatura screen, behind the existing New look switch, one area per pull request. It also lists what to do better than the tool does today: readable contrast, no tiny text, 44 px touch targets, glass only on floating controls, and matching light or dark. It has eight questions for you; three of them reverse earlier look decisions (palette, fonts, glass), and the fonts are new files to add.
+- **The bridge** (`docs/proposals/uw-bridge-fieldmap.md`): the note needed before figures can move between Zlatura and the tool: 40 mapped fields with their units (the tool holds rent per month and rates as decimals), blanks kept blank, one deal's project never shown under another, and the tests the build must pass. Five questions for you.
+- **All-in-one research** (`docs/proposals/all-in-one-research.md`): what the leading underwriting, deal, brokerage, investor and data tools do, a table of 35 outside systems with the lawful way to connect to each (12 free from the browser, 5 through your own account, 9 by files you export yourself, 6 only with a paid licence or partnership, 3 not to be connected), and a 20-item order of work mapped onto the existing plan. Written from search summaries; no vendor site was opened, and each unverified cell is marked.
+
+## 4.7.123: A workbook with a date cell that can't be read is no longer refused whole (on the development branch; not merged or deployed)
+
+A spreadsheet can hold a date cell whose stored number is no real date. One such cell made the rent roll and T-12 imports refuse the whole workbook ("Invalid time value"). In the owner's own document folder, 7 workbooks failed this way (a count from the scoreboard; nothing from those files is kept).
+
+- **Fixed:** such a cell is read as blank: never 0, never today's date, never the raw number. Every other cell is read as before.
+- **Said once:** the import shows one note with the count, for example "2 date cells in this workbook could not be read and were left blank. Check the dates." A rent roll's dates stay unset and a T-12's month columns are not invented.
+- **Tested:** 4 new tests on invented workbooks built in the test (the bad date is written into the file itself); on the old code the same cell throws a RangeError. The scoreboard's test now expects such a workbook to be read. Saved deal results and displayed figures are unchanged (646 figures compared, 0 changed), because no saved deal holds such a cell.
+
+## 4.7.122: The document scoreboard can now say why a file was refused or asked about (on the development branch; not merged or deployed)
+
+A findings note and a tool change from the first round of owner-supplied documents (counts only; nothing from the documents is kept). The note (`docs/proposals/document-learning-round-1.md`) explains why none of 26 files from three zips was accepted: most are pages exported from the broker's own underwriting model (to be recognised and kept, not read as inputs); the rest are PDF statements with no route yet, property-manager rent roll PDFs, one workbook refused whole because of 11 unreadable date cells, two macro workbooks reported as "damaged", and three PDFs whose text is drawn as outlines.
+
+- **New:** `node tests/tools/doc-local.mjs <folder> --reasons` adds a counts-only table of reason codes (for example `zip-not-opened`, `no-text-layer`, `sheet-read-failed:RangeError`, `classifier-broad:3 candidates`, `no-reader-for-type:budget`) and a new outcome, "identified, no reader", for files the classifier typed confidently but no reader exists for. Page, sheet and hidden-sheet counts are bucketed. No file name, text or figure is ever printed.
+- **Unchanged:** without `--reasons` the output is byte for byte what it was; no app file changed.
+- **Tested:** three new tests on invented files (nine kinds, including a decompression-bomb zip and a workbook with an impossible date); one fails on the old tool, and two pin that nothing leaks and the old output is unchanged. Saved results and the golden figures are unchanged.
+
+## 4.7.121: Open, check and merge pull requests from the Model Hub, without the GitHub website (on the development branch; not merged or deployed)
+
+The Model Hub gets a third tab, Pull requests, and `npm run pr` does the same from Terminal. It lists the open pull requests with their checks, merge state and review state, creates one from a local branch (title and description prefilled from the branch's changelog fragment and the repo's template), updates a branch from main, merges, and can turn on GitHub's own auto-merge.
+
+- **Safe by design:** nothing is sent to GitHub without a confirm. Merge is refused unless every check is green, there is no conflict, it is not a draft and the branch is not behind; it is pinned to the commit you saw, so a moved branch is refused. There is no override, and a repo with no checks at all also refuses.
+- **Your token stays on your Mac:** you paste a fine-grained GitHub token for one repository into the hub's key box (the same 0600 file as the model keys). It goes only to `api.github.com`, never to the page, a log or an error. The secret screen now also recognises `github_pat_` tokens.
+- **Tested:** 31 new tests; a merge gate that always said yes fails 12 of them, and 13 deliberately broken copies of the gate are each caught. Run only against a mock; not tried against the real GitHub. No app screen, saved result or data format changed.
+
 ## 4.7.120: Proposal: use the UW Filler as it is inside the Underwrite tab, with your UI unchanged (on the development branch; not merged or deployed)
 
 A design proposal only (`docs/proposals/uw-embed-as-is.md`). No app change, no saved result changed, nothing built until you approve it.

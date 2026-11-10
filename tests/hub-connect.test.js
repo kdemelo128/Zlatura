@@ -20,7 +20,8 @@ function fakeSpawn({ bins = ['codex', 'claude'] } = {}) {
   };
   return { spawn };
 }
-const HOSTS = ['chatgpt.com', 'docs.claude.com', 'aistudio.google.com', 'console.x.ai', 'platform.moonshot.ai', 'openrouter.ai'];
+const MODELS = PROVIDERS.filter((p) => p.chat !== false).length; // GitHub is a connect block, not a model
+const HOSTS = ['github.com', 'chatgpt.com', 'docs.claude.com', 'aistudio.google.com', 'console.x.ai', 'platform.moonshot.ai', 'openrouter.ai'];
 
 test('every provider has connect steps and a plain-string shape', () => {
   for (const p of PROVIDERS) {
@@ -57,18 +58,18 @@ test('/api/state carries connect for each provider and a summary, and never a sa
     assert.ok(!text.includes(kv));
     const s = JSON.parse(text);
     for (const p of PROVIDERS) { const row = s.providers.find((x) => x.id === p.id); assert.deepEqual(row.connect, p.connect, p.id); }
-    assert.equal(s.summary.total, PROVIDERS.length);
+    assert.equal(s.summary.total, MODELS);
     assert.equal(s.summary.ready, 3); // codex, claude (fake spawn) and the saved xai key
     assert.equal(s.summary.next, 'gemini-api');
   } finally { await hub.close(); }
 });
 
 test('connectSummary counts ready models and picks the first not-ready one with a page; Muse is never next', () => {
-  const all = (ready) => PROVIDERS.map((p) => ({ id: p.id, state: ready.includes(p.id) ? 'ready' : p.id === 'muse' ? 'unavailable' : 'needs-key' }));
-  assert.deepEqual(connectSummary(all([])), { ready: 0, total: PROVIDERS.length, next: 'codex' });
-  assert.deepEqual(connectSummary(all(['codex', 'claude'])), { ready: 2, total: PROVIDERS.length, next: 'gemini-api' });
-  const nonMuse = PROVIDERS.filter((p) => p.id !== 'muse').map((p) => p.id);
-  assert.deepEqual(connectSummary(all(nonMuse)), { ready: nonMuse.length, total: PROVIDERS.length, next: null });
+  const all = (ready) => PROVIDERS.map((p) => ({ id: p.id, chat: p.chat !== false, state: ready.includes(p.id) ? 'ready' : p.id === 'muse' ? 'unavailable' : 'needs-key' }));
+  assert.deepEqual(connectSummary(all([])), { ready: 0, total: MODELS, next: 'codex' });
+  assert.deepEqual(connectSummary(all(['codex', 'claude'])), { ready: 2, total: MODELS, next: 'gemini-api' });
+  const nonMuse = PROVIDERS.filter((p) => p.id !== 'muse' && p.chat !== false).map((p) => p.id);
+  assert.deepEqual(connectSummary(all(nonMuse)), { ready: nonMuse.length, total: MODELS, next: null });
   assert.equal(connectSummary([{ id: 'muse', state: 'unavailable' }]).next, null);
 });
 

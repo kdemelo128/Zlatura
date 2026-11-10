@@ -6,7 +6,7 @@
  * from them: in-place rent, expirations, concentration, and the projection
  * through NOI. Every change goes through `onChange`, which saves the deal. */
 
-import { cellValue, csvRows, unreadable, isCsv, loadXlsx } from './sheetread.js';
+import { cellValue, badDate, badDateNote, csvRows, unreadable, isCsv, loadXlsx } from './sheetread.js';
 import { readText } from './textfile.js';
 import { checkUpload, checkReader } from './filekind.js';
 import { calDay } from './pipeline.js';
@@ -862,14 +862,16 @@ async function readTable(file) {
   wb.eachSheet((ws) => {
     if (ws.state && ws.state !== 'visible') return;
     const grid = [];
+    let bad = 0;
     ws.eachRow({ includeEmpty: false }, (row, r) => {
       if (r > 400) return;
       const vals = [];
-      row.eachCell({ includeEmpty: true }, (cell, c) => { vals[c - 1] = cellValue(cell.value); });
+      row.eachCell({ includeEmpty: true }, (cell, c) => { if (badDate(cell.value)) bad++; vals[c - 1] = cellValue(cell.value); });
       grid.push(vals);
     });
     const t = headerAndRows(grid, ws.name);
-    if (t && (!best || t.score > best.score)) best = t;
+    // a date cell that could not be read is blank (sheetread.js): the sheet says how many, once
+    if (t && (!best || t.score > best.score)) best = bad ? { ...t, note: badDateNote(bad) } : t;
   });
   if (!best) throw new Error('No rent roll was found: it needs a row of headings such as Unit, Tenant, SF and Rent.');
   return best;

@@ -26,7 +26,7 @@ export const safeText = (s) => (findSecret(String(s)) ? HIDDEN : String(s));
 /** Pick providers: a named one, all ready ones, or Auto (role or kind via the harness routing table).
  *  prefer 'cheap' (Auto only) tries the lowest tier first among ready models, except for kinds that need a second-model review. */
 export function pick({ to, role, kind, prefer }, stats, cfg = loadWorkers()) {
-  const ready = new Set(stats.filter((s) => s.state === 'ready').map((s) => s.id));
+  const ready = new Set(stats.filter((s) => s.state === 'ready' && s.chat !== false).map((s) => s.id));
   if (to === 'all') return { ids: [...ready], why: 'all ready models' };
   if (to && to !== 'auto') return { ids: ready.has(to) ? [to] : [], why: ready.has(to) ? 'chosen by you' : 'that model is not ready' };
   const availableWorkers = new Set(cfg.workers.filter((w) => ready.has(providerForWorker(w.id))).map((w) => w.id));
@@ -56,7 +56,8 @@ export function frame(prompt, roleName, cfg = loadWorkers()) {
 }
 
 /** "N of M ready" for the Connect panel; `next` is the first model that is not ready and has an official page to open (Muse never is). */
-export function connectSummary(stats) {
+export function connectSummary(allStats) {
+  const stats = allStats.filter((s) => s.chat !== false); // GitHub is not a model: it has its own block and is not counted
   const ready = stats.filter((s) => s.state === 'ready').length;
   const next = stats.find((s) => s.state !== 'ready' && PROVIDERS.find((p) => p.id === s.id)?.connect?.url)?.id ?? null;
   return { ready, total: stats.length, next };
