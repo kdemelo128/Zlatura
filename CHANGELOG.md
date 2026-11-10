@@ -1,5 +1,25 @@
 # Changelog
 
+## 4.7.126: The New look now carries your underwriting tool's design: its colours, type and base parts (on the development branch; not merged or deployed)
+
+Step 1 of taking the underwriting tool's design across Zlatura (`docs/proposals/ui-filler-design-language.md`). Only the New look changes (Settings, Look); the Classic look is unchanged, and nothing switches by default.
+
+- **Colours and type:** warm off-white pages, white cards, a plum accent, and IBM Plex Sans and Mono (five font files, about 100 KB, added under their open font licence and listed in `THIRD_PARTY.md`).
+- **Base parts:** buttons, inputs, cards, status chips, notices, toasts, a stepper, a drop zone and table basics in that style, ready for the screen-by-screen passes that follow.
+- **Better than the original where it was weak:** every text and background pair meets the contrast standard (checked from the colour values), no text under 13 px except chart and tab labels, 44 px touch targets on phones, a visible focus ring, glass only on four floating controls with a solid fallback, and a new *Solid controls* switch.
+- **Tested:** contrast, glass and Classic-unchanged tests with ten deliberate breaks each caught; a 73-check browser flow at phone and desktop size, light and dark, with no accessibility violations on Home, a deal, Underwrite and Settings. The old code fails the flow. Displayed figures unchanged (646 compared, 0 changed).
+- **Not done:** before/after screenshots; the text-size control; the full browser suite and Safari were not run here. Screens are not restyled yet beyond what the tokens change.
+
+## 4.7.125: Your underwriting tool opens inside the Underwrite tab, loaded from your own zip (on the development branch; not merged or deployed)
+
+Step 1 of bringing the owner's underwriting tool into Zlatura as it is (`docs/proposals/uw-embed-as-is.md`). The tool's files are never part of Zlatura: you load the zip once on the Underwrite tab, it is kept on this device only, and it runs unchanged in a frame inside the tab.
+
+- **New card on the Underwrite tab:** Load package (a zip or the tool's folder), Open, Open full screen, Erase package. Every existing Underwrite feature is still there.
+- **Only an approved version loads:** a package is fingerprinted and must be on the approved list; the list holds the owner's 2026-11-07 release and the invented test stand-in.
+- **Kept apart:** the package lives in its own browser storage, survives app updates and the load-error reset, never goes to the network, and is never in a backup. It is served with a strict content policy: no outside connections, no eval.
+- **Tested:** 8 new unit tests and a 32-check browser flow at phone and desktop size on an invented stand-in package; the tests fail on the old code, and four deliberate breaks (no policy header, no fingerprint check, bucket deleted on update, eval allowed) are each caught. Saved results and displayed figures unchanged (646 compared, 0 changed).
+- **Not yet shown:** that the real tool looks exactly the same inside the frame. A local comparison against the owner's package found the first screen pixel-identical but later screens different (the strict policy blocks its outside fonts, and 6 policy violations were logged); the cause is not yet diagnosed and is the next step, with the security patches. Not tried on Safari or an iPhone; the full browser suite was not run here.
+
 ## 4.7.124: Three planning documents: your tool's look for the whole app, how figures move to and from your tool, and what an all-in-one product needs (on the development branch; not merged or deployed)
 
 Documents only; no app change, nothing built until you approve.

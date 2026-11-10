@@ -11,6 +11,7 @@ import { createDeal, discardDeal, showDeal, loanDefaults, scnRead, scnRefused, s
 import { toolIndex, openToolById } from './toolsui.js';
 import { activeWorkspace, workspaceReady } from './workspaceui.js';
 import { intakeCard, initIntake } from './intakeui.js';
+import { fillerCard } from './uwfiller/ui.js';
 import { newScratch, work, dealFields, loadScratch, saveScratch, deleteScratch, MAX_SCRATCH } from './uwstore.js';
 
 let api = null;
@@ -326,6 +327,7 @@ function draw() {
   head.appendChild(el('p', null, 'Type a price, NOI and loan terms and see the answer. It is not a deal until you save it as one.'));
   const stack = el('div', 'stack');
   stack.appendChild(intakeCard(api));
+  stack.appendChild(fillerCard());
   stack.appendChild(card());
   const listBox = el('section', 'card');
   listBox.id = 'uw-list';

@@ -128,6 +128,9 @@ const SET = new RegExp(String.raw`^[\w.]+\.innerHTML = ${CALL};$`);             
 const INS = new RegExp(String.raw`^[\w.]+\.insertAdjacentHTML\('beforeend', ${CALL}\);$`);   // x.insertAdjacentHTML('beforeend', icon(...));
 const OBJ = new RegExp(String.raw`^[\w.]+\.appendChild\(Object\.assign\(el\('div', '[a-z-]+'\), \{ innerHTML: ${CALL} \}\)\);$`);   // Object.assign(el('div', 'hero-icon'), { innerHTML: icon(..) })
 const ALLOW = [
+  // ---- the underwriting filler frame: the address is built from the app's own base and a fixed path, no data in it
+  { file: 'app/uwfiller/ui.js', re: /^window\.open\(FRAME_SRC\(\), '_blank', 'noopener'\);$/, n: 1, why: 'FRAME_SRC is new URL("uw-filler/index.html", document.baseURI): a fixed same-origin path, opened with noopener' },
+  { file: 'app/uwfiller/ui.js', re: /^f\.src = FRAME_SRC\(\);$/, n: 1, why: 'the same fixed same-origin address; the page is the broker\'s approved package under a script-src \'self\' policy' },
   // ---- fixed icon markup (class: fixed icon)
   { file: 'app/abstractui.js', re: INS, n: 1, why: ICON },
   { file: 'app/command.js', re: INS, n: 1, why: ICON },

@@ -37,9 +37,18 @@ export const SECRET_RULES = [
   ['sk- API key', new RegExp(j('\\bsk', '-[A-Za-z0-9_-]{32,}'))],
   ['Google API key', new RegExp(j('\\bAIza', '[0-9A-Za-z_-]{35}\\b'))],
   ['JWT', new RegExp(j('\\beyJ[A-Za-z0-9_-]{15,}\\.eyJ[A-Za-z0-9_-]{15,}\\.', '[A-Za-z0-9_-]{20,}'))],
+  // the broker's filler package carries the firm's workbook as a base64 block (docs/proposals/uw-embed-as-is.md, section 2): it is never committed
+  ['embedded workbook block', new RegExp(j('tpl', 'b64'))],
+  ['base64 run over 256 KB', /[A-Za-z0-9+/=]{262144,}/],
 ];
 // path -> rule names allowed there (documented test strings); none today
-export const SECRET_ALLOW = {};
+export const SECRET_ALLOW = {
+  // the proposal names the block it forbids (the name only, never its contents)
+  'docs/proposals/uw-embed-as-is.md': ['embedded workbook block'],
+  // vendored libraries that carry their own wasm or worker as one base64 string (THIRD_PARTY.md)
+  'vendor/ocr/tesseract-core-7.0.0-simd-lstm.wasm.js': ['base64 run over 256 KB'],
+  'vendor/pdf-4.7.76-legacy.worker.min.js': ['base64 run over 256 KB'],
+};
 
 export function pathFindings(paths, allowed = ALLOWED_DOCS) {
   return paths.flatMap((p) => PATH_RULES.filter(([, f]) => f(p, allowed)).map(([rule]) => `${p}: ${rule}`));
@@ -94,6 +103,8 @@ test('every secret rule fires on a sample, the allowlists are exact, and ordinar
     'sk- API key': j('sk', '-', 'a'.repeat(40)),
     'Google API key': j('AIza', 'a'.repeat(35)),
     'JWT': j('eyJ', 'a'.repeat(20), '.eyJ', 'b'.repeat(20), '.', 'c'.repeat(24)),
+    'embedded workbook block': j('<script id="tpl', 'b64">'),
+    'base64 run over 256 KB': 'A'.repeat(262144),
   };
   // a rule that is deleted, or added without a sample, must fail here: the loop below only visits rules that exist
   assert.deepEqual(SECRET_RULES.map(([name]) => name).sort(), Object.keys(samples).sort(), 'every secret rule has a sample and every sample a rule');
