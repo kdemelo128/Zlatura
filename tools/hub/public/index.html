@@ -76,7 +76,7 @@ button.ghost{background:transparent;color:var(--accent);border:1px solid var(--a
 .confirm{border:1px solid var(--accent);border-radius:8px;padding:10px 12px;display:grid;gap:8px;background:var(--bg)}
 .confirm ul{margin:0;padding-left:20px}
 .mk{display:grid;gap:8px;max-width:760px}.mk label{display:grid;gap:3px;font:500 11px var(--mono);color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
-.mk textarea{min-height:140px}
+.mk textarea{min-height:140px}.mk label.chk{display:flex;gap:6px;align-items:center}
 </style>
 </head>
 <body>
@@ -288,7 +288,7 @@ function prCreateForm() {
     try { const r = await prPost('create', { branch: sel.value, title: title.value, body: body.value, draft: draft.checked, confirm: true }); msg.replaceChildren(prMsg('Opened #' + r.number + (r.pushed ? ' (branch pushed).' : '.'))); await prLoad(); } catch (e) { msg.replaceChildren(prMsg(e.message, true)); }
     go.disabled = false;
   };
-  d.append(el('div', { className: 'mk' }, el('label', {}, 'Branch', sel), el('label', {}, 'Title', title), el('label', {}, 'Description', body), el('label', {}, 'Draft ', draft), notes, go, msg));
+  d.append(el('div', { className: 'mk' }, el('label', {}, 'Branch', sel), el('label', {}, 'Title', title), el('label', {}, 'Description', body), el('label', { className: 'chk' }, draft, ' Open as a draft'), notes, go, msg));
   return d;
 }
 $('prProject').onchange = () => { prState.project = $('prProject').value; prLoad(); };
