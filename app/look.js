@@ -4,9 +4,22 @@
 import { sync as syncTheme } from './theme.js';
 
 const KEY = 'zlatura.look';
+/** Solid controls: the New look's floating controls (step bar, messages, palette, tips) opaque instead of frosted.
+ * A device preference like the look: localStorage only, never in a backup or in a deal. */
+const SOLID_KEY = 'zlatura.solid';
 
 export function getLook() {
   try { return localStorage.getItem(KEY) === 'new' ? 'new' : 'classic'; } catch { return 'classic'; }
+}
+
+export function getSolid() {
+  try { return localStorage.getItem(SOLID_KEY) === '1'; } catch { return false; }
+}
+
+export function setSolid(on) {
+  try { if (on) localStorage.setItem(SOLID_KEY, '1'); else localStorage.removeItem(SOLID_KEY); } catch { /* blocked: this session only */ }
+  if (on) document.documentElement.dataset.solid = '1'; else delete document.documentElement.dataset.solid;
+  syncControls();
 }
 
 export function setLook(v) {
@@ -20,12 +33,15 @@ export function setLook(v) {
 function syncControls() {
   const mode = getLook();
   document.querySelectorAll('[data-look-set]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.lookSet === mode)));
+  document.querySelectorAll('[data-solid-toggle]').forEach((b) => b.setAttribute('aria-checked', String(getSolid())));
 }
 
 export function initLook() {
   document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-look-set]');
     if (b) setLook(b.dataset.lookSet);
+    const s = e.target.closest('[data-solid-toggle]');
+    if (s) setSolid(!getSolid());
   });
   document.addEventListener('keydown', (e) => {
     const b = e.target.closest && e.target.closest('[data-look-set]');
@@ -37,5 +53,6 @@ export function initLook() {
     all[i].focus();
   });
   if (getLook() === 'new') document.documentElement.dataset.look = 'new';
+  if (getSolid()) document.documentElement.dataset.solid = '1';
   syncControls();
 }

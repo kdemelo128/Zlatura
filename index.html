@@ -26,6 +26,8 @@
   } catch (e) { /* storage blocked: follow the system */ }
   /* The look the person chose (Settings > Appearance): Classic unless they turned the New look on. */
   try { if (localStorage.getItem('zlatura.look') === 'new') document.documentElement.dataset.look = 'new'; } catch (e) { /* Classic */ }
+  /* Solid controls (Settings > Appearance): the New look's floating controls opaque. Only the New look reads it. */
+  try { if (localStorage.getItem('zlatura.solid') === '1') document.documentElement.dataset.solid = '1'; } catch (e) { /* frosted */ }
 </script>
 <title>Zlatura</title>
 <meta name="description" content="Zlatura, a commercial real estate brokerage workspace. Every source. Every assumption. Every number. Offering memoranda read and underwritten, comps, rent rolls, your firm's Excel models and the calculators a deal needs, on your device.">

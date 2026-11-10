@@ -4,7 +4,7 @@
 
 import { $, el, icon, niceDate, parseNum, parsePct } from './kit.js';
 import { getTheme } from './theme.js';
-import { getLook } from './look.js';
+import { getLook, getSolid } from './look.js';
 import * as ai from './ai.js';
 import { renderDataCard } from './backupui.js';
 import { openAiSettings } from './aiui.js';
@@ -141,6 +141,12 @@ export async function renderSettings() {
     lookSeg.appendChild(b);
   }
   ul.appendChild(row('Look', 'Classic is the look you know. The New look has new colors, type and solid bars; nothing else changes and you can switch back at any time.', [lookSeg]));
+  const solid = el('button', 'btn btn-sm', 'Solid controls');
+  solid.type = 'button';
+  solid.setAttribute('role', 'switch');
+  solid.dataset.solidToggle = '1';
+  solid.setAttribute('aria-checked', String(getSolid()));
+  ul.appendChild(row('Solid controls', 'In the New look the step bar, messages and command menu are slightly see-through. Turn this on to make them solid. Kept on this device only; it is not in backups.', [solid]));
   look.appendChild(ul);
   stack.appendChild(look);
 
