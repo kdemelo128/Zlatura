@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.7.123: A workbook with a date cell that can't be read is no longer refused whole (on the development branch; not merged or deployed)
+
+A spreadsheet can hold a date cell whose stored number is no real date. One such cell made the rent roll and T-12 imports refuse the whole workbook ("Invalid time value"). In the owner's own document folder, 7 workbooks failed this way (a count from the scoreboard; nothing from those files is kept).
+
+- **Fixed:** such a cell is read as blank: never 0, never today's date, never the raw number. Every other cell is read as before.
+- **Said once:** the import shows one note with the count, for example "2 date cells in this workbook could not be read and were left blank. Check the dates." A rent roll's dates stay unset and a T-12's month columns are not invented.
+- **Tested:** 4 new tests on invented workbooks built in the test (the bad date is written into the file itself); on the old code the same cell throws a RangeError. The scoreboard's test now expects such a workbook to be read. Saved deal results and displayed figures are unchanged (646 figures compared, 0 changed), because no saved deal holds such a cell.
+
 ## 4.7.122: The document scoreboard can now say why a file was refused or asked about (on the development branch; not merged or deployed)
 
 A findings note and a tool change from the first round of owner-supplied documents (counts only; nothing from the documents is kept). The note (`docs/proposals/document-learning-round-1.md`) explains why none of 26 files from three zips was accepted: most are pages exported from the broker's own underwriting model (to be recognised and kept, not read as inputs); the rest are PDF statements with no route yet, property-manager rent roll PDFs, one workbook refused whole because of 11 unreadable date cells, two macro workbooks reported as "damaged", and three PDFs whose text is drawn as outlines.
