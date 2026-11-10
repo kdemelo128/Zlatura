@@ -1,0 +1,1 @@
+Invented stand-in for a filler package. Not real content. Only public/tool/ is the tool; this file is outside it, as the real package's notes are.
