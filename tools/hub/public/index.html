@@ -5,91 +5,156 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Model Hub</title>
 <style>
-/* Layout: a left rail (models, roles) and one chat column. Replies from several models sit side by side. */
+/* Layout: a left column (models with live usage, roles) and the main area: a slim top bar, tabs, and one view.
+   #app keeps its own two fixed grid places, so nothing placed beside it (an extension, say) can move the columns. */
 :root{
-  --bg:#f2f5f6; --panel:#ffffff; --fg:#13232b; --muted:#5a6a72; --line:#d4dde1;
-  --accent:#0b6e7a; --accent-fg:#ffffff; --me:#e3f0f2;
-  --ok:#2d6a4f; --warn:#9a5b00; --bad:#a3361c; --off:#8a979d;
+  --bg:#f2f5f6; --panel:#ffffff; --fg:#13232b; --muted:#546369; --line:#d4dde1;
+  --accent:#0b6e7a; --accent-fg:#ffffff; --me:#e3f0f2; --track:#dfe7ea;
+  --ok:#2d6a4f; --warn:#8a5200; --bad:#a3361c; --off:#7b898f;
   --sans:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --touch:44px;
 }
 @media (prefers-color-scheme:dark){:root{
-  --bg:#0e1a20; --panel:#16262e; --fg:#e6eef1; --muted:#97a9b1; --line:#2a3d47;
-  --accent:#4fc3d1; --accent-fg:#06222a; --me:#1b3944;
-  --ok:#7fd6a4; --warn:#f1c36a; --bad:#f5a97f; --off:#6d8089; color-scheme:dark}}
+  --bg:#0e1a20; --panel:#16262e; --fg:#e6eef1; --muted:#9db0b8; --line:#2a3d47;
+  --accent:#4fc3d1; --accent-fg:#06222a; --me:#1b3944; --track:#27404b;
+  --ok:#7fd6a4; --warn:#f1c36a; --bad:#f5a97f; --off:#7f939c; color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--sans)}
-#app{display:grid;grid-template-columns:320px minmax(0,1fr);grid-template-rows:minmax(0,1fr);min-height:100vh}
+body{background:var(--bg);color:var(--fg);font:16px/1.5 var(--sans)}
+#app{display:grid;grid-template-columns:340px minmax(0,1fr);grid-template-rows:minmax(0,1fr);min-height:100vh}
 #app>aside{grid-column:1;grid-row:1}#app>main{grid-column:2;grid-row:1}
-aside{min-width:0;background:var(--panel);border-right:1px solid var(--line);padding:18px 16px;overflow:auto;display:flex;flex-direction:column;gap:20px}
-h1{font-size:18px;margin:0}
-h2{font:600 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
-.prov{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;padding:9px 0;border-top:1px solid var(--line)}
+aside{min-width:0;background:var(--panel);border-right:1px solid var(--line);padding:var(--s4);overflow:auto;display:flex;flex-direction:column;gap:var(--s5)}
+h1{font-size:19px;margin:0}
+h2{font:600 12px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 var(--s2)}
+.sec>summary{font:600 12px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);cursor:pointer;min-height:var(--touch);display:flex;align-items:center}
+.sec[open]>summary{margin-bottom:var(--s1)}
+.sec>summary::before,.conn>summary::before,.menu>summary::before{content:'\25B8';display:inline-block;width:18px;flex:none}
+.sec[open]>summary::before,.conn[open]>summary::before,.menu[open]>summary::before{content:'\25BE'}
+.why{font:13px/1.45 var(--mono);color:var(--muted);overflow-wrap:anywhere}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:4px}
+/* models and their live usage */
+.prov{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--s1) var(--s3);padding:var(--s3) 0;border-top:1px solid var(--line)}
 .prov:first-of-type{border-top:0}
-.dot{width:10px;height:10px;border-radius:50%;background:var(--off);margin-top:6px}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--off);margin-top:6px}
 .dot.ready{background:var(--ok)}.dot.needs-key,.dot.missing-tool{background:var(--warn)}.dot.unavailable{background:var(--off)}
-.prov b{font-weight:600}.prov small{grid-column:2;color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
-.keyrow{grid-column:2;display:flex;gap:6px;margin-top:4px;min-width:0}
+.prov b{font-weight:600}.prov small{grid-column:2;color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.keyrow{grid-column:2;display:flex;gap:var(--s2);margin-top:var(--s1);min-width:0}
 .keyrow input{flex:1;min-width:0}
-.conn{border-top:1px solid var(--line);padding:6px 0;min-width:0}
-.conn summary{cursor:pointer;font-weight:600;overflow-wrap:anywhere}
-.conn ol{margin:6px 0;padding-left:20px;color:var(--muted);font-size:13px}.conn li{overflow-wrap:anywhere}
-.conn a{color:var(--accent);font-size:13px;overflow-wrap:anywhere}
-.conn small{display:block;color:var(--muted);font-size:12.5px}
-.role{font-size:13px;color:var(--muted);padding:4px 0;overflow-wrap:anywhere}.role b{color:var(--fg);font-weight:600}
+.usage{grid-column:2;display:grid;gap:var(--s1);font-size:13px;color:var(--muted);min-width:0}
+.usage .num{color:var(--fg);font-variant-numeric:tabular-nums}
+.meter{height:10px;border-radius:5px;background:var(--track);overflow:hidden}
+.meter>span{display:block;height:100%;background:var(--ok);border-radius:5px;transition:width .4s}
+.meter.warn>span{background:var(--warn)}.meter.bad>span{background:var(--bad)}
+.usage a{overflow-wrap:anywhere}
+.conn{border-top:1px solid var(--line);padding:var(--s1) 0;min-width:0}
+.conn summary{cursor:pointer;font-weight:600;overflow-wrap:anywhere;min-height:var(--touch);display:flex;align-items:center}
+.conn ol{margin:var(--s2) 0;padding-left:22px;color:var(--muted);font-size:14px}.conn li{overflow-wrap:anywhere}
+.conn a{font-size:14px;overflow-wrap:anywhere}
+.conn small{display:block;color:var(--muted);font-size:13px}
+.role{font-size:14px;color:var(--muted);padding:var(--s1) 0;overflow-wrap:anywhere}.role b{color:var(--fg);font-weight:600}
+/* main area */
 main{display:flex;flex-direction:column;min-width:0;height:100vh}
-.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
-.bar label.chk{align-content:end;text-transform:none;letter-spacing:0;font-size:12px}
-.bar label{display:grid;gap:3px;font:500 11px var(--mono);color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
-select,input,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
-select:focus-visible,input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-#log{flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:16px}
-.me{align-self:flex-end;max-width:min(680px,90%);background:var(--me);border-radius:10px;padding:10px 14px;white-space:pre-wrap}
-.why{font:12px var(--mono);color:var(--muted)}
-.replies{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
-.card h3{margin:0 0 6px;font-size:13px;display:flex;justify-content:space-between;gap:8px}
-.card h3 span{font:12px var(--mono);color:var(--muted);font-weight:400}
-.card pre{margin:0;white-space:pre-wrap;word-wrap:anywhere;font:14px/1.5 var(--sans)}
+.top{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);align-items:center;padding:var(--s2) var(--s4);border-bottom:1px solid var(--line);background:var(--panel)}
+.top label{display:flex;align-items:center;gap:var(--s2);font-weight:600}
+.top .grow{flex:1;min-width:0}
+#overall{font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.menu{position:relative}.menu summary{cursor:pointer;min-height:var(--touch);display:flex;align-items:center;color:var(--accent);font-weight:600}
+.menu .pop{position:absolute;right:0;z-index:5;margin-top:var(--s1);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:var(--s2) var(--s3);display:grid;min-width:240px;max-width:min(320px,90vw);box-shadow:0 6px 20px rgba(0,0,0,.18)}
+.menu .pop a{display:flex;align-items:center;min-height:var(--touch);overflow-wrap:anywhere}
+#projPanel{padding:var(--s3) var(--s4);border-bottom:1px solid var(--line);background:var(--bg);display:grid;gap:var(--s3)}#projPanel[hidden]{display:none}
+.projrow{display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:8px;padding:var(--s2) var(--s3);background:var(--panel)}
+.projrow span{min-width:0;overflow-wrap:anywhere}
+.addform{display:grid;gap:var(--s2);max-width:640px}
+.addform label{display:grid;gap:var(--s1);font:500 12px var(--mono);color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+.bar{display:flex;flex-wrap:wrap;gap:var(--s3);align-items:end;padding:var(--s3) var(--s4);border-bottom:1px solid var(--line);background:var(--panel)}
+.bar label.chk{align-content:end;text-transform:none;letter-spacing:0;font:15px var(--sans);color:var(--fg)}
+.bar.row{align-items:center}
+.bar label{display:grid;gap:var(--s1);font:500 12px var(--mono);color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+select,input,textarea{font:15px/1.4 var(--sans);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:var(--s2) var(--s3);min-height:var(--touch);max-width:100%}
+input[type=checkbox]{min-height:0;width:22px;height:22px;vertical-align:middle;margin-right:var(--s2)}
+.chk span{display:flex;align-items:center;min-height:var(--touch)}
+#log{flex:1;overflow:auto;padding:var(--s4);display:flex;flex-direction:column;gap:var(--s4)}
+.me{align-self:flex-end;max-width:min(680px,90%);background:var(--me);border-radius:10px;padding:var(--s3) var(--s4);white-space:pre-wrap;overflow-wrap:anywhere}
+.replies{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:var(--s3)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:var(--s3) var(--s4);min-width:0}
+.card h3{margin:0 0 var(--s2);font-size:14px;display:flex;justify-content:space-between;gap:var(--s2)}
+.card h3 span{font:13px var(--mono);color:var(--muted);font-weight:400}
+.card pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:15px/1.5 var(--sans)}
 .card.err{border-color:var(--bad)}.card.err pre{color:var(--bad)}
-.empty{margin:auto;max-width:460px;text-align:center;color:var(--muted)}
-form{display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--line);background:var(--panel)}
-textarea{flex:1;min-height:48px;max-height:180px;resize:vertical}
-button{font:600 14px var(--sans);background:var(--accent);color:var(--accent-fg);border:0;border-radius:6px;padding:8px 16px;cursor:pointer}
-button.small{padding:6px 10px;font-size:13px}button:disabled{opacity:.5;cursor:default}
-@media(max-width:760px){#app{grid-template-columns:1fr;grid-template-rows:auto auto}#app>aside{grid-column:1;grid-row:1;border-right:0;border-bottom:1px solid var(--line);max-height:44vh}#app>main{grid-column:1;grid-row:2;height:auto;min-height:60vh}}
-.tabs{display:flex;gap:6px;padding:10px 20px 0;background:var(--panel)}
-.tab{background:transparent;color:var(--muted);border:0;border-bottom:2px solid transparent;border-radius:0;padding:8px 12px}
-.tab.on{color:var(--fg);border-bottom-color:var(--accent)}
-.agentOut{flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:12px}
-.diff{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;font:13px/1.45 var(--mono);white-space:pre-wrap;overflow-x:auto}
-.prob{color:var(--bad)}
-#prView{display:flex;flex-direction:column;flex:1;min-height:0}#prView[hidden]{display:none}
-.prOut{flex:1;min-height:0;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:12px}
-.pr{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0;display:grid;gap:8px}
-.pr h3{margin:0;font-size:15px;overflow-wrap:anywhere}.pr h3 a{color:var(--fg)}
-.badges{display:flex;flex-wrap:wrap;gap:6px}
-.badge{font:12px var(--mono);border:1px solid var(--line);border-radius:999px;padding:2px 9px;color:var(--muted);overflow-wrap:anywhere}
-.badge.ok{color:var(--ok);border-color:var(--ok)}.badge.warn{color:var(--warn);border-color:var(--warn)}.badge.bad{color:var(--bad);border-color:var(--bad)}
-.acts{display:flex;flex-wrap:wrap;gap:8px}
+.empty{margin:auto;max-width:480px;text-align:center;color:var(--muted);padding:var(--s4)}
+form{display:flex;gap:var(--s3);padding:var(--s3) var(--s4);border-top:1px solid var(--line);background:var(--panel)}
+textarea{flex:1;min-width:0;min-height:56px;max-height:180px;resize:vertical}
+button{font:600 15px var(--sans);background:var(--accent);color:var(--accent-fg);border:0;border-radius:6px;padding:var(--s2) var(--s4);cursor:pointer;min-height:var(--touch)}
+button.small{padding:var(--s2) var(--s3);font-size:14px}button:disabled{opacity:.5;cursor:default}
 button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
-.confirm{border:1px solid var(--accent);border-radius:8px;padding:10px 12px;display:grid;gap:8px;background:var(--bg)}
+.tabs{display:flex;flex-wrap:wrap;gap:var(--s1);padding:var(--s2) var(--s4) 0;background:var(--panel);border-bottom:1px solid var(--line)}
+.tab{background:transparent;color:var(--muted);border:0;border-bottom:3px solid transparent;border-radius:0;padding:var(--s2) var(--s3)}
+.tab[aria-selected=true]{color:var(--fg);border-bottom-color:var(--accent)}
+.view{display:flex;flex-direction:column;flex:1;min-height:0}.view[hidden]{display:none}
+.agentOut,.prOut,.jobsOut{flex:1;min-height:0;overflow:auto;padding:var(--s4);display:flex;flex-direction:column;gap:var(--s3)}
+.diff{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:var(--s3);font:14px/1.45 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:auto}
+.prob{color:var(--bad);overflow-wrap:anywhere}
+.pr,.job{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:var(--s3) var(--s4);min-width:0;display:grid;gap:var(--s2)}
+.pr h3,.job h3{margin:0;font-size:16px;overflow-wrap:anywhere}.pr h3 a{color:var(--fg)}
+.badges{display:flex;flex-wrap:wrap;gap:var(--s2)}
+.badge{font:13px var(--mono);border:1px solid var(--line);border-radius:999px;padding:2px 10px;color:var(--muted);overflow-wrap:anywhere}
+.badge.ok{color:var(--ok);border-color:var(--ok)}.badge.warn{color:var(--warn);border-color:var(--warn)}.badge.bad{color:var(--bad);border-color:var(--bad)}
+.acts{display:flex;flex-wrap:wrap;gap:var(--s2)}
+.confirm{border:1px solid var(--accent);border-radius:8px;padding:var(--s3);display:grid;gap:var(--s2);background:var(--bg)}
 .confirm ul{margin:0;padding-left:20px}
-.mk{display:grid;gap:8px;max-width:760px}.mk label{display:grid;gap:3px;font:500 11px var(--mono);color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
-.mk textarea{min-height:140px}.mk label.chk{display:flex;gap:6px;align-items:center}
+.mk{display:grid;gap:var(--s2);max-width:760px}.mk label{display:grid;gap:var(--s1);font:500 12px var(--mono);color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+.mk textarea{min-height:140px}.mk label.chk{display:flex;gap:var(--s2);align-items:center}
+.limitrow{display:flex;flex-wrap:wrap;gap:var(--s3);align-items:center;color:var(--muted);font-size:14px}
+@media(max-width:760px){
+  #app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto}
+  #app>aside{grid-column:1;grid-row:1;border-right:0;border-bottom:1px solid var(--line);gap:var(--s2)}
+  #app>main{grid-column:1;grid-row:2;height:auto;min-height:70vh}
+  .top{padding:var(--s2) var(--s3)}.top .grow{flex-basis:100%}
+  .menu .pop{left:0;right:auto}
+  .bar,form{padding:var(--s3)}
+  .bar label{flex:1 1 100%}.bar select{width:100%}
+  .agentOut,.prOut,.jobsOut,#log{padding:var(--s3)}
+  .tabs{padding:var(--s1) var(--s2) 0}
+}
+@media (prefers-reduced-motion:reduce){.meter>span{transition:none}}
 </style>
 </head>
 <body>
 <div id="app">
 <aside>
   <div><h1>Model Hub</h1><div class="why">Runs on this computer only.</div></div>
-  <section><h2>Connect your models</h2><div id="summary" class="why"></div><div id="connect"></div></section>
-  <section><h2>Models</h2><div id="providers"></div></section>
-  <section><h2>Roles</h2><div id="roles"></div></section>
+  <details class="sec" open><summary>Models and live usage</summary>
+    <div class="why">Counts are what this hub sent, kept on this computer. Plan balances (Claude, ChatGPT) are only on each provider's own page, linked below.</div>
+    <div id="providers"></div></details>
+  <details class="sec" open><summary>Roles</summary><div id="roles"></div></details>
+  <details class="sec" id="connectBox"><summary id="hConn">Connect your models</summary><div id="connect"></div></details>
 </aside>
 <main>
-  <div class="tabs"><button class="tab on" id="tabChat" type="button">Chat</button><button class="tab" id="tabAgents" type="button">Agents</button><button class="tab" id="tabPr" type="button">Pull requests</button></div>
-  <div id="chatView" style="display:contents">
+  <header class="top" aria-label="Project and status">
+    <label>Project <select id="project" aria-label="Project"></select></label>
+    <button class="ghost small" id="projToggle" type="button" aria-expanded="false" aria-controls="projPanel">Projects…</button>
+    <div class="grow"><div id="overall" role="status" aria-live="polite">Loading…</div></div>
+    <details class="menu"><summary>Open usage page</summary><div class="pop" id="usageLinks"></div></details>
+  </header>
+  <div id="projPanel" hidden aria-label="Manage projects">
+    <div id="projList"></div>
+    <details class="conn"><summary>Add a project by its folder</summary>
+      <div class="addform">
+        <label>Folder path (the top folder of a git repository)<input id="addFolder" type="text" autocomplete="off" placeholder="/Users/you/code/my-project" aria-label="Folder path"></label>
+        <label>Name (optional)<input id="addName" type="text" autocomplete="off" maxlength="60" aria-label="Project name"></label>
+        <label>GitHub owner/repo (optional)<input id="addGh" type="text" autocomplete="off" placeholder="owner/repo" aria-label="GitHub owner and repository"></label>
+        <button id="addGo" type="button">Add project</button><div id="addMsg" class="why" role="status"></div>
+      </div>
+    </details>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Views">
+    <button class="tab" id="tabChat" type="button" role="tab" aria-selected="true" aria-controls="chatView">Chat</button>
+    <button class="tab" id="tabAgents" type="button" role="tab" aria-selected="false" aria-controls="agentView" tabindex="-1">Agents</button>
+    <button class="tab" id="tabPr" type="button" role="tab" aria-selected="false" aria-controls="prView" tabindex="-1">Pull requests</button>
+    <button class="tab" id="tabJobs" type="button" role="tab" aria-selected="false" aria-controls="jobsView" tabindex="-1">Jobs</button>
+  </div>
+  <div id="chatView" class="view" role="tabpanel" aria-labelledby="tabChat">
   <div class="bar">
     <label>Send to<select id="to"></select></label>
     <label>Role<select id="role"><option value="">None</option></select></label>
@@ -97,23 +162,27 @@ button.ghost{background:transparent;color:var(--accent);border:1px solid var(--a
     <label class="chk"><span><input type="checkbox" id="cheap"> Save my usage: try free models first</span></label>
   </div>
   <div id="log"><div class="empty" id="empty"><b>Ask anything.</b><br>Pick one model, all ready models, or Auto to let the role table choose. Replies appear here side by side. Messages that mention the private folder, a key or an email address are refused. Models run from an empty folder. Keys stay on this computer.</div></div>
-  <form id="f"><textarea id="msg" placeholder="Message" aria-label="Message" autofocus></textarea><button id="send" type="submit">Send</button></form>
+  <form id="f"><textarea id="msg" placeholder="Message" aria-label="Message"></textarea><button id="send" type="submit">Send</button></form>
   </div>
-  <div id="agentView" hidden>
+  <div id="agentView" class="view" role="tabpanel" aria-labelledby="tabAgents" hidden>
     <div class="bar">
-      <label>Task card<select id="card"></select></label>
+      <label>Task card (of the selected project)<select id="card"></select></label>
       <label>Run with<select id="agentTo"><option value="auto">Auto (by role)</option></select></label>
       <button id="runAgent" type="button">Run agent</button>
     </div>
-    <div id="agentOut" class="agentOut"><div class="empty">Pick a task card and run it. The model drafts a change; the hub checks it against the card's scope and the protected-files rules, and you decide whether to put it on a local branch. Nothing is pushed.</div></div>
+    <div id="agentOut" class="agentOut"><div class="empty">Pick a task card and run it. The model drafts a change in the background (see the Jobs tab); the hub checks it against the card's scope and the project's protected-files rules, and you decide whether to put it on a local branch of that project. Nothing is pushed.</div></div>
   </div>
-  <div id="prView" hidden>
-    <div class="bar">
-      <label>Project<select id="prProject"></select></label>
+  <div id="prView" class="view" role="tabpanel" aria-labelledby="tabPr" hidden>
+    <div class="bar row">
+      <span class="why" id="prProject"></span>
       <button id="prRefresh" type="button">Refresh</button>
       <span class="why" id="prRepo"></span>
     </div>
     <div id="prOut" class="prOut"></div>
+  </div>
+  <div id="jobsView" class="view" role="tabpanel" aria-labelledby="tabJobs" hidden>
+    <div class="bar row"><div class="limitrow"><label>Run at most<select id="limit" aria-label="How many jobs run at once"></select></label><span>at once, across all projects. Chat is listed here too but never waits.</span></div></div>
+    <div id="jobsOut" class="jobsOut"></div>
   </div>
 </main>
 </div>
@@ -125,11 +194,21 @@ const api = async (path, body) => {
   const r = await fetch(path, { method: body ? 'POST' : 'GET', headers: { 'x-hub-token': token, ...(body ? { 'content-type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
   const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || r.status); return j;
 };
-const el = (tag, props = {}, ...kids) => { const n = document.createElement(tag); Object.assign(n, props); kids.forEach((k) => n.append(k)); return n; };
+const el = (tag, props = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) { if (k.startsWith('aria-') || k.startsWith('data-') || k === 'role') n.setAttribute(k, v); else n[k] = v; }
+  kids.forEach((k) => n.append(k)); return n;
+};
 const $ = (id) => document.getElementById(id);
-try { $('cheap').checked = sessionStorage.getItem('hubCheap') === '1'; } catch { /* none */ }
+const ui = { project: '', projects: [], providers: [], summary: { ready: 0, total: 0 }, usage: {}, jobs: [], limit: 3, running: 0, queued: 0, stateError: null, live: null };
+try { $('cheap').checked = sessionStorage.getItem('hubCheap') === '1'; ui.project = sessionStorage.getItem('hubProject') || ''; } catch { /* none */ }
 $('cheap').onchange = () => { try { sessionStorage.setItem('hubCheap', $('cheap').checked ? '1' : '0'); } catch { /* private window */ } };
 const safeUrl = (u) => { try { const x = new URL(u); return x.protocol === 'https:' && !x.username && !x.password ? x.href : null; } catch { return null; } };
+const link = (url, text) => { const href = url && safeUrl(url); return href ? el('a', { href, target: '_blank', rel: 'noopener noreferrer', textContent: text }) : el('span', { textContent: text }); };
+const nf = new Intl.NumberFormat();
+const ago = (t) => { const s = Math.max(0, Math.round((Date.now() - t) / 1000)); return s < 5 ? 'just now' : s < 90 ? s + ' s ago' : s < 5400 ? Math.round(s / 60) + ' min ago' : s < 129600 ? Math.round(s / 3600) + ' h ago' : Math.round(s / 86400) + ' days ago'; };
+const projName = (id) => ui.projects.find((p) => p.id === id)?.name || id;
+
 function connectBlock(p, onSaved) {
   const c = p.connect; const d = el('details', { className: 'conn' }, el('summary', { textContent: p.label }));
   const ol = el('ol'); for (const t of c.steps) ol.append(el('li', { textContent: t })); d.append(ol);
@@ -144,15 +223,56 @@ function connectBlock(p, onSaved) {
   }
   return d;
 }
+
+// ----- live usage: counts the hub itself made; plan balances are only ever a link to the provider's own page -----
+function usageNodes(id) {
+  const u = ui.usage[id]; const out = [];
+  if (!u) return [el('span', { textContent: 'Counting starts with the first call.' })];
+  const t = u.today;
+  out.push(el('div', {}, el('span', { className: 'num', textContent: nf.format(t.requests) }), ' requests today · ', el('span', { className: 'num', textContent: nf.format(t.ok) }), ' ok · ', el('span', { className: 'num', textContent: nf.format(t.errors) }), ' errors · ', el('span', { className: 'num', textContent: nf.format(t.rateLimited) }), ' rate-limit (429) hits'));
+  out.push(el('div', { textContent: u.tokens === 'reported' ? 'Tokens: in ' + nf.format(t.inputTokens) + ' · out ' + nf.format(t.outputTokens) : 'Tokens: not reported by this tool, requests only' }));
+  if (u.limit && u.limit.perDay) {
+    const pct = Math.min(100, Math.round((t.requests / u.limit.perDay) * 100));
+    const m = el('div', { className: 'meter' + (pct >= 100 ? ' bad' : pct >= 80 ? ' warn' : ''), role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(u.limit.perDay), 'aria-valuenow': String(Math.min(t.requests, u.limit.perDay)), 'aria-label': 'Requests today against about ' + u.limit.perDay + ' a day (approximate)' }, el('span'));
+    m.firstChild.style.width = pct + '%';
+    out.push(m);
+    out.push(el('div', {}, nf.format(t.requests) + ' of about ' + nf.format(u.limit.perDay) + ' a day, approximate and unverified; limits change often. ', link(u.limit.url, 'Check the official limits')));
+  } else out.push(el('div', {}, (u.limit?.note || 'No daily cap to show') + '. ', u.limit ? link(u.limit.url, 'Official page') : ''));
+  const badges = el('div', { className: 'badges' });
+  if (u.rateLimitedNow) badges.append(el('span', { className: 'badge bad', textContent: 'rate-limited now' + (u.retryAfterSec != null ? ', retry in ' + u.retryAfterSec + ' s' : '') }));
+  if (u.inflight > 0) badges.append(el('span', { className: 'badge warn', textContent: u.inflight + ' running now' }));
+  if (badges.childNodes.length) out.push(badges);
+  out.push(el('div', { textContent: u.last ? 'Last used ' + ago(u.last.at) + (u.last.ok ? '' : ' (failed)') : 'Not used through this hub yet' }));
+  if (u.plan) out.push(el('div', {}, 'Plan usage: ', link(u.plan.url, u.plan.label)));
+  return out;
+}
+function paintUsage() {
+  for (const box of document.querySelectorAll('.usage[data-id]')) {
+    if (box.contains(document.activeElement)) continue; // never steal focus from a link being used
+    box.replaceChildren(...usageNodes(box.dataset.id));
+  }
+  const pop = $('usageLinks'); const want = ui.providers.filter((p) => p.state === 'ready' && ui.usage[p.id]?.plan).map((p) => ui.usage[p.id].plan);
+  const sig = want.map((w) => w.url).join('|');
+  if (pop.dataset.sig !== sig) { pop.dataset.sig = sig; pop.replaceChildren(...(want.length ? want.map((w) => link(w.url, w.label)) : [el('span', { className: 'why', textContent: 'No model is ready yet.' })])); }
+}
+function paintOverall() {
+  const bits = [ui.summary.ready + ' of ' + ui.summary.total + ' models ready', ui.running + ' running' + (ui.queued ? ', ' + ui.queued + ' queued' : '')];
+  if (ui.stateError) bits.push(ui.stateError);
+  if (ui.live) bits.push('Live updates paused: ' + ui.live);
+  $('overall').textContent = bits.join(' · ');
+  $('tabJobs').textContent = ui.running + ui.queued ? 'Jobs (' + (ui.running + ui.queued) + ')' : 'Jobs';
+}
+
 async function refresh() {
-  const s = await api('/api/state');
-  $('summary').textContent = s.summary.ready + ' of ' + s.summary.total + ' models ready';
+  const s = await api('/api/state' + (ui.project ? '?project=' + encodeURIComponent(ui.project) : ''));
+  ui.providers = s.providers; ui.summary = s.summary; $('hConn').textContent = 'Connect your models (' + s.summary.ready + ' of ' + s.summary.total + ' ready)'; ui.stateError = s.projectError || null;
   const conn = $('connect'); const open = new Set([...conn.querySelectorAll('details[open]')].map((d) => d.dataset.id)); conn.replaceChildren();
-  for (const p of s.providers) if (p.state !== 'ready' && p.connect) { const d = connectBlock(p, refresh); d.dataset.id = p.id; d.open = open.has(p.id) || (s.summary.next === p.id && !open.size); conn.append(d); }
+  for (const p of s.providers) if (p.state !== 'ready' && p.connect) { const d = connectBlock(p, refresh); d.dataset.id = p.id; d.open = open.has(p.id); conn.append(d); }
   const box = $('providers'); box.replaceChildren();
   const to = $('to'); const keep = to.value; to.replaceChildren(el('option', { value: 'auto', textContent: 'Auto (by role)' }), el('option', { value: 'all', textContent: 'All ready models' }));
   for (const p of s.providers.filter((x) => x.chat !== false)) {
-    const row = el('div', { className: 'prov' }, el('span', { className: 'dot ' + p.state }), el('b', { textContent: p.label }), el('small', { textContent: p.how + ' · ' + p.cost }));
+    const row = el('div', { className: 'prov' }, el('span', { className: 'dot ' + p.state, 'aria-hidden': 'true' }), el('b', { textContent: p.label }), el('small', { textContent: p.state.replace('-', ' ') + ': ' + p.how + ' · ' + p.cost }));
+    if (p.state === 'ready') row.append(el('div', { className: 'usage', 'aria-label': p.label + ' usage today', 'data-id': p.id }));
     if (p.keyName && p.state === 'needs-key') {
       const input = el('input', { type: 'password', placeholder: 'Paste ' + p.keyName, autocomplete: 'off', ariaLabel: p.keyName });
       const save = el('button', { className: 'small', type: 'button', textContent: 'Save' });
@@ -166,16 +286,53 @@ async function refresh() {
   const roles = $('roles'); roles.replaceChildren(); const role = $('role'); const kr = role.value; role.replaceChildren(el('option', { value: '', textContent: 'None' }));
   for (const [k, r] of Object.entries(s.roles)) { roles.append(el('div', { className: 'role' }, el('b', { textContent: k }), ' ' + r.what)); role.append(el('option', { value: k, textContent: k })); }
   role.value = kr;
-  const kind = $('kind'); if (kind.options.length < 2) for (const k of s.kinds) kind.append(el('option', { value: k, textContent: k }));
+  const kind = $('kind'); const kk = kind.value; kind.replaceChildren(el('option', { value: '', textContent: 'Any' }), ...s.kinds.map((k) => el('option', { value: k, textContent: k }))); kind.value = kk;
+  paintUsage(); paintOverall();
 }
+
+// ----- projects: the switcher, and adding or removing one by folder -----
+async function loadProjects() {
+  const j = await api('/api/projects'); ui.projects = j.projects;
+  if (!ui.projects.some((p) => p.id === ui.project)) ui.project = j.home;
+  const sel = $('project'); sel.replaceChildren(...ui.projects.map((p) => el('option', { value: p.id, textContent: p.name + (p.missing ? ' (folder missing)' : '') }))); sel.value = ui.project;
+  const list = $('projList'); list.replaceChildren();
+  for (const p of ui.projects) {
+    const row = el('div', { className: 'projrow' }, el('span', {}, el('b', { textContent: p.name }), el('span', { className: 'why', textContent: ' ' + p.folder + (p.github ? ' · ' + p.github : '') + (p.removable ? '' : ' · listed in workers.json') })));
+    if (p.removable) {
+      const rm = el('button', { className: 'small ghost', type: 'button', textContent: 'Remove', ariaLabel: 'Remove project ' + p.name });
+      rm.onclick = async () => { if (!confirm('Remove "' + p.name + '" from the hub? Its folder and files are not touched.')) return; try { await api('/api/projects/remove', { id: p.id }); await loadProjects(); await switchProject(ui.project); } catch (e) { $('addMsg').textContent = e.message; } };
+      row.append(rm);
+    }
+    list.append(row);
+  }
+}
+async function switchProject(id) {
+  ui.project = id; $('project').value = id; try { sessionStorage.setItem('hubProject', id); } catch { /* none */ }
+  await refresh().catch(() => {});
+  if (!$('agentView').hidden) loadCards();
+  if (!$('prView').hidden) prOpen();
+}
+$('project').onchange = () => switchProject($('project').value);
+$('projToggle').onclick = () => { const p = $('projPanel'); p.hidden = !p.hidden; $('projToggle').setAttribute('aria-expanded', String(!p.hidden)); };
+$('addGo').onclick = async () => {
+  $('addGo').disabled = true; $('addMsg').textContent = 'Checking the folder…';
+  try {
+    const r = await api('/api/projects/add', { folder: $('addFolder').value, name: $('addName').value, github: $('addGh').value });
+    $('addFolder').value = ''; $('addName').value = ''; $('addGh').value = ''; $('addMsg').textContent = 'Added ' + r.project.name + '.';
+    await loadProjects(); await switchProject(r.project.id);
+  } catch (e) { $('addMsg').textContent = e.message; }
+  $('addGo').disabled = false;
+};
+
+// ----- chat -----
 $('f').addEventListener('submit', async (e) => {
   e.preventDefault(); const message = $('msg').value.trim(); if (!message) return;
   $('empty')?.remove(); $('send').disabled = true;
   const log = $('log'); log.append(el('div', { className: 'me', textContent: message })); $('msg').value = '';
   const pending = el('div', { className: 'why', textContent: 'Waiting for replies…' }); log.append(pending); log.scrollTop = log.scrollHeight;
   try {
-    const r = await api('/api/chat', { message, to: $('to').value, role: $('role').value, kind: $('kind').value, prefer: $('cheap').checked ? 'cheap' : 'quality' });
-    pending.textContent = 'Sent to: ' + (r.why || '');
+    const r = await api('/api/chat', { message, to: $('to').value, role: $('role').value, kind: $('kind').value, prefer: $('cheap').checked ? 'cheap' : 'quality', project: ui.project });
+    pending.textContent = 'Sent to: ' + (r.why || '') + ' · project ' + projName(ui.project);
     if (r.note) log.append(el('div', { className: 'why', textContent: r.note }));
     const grid = el('div', { className: 'replies' });
     for (const x of r.replies) grid.append(el('div', { className: 'card' + (x.ok ? '' : ' err') }, el('h3', {}, x.label, el('span', { textContent: (x.ms / 1000).toFixed(1) + ' s' })), el('pre', { textContent: x.text })));
@@ -184,53 +341,110 @@ $('f').addEventListener('submit', async (e) => {
   $('send').disabled = false; log.scrollTop = log.scrollHeight;
 });
 $('msg').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) $('f').requestSubmit(); });
+
+// ----- tabs -----
+const TABS = { chat: ['tabChat', 'chatView'], agents: ['tabAgents', 'agentView'], pr: ['tabPr', 'prView'], jobs: ['tabJobs', 'jobsView'] };
 const showTab = (name) => {
-  $('chatView').style.display = name === 'chat' ? 'contents' : 'none'; $('agentView').hidden = name !== 'agents'; $('prView').hidden = name !== 'pr';
-  $('tabChat').classList.toggle('on', name === 'chat'); $('tabAgents').classList.toggle('on', name === 'agents'); $('tabPr').classList.toggle('on', name === 'pr');
-  if (name === 'agents') loadCards(); if (name === 'pr') prOpen();
+  for (const [k, [t, v]] of Object.entries(TABS)) { $(v).hidden = k !== name; $(t).setAttribute('aria-selected', String(k === name)); $(t).tabIndex = k === name ? 0 : -1; }
+  if (name === 'agents') loadCards(); if (name === 'pr') prOpen(); if (name === 'jobs') paintJobs(true);
 };
-$('tabChat').onclick = () => showTab('chat'); $('tabAgents').onclick = () => showTab('agents'); $('tabPr').onclick = () => showTab('pr');
-let cards = [];
+for (const [k, [t]] of Object.entries(TABS)) $(t).onclick = () => showTab(k);
+$('tabChat').parentElement.addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  const names = Object.keys(TABS); const i = names.findIndex((k) => $(TABS[k][0]).getAttribute('aria-selected') === 'true');
+  const next = names[(i + (e.key === 'ArrowRight' ? 1 : names.length - 1)) % names.length]; showTab(next); $(TABS[next][0]).focus();
+});
+
+// ----- agents: a draft is a background job in the selected project -----
+let cards = []; let watching = 0;
 async function loadCards() {
-  cards = (await api('/api/cards')).cards; const sel = $('card'); sel.replaceChildren(...cards.map((c) => el('option', { value: c.file, textContent: c.id + ' (' + c.kind + ')' })));
+  const sel = $('card'); const keep = sel.value;
+  try { cards = (await api('/api/cards?project=' + encodeURIComponent(ui.project))).cards; } catch (e) { cards = []; $('agentOut').replaceChildren(el('div', { className: 'prob', textContent: e.message })); }
+  sel.replaceChildren(...(cards.length ? cards.map((c) => el('option', { value: c.file, textContent: c.id + ' (' + c.kind + ')' })) : [el('option', { value: '', textContent: 'No task cards in docs/tasks' })])); if (cards.some((c) => c.file === keep)) sel.value = keep;
   const to = $('agentTo'); const first = to.options[0]; to.replaceChildren(first, ...[...$('to').options].filter((o) => o.value !== 'auto' && o.value !== 'all').map((o) => el('option', { value: o.value, textContent: o.textContent })));
 }
+function agentResult(out, job, r) {
+  const c = cards.find((x) => x.file === job.label && job.project === ui.project);
+  out.replaceChildren(el('div', { className: 'why', textContent: 'Project ' + projName(job.project) + ' · card ' + job.label + (c ? ' · Goal: ' + c.goal + ' · Scope: ' + c.scope.join(', ') : '') + (r.why ? ' · ' + r.why : '') }));
+  for (const p of r.problems || []) out.append(el('div', { className: 'prob', textContent: p }));
+  if (r.diff) out.append(el('pre', { className: 'diff', textContent: r.diff }));
+  else if (r.reply) out.append(el('pre', { className: 'diff', textContent: r.reply }));
+  if (r.ok) {
+    const b = el('button', { type: 'button', textContent: 'Put on a local branch of ' + projName(job.project) + ' (not pushed)' });
+    b.onclick = async () => { b.disabled = true; try { const a = await api('/api/agent/apply', { card: job.label, provider: r.provider, diff: r.diff, project: job.project }); out.append(el('div', { className: a.ok ? 'why' : 'prob', textContent: a.message })); } catch (e) { out.append(el('div', { className: 'prob', textContent: e.message })); } };
+    out.append(b);
+  }
+}
+async function watchJob(id) {
+  const mine = ++watching; const out = $('agentOut');
+  for (;;) {
+    let r; try { r = await api('/api/jobs/result', { id }); } catch (e) { out.replaceChildren(el('div', { className: 'prob', textContent: e.message })); return; }
+    if (mine !== watching) return; // another job took over the panel
+    const j = r.job;
+    if (j.status === 'done') { agentResult(out, j, r.result || { ok: false, problems: ['No result.'] }); return; }
+    if (j.status === 'failed') { out.replaceChildren(el('div', { className: 'prob', textContent: j.cancelled ? 'Cancelled.' : (j.error || 'The job failed.') })); return; }
+    const cancel = el('button', { className: 'ghost', type: 'button', textContent: 'Cancel' }); cancel.onclick = () => api('/api/jobs/cancel', { id }).catch(() => {});
+    out.replaceChildren(el('div', { className: 'why', textContent: (j.status === 'queued' ? 'Waiting for a free slot' : 'Running') + ': ' + j.label + ' in ' + projName(j.project) + '. You can use the other tabs meanwhile.' }), cancel);
+    await new Promise((res) => setTimeout(res, 1000));
+  }
+}
 $('runAgent').onclick = async () => {
-  const out = $('agentOut'); const file = $('card').value; if (!file) return;
-  const c = cards.find((x) => x.file === file); $('runAgent').disabled = true;
-  out.replaceChildren(el('div', { className: 'why', textContent: 'Running ' + c.id + '…' }));
+  const file = $('card').value; if (!file) return;
+  $('runAgent').disabled = true;
   try {
-    const r = await api('/api/agent', { card: file, to: $('agentTo').value });
-    out.replaceChildren(el('div', { className: 'why', textContent: 'Goal: ' + c.goal + ' · Scope: ' + c.scope.join(', ') + (r.why ? ' · ' + r.why : '') }));
-    for (const p of r.problems || []) out.append(el('div', { className: 'prob', textContent: p }));
-    if (r.diff) out.append(el('pre', { className: 'diff', textContent: r.diff }));
-    else if (r.reply) out.append(el('pre', { className: 'diff', textContent: r.reply }));
-    if (r.ok) {
-      const b = el('button', { type: 'button', textContent: 'Put on a local branch (not pushed)' });
-      b.onclick = async () => { b.disabled = true; try { const a = await api('/api/agent/apply', { card: file, provider: r.provider, diff: r.diff }); out.append(el('div', { className: a.ok ? 'why' : 'prob', textContent: a.message })); } catch (e) { out.append(el('div', { className: 'prob', textContent: e.message })); } };
-      out.append(b);
-    }
-  } catch (e) { out.replaceChildren(el('div', { className: 'prob', textContent: e.message })); }
+    const r = await api('/api/agent', { card: file, to: $('agentTo').value, project: ui.project, async: true });
+    if (r.jobId) await watchJob(r.jobId); else $('agentOut').replaceChildren(...(r.problems || ['Not started.']).map((p) => el('div', { className: 'prob', textContent: p })));
+  } catch (e) { $('agentOut').replaceChildren(el('div', { className: 'prob', textContent: e.message })); }
   $('runAgent').disabled = false;
 };
 
-// ----- Pull requests: the token stays on the server; this page only asks and shows -----
-const prState = { project: '', projects: [] };
+// ----- jobs: every project, every kind -----
+let jobsSig = '';
+function paintJobs(force) {
+  const out = $('jobsOut'); if ($('jobsView').hidden && !force) return;
+  const sig = JSON.stringify(ui.jobs.map((j) => [j.id, j.status, j.cancelled, j.error])) + ui.limit;
+  if (sig === jobsSig && !force) return; jobsSig = sig;
+  const lim = $('limit'); if (!lim.options.length) lim.replaceChildren(...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => el('option', { value: String(n), textContent: String(n) }))); if (document.activeElement !== lim) lim.value = String(ui.limit);
+  if (!ui.jobs.length) { out.replaceChildren(el('div', { className: 'empty', textContent: 'No jobs yet. Agent drafts and chats from every project appear here while they run and after.' })); return; }
+  out.replaceChildren(...ui.jobs.map((j) => {
+    const word = j.cancelled ? 'cancelled' : j.status;
+    const badges = el('div', { className: 'badges' }, el('span', { className: 'badge', textContent: projName(j.project) }), el('span', { className: 'badge', textContent: j.kind }), el('span', { className: 'badge ' + ({ running: 'warn', queued: 'warn', done: 'ok', failed: 'bad' }[j.status] || ''), textContent: word }));
+    const when = j.endedAt && j.startedAt ? 'took ' + Math.max(1, Math.round((j.endedAt - j.startedAt) / 1000)) + ' s' : j.startedAt ? 'started ' + new Date(j.startedAt).toLocaleTimeString() : 'queued ' + new Date(j.queuedAt).toLocaleTimeString();
+    const card = el('div', { className: 'job' }, el('h3', { textContent: j.label }), badges, el('div', { className: 'why', textContent: when }));
+    if (j.error && !j.cancelled) card.append(el('div', { className: 'prob', textContent: j.error }));
+    const acts = el('div', { className: 'acts' });
+    if (j.status === 'queued' || j.status === 'running') { const b = el('button', { className: 'small ghost', type: 'button', textContent: 'Cancel', ariaLabel: 'Cancel ' + j.label }); b.onclick = () => api('/api/jobs/cancel', { id: j.id }).then(tick, () => {}); acts.append(b); }
+    if (j.kind === 'agent' && j.status === 'done') { const b = el('button', { className: 'small', type: 'button', textContent: 'Open the draft', ariaLabel: 'Open the draft of ' + j.label }); b.onclick = async () => { await switchProject(j.project); showTab('agents'); watchJob(j.id); }; acts.append(b); }
+    if (acts.childNodes.length) card.append(acts);
+    return card;
+  }));
+}
+$('limit').onchange = async () => { try { await api('/api/jobs/concurrency', { n: Number($('limit').value) }); await tick(); } catch (e) { $('overall').textContent = e.message; } };
+
+// ----- the live loop: every 2 seconds while the page is visible -----
+async function tick() {
+  if (document.hidden) return;
+  try {
+    const [u, j] = await Promise.all([api('/api/usage'), api('/api/jobs')]);
+    ui.usage = u.providers; ui.jobs = j.jobs; ui.limit = j.limit; ui.running = j.running; ui.queued = j.queued; ui.live = null;
+  } catch (e) { ui.live = e.message; }
+  paintUsage(); paintOverall(); paintJobs(false);
+}
+
+// ----- Pull requests: the token stays on the server; this page only asks and shows. The repository is the selected project's. -----
 const badge = (text, kind) => el('span', { className: 'badge ' + (kind || ''), textContent: text });
 const checksBadge = (c) => {
   const word = { green: 'checks passed', pending: 'checks running', red: 'checks failed', none: 'no checks yet', unknown: 'checks unclear' }[c.state] || c.state;
   return badge(word + (c.total ? ' (' + c.passing + '/' + c.total + ')' : ''), { green: 'ok', pending: 'warn', red: 'bad' }[c.state] || 'warn');
 };
 const mergeBadge = (m) => badge({ clean: 'can merge', conflict: 'conflict', behind: 'behind main', blocked: 'blocked', checking: 'checking', draft: 'draft', unstable: 'unstable' }[m] || m, { clean: 'ok', conflict: 'bad', blocked: 'warn', behind: 'warn', checking: 'warn', draft: 'warn' }[m] || '');
-const prPost = (path, extra) => api('/api/pr/' + path, { project: prState.project, ...extra });
+const prPost = (path, extra) => api('/api/pr/' + path, { project: ui.project, ...extra });
 const prMsg = (text, bad) => el('div', { className: bad ? 'prob' : 'why', textContent: text });
 async function prOpen() {
-  const out = $('prOut');
+  const out = $('prOut'); $('prProject').textContent = 'Project: ' + projName(ui.project);
   try {
-    const j = await api('/api/pr/projects'); prState.projects = j.projects;
-    const sel = $('prProject'); const keep = sel.value; sel.replaceChildren(...j.projects.map((p) => el('option', { value: p, textContent: p }))); if (j.projects.includes(keep)) sel.value = keep;
-    prState.project = sel.value; sel.parentElement.style.display = j.projects.length > 1 ? '' : 'none';
-    if (!j.hasToken) { out.replaceChildren(el('div', { className: 'empty', textContent: 'GitHub is not connected. Open "Connect your models" on the left, choose GitHub (pull requests), follow the steps and paste the token.' })); $('prRepo').textContent = ''; return; }
+    const j = await api('/api/pr/projects');
+    if (!j.hasToken) { out.replaceChildren(el('div', { className: 'empty', textContent: 'GitHub is not connected. In the left column open "Connect your models", choose GitHub (pull requests), follow the steps and paste the token.' })); $('prRepo').textContent = ''; return; }
     await prLoad();
   } catch (e) { out.replaceChildren(prMsg(e.message, true)); }
 }
@@ -239,7 +453,7 @@ async function prLoad() {
   try {
     const j = await prPost('list', {}); $('prRepo').textContent = j.repo + ' (from ' + j.source + ')';
     out.replaceChildren(...(j.prs.length ? j.prs.map(prCard) : [prMsg('No open pull requests.')]), prCreateForm());
-  } catch (e) { out.replaceChildren(prMsg(e.message, true), prCreateForm()); }
+  } catch (e) { $('prRepo').textContent = ''; out.replaceChildren(prMsg(e.message, true), prCreateForm()); }
 }
 function prCard(p) {
   const href = p.url && safeUrl(p.url); const note = el('div');
@@ -273,7 +487,7 @@ async function prConfirmMerge(p, note) {
 function prCreateForm() {
   const d = el('details', { className: 'conn' }, el('summary', { textContent: 'Create a pull request from a local branch' }));
   const sel = el('select', { ariaLabel: 'Local branch' }); const title = el('input', { type: 'text', ariaLabel: 'Title', maxLength: 256 }); const body = el('textarea', { ariaLabel: 'Description' });
-  const draft = el('input', { type: 'checkbox' }); const msg = el('div'); const go = el('button', { type: 'button', textContent: 'Create (this also pushes the branch)' });
+  const draft = el('input', { type: 'checkbox', ariaLabel: 'Open as a draft' }); const msg = el('div'); const go = el('button', { type: 'button', textContent: 'Create (this also pushes the branch)' });
   const notes = el('div', { className: 'why' });
   const load = async () => {
     try { const r = await prPost('prefill', { branch: sel.value }); title.value = r.title; body.value = r.body; notes.textContent = r.notes.join(' '); } catch (e) { notes.textContent = e.message; }
@@ -291,9 +505,15 @@ function prCreateForm() {
   d.append(el('div', { className: 'mk' }, el('label', {}, 'Branch', sel), el('label', {}, 'Title', title), el('label', {}, 'Description', body), el('label', { className: 'chk' }, draft, ' Open as a draft'), notes, go, msg));
   return d;
 }
-$('prProject').onchange = () => { prState.project = $('prProject').value; prLoad(); };
 $('prRefresh').onclick = () => prOpen();
-refresh().catch((e) => { $('empty').textContent = e.message; });
+
+if (matchMedia('(min-width:761px)').matches) $('msg').focus(); // not on a phone: it would open the keyboard and scroll the page
+else document.querySelectorAll('aside .sec').forEach((d) => { d.open = false; }); // on a phone the left column starts folded: the top bar and tabs come first
+(async () => {
+  try { await loadProjects(); await refresh(); } catch (e) { $('empty').textContent = e.message; }
+  await tick();
+})();
+setInterval(tick, 2000);
 setInterval(() => { if (![...document.querySelectorAll('.keyrow input')].some((i) => i.value || i === document.activeElement)) refresh().catch(() => {}); }, 30000);
 </script>
 </body>

@@ -192,3 +192,27 @@ test('a call that is running shows as in flight until it ends, even when it fail
   await assert.rejects(PROVIDERS.find((x) => x.id === 'gemini-api').ask('hi', { env, fetch: async () => { throw new Error('offline'); } }));
   assert.equal(usageStore(env).snapshot().providers['gemini-api'].inflight, 0);
 });
+
+test('the page shows live usage: polls every 2 s, builds DOM safely, labels limits approximate, links to plan pages and never claims a plan balance', () => {
+  const page = readFileSync(new URL('../tools/hub/public/index.html', import.meta.url), 'utf8');
+  assert.match(page, /setInterval\(tick, 2000\)/); assert.match(page, /api\('\/api\/usage'\)/);
+  assert.match(page, /document\.hidden/, 'it stops polling while the tab is hidden');
+  assert.ok(!/innerHTML|insertAdjacentHTML|document\.write/.test(page));
+  assert.match(page, /approximate and unverified/); assert.match(page, /rate-limited now/); assert.match(page, /rate-limit \(429\) hits/);
+  assert.match(page, /not reported by this tool, requests only/);
+  assert.match(page, /cannot read a plan balance|Plan balances \(Claude, ChatGPT\) are only on each provider's own page/);
+  assert.match(page, /role: 'progressbar'/); assert.match(page, /'aria-valuenow'/);
+  assert.match(page, /Open usage page/);
+  assert.ok(!/remaining credit|you have \d+ left/i.test(page));
+});
+
+test('the page is a clean layout: fixed grid places, four tabs, light and dark, 44 px targets, visible focus, nothing wider than the screen', () => {
+  const page = readFileSync(new URL('../tools/hub/public/index.html', import.meta.url), 'utf8');
+  for (const id of ['tabChat', 'tabAgents', 'tabPr', 'tabJobs', 'chatView', 'agentView', 'prView', 'jobsView', 'project', 'projPanel']) assert.match(page, new RegExp(`id="${id}"`), id);
+  assert.match(page, /role="tablist"/); assert.match(page, /aria-selected/);
+  assert.match(page, /prefers-color-scheme:dark/); assert.match(page, /--touch:44px/); assert.match(page, /min-height:var\(--touch\)/);
+  assert.match(page, /:focus-visible\{outline:3px/);
+  assert.match(page, /@media\(max-width:760px\)/); assert.match(page, /overflow-wrap:anywhere/);
+  assert.ok(!/body\{[^}]*display:grid/.test(page));
+  assert.match(page, /protocol === 'https:'/); assert.match(page, /rel: 'noopener noreferrer'/);
+});

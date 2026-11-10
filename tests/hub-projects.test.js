@@ -365,3 +365,15 @@ test('the pull request routes use the selected project\'s folder and repository,
     assert.equal((await api('/api/pr/list', { project: 'nope' })).status, 502);
   }, { env, root, fetch: f });
 });
+
+test('the page has a project switcher, add by folder, remove, a Jobs tab with cancel and a limit, and sends the project with every call', () => {
+  const page = readFileSync(new URL('../tools/hub/public/index.html', import.meta.url), 'utf8');
+  for (const id of ['project', 'projToggle', 'addFolder', 'addGo', 'jobsOut', 'limit', 'tabJobs']) assert.match(page, new RegExp(`id="${id}"`), id);
+  assert.match(page, /api\('\/api\/projects\/add'/); assert.match(page, /api\('\/api\/projects\/remove'/);
+  assert.match(page, /api\('\/api\/jobs\/cancel'/); assert.match(page, /api\('\/api\/jobs\/concurrency'/);
+  assert.match(page, /project: ui\.project, async: true/, 'an agent run carries the project and runs in the background');
+  assert.match(page, /prefer: \$\('cheap'\)\.checked \? 'cheap' : 'quality', project: ui\.project/, 'chat carries the project');
+  assert.match(page, /prPost = \(path, extra\) => api\('\/api\/pr\/' \+ path, \{ project: ui\.project/, 'the Pull requests tab follows the selected project');
+  assert.match(page, /confirm\('Remove "/, 'removing asks first');
+  assert.ok(!/innerHTML|insertAdjacentHTML|document\.write/.test(page));
+});

@@ -18,13 +18,83 @@ needs Node 22 (see `docs/harness-setup.md`). It fetches the latest code only whe
 changes, installs what is missing, and starts the hub.
 
 ## What you see
-- **Left:** each model with a coloured dot. Green = ready. Amber = needs a key or a tool.
-  Grey = unavailable. Below that, the roles (designer, researcher, bug-fixer and so on).
-- **Top bar:** **Send to** (Auto by role, all ready models, or one model), **Role**, and **Kind of
-  task** (used by Auto to pick the right model through the roles table).
-- **Centre:** your messages and each model's reply side by side, with how long it took. A model
-  that fails shows a red card with the reason and the others still answer.
-- **Cmd + Enter** sends.
+- **Left column:** each model with a coloured dot (green = ready, amber = needs a key or a tool, grey =
+  unavailable). A ready model also shows its **live usage** (see below). Then the roles, and a folded
+  "Connect your models" block. On a phone the three blocks start folded; tap one to open it.
+- **Top bar:** the **project** switcher and a **Projects...** button (add or remove one), the overall
+  status ("4 of 7 models ready, 2 running, 2 queued") and **Open usage page**, a menu of each provider's own
+  usage page.
+- **Tabs:** **Chat**, **Agents**, **Pull requests**, **Jobs**. Chat has **Send to** (Auto by role, all ready
+  models, or one model), **Role** and **Kind of task** (used by Auto to pick the right model through the
+  roles table); each model's reply sits side by side with how long it took, and a model that fails shows a
+  red card with the reason while the others still answer. **Cmd + Enter** sends.
+- Light and dark follow your computer's setting. Buttons and fields are at least 44 px tall, keyboard focus
+  is outlined, and nothing scrolls sideways at phone width.
+
+## Live usage per model
+Every ready model shows a card that refreshes every 2 seconds while the page is visible:
+requests today (ok, errors, rate-limit 429 hits), input and output tokens, when it was last used, how many
+calls are running right now, a **rate-limited now** badge (with the retry time when the provider sent one),
+and, where there is one, a progress bar against an approximate daily limit.
+
+**What is counted and what is not.** The hub counts the calls *it* made, in `~/.zlatura-hub/usage.json`
+(owner-only, written atomically, counts only: no prompt, no reply, no error text, no key; days older than 60 are
+dropped). One wrapper around every model call does the counting, so a chat, an agent run, `npm run ask` and cheap-first
+routing are all counted exactly once, and a model added later is counted too. It does **not** see anything you do in
+the Claude or ChatGPT apps or other tools, so it is never the vendor's meter.
+- **Tokens:** shown for Gemini, Grok, Kimi and OpenRouter, which return them in the reply. Codex and Claude (command-line
+  tools) return none, so those two are counted in requests only, and the card says so.
+- **Plan balances:** there is no official way to read a Claude Pro or ChatGPT balance, so the hub never shows one.
+  It shows **Plan usage:** a link to the provider's own page.
+- **Daily limits** (`LIMITS` in `tools/hub/providers.mjs`) are approximate and UNVERIFIED: Gemini about 1,500
+  requests a day on the free tier, OpenRouter about 50 on free models. They change often; each bar links to the
+  official page. Providers with no published daily cap (the two plans, paid APIs) show no bar.
+- A 429 from an API, or a command-line tool's error text that mentions a limit, counts as a rate-limit hit.
+  The badge clears after the retry time or the next successful call.
+- Two programs at the very same instant (the page and `npm run ask`) could in theory lose one count.
+
+## Projects: several at once
+The **project** switcher in the top bar picks which project the tabs work on. A project is a folder with its own
+git repository:
+
+- **Cards:** `<project>/docs/tasks`. **Rules:** `<project>/AGENTS.md` (a plain rule is used if it has none).
+- **Results:** an agent draft goes on a local branch (`agent/<model>/<card id>`, not pushed) **in that project's
+  folder**, through the same harness ingest as before, with the same strict diff check.
+- **Pull requests tab:** follows the selected project (its `"github"` value, or its `origin` remote).
+- **Chat** is tagged with the project too (its roles and kinds apply).
+
+**Add a project** (Projects... then "Add a project by its folder") by typing the full path. The hub accepts it only if
+the folder exists, is the top folder of a git work tree, has no link (symlink) in its path, has no `..` in it, is not
+inside another project or its `private/` folder, does not hold another project, and is not your home folder or the hub's
+own `~/.zlatura-hub`. It is saved in `~/.zlatura-hub/projects.json` (owner-only). A project you added can be removed from the
+same panel; its files are not touched. Projects listed in `tools/harness/workers.json` (and the one the hub started from)
+stay. A folder swapped for a link after it was added is refused when a job would use it.
+
+**A future "trading bot", with no code change.** Add its folder in the page, then edit its entry in
+`~/.zlatura-hub/projects.json` (outside any repository, so no model can change it):
+
+```
+// the // notes are for reading: remove them in the real file, which must be plain JSON
+{ "version": 1, "concurrency": 3, "projects": [
+  { "id": "trading-bot", "name": "Trading bot", "folder": "/Users/you/code/trading-bot", "github": "you/trading-bot",
+    "protectedPaths": ["live/", "keys.yaml"],        // replaces the shared list (optional)
+    "extraProtected": ["src/exchange/"],              // added to whichever list applies
+    "requiresDesign": ["risk/"],                      // a card touching these needs an approved-design line
+    "roles": { "quant": { "what": "Writes and checks backtests.", "primary": "codex", "fallbacks": ["claude-sonnet"] } },
+    "kinds": { "backtest": "quant" } } ] }
+```
+`private/`, `.env`, `.git/` and `.github/` are protected in every project whatever its list says, and a draft that touches a
+protected file, leaves its card's scope, deletes, renames or changes a mode is refused as before. A role or kind that
+names an unknown worker or role is refused with a message, not guessed. The project's cards go in
+`<its folder>/docs/tasks` in the same card format (`id`, `kind`, `goal`, `scope`).
+
+## Jobs
+Agent drafts are background jobs with an id and a status: **queued, running, done, failed** (cancelled shows as failed
+with "cancelled"). At most **3** run at once across all projects (change it on the Jobs tab, 1 to 8, or with
+`HUB_CONCURRENCY`; the choice is kept); the rest wait in order. **Cancel** works on a queued or running job (a running
+command-line model is stopped). The same card in the same project cannot be queued twice. Chat and "put on a local
+branch" are listed in the Jobs tab too but never wait behind the limit. The list is in memory: restarting the hub
+clears it. Nothing is pushed by any job.
 
 ## How each model connects (all official routes, no browser automation)
 | Model | Route | What you do |
@@ -141,9 +211,9 @@ Read (Metadata Read is added for you). Paste it into the box. It is saved like t
 (`~/.zlatura-hub/keys.json`, owner-only), goes only to `api.github.com`, and is never sent to the
 page, printed, logged or committed. From a terminal: `pbpaste | npm run pr -- save-token`.
 
-**Which repository.** The project's `"github": "owner/repo"` in `tools/harness/workers.json` if it
-has one, else the `origin` address of the project folder (`"folder"` in the project, default the
-Zlatura folder). The page cannot name a repository or a folder.
+**Which repository.** The selected project's `"github": "owner/repo"` (in `tools/harness/workers.json` or
+the project's entry in `~/.zlatura-hub/projects.json`) if it has one, else the `origin` address of the project
+folder. The page cannot name a repository or a folder.
 
 **What you can do**
 - **See** every open pull request: title, branch, checks (passed / running / failed), whether it can
@@ -165,5 +235,5 @@ Zlatura folder). The page cannot name a repository or a folder.
 Nothing merges without your click and confirm, and the hub never merges in the background.
 
 **Terminal.** `npm run pr -- list`, `check 7`, `create <branch>`, `merge 7`, `update 7`, `auto 7`
-(`--off` to cancel), `--project <name>`. Anything that changes GitHub only runs with `--yes`; without
+(`--off` to cancel), `--project <name>` (a project from `workers.json`). Anything that changes GitHub only runs with `--yes`; without
 it you see what would happen. The same refusals apply.
