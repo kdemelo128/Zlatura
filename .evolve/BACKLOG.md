@@ -8,7 +8,7 @@ leaves golden outputs identical unless logged in `DECISIONS.md`.
 
 | Id | The user gets | Status | Source |
 |---|---|---|---|
-| E-P1 | The tool opens unchanged inside the Underwrite tab from the private package (branch `claude/uw-embed-p1`) | building | uw-embed-as-is |
+| E-P1 | The tool opens unchanged inside the Underwrite tab from the private package (branch `claude/uw-embed-p1`) | done (4.7.125) | uw-embed-as-is |
 | E-P2 | Patches E1, E4, E5 (and E2/E3/E6 per Q4/Q5): fonts, OCR shim | next | uw-embed-as-is |
 | E-P3 | Bridge in: documents and facts flow into the tool; per-deal project swap; theme match | next | uw-bridge-fieldmap |
 | E-P4 | Cross-check strip: tool's figures labelled and compared with Zlatura's engine (M1-M7) | later | uw-embed-as-is |

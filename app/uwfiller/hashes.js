@@ -6,4 +6,6 @@
 export const APPROVED = [
   // an invented stand-in package (tests/fixtures/uwfiller-standin/): public, tiny, and what the public tests load
   { hash: '6d3107ab87111a7a4e31d13f62361d3c7952f137411e666171118e74502c2d7a', label: 'Invented stand-in (tests only)' },
+  // the owner's underwriting tool, release of 2026-11-07 (approved by the owner 2026-11-10); the package itself is never committed
+  { hash: '695a5b5c5d8ee44b38449dd18a439aeda8b567da56c4a40376f989fdfbc9dccb', label: 'Underwriting tool, 2026-11-07 release' },
 ];
