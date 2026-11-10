@@ -217,7 +217,7 @@
 
 /* ---- buttons: filled primary, outlined secondary, quiet, danger; the edge is the 3:1 one */
 :root[data-look="new"] .btn { border-color: var(--edge); background: var(--surface); color: var(--ink); }
-:root[data-look="new"] .btn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--edge); }
+:root[data-look="new"] .btn:not(.btn-primary):hover:not(:disabled) { background: var(--surface-2); border-color: var(--edge); }
 :root[data-look="new"] .btn:active:not(:disabled) { transform: scale(.97); }
 :root[data-look="new"] .btn-primary { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
 :root[data-look="new"] .btn-plain { color: var(--accent); }
@@ -324,7 +324,9 @@
 @media (pointer: coarse) {
   :root[data-look="new"] { --ctl-h: 44px; --ctl-h-sm: 44px; }
   :root[data-look="new"] :is(.btn, .btn-sm, .btn-lg, .btn-plain, .dd-toggle, .toast button, .seg:not([role=tablist]) button, .seg[role=tablist] button, .step, .src, summary) { min-height: 44px; min-width: 44px; }
-  :root[data-look="new"] :is(.field input:not([type=checkbox]):not([type=radio]), .field select, .input) { min-height: 44px; }
+  :root[data-look="new"] :is(input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]), select, textarea, .input) { min-height: 44px; }
+  :root[data-look="new"] :is(.cmd-trigger, .appbar-gear, .linkish) { min-height: 44px; min-width: 44px; }
+  :root[data-look="new"] .linkish { display: inline-flex; align-items: center; }
   :root[data-look="new"] :is(input[type=checkbox], input[type=radio]) { width: 24px; height: 24px; }
 }
 
