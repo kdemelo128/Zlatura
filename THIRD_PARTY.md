@@ -30,11 +30,13 @@ compared byte for byte on 2026-10-15.
 | `vendor/pdf-lib-cantoo-2.11.1.min.js` | [@cantoo/pdf-lib](https://github.com/cantoo-scribe/pdf-lib) (`dist/pdf-lib.min.js`, the UMD build; its dependencies culori, fflate, node-html-better-parser and tslib are bundled inside: MIT, MIT, MIT and 0BSD) | 2.11.1 | MIT | writes PDFs: merge, split, reorder, turn and extract pages (Documents > PDF pages), in a Web Worker | edited: map comment removed, one control byte escaped |
 | `fonts/public-sans-latin-{400,600,700}-normal.woff2` | [Public Sans](https://public-sans.digital.gov/) via `@fontsource/public-sans` | 5.1.0 | OFL-1.1 (a font license; it lets the fonts ship inside any app, proprietary included) | the app's type | identical |
 | `fonts/source-serif-4-latin-{400,600}-normal.woff2` | [Source Serif 4](https://github.com/adobe-fonts/source-serif) (Adobe) via `@fontsource/source-serif-4` (tarball SHA-256 `54b7898afa20cf4b2d807bbf2b5a2f865e28a83db8a5fcc563dafce5ecb5e7c8`) | 5.3.1 | OFL-1.1 | titles and headline figures in the New look only (loaded as "Zlatura Serif") | identical (the package's latin subset, 20,088 and 21,532 bytes) |
+| `fonts/ibm-plex-sans-latin-{400,500,600}-normal.woff2` | [IBM Plex Sans](https://github.com/IBM/plex) via `@fontsource/ibm-plex-sans` (tarball SHA-256 `232592af20ae413026cc705fc9c104135fb760432fd710f06a02c39e062d3213`) | 5.3.0 | OFL-1.1 | the New look's type (loaded as "IBM Plex Sans") | identical (the package's latin subset, 22,588, 24,184 and 24,252 bytes) |
+| `fonts/ibm-plex-mono-latin-{400,500}-normal.woff2` | [IBM Plex Mono](https://github.com/IBM/plex) via `@fontsource/ibm-plex-mono` (tarball SHA-256 `60d3c0cfa549cb06fcb8867ee83f994d78e212abfac3bef3275436acb5c4d029`) | 5.3.0 | OFL-1.1 | file names, cell references and hashes in the New look only | identical (the package's latin subset, 14,708 and 14,888 bytes) |
 
 The license texts in `vendor/licenses/`, taken from the published packages:
 `exceljs-4.4.0.LICENSE`, `fflate-0.8.3.LICENSE`, `pdf-lib-cantoo-2.11.1.LICENSE.md`, `pdfjs-4.7.76.LICENSE`,
 `tesseract.js-7.0.0.LICENSE.md`, `tesseract.js-core-7.0.0.LICENSE` and
-`public-sans-5.1.0.OFL-1.1.LICENSE` and `source-serif-4-5.3.1.OFL-1.1.LICENSE`. None of these packages ships a NOTICE
+`public-sans-5.1.0.OFL-1.1.LICENSE`, `source-serif-4-5.3.1.OFL-1.1.LICENSE`, `ibm-plex-sans-5.3.0.OFL-1.1.LICENSE` and `ibm-plex-mono-5.3.0.OFL-1.1.LICENSE`. None of these packages ships a NOTICE
 file.
 
 SHA-256 of each shipped file:
@@ -53,6 +55,11 @@ c58b46a4c796c0b8afccf77591d5b875b6896b45d402bbce8caa6f5362447b38  vendor/ocr/tes
 39dc2fced2b7f9aaf2fa1f16aa992228c61569efabde0ce0b78a17d088c22d4e  fonts/public-sans-latin-700-normal.woff2
 02194deb92d3975dd30e11a3824a1f1db32b48c93654e60560cb81ce8e7b5f95  fonts/source-serif-4-latin-400-normal.woff2
 f2b7e1cf1d277b7608231868135648f8ad8e2b58d8e97ca088bee15dc357bee7  fonts/source-serif-4-latin-600-normal.woff2
+3b646991d30055a93a4ecc499713d4347953a74a947ecab435ab72070cbdab0e  fonts/ibm-plex-sans-latin-400-normal.woff2
+0717336fb31fcdcde4b8deb3675bb4a0f7f6d484864afcd6751ac29975962203  fonts/ibm-plex-sans-latin-500-normal.woff2
+8960851d691c054ed38e259bdcf1a6190d157b4203ed5bb32c632a863fb8ec2f  fonts/ibm-plex-sans-latin-600-normal.woff2
+08949f728dc52d528e69b1667d15c89a5686a4ee9a296ff90983985f99c380f7  fonts/ibm-plex-mono-latin-400-normal.woff2
+01d285447409c8a588692162439a038b8cbd7871309ee20267b0d2d91c6e8e22  fonts/ibm-plex-mono-latin-500-normal.woff2
 a492ff478806a19b0dd2b106ad8e636ae5c4fabbffeb0de1cf67dc548ea50d00  vendor/pdf-lib-cantoo-2.11.1.min.js
 ```
 
