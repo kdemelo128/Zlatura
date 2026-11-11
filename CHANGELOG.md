@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.7.128: Home and the pipeline in the New look, with your own accent colour, hover previews and a text size control (on the development branch; not merged or deployed)
+
+Step 2 of the New look (`docs/proposals/ui-filler-design-language.md`), plus the owner's asks of 2026-11-11. New look only; the Classic look is unchanged.
+
+- **Home:** one main button, a single summary line in place of four identical tiles, stage and status as chips, and empty states that say the next step with a button. The pipeline board stacks on a phone, so nothing scrolls sideways.
+- **Your accent colour:** Settings has six swatches and a custom colour. A colour that would make text hard to read is adjusted until it passes the contrast standard in light and dark, and you are told what it was changed to.
+- **Hover previews:** on a desktop, resting the pointer or keyboard focus on a section or workspace in the rail shows a small bubble with what it is for and two or three live counts. Escape closes it; it does not appear on touch.
+- **Pointer feel:** cards and rows show a soft highlight that follows the pointer and lift slightly. A Motion switch turns it off, and it is off when the system asks for reduced motion.
+- **Text size:** 100, 110, 120 or 130%.
+- **Kept on this device only:** accent, motion and text size are not in backups or the deal format.
+- **Tested:** 378 colours checked for contrast; a 93-check browser flow at phone and desktop size, light and dark, with no accessibility violations; the flow fails on the old code. Displayed figures unchanged (646 compared, 0 changed). The full browser suite, the timing budget for the pointer effect and Safari were not run here.
+
 ## 4.7.127: Macro workbooks are refused with the real reason, and a workbook with both a rent roll and a statement is offered as both (on the development branch; not merged or deployed)
 
 Two reader fixes from the first round of the owner's documents (`docs/proposals/document-learning-round-1.md`).

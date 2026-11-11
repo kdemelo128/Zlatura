@@ -45,6 +45,7 @@ export const SECRET_RULES = [
 export const SECRET_ALLOW = {
   // the proposal names the block it forbids (the name only, never its contents)
   'docs/proposals/uw-embed-as-is.md': ['embedded workbook block'],
+  'docs/proposals/monal-builtin-and-rename.md': ['embedded workbook block'],
   // vendored libraries that carry their own wasm or worker as one base64 string (THIRD_PARTY.md)
   'vendor/ocr/tesseract-core-7.0.0-simd-lstm.wasm.js': ['base64 run over 256 KB'],
   'vendor/pdf-4.7.76-legacy.worker.min.js': ['base64 run over 256 KB'],
