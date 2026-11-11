@@ -9,7 +9,7 @@
 import { el, toast, actionSheet } from './kit.js';
 import { dateInput } from './dateinput.js';
 import { blocked } from './ai.js';
-import { intake } from './ddintake.js';
+import { lookAt } from './ddintake.js';
 import { classify, TYPES, TYPE_BY_ID, typeLabel, PRESETS, PRESET_IDS } from './ddtypes.js';
 import { ddOf, checklist, addDoc, removeDoc, restoreDoc, retype, markReviewed, setAsOf, setNa, clearNa, recordRead, MAX_REASON } from './dd.js';
 import { sha256Hex } from './filehash.js';
@@ -251,26 +251,33 @@ export function renderDocsCard(box, h) {
   /* ------------------------------------------------------------ adding */
   async function addFiles(files) {
     warn('');
-    for (const file of files) {
+    for (const dropped of files) {
       if (!h.stillOpen()) return;
-      say(`Looking at ${file.name}…`);
-      let info;
-      try { info = await intake(file, { getFflate: h.getFflate, getXlsx: h.getXlsx, readPdf: h.readPdf, problem: h.problem }); } catch (err) { warn(`${file.name} couldn’t be looked at: ${(err && err.message) || err}`); continue; }
+      say(`Looking at ${dropped.name}…`);
+      /** @type {{ file: any, info: any }[]} */ let seen;
+      // a zip is opened in memory and each file in it is added as if it had been dropped itself (ddintake.js lookAt)
+      try { seen = await lookAt(dropped, { getFflate: h.getFflate, getXlsx: h.getXlsx, readPdf: h.readPdf, problem: h.problem }); } catch (err) { warn(`${dropped.name} couldn’t be looked at: ${(err && err.message) || err}`); continue; }
       if (!h.stillOpen()) return;
-      if (info.refuse) warn(info.refuse);
-      let { type, typeBy } = info.verdict;
-      if (!type) {
-        const pick = await chooseType(info);
-        if (pick === null) { say(`${file.name} was not added.`); continue; }
-        type = pick === 'none' ? null : pick;
-        typeBy = type ? 'broker' : null;
+      const refusals = [];
+      for (const { file, info } of seen) {
+        if (info.refuse) { if (seen.length === 1) warn(info.refuse); else refusals.push(info.refuse); }
+        if (info.refuse && info.from) continue; // a refused part of a zip: said why below, the others go on
+        const from = info.from ? ` (from ${info.from})` : '';
+        let { type, typeBy } = info.verdict;
+        if (!type) {
+          const pick = await chooseType(info);
+          if (pick === null) { say(`${info.name} was not added.`); continue; }
+          type = pick === 'none' ? null : pick;
+          typeBy = type ? 'broker' : null;
+        }
+        const r = addDoc(dd, { ...info, type, typeBy });
+        if (r.error) { warn(r.error); say(''); continue; }
+        const where = info.sha256 ? await h.otherDeals(info.sha256).catch(() => []) : [];
+        h.touch({ label: `Documents: added ${r.doc.name}${type ? ` as ${typeLabel(type)}` : ''}` });
+        say(`Added ${r.doc.name}${from}${type ? ` as ${typeLabel(type)}` : ' with no type'}.${where.length ? ` It is also in ${where.slice(0, 3).join(', ')}.` : ''}${info.sha256 ? '' : file.size > LIMITS.pdf ? ' It is too large to fingerprint, so adding it again will not be spotted.' : ' This browser cannot fingerprint files here, so adding it again will not be spotted.'}`);
+        draw();
       }
-      const r = addDoc(dd, { ...info, type, typeBy });
-      if (r.error) { warn(r.error); say(''); continue; }
-      const where = info.sha256 ? await h.otherDeals(info.sha256).catch(() => []) : [];
-      h.touch({ label: `Documents: added ${r.doc.name}${type ? ` as ${typeLabel(type)}` : ''}` });
-      say(`Added ${r.doc.name}${type ? ` as ${typeLabel(type)}` : ' with no type'}.${where.length ? ` It is also in ${where.slice(0, 3).join(', ')}.` : ''}${info.sha256 ? '' : file.size > LIMITS.pdf ? ' It is too large to fingerprint, so adding it again will not be spotted.' : ' This browser cannot fingerprint files here, so adding it again will not be spotted.'}`);
-      draw();
+      if (refusals.length) warn(refusals.join(' '));
     }
   }
   /** "What is this?": the likely types, with the file name's suggestion first. Resolves a type id, 'none' (add with no type) or null (do not add). */

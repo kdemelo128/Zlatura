@@ -131,7 +131,7 @@ function fill(c = box()) {
   if (reading.length || plan.items.length) {
     const ul = el('ul', 'dd-list uwi-files');
     for (const r of reading) ul.appendChild(fileRow(r.name, r.step, null));
-    for (const it of plan.items) ul.appendChild(fileRow(it.name, it.refuse ? 'Not read' : it.dup ? 'Repeated' : 'Looked at', it.refuse || it.dup));
+    for (const it of plan.items) ul.appendChild(fileRow(it.name, `${it.refuse ? 'Not read' : it.dup ? 'Repeated' : 'Looked at'}${it.from ? ` · from ${it.from}` : ''}`, it.refuse || it.dup));
     s1.appendChild(ul);
   }
   body.appendChild(s1);
@@ -204,7 +204,7 @@ function itemRow(it) {
   li.dataset.id = it.id;
   const line = el('div', 'dd-line');
   const main = el('div', 'dd-open');
-  main.append(el('span', 'dd-type', it.type ? typeLabel(it.type) : 'What is this?'), el('span', 'dd-name', it.name), el('span', 'dd-sub', `${it.confidence} · ${it.reason}`));
+  main.append(el('span', 'dd-type', it.type ? typeLabel(it.type) : 'What is this?'), el('span', 'dd-name', it.name), el('span', 'dd-sub', `${it.from ? `From ${it.from}. ` : ''}${it.confidence} · ${it.reason}`));
   line.appendChild(main);
   if (it.state === 'used') line.appendChild(el('span', 'dd-chip dd-reviewed', 'Used'));
   else if (it.state === 'skipped') line.appendChild(el('span', 'dd-chip', 'Skipped'));

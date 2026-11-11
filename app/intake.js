@@ -10,7 +10,7 @@
  * which sheet) asks when the file is used. No money maths in this file, and no AI call: aiReason() is the one test
  * of whether a later step may send anything, and a confidential deal says no. */
 
-import { intake } from './ddintake.js';
+import { lookAt } from './ddintake.js';
 import { typeLabel, isType } from './ddtypes.js';
 import { blocked } from './ai.js';
 
@@ -57,7 +57,7 @@ export function stage(plan, info, file, dd = null) {
     confidence: type ? 'Read' : looks ? 'Looks like' : 'Not sure',
     reason: type ? (REASONS[v.reader] || 'A reader on this device recognised it.') : looks ? `Its text reads like a ${typeLabel(looks).toLowerCase()}. Confirm it, or choose another type.` : 'Nothing in it says what it is. Choose a type, or skip it.',
     ask: type ? [] : [...new Set([...(looks ? [looks] : []), ...(v.ask || []).filter(isType)])],
-    use: useLabel(type), state: 'staged', dup: /** @type {string | null} */ (null), refuse: /** @type {string | null} */ (info.refuse || null),
+    use: useLabel(type), state: 'staged', from: /** @type {string | null} */ (info.from || null), dup: /** @type {string | null} */ (null), refuse: /** @type {string | null} */ (info.refuse || null),
   };
   const same = (x) => (item.sha256 ? x.sha256 === item.sha256 : !x.sha256 && x.name === item.name && x.size === item.size);
   const twin = plan.items.find((x) => !x.refuse && !x.dup && same(x));
@@ -176,13 +176,14 @@ export async function stageFiles(plan, files, deps, dd = null, onStep = () => {}
   const out = [];
   for (const file of files) {
     onStep(file, 'reading');
-    let info;
-    try { info = await intake(file, deps); } catch (err) {
-      info = { name: file.name, kind: 'other', size: file.size, sha256: null, pages: null, verdict: {}, refuse: `${file.name} couldn’t be looked at: ${(err && /** @type {any} */ (err).message) || err}` };
+    /** @type {{ file: any, info: any }[]} */ let seen;
+    try { seen = await lookAt(file, deps); } catch (err) {
+      seen = [{ file, info: { name: file.name, kind: 'other', size: file.size, sha256: null, pages: null, verdict: {}, refuse: `${file.name} couldn’t be looked at: ${(err && /** @type {any} */ (err).message) || err}` } }];
     }
-    const item = stage(plan, info, file, dd);
-    out.push(item);
-    onStep(file, item.refuse ? 'failed' : 'done', item);
+    // a zip is several files: each part is staged exactly as if it had been dropped itself, naming the zip it came from
+    let last = null;
+    for (const s of seen) { last = stage(plan, s.info, s.file, dd); out.push(last); }
+    onStep(file, seen.length && seen.every((s) => s.info.refuse) ? 'failed' : 'done', last || undefined);
   }
   return out;
 }

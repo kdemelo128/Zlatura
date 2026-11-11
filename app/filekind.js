@@ -8,6 +8,7 @@ import { PRODUCT } from './brand.js';
 
 /** The most bytes each kind is read at: a bigger file is refused before it is read. */
 export const LIMITS = { workbook: 25e6, text: 10e6, pdf: 50e6, image: 20e6, zipTotal: 100e6, zipRatio: 200, zipEntries: 10000,
+  zipFiles: 200, // files opened from one zip dropped as a bundle (nested zips share the count)
   pdfPages: 500, // pages a PDF may have to be read (pdftext.js); the longest real OM seen is about 120
   pdfRead: 150e6, // a PDF read for its text on a deal or in Comps (an OM with photos is often over 50 MB); PDF pages, Convert and Documents keep `pdf`
   json: 512e6 }; // a backup or project file: more than a browser can hold as one string, so it could never have been restored
@@ -149,6 +150,39 @@ export function safeUnzip(bytes, fflate) {
   return files;
 }
 
+/** Parts of a zip that are not documents: folders, and what a Mac or Windows adds. Skipped without a word. */
+const JUNK = /(^|\/)(__MACOSX\/|\.DS_Store$|Thumbs\.db$|~\$)/;
+
+/** Why a zip part's path is refused, or null. Nothing is ever written to disk, but a path that climbs out ("../"), starts at a root or names a drive is not a document's path. */
+export function unsafePath(name) {
+  if (/^[\\/]/.test(name) || /^[a-zA-Z]:/.test(name) || name.includes('\0') || name.split(/[\\/]/).includes('..')) return 'its path in the zip climbs out of the zip or starts at a root ("../" or an absolute path), so it was not opened';
+  return null;
+}
+
+/**
+ * The documents in a zip dropped as a bundle: safeUnzip's guards (entry count, declared total, ratio, real
+ * inflated sizes) run first and refuse the whole zip by throwing an Error whose message is the reason; then
+ * each part is kept or refused on its own: folders and system junk are left out, an unsafe path is refused,
+ * and parts past the shared file count or byte total (`budget`, shared with nested zips) are refused as one line.
+ * Nothing is written anywhere. Returns { files: [{ name, bytes }], refused: [{ name, why }] }.
+ * @param {Uint8Array} bytes @param {any} fflate @param {{ files: number, bytes: number }} [budget]
+ */
+export function unpackBundle(bytes, fflate, budget = { files: 0, bytes: 0 }) {
+  let parts;
+  try { parts = safeUnzip(bytes, fflate); } catch (e) { throw new Error(String((e && e.message) || BAD_ZIP).replace('as an Excel workbook', 'as a zip file').replace('not really .xlsx', 'not really a zip')); }
+  const files = []; const refused = []; let over = 0;
+  for (const [name, data] of Object.entries(parts)) {
+    if (name.endsWith('/') || JUNK.test(name)) continue;
+    const bad = unsafePath(name);
+    if (bad) { refused.push({ name, why: bad }); continue; }
+    if (budget.files >= LIMITS.zipFiles || budget.bytes + data.length > LIMITS.zipTotal) { over += 1; continue; }
+    budget.files += 1; budget.bytes += data.length;
+    files.push({ name, bytes: data });
+  }
+  if (over) refused.push({ name: `${over} more file${over === 1 ? '' : 's'}`, why: `the zip holds more than this app opens at once (${LIMITS.zipFiles} files, ${LIMITS.zipTotal / 1e6} MB), so ${over === 1 ? 'it was' : 'they were'} not opened` });
+  return { files, refused };
+}
+
 /**
  * A workbook's bytes made safe for ExcelJS, whose bundled JSZip inflates
  * whatever is really in the file and ignores the sizes it declares: the zip
@@ -197,7 +231,7 @@ const named = (file, is, ok) => { const e = extOf(file.name); return e && !ok.in
  * its kind's limit before anything more is read.
  * @param {{ name: string, size: number, slice: (a: number, b: number) => { arrayBuffer: () => Promise<ArrayBuffer> }, arrayBuffer: () => Promise<ArrayBuffer> }} file
  * @param {{ getFflate?: () => Promise<any> }} [opts]
- * @returns {Promise<{ kind: string, macros: boolean, refuse: string|null, buffer?: ArrayBuffer, guarded?: boolean }>}
+ * @returns {Promise<{ kind: string, macros: boolean, refuse: string|null, buffer?: ArrayBuffer, guarded?: boolean, plainZip?: boolean }>}
  */
 export async function checkUpload(file, { getFflate } = {}) {
   const no = (kind, refuse) => ({ kind, macros: false, refuse });
@@ -209,7 +243,8 @@ export async function checkUpload(file, { getFflate } = {}) {
   if (sniffed === 'unknown') return no('unknown', `${file.name || 'That file'} is not a spreadsheet or a text file this app can read. Save the statement as .xlsx or CSV.`);
   if (sniffed === 'text') return file.size > LIMITS.text ? no('text', big(LIMITS.text, 'a text file')) : { kind: 'text', macros: false, refuse: null };
   // a container: a workbook, a Word file, an old .xls
-  if (file.size > LIMITS.workbook) return no(sniffed === 'zip' ? 'zip' : 'ole', big(LIMITS.workbook, 'a workbook'));
+  // a zip may be a bundle of documents, bigger than any workbook: it is read up to the zip total, and a workbook-sized limit applies once it is known to be a workbook
+  if (file.size > (sniffed === 'zip' ? LIMITS.zipTotal : LIMITS.workbook)) return no(sniffed === 'zip' ? 'zip' : 'ole', big(sniffed === 'zip' ? LIMITS.zipTotal : LIMITS.workbook, sniffed === 'zip' ? 'a zip file' : 'a workbook'));
   const buffer = await file.arrayBuffer();
   const bytes = new Uint8Array(buffer);
   if (sniffed === 'ole') {
@@ -222,8 +257,9 @@ export async function checkUpload(file, { getFflate } = {}) {
   const fflate = getFflate ? await getFflate() : null;
   const z = fflate ? zipKind(bytes, fflate.unzipSync) : { kind: 'xlsx', macros: false, refuse: null };
   if (z.refuse) return no('zip', file.name ? z.refuse.replace(/^That file/, `“${file.name}”`) : z.refuse);
+  if (z.kind !== 'zip' && file.size > LIMITS.workbook) return no(z.kind === 'docx' ? 'docx' : 'zip', big(LIMITS.workbook, 'a workbook'));
   if (z.kind === 'docx') return no('docx', `${named(file, 'a Word document', ['docx'])}A Word document ${LATER}.`);
-  if (z.kind === 'zip') return no('zip', 'That is a zip file, not a spreadsheet. Save the statement as .xlsx or CSV.');
+  if (z.kind === 'zip') return { ...no('zip', 'That is a zip file, not a spreadsheet. Save the statement as .xlsx or CSV.'), plainZip: true }; // a bundle: Start from documents and the Documents card open it (unpackBundle)
   if (!fflate) return { kind: 'xlsx', macros: z.macros, refuse: null, buffer };
   // ExcelJS ignores a zip's declared sizes, so it gets a copy whose sizes were checked (hardenZip)
   const safe = hardenZip(bytes, fflate);

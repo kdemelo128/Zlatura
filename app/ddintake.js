@@ -7,7 +7,7 @@
  * (or by the broker's tap); text that scores clearly is offered as "looks like", and the file name only
  * pre-selects a choice in the question. Nothing here stores anything or sends anything anywhere. */
 
-import { checkUpload, LIMITS } from './filekind.js';
+import { checkUpload, LIMITS, unpackBundle } from './filekind.js';
 import { readGrids } from './sheetread.js';
 import { docKind } from './rrdoc.js';
 import { layoutOf, sheetChoices, pickSheet } from './t12.js';
@@ -81,7 +81,7 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
 export async function intake(file, { getFflate, getXlsx, readPdf, problem = (e) => String((e && e.message) || e) }) {
   const up = await checkUpload(file, { getFflate });
   const kind = kindOf(up.kind, file.name);
-  const info = { name: file.name, kind, size: file.size, sha256: /** @type {string | null} */ (null), pages: /** @type {number | null} */ (null), refuse: /** @type {string | null} */ (null), bytes: /** @type {Uint8Array | null} */ (null), verdict: identify({ name: file.name }) };
+  const info = { name: file.name, kind, size: file.size, sha256: /** @type {string | null} */ (null), pages: /** @type {number | null} */ (null), refuse: /** @type {string | null} */ (null), bytes: /** @type {Uint8Array | null} */ (null), verdict: identify({ name: file.name }), plainZip: !!up.plainZip, from: /** @type {string | null} */ (null) };
   // checkUpload's refusal for a PDF, photo or Word file means "the T-12 reader can't import it"; here only a size limit stops one
   const sizeOnly = ['pdf', 'image', 'docx'].includes(up.kind);
   if (up.refuse && (!sizeOnly || /^That file is \d/.test(up.refuse))) info.refuse = up.refuse;
@@ -101,4 +101,79 @@ export async function intake(file, { getFflate, getXlsx, readPdf, problem = (e) 
     }
   } catch (err) { info.refuse = `${file.name} can’t be read here: ${problem(err, file)}`; }
   return info;
+}
+
+/** The deepest a zip may sit inside zips: a zip in the dropped zip is opened, a zip in that one is not. */
+export const ZIP_DEPTH = 1;
+
+const baseName = (p) => p.split(/[\\/]/).pop() || p;
+/** A File for a part of a zip, held in memory only; a File-like where the platform has no File. */
+function memberFile(name, bytes) {
+  if (typeof File === 'function') return new File([bytes], name);
+  const ab = () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  return { name, size: bytes.length, type: '', slice: (a, b) => ({ arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset + a, bytes.byteOffset + Math.min(b, bytes.length)) }), arrayBuffer: async () => ab(), text: async () => new TextDecoder().decode(bytes) };
+}
+
+/**
+ * Open a zip dropped as a bundle, in memory, with filekind's guards (unpackBundle). `info` is what intake() said of
+ * the zip (plainZip set). Returns null when `info` is not a bundle, else { members, refuse }: `members` lists, flat and in
+ * the zip's order, each part as { file, name, from, refuse } (`file` is null for a refused part; `from` is the zip's name,
+ * and for a zip inside a zip "outer.zip › inner.zip"), and `refuse` is set (with no members) when the zip as a whole is
+ * refused or empty. A nested zip is opened once (ZIP_DEPTH); one more level is refused. A part whose name another part
+ * shares is named by its path. Nothing is written anywhere.
+ * @param {File} file @param {any} info @param {{ getFflate?: () => Promise<any> }} deps
+ * @returns {Promise<{ members: { file: any, name: string, from: string, refuse: string | null }[], refuse: string | null } | null>}
+ */
+export async function zipMembers(file, info, deps, { from = null, depth = 0, budget = { files: 0, bytes: 0 } } = {}) {
+  if (!info || !info.plainZip) return null;
+  const me = from ? `${from} › ${file.name}` : file.name;
+  const fflate = deps.getFflate ? await deps.getFflate() : null;
+  if (!fflate) return { members: [], refuse: `“${file.name}” is a zip file, and this browser could not open it.` };
+  let bundle;
+  try { bundle = unpackBundle(new Uint8Array(await file.arrayBuffer()), fflate, budget); } catch (e) { return { members: [], refuse: `“${file.name}” was not opened: ${String((e && e.message) || e).replace(/^That file/, 'it').replace(/ It was not opened\.$/, '')}` }; }
+  if (!bundle.files.length && !bundle.refused.length) return { members: [], refuse: `“${file.name}” is an empty zip: there is nothing in it to read.` };
+  const taken = new Map();
+  for (const f of bundle.files) taken.set(baseName(f.name), (taken.get(baseName(f.name)) || 0) + 1);
+  const members = [];
+  for (const f of bundle.files) {
+    const name = taken.get(baseName(f.name)) > 1 ? f.name : baseName(f.name);
+    const inner = memberFile(name, f.bytes);
+    const sub = await zipMembersOf(inner, deps, { from: me, depth, budget });
+    if (sub) members.push(...sub);
+    else members.push({ file: inner, name, from: me, refuse: null });
+  }
+  for (const r of bundle.refused) members.push({ file: null, name: r.name, from: me, refuse: `${r.name} ${r.why}.`.replace(/\.\.$/, '.') });
+  return { members, refuse: null };
+}
+
+/** An inner file that is itself a zip bundle: its members, or one refused entry (too deep, or not opened); null when it is not a bundle. */
+async function zipMembersOf(inner, deps, { from, depth, budget }) {
+  const up = await checkUpload(inner, { getFflate: deps.getFflate });
+  if (!up.plainZip) return null;
+  if (depth >= ZIP_DEPTH) return [{ file: null, name: inner.name, from, refuse: `${inner.name} is a zip inside a zip inside a zip; only one zip inside the dropped one is opened, so it was not opened.` }];
+  const z = await zipMembers(inner, { plainZip: true }, deps, { from, depth: depth + 1, budget });
+  return z.refuse ? [{ file: null, name: inner.name, from, refuse: z.refuse }] : z.members;
+}
+
+/**
+ * Look at one dropped file and, when it is a zip bundle, at each file inside it as if it had been dropped itself.
+ * Returns [{ file, info }]: one for an ordinary file; one per part for a zip (`info.from` names the zip); one
+ * refused item for a zip that is refused whole or empty, so its reason is shown. A refused part says why, and the
+ * others still go on.
+ * @param {File} file @param {Parameters<typeof intake>[1]} deps
+ * @returns {Promise<{ file: any, info: any }[]>}
+ */
+export async function lookAt(file, deps) {
+  const info = await intake(file, deps);
+  const z = await zipMembers(file, info, deps);
+  if (!z) return [{ file, info }];
+  if (z.refuse) return [{ file, info: { ...info, refuse: z.refuse, plainZip: false } }];
+  const out = [];
+  for (const m of z.members) {
+    if (m.refuse) { out.push({ file: m.file, info: { name: m.name, kind: 'other', size: 0, sha256: null, pages: null, refuse: m.refuse, bytes: null, verdict: identify({ name: m.name }), plainZip: false, from: m.from } }); continue; }
+    let one;
+    try { one = await intake(m.file, deps); } catch (err) { one = { name: m.name, kind: 'other', size: m.file.size, sha256: null, pages: null, refuse: `${m.name} couldn’t be looked at: ${(err && /** @type {any} */ (err).message) || err}`, bytes: null, verdict: identify({ name: m.name }), plainZip: false }; }
+    out.push({ file: m.file, info: { ...one, from: m.from } });
+  }
+  return out;
 }
