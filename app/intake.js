@@ -10,7 +10,7 @@
  * which sheet) asks when the file is used. No money maths in this file, and no AI call: aiReason() is the one test
  * of whether a later step may send anything, and a confidential deal says no. */
 
-import { lookAt } from './ddintake.js';
+import { lookAt, identify } from './ddintake.js';
 import { typeLabel, isType } from './ddtypes.js';
 import { blocked } from './ai.js';
 
@@ -55,7 +55,9 @@ export function stage(plan, info, file, dd = null) {
     id: `f${++plan.seq}`, name: String(info.name ?? ''), file, kind: info.kind || 'other', size: info.size | 0, sha256: info.sha256 || null, pages: info.pages || null,
     type, typeBy: type ? 'reader' : null,
     confidence: type ? 'Read' : looks ? 'Looks like' : 'Not sure',
-    reason: type ? (REASONS[v.reader] || 'A reader on this device recognised it.') : looks ? `Its text reads like a ${typeLabel(looks).toLowerCase()}. Confirm it, or choose another type.` : 'Nothing in it says what it is. Choose a type, or skip it.',
+    reason: type ? (REASONS[v.reader] || 'A reader on this device recognised it.') : looks ? `Its text reads like a ${typeLabel(looks).toLowerCase()}. Confirm it, or choose another type.` : v.scanned ? NO_TEXT : 'Nothing in it says what it is. Choose a type, or skip it.',
+    // a PDF with almost no text keeps its bytes in memory so the broker can ask for OCR (readScan); they are never stored
+    scanned: !type && !!v.scanned && !!info.bytes, bytes: /** @type {Uint8Array | null} */ (!type && v.scanned && info.bytes ? info.bytes : null), ocr: false,
     ask: type ? [] : [...new Set([...(looks ? [looks] : []), ...(v.ask || []).filter(isType)])],
     use: useLabel(type), state: 'staged', from: /** @type {string | null} */ (info.from || null), dup: /** @type {string | null} */ (null), refuse: /** @type {string | null} */ (info.refuse || null),
   };
@@ -78,6 +80,33 @@ export function stage(plan, info, file, dd = null) {
     plan.items.push(mate);
   }
   return item;
+}
+
+const NO_TEXT = 'It has no text layer (a scan, or text drawn as a picture), so nothing could be read from it. Read it on this device with OCR, choose a type, or skip it.';
+
+/**
+ * "Read it with OCR": the broker asked for the first page of a PDF with no text layer to be read on this device.
+ * `ocrText(bytes, onProgress)` gives the page's text (ocr.js through dealui.js). The text goes through the same
+ * identify() every file does, but what it says is only ever offered: a type is never set from OCR text (a reader's
+ * "this is a rent roll" becomes "looks like", to be confirmed by a tap), and no figure is read here at all; the
+ * figures of a rent roll or T-12 come from that document's own import, which asks, and the OCR rows it reads
+ * are held for the broker's accept. Returns { ok: true, chars } or { ok: false, why }.
+ * @param {any} plan @param {string} id @param {(bytes: Uint8Array, onProgress?: (t: string) => void) => Promise<string>} ocrText @param {(t: string) => void} [onProgress]
+ */
+export async function readScan(plan, id, ocrText, onProgress) {
+  const it = plan.items.find((x) => x.id === id);
+  if (!it || it.state !== 'staged' || it.type || !it.scanned || !it.bytes) return { ok: false, why: 'That file has no scan waiting to be read.' };
+  let text;
+  try { text = String(await ocrText(it.bytes, onProgress)); } catch (err) { return { ok: false, why: `The page couldn’t be read: ${(err && /** @type {any} */ (err).message) || err}` }; }
+  const chars = text.replace(/\s/g, '').length;
+  it.ocr = true; it.scanned = false; it.bytes = null; // asked once; the bytes are let go
+  if (chars < 20) { it.confidence = 'Not sure'; it.reason = 'OCR found no readable text on its first page. Choose a type, or skip it.'; it.ask = []; return { ok: true, chars }; }
+  const v = identify({ name: it.name, pages: [text] });
+  const looks = isType(v.type) ? v.type : isType(v.looks) ? v.looks : null; // OCR text never types a file by itself
+  it.ask = [...new Set([...(looks ? [looks] : []), ...(v.ask || []).filter(isType)])];
+  it.confidence = looks ? 'Looks like' : 'Not sure';
+  it.reason = looks ? `Read by OCR on this device: its first page reads like a ${typeLabel(looks).toLowerCase()}. OCR can misread, so confirm it, or choose another type. Its figures come only from that document’s own import, which checks them.` : 'Read by OCR on this device, but its first page does not say what it is. Choose a type, or skip it.';
+  return { ok: true, chars };
 }
 
 /** The broker names an item's type ("What is this?"). Returns false when it is not a type, or the item is not staged. */

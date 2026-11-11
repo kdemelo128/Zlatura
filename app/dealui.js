@@ -299,6 +299,8 @@ export const intakeDeps = () => ({
   getFflate, getXlsx,
   readPdf: async (bytes) => { const layouts = []; const pages = await api.pdfPages(await getPdfjs(), bytes, { layouts }); return { pages, layouts }; },
   problem: (err, file) => pdfProblem(err, file),
+  // OCR of a PDF's first page, only when the broker taps "Read it with OCR"; on this device, nothing is sent (ocr.js)
+  ocrText: async (bytes, onProgress) => (await readScannedPage(await getPdfjs(), bytes.slice(), 1, { onProgress })).text,
 });
 /**
  * "Use": attach staged documents to a deal through the deal's own paths. `dealId` null makes a new deal first (the same
