@@ -342,6 +342,7 @@ function draw(force = false) {
   head.appendChild(el('p', null, 'Type a price, NOI and loan terms and see the answer. It is not a deal until you save it as one.'));
   const stack = el('div', 'stack');
   stack.appendChild(intakeCard(api));
+  stack.appendChild(fillerCard());   // advanced, collapsed: the firm's own template pack (kept high on the page: its frame sits at a whole-pixel offset)
   stack.appendChild(card());
   const listBox = el('section', 'card');
   listBox.id = 'uw-list';
@@ -350,7 +351,6 @@ function draw(force = false) {
   calc.id = 'uw-calc-card';
   fillCalculators(calc);
   stack.appendChild(calc);
-  stack.appendChild(fillerCard());   // advanced, collapsed: the firm's own template pack
   root.append(sw, head, stack);
   drawList();
   results();

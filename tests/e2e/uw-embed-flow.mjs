@@ -41,7 +41,7 @@ check('the service worker controls the page', await page.evaluate(() => !!naviga
 
 check('the firm-pack card is the last card, collapsed, and every other card is still there', await page.evaluate(() => {
   const ids = [...document.querySelector('#underwrite-root .stack').children].map((c) => c.id);
-  return ids.join() === 'uw-intake,uw-card,uw-list,uw-calc-card,uw-filler';
+  return ids.join() === 'uw-intake,uw-filler,uw-card,uw-list,uw-calc-card';
 }), await page.evaluate(() => [...document.querySelector('#underwrite-root .stack').children].map((c) => c.id).join()));
 check('before a package is loaded: Load package and Load folder, no frame, no Open buttons', (await page.locator('#uwf-load').count()) === 1 && (await page.locator('#uwf-load-dir').count()) === 1 && (await page.locator('iframe').count()) === 0 && (await page.locator('#uwf-open').count()) === 0);
 check('no package bucket yet', !(await buckets()).includes('zlatura-uwfiller'));

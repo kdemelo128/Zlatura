@@ -32,7 +32,7 @@ const LEASE = 'LEASE AGREEMENT\nThis Lease is made between Hollow Oak Properties
 await page.goto(`${BASE}#underwrite`, { waitUntil: 'load' });
 await page.click('#uw-view-quick');   // the tab opens on the built-in tool
 await page.waitForSelector('#uw-intake');
-check('the card is first, above the quick underwrite card, with an empty state', await page.evaluate(() => { const c = document.querySelector('#underwrite-root .stack').children; return c[0].id === 'uw-intake' && c[1].id === 'uw-card'; }) && /Nothing yet/.test(await txt('#uw-intake')), (await txt('#uw-intake')).slice(0, 200));
+check('the card is first, above the quick underwrite card, with an empty state', await page.evaluate(() => { const c = document.querySelector('#underwrite-root .stack').children; return c[0].id === 'uw-intake' && c[1].id === 'uw-filler' && c[2].id === 'uw-card'; }) && /Nothing yet/.test(await txt('#uw-intake')), (await txt('#uw-intake')).slice(0, 200));
 const before = (await deals()).length;
 
 /* ---- three files at once through the picker */

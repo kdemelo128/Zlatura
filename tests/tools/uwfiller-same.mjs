@@ -181,7 +181,7 @@ for (const sizeName of wanted) {
   await epage.reload({ waitUntil: 'load' });
   await epage.click('#uw-view-quick');
   await epage.waitForSelector('#uw-filler', { state: 'attached' });
-  await epage.waitForFunction(() => document.getElementById('uw-filler').querySelector('summary'));
+  await epage.waitForFunction(() => document.getElementById('uw-filler').querySelector('.uwf-sum'));
   await epage.evaluate(() => { document.getElementById('uw-filler').open = true; });
   await epage.waitForSelector('#uwf-open');
   await epage.click('#uwf-open');

@@ -19,7 +19,10 @@ let opened = false;   // the frame is on screen
 
 /** The card, empty; fill() draws it. */
 export function fillerCard() {
-  const c = el('details', 'card uwf uwf-adv');   // collapsed: the built-in tool above is the normal way in
+  // collapsed: the built-in tool is the normal way in. A section with a toggle button, not <details>: a frame inside
+  // a details element is painted differently (text smoothing), and this one must look exactly like the package alone
+  const c = el('section', 'card uwf uwf-adv');
+  Object.defineProperty(c, 'open', { get: () => c.dataset.open === '1', set: (v) => { c.dataset.open = v ? '1' : '0'; const b = c.querySelector('.uwf-body'); if (b) b.hidden = !v; const t = c.querySelector('#uwf-title'); if (t) t.setAttribute('aria-expanded', String(!!v)); } });
   c.id = 'uw-filler';
   opened = false;
   fill(c);
@@ -31,10 +34,14 @@ async function fill(c = document.getElementById('uw-filler')) {
   let info = null;
   try { info = await packageInfo({ base: base() }); } catch { /* no Cache Storage here: treated as not loaded */ }
   c.textContent = '';
-  const sum = el('summary', 'uwf-sum', `Advanced: load my firm's template pack`);
+  const sum = el('button', 'uwf-sum', `Advanced: load my firm's template pack`);
+  sum.type = 'button';
   sum.id = 'uwf-title';
+  sum.setAttribute('aria-expanded', String(c.dataset.open === '1'));
+  sum.addEventListener('click', () => { c.open = !c.open; });
   c.appendChild(sum);
   const body = el('div', 'uwf-body');
+  body.hidden = c.dataset.open !== '1';
   if (!info) {
     body.appendChild(el('p', 'hint-sm', `Load your firm's template pack: your own full underwriting package, with your firm's template, from this computer. It is kept on this device only: it is not part of a backup, and ${PRODUCT} sends nothing anywhere for it. Only a package version the owner has approved will load.`));
     const acts = el('div', 'uwf-acts');
