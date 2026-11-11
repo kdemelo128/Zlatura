@@ -256,7 +256,7 @@ function attentionCard(att) {
     if (a.dealId || a.view) {
       const bt = el('button', 'linkish', a.text);
       bt.type = 'button';
-      bt.addEventListener('click', () => (a.dealId ? showDeal(a.dealId) : api.showView(a.view)));
+      bt.addEventListener('click', () => { if (a.kind === 'backup') document.dispatchEvent(new CustomEvent('settingsgroup', { detail: 'data' })); return a.dealId ? showDeal(a.dealId) : api.showView(a.view); });
       li.appendChild(bt);
     } else li.textContent = a.text;
     ul.appendChild(li);

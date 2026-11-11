@@ -55,7 +55,7 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
     await page.emulateMedia({ colorScheme: scheme });
     await page.evaluate(async () => { await document.fonts.load('400 16px "IBM Plex Sans"'); await document.fonts.load('600 16px "IBM Plex Sans"'); await document.fonts.ready; });
     check(`${size}, ${scheme}: the type is IBM Plex Sans and the face is loaded`, /^"?IBM Plex Sans/.test(await fam()) && await page.evaluate(() => document.fonts.check('600 16px "IBM Plex Sans"') && [...document.fonts].some((f) => f.family.includes('IBM Plex Sans') && f.status === 'loaded')), await fam());
-    check(`${size}, ${scheme}: the page takes the New look's colour`, (await page.evaluate(() => getComputedStyle(document.body).backgroundColor)) === (scheme === 'light' ? 'rgb(247, 244, 239)' : 'rgb(33, 30, 37)'));
+    check(`${size}, ${scheme}: the page takes the New look's colour`, (await page.evaluate(() => getComputedStyle(document.body).backgroundColor)) === (scheme === 'light' ? 'rgb(247, 247, 248)' : 'rgb(17, 17, 19)'));
     for (const v of SCREENS) {
       await go(page, v);
       const w = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);

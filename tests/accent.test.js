@@ -18,7 +18,7 @@ test('accent: a range of colours, bad ones included, always passes 4.5:1 and 3:1
   assert.ok(all.length > 300);
 });
 
-test('accent: a pale yellow is adjusted and says so; the default plum and the swatches are not', () => {
+test('accent: a pale yellow is adjusted and says so; the default blue and the swatches are not', () => {
   assert.equal(accentFor('#FFFF99').adjusted, true);
   assert.equal(accentFor(DEFAULT_ACCENT).adjusted, false);
   for (const [, c] of SWATCHES) assert.equal(accentFor(c).adjusted, false, c);

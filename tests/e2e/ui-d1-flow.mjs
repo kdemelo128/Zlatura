@@ -39,7 +39,7 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
     const b = await bars();
     const solid = /^rgb\(/.test(b.bg) && b.filter === 'none';
     check(`${size}, ${scheme}: the bar is solid (no blur, opaque) and our sans comes first`, solid && /^"?IBM Plex Sans/.test(b.ui), JSON.stringify(b));
-    const want = scheme === 'light' ? 'rgb(247, 244, 239)' : 'rgb(33, 30, 37)';
+    const want = scheme === 'light' ? 'rgb(247, 247, 248)' : 'rgb(17, 17, 19)';
     check(`${size}, ${scheme}: the page takes the New look's colour`, (await page.evaluate(() => getComputedStyle(document.body).backgroundColor)) === want, want);
     for (const v of ['home', 'deal', 'comps', 'tools', 'settings']) {
       await page.evaluate((x) => { location.hash = `#${x}`; }, v);

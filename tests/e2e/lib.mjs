@@ -24,6 +24,12 @@ export async function phone(opts = {}) {
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
     acceptDownloads: true, ...opts,
   });
+  // Settings keeps every group but Appearance closed. Most flows go straight to a control in one (backups, conventions,
+  // About), so each Settings group is opened as it is drawn; ui-fixes-flow and settings-groups-flow set window.__keepGroups
+  // to see the real, collapsed page.
+  await ctx.addInitScript(() => {
+    new MutationObserver(() => { if (window.__keepGroups) return; document.querySelectorAll('details.set-group:not([open]):not([data-user])').forEach((d) => { d.open = true; }); }).observe(document, { childList: true, subtree: true });
+  });
   const page = await ctx.newPage();
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${m.type()}] ${m.text()}`); });

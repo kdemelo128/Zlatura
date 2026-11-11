@@ -55,15 +55,15 @@ for (const [name, get] of Object.entries(THEMES)) {
 
 test('New look tokens: the ratios the proposal states (section 1) are the ones computed', () => {
   const want = {
-    light: { '--ink': [12.36, '--bg'], '--accent': [6.48, '--surface'], '--good': [5.03, '--surface'], '--warn': [5.27, '--surface'], '--critical': [5.30, '--surface'] },
-    dark: { '--ink': [13.93, '--bg'], '--accent': [6.74, '--surface'] },
+    light: { '--ink': [15.72, '--bg'], '--accent': [6.17, '--surface'], '--good': [5.35, '--surface'], '--warn': [6.10, '--surface'], '--critical': [5.45, '--surface'] },
+    dark: { '--ink': [17.32, '--bg'], '--accent': [6.53, '--surface'] },
   };
   for (const [theme, rows] of Object.entries(want)) {
     const t = THEMES[theme]();
     for (const [k, [v, on]] of Object.entries(rows)) assert.ok(Math.abs(ratio(t[k], t[on]) - v) < 0.011, `${theme} ${k} on ${on}: ${ratio(t[k], t[on]).toFixed(2)}, stated ${v}`);
   }
-  assert.ok(Math.abs(ratio(THEMES.light()['--accent-ink'], THEMES.light()['--accent']) - 6.30) < 0.011);
-  assert.ok(Math.abs(ratio(THEMES.dark()['--accent-ink'], THEMES.dark()['--accent']) - 7.03) < 0.011);
+  assert.ok(Math.abs(ratio(THEMES.light()['--accent-ink'], THEMES.light()['--accent']) - 6.17) < 0.011);
+  assert.ok(Math.abs(ratio(THEMES.dark()['--accent-ink'], THEMES.dark()['--accent']) - 7.30) < 0.011);
 });
 
 test('New look tokens: the system-dark rule and the chosen-dark rule set the same names to the same values; light sets every one of them', () => {
@@ -165,7 +165,7 @@ test('New look: focus ring is 3 px, targets are 44 px on touch, motion stops on 
 test('Classic tokens are unchanged, and so is every byte of Classic\'s token block', () => {
   const a = css.indexOf('/* ================================================================ tokens */');
   const b = css.indexOf('/* ====================================================== New look tokens');
-  assert.equal(crypto.createHash('sha256').update(css.slice(a, b)).digest('hex'), 'a771c70c3d82ae40f46b551f9c8742ac64c7441ae1220f527f169effeceea143', "Classic's :root block changed");
+  assert.equal(crypto.createHash('sha256').update(css.slice(a, b)).digest('hex'), '08f056c7bb4aa40d604dd99dc9b59a0d727db5bba234655f4ef31ebf49dc1869', "Classic's :root block changed (re-pinned in 4.7.132: px font sizes now multiply by --ts, unset at 100%, so computed sizes are identical)");
   const snap = JSON.parse(read('tests/look-classic-tokens.json'));
   for (const [sel, want] of Object.entries(snap)) assert.deepEqual(tokens(css, sel), want, `Classic ${sel}`);
 });

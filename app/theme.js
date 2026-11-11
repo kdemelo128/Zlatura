@@ -4,7 +4,7 @@
 
 const KEY = 'zlatura.theme';
 const BAR = { light: '#F7F6F3', dark: '#0F1012' };
-const BAR_NEW = { light: '#F4F5F7', dark: '#111316' }; // the New look's page colours
+const BAR_NEW = { light: '#F7F7F8', dark: '#111113' }; // the New look's page colours
 
 export function getTheme() {
   try { const t = localStorage.getItem(KEY); return t === 'light' || t === 'dark' ? t : 'system'; } catch { return 'system'; }
