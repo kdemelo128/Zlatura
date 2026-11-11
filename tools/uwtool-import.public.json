@@ -2,6 +2,7 @@
   "root": "public/tool/",
   "allow": ["public/tool/"],
   "allowExt": ["html", "js", "mjs", "css", "json", "svg", "png", "jpg", "jpeg", "gif", "webp", "ico", "woff", "woff2", "ttf", "wasm", "txt"],
+  "licence": "all rights reserved (app/uwtool/LICENSE), owner decision 2026-11-11",
   "base64Ceiling": 4096,
   "base64Allow": [],
   "minTermLength": 3

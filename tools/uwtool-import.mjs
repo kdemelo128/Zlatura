@@ -143,7 +143,7 @@ export function buildImport({ pkg, pub, rules, terms, extra = {} }) {
 
   for (const rel of Object.keys(out).sort()) manifestFiles[rel] = { in: inHash[rel] || null, out: sha(out[rel]), bytes: out[rel].length };
   const manifest = {
-    tool: 'tools/uwtool-import.mjs', package: { fingerprint: fingerprint(inRoot), files: Object.keys(inRoot).length, outsideRoot },
+    tool: 'tools/uwtool-import.mjs', licence: pub.licence || null, package: { fingerprint: fingerprint(inRoot), files: Object.keys(inRoot).length, outsideRoot },
     files: manifestFiles,
     edits: edits.map((e) => ({ id: e.id, category: e.category, op: e.op, applied: e.applied, lines: e.lines })),
   };

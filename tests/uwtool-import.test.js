@@ -137,6 +137,7 @@ test('the manifest holds hashes and counts only, and the fingerprint matches the
   assert.match(r.manifest.files['app.js'].out, /^[0-9a-f]{64}$/);
   assert.notEqual(r.manifest.files['app.js'].in, r.manifest.files['app.js'].out);
   assert.equal(r.manifest.files['style.css'].in, r.manifest.files['style.css'].out);
+  assert.match(r.manifest.licence, /all rights reserved/);
   assert.deepEqual(Object.keys(r.manifest.edits[0]).sort(), ['applied', 'category', 'id', 'lines', 'op']);
   assert.equal(r.manifest.edits[0].lines, 0);
   const a = { 'x': enc('1'), 'y': enc('2') }, b = { 'y': enc('2'), 'x': enc('1') };
@@ -158,13 +159,13 @@ test('the command line writes the output and manifest; refuses with no deny-list
     const dl = path.join(dir, 'deny.txt'); fs.writeFileSync(dl, `${FIRM}\n${SECRET_SHEET}\n`);
     const quiet = (fn) => { const l = console.log, e = console.error; console.log = console.error = () => {}; try { return fn(); } finally { console.log = l; console.error = e; } };
     const base = ['--from', from, '--rules', rulesF, '--out', out, '--pack', pack];
-    assert.equal(quiet(() => main(base, {})), 1, 'no deny-list: refuses');
+    assert.equal(quiet(() => main([...base, '--denylist', path.join(dir, 'missing.txt')], {})), 1, 'no deny-list: refuses');
     assert.ok(!fs.existsSync(out));
     assert.equal(quiet(() => main([...base, '--denylist', dl], {})), 0);
     assert.deepEqual(fs.readdirSync(out).sort(), ['IMPORT-MANIFEST.json', 'app.js', 'example.json', 'index.html', 'style.css']);
     assert.equal(JSON.parse(fs.readFileSync(path.join(out, MANIFEST), 'utf8')).edits.length, 6);
     assert.deepEqual(fs.readdirSync(pack).sort(), ['blk.txt', 'firm-only.js']);
-    assert.equal(quiet(() => main(base, { DENYLIST: `${FIRM}\n` })), 0, 'env DENYLIST works and a previous import is replaced');
+    assert.equal(quiet(() => main([...base, '--denylist', ''], { DENYLIST: `${FIRM}\n` })), 0, 'env DENYLIST works and a previous import is replaced');
     // a bad rule: nothing is rewritten
     const before = fs.readFileSync(path.join(out, 'app.js'));
     const bad = RULES(); bad.edits[1].find = 'absent'; fs.writeFileSync(rulesF, JSON.stringify(bad));
@@ -180,7 +181,7 @@ test('the command line writes the output and manifest; refuses with no deny-list
 });
 
 test('the public settings hold no firm term: an allow-list, ceilings and nothing else', () => {
-  assert.deepEqual(Object.keys(PUB).sort(), ['allow', 'allowExt', 'base64Allow', 'base64Ceiling', 'minTermLength', 'root']);
+  assert.deepEqual(Object.keys(PUB).sort(), ['allow', 'allowExt', 'base64Allow', 'base64Ceiling', 'licence', 'minTermLength', 'root']);
   assert.deepEqual(PUB.allow, ['public/tool/']);
 });
 
