@@ -7,7 +7,7 @@
 import { el, toast, actionSheet } from './kit.js';
 import { PRODUCT } from './brand.js';
 import { TYPES, typeLabel } from './ddtypes.js';
-import { newPlan, useLabel, stageFiles, answer, skip, choose, controlling, usable, readyItems, questions, checklist, markUsed, CONTROLLED, KEEP } from './intake.js';
+import { newPlan, useLabel, stageFiles, answer, skip, choose, controlling, usable, readyItems, questions, checklist, markUsed, readScan, CONTROLLED, KEEP } from './intake.js';
 import { intakeDeps, useDocuments, discardDeal, showDeal } from './dealui.js';
 
 let plan = newPlan();
@@ -131,7 +131,7 @@ function fill(c = box()) {
   if (reading.length || plan.items.length) {
     const ul = el('ul', 'dd-list uwi-files');
     for (const r of reading) ul.appendChild(fileRow(r.name, r.step, null));
-    for (const it of plan.items) ul.appendChild(fileRow(it.name, it.refuse ? 'Not read' : it.dup ? 'Repeated' : 'Looked at', it.refuse || it.dup));
+    for (const it of plan.items) ul.appendChild(fileRow(it.name, `${it.refuse ? 'Not read' : it.dup ? 'Repeated' : 'Looked at'}${it.from ? ` · from ${it.from}` : ''}`, it.refuse || it.dup));
     s1.appendChild(ul);
   }
   body.appendChild(s1);
@@ -188,6 +188,18 @@ function fill(c = box()) {
   c.appendChild(body);
 }
 
+/** OCR of the first page of a PDF with no text layer, on request: the page is read on this device and nothing is sent. */
+async function ocrItem(it) {
+  if (working) return;
+  working = true;
+  fill();
+  say(`Reading the first page of ${it.name}…`);
+  const res = await readScan(plan, it.id, (bytes, onProgress) => intakeDeps().ocrText(bytes, onProgress), (t) => say(`${it.name}: ${t}`));
+  working = false;
+  fill();
+  say(res.ok ? `${it.name} was read by OCR on this device. Nothing is on a deal until you confirm what it is and tap Use.` : res.why);
+}
+
 function fileRow(name, stateText, why) {
   const li = el('li', 'dd-row');
   const line = el('div', 'dd-line');
@@ -204,7 +216,7 @@ function itemRow(it) {
   li.dataset.id = it.id;
   const line = el('div', 'dd-line');
   const main = el('div', 'dd-open');
-  main.append(el('span', 'dd-type', it.type ? typeLabel(it.type) : 'What is this?'), el('span', 'dd-name', it.name), el('span', 'dd-sub', `${it.confidence} · ${it.reason}`));
+  main.append(el('span', 'dd-type', it.type ? typeLabel(it.type) : 'What is this?'), el('span', 'dd-name', it.name), el('span', 'dd-sub', `${it.from ? `From ${it.from}. ` : ''}${it.confidence} · ${it.reason}`));
   line.appendChild(main);
   if (it.state === 'used') line.appendChild(el('span', 'dd-chip dd-reviewed', 'Used'));
   else if (it.state === 'skipped') line.appendChild(el('span', 'dd-chip', 'Skipped'));
@@ -213,6 +225,11 @@ function itemRow(it) {
   const acts = el('div', 'dd-formbtns uwi-itemacts');
   if (!it.type) {
     for (const t of it.ask.slice(0, 3)) { const b = btn('btn-sm', `It is ${typeLabel(t).toLowerCase()}`, () => { answer(plan, it.id, t); fill(); }); b.dataset.type = t; acts.appendChild(b); }
+    if (it.scanned && it.bytes) {
+      const ocr = btn('btn-sm', 'Read it with OCR', () => ocrItem(it), `Read ${it.name} with OCR, on this device`);
+      ocr.dataset.ocr = it.id;
+      acts.appendChild(ocr);
+    }
     const other = btn('btn-plain btn-sm', 'Something else…', async () => {
       const v = await actionSheet(`What is ${it.name}?`, TYPES.map((t) => ({ label: t.label, value: t.id })));
       if (v) { answer(plan, it.id, v); fill(); }

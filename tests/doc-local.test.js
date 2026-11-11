@@ -137,7 +137,8 @@ test('doc-local --reasons: a reason code per refused, asked or identified invent
   assert.match(per(1), /^file-01: ask:budget, identified; reasons no-reader-for-type:budget, pages:1$/);
   assert.match(per(2), /^file-02: scan, refused; reasons no-text-layer:none, pages:1$/);
   assert.match(per(3), /^file-03: zip, refused; reasons zip-not-opened$/);
-  assert.match(per(4), /^file-04: zip, refused; reasons zip-not-workbook$/);
+  // a plain zip is opened in memory and its one text file is read like a dropped file (it is not a file in the table itself)
+  assert.match(per(4), /^file-04: unclassified, refused; reasons unknown-title$/);
   assert.match(per(5), /^file-05: unclassified, refused; reasons unknown-title, sheets:2-3, hidden-sheets:1$/);
   assert.match(per(6), /^file-06: unclassified, refused; reasons docx-later$/);
   // a workbook with an unreadable date cell is read now (the cell is blank, sheetread.js), so it ends as an untitled sheet, not a failed read
@@ -146,9 +147,10 @@ test('doc-local --reasons: a reason code per refused, asked or identified invent
   assert.ok(/^file-09: rrsheet, accepted$/.test(per(9)), 'an accepted file carries no reason');
   // the counts tables
   assert.ok(lines.includes('reason | files (refused, asked and identified files only; a file can have several: its main reason, then its shape)'), r.stdout);
-  for (const row of ['no-reader-for-type:budget | 1', 'no-text-layer:none | 1', 'zip-not-opened | 1', 'zip-not-workbook | 1', 'unknown-title | 2', 'docx-later | 1', 'macro-flag | 1', 'sheets:2-3 | 1', 'hidden-sheets:1 | 1', 'pages:1 | 2']) assert.ok(lines.includes(row), `${row}\n${r.stdout}`);
+  for (const row of ['no-reader-for-type:budget | 1', 'no-text-layer:none | 1', 'zip-not-opened | 1', 'zip-opened:1 files | 1', 'unknown-title | 3', 'docx-later | 1', 'macro-flag | 1', 'sheets:2-3 | 1', 'hidden-sheets:1 | 1', 'pages:1 | 2']) assert.ok(lines.includes(row), `${row}\n${r.stdout}`);
   assert.ok(lines.includes('family | reason | files'));
-  assert.ok(lines.includes('unclassified | unknown-title | 2'), r.stdout);
+  assert.ok(lines.includes('unclassified | unknown-title | 3'), r.stdout);
+  assert.ok(!r.stdout.includes('zip-not-workbook'), 'a plain zip is opened now');
   assert.ok(!r.stdout.includes('sheet-read-failed'), 'no read fails on an unreadable date any more');
   assert.ok(lines.includes('ask:budget | no-reader-for-type:budget | 1'), r.stdout);
   // identified is its own last column, not "asked" or "refused"
@@ -230,4 +232,28 @@ test('uw-oracle: the cases file is the engine\'s own figures (a hand check of ca
   assert.match(r.stdout, /\ncap \| 7 \|/);
   assert.match(r.stdout, /\nequity \| 1800000 \|/);
   assert.match(r.stdout, /\ndebtService \| 246506\.5292 \|/);
+});
+
+test('doc-local --reasons: a zip is opened and counted by the files inside it; a refused part and a refused zip get their own codes', async () => {
+  const d = path.join(tmp(), 'docs');
+  fs.mkdirSync(d);
+  const put = (n, b) => fs.writeFileSync(path.join(d, n), b);
+  const roll = ['Unit,Tenant,SF,Monthly Rent,Lease End', `101,${CANARY_NAME},${CANARY_FIGURE},2400,2028-01-31`, '102,Vacant,0,0,'].join('\n');
+  const z = (o) => Buffer.from(fflate.zipSync(o));
+  put('a-bundle.zip', z({ 'rr.csv': enc.encode(roll), 'blob.bin': Uint8Array.from([0, 1, 2, 3, 0, 255, 0, 9]), '../up.csv': enc.encode(roll) }));
+  put('b-empty.zip', z({}));
+  put('c-bomb.zip', z({ 'big.bin': new Uint8Array(2e6) }));
+  const r = run(DOC, [d, '--allow-outside-private', '--reasons', '--verbose-files', '--labels']);
+  assert.equal(r.status, 0, r.stderr);
+  const lines = r.stdout.split('\n');
+  const per = (n) => lines.find((l) => l.startsWith(`file-0${n}:`));
+  assert.match(lines.find((l) => l.startsWith('doc-local:')), /^doc-local: 5 file\(s\)/, 'three inner files, an empty zip and a bomb; the opened zip is not itself a file');
+  assert.match(per(1), /^file-01: rrsheet, accepted$/);
+  assert.match(per(2), /^file-02: unknown, refused; reasons binary-unknown$/);
+  assert.match(per(3), /^file-03: zip-part, refused; reasons zip-part-unsafe-path$/);
+  assert.match(per(4), /^file-04: zip, refused; reasons zip-empty$/);
+  assert.match(per(5), /^file-05: zip, refused; reasons zip-not-opened$/);
+  for (const row of ['zip-opened:2-5 files | 1', 'zip-part-unsafe-path | 1', 'zip-empty | 1', 'zip-not-opened | 1']) assert.ok(lines.includes(row), `${row}\n${r.stdout}`);
+  const out = r.stdout + r.stderr;
+  for (const s of [CANARY_NAME, CANARY_FIGURE, 'a-bundle', 'rr.csv', 'blob.bin', 'up.csv', path.dirname(d)]) assert.ok(!out.includes(s), `the output must not hold "${s}"`);
 });

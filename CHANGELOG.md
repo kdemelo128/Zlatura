@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.7.131: Drop a zip and its files are read one by one; a PDF with no text layer can be read with OCR on the Underwrite tab (on the development branch; not merged or deployed)
+
+Two steps toward a document reader that needs no outside AI.
+
+- **Zips:** drop a zip on Start from documents or the Documents card and it is opened in memory; each file inside is staged exactly as if you had dropped it yourself, with "from" the zip's name. Nothing is unpacked to disk. The existing safety limits apply (file count, real unpacked size, compression ratio), a zip inside a zip is opened one level deep, files with unsafe paths are refused on their own while the rest still stage, and at most 200 files are read from one zip. In the owner's folder 44 zips were refused before (a count).
+- **No text layer:** a PDF with too little text now says "no text layer" on the Underwrite card and offers "Read it with OCR", which runs on the device. Text read this way never decides what a document is by itself and never supplies figures: the file is offered as a question, and figures come only from the document's own import and its checks.
+- **Scoreboard:** files inside a zip are counted like dropped files.
+- **Tested:** 16 new tests on invented zips and PDFs, all failing on the old code; ten deliberate breaks of the zip limits each caught; the Underwrite and Documents browser flows pass at phone and desktop size, with real OCR on an invented scan. Displayed figures unchanged (646 compared, 0 changed). The full browser suite and Safari were not run here; OCR reads page 1 only for now.
+
 ## 4.7.130: The product is now called Monal (on the development branch; not merged or deployed)
 
 The name on screen changes from Zlatura to Monal, after the Himalayan monal (owner decision, 2026-11-11). Nothing about your saved work changes.
