@@ -66,7 +66,7 @@ check('the top bar has a Settings gear, at least 36 px', await page.evaluate(() 
 
 await page.click('.tabbar .tab[data-view="underwrite"]');
 await page.waitForSelector('#uw-card');
-check('the Underwrite tab opens its screen, is marked current and titles the page', await page.isVisible('#view-underwrite') && (await page.getAttribute('.tabbar .tab[data-view="underwrite"]', 'aria-current')) === 'page' && (await page.title()) === 'Underwrite · Zlatura' && page.url().endsWith('#underwrite'), await page.title());
+check('the Underwrite tab opens its screen, is marked current and titles the page', await page.isVisible('#view-underwrite') && (await page.getAttribute('.tabbar .tab[data-view="underwrite"]', 'aria-current')) === 'page' && (await page.title()) === 'Underwrite · Monal' && page.url().endsWith('#underwrite'), await page.title());
 check('the card starts from the remembered loan terms a new deal uses (65% at 6.75% over 30 years)', (await page.inputValue('#uw-ltv')) === '65' && (await page.inputValue('#uw-rate')) === '6.75' && (await page.inputValue('#uw-amort')) === '30');
 check('with nothing typed, no figure is shown as a number (a blank is absent, never 0)', Object.values(await lines('#uw-results')).every((v) => v === '—'), JSON.stringify(await lines('#uw-results')));
 check('nothing is saved until something is typed', (await page.textContent('#uw-list')).includes('Nothing saved yet') && (await storeCall('kvGet', 'uw.scratch')) === null);

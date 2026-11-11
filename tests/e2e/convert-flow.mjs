@@ -193,11 +193,11 @@ check('Word to text: body text once, table cells tabbed, no header, no deleted t
 dls = downloads.length;
 await pick(f('Photo.jpg', plainPdf('W', 1)));
 check('a PDF named .jpg is treated as the PDF it is, and the name mismatch is said', (await targets()).join('|') === 'To text|To PNG pictures|To JPEG pictures' && /“Photo\.jpg” is really a PDF, whatever its name says/.test(await page.locator('#conv-note').innerText()));
-await refusedWith('Lease.pages', otherZip(), /^Lease\.pages is an Apple Pages file\. Zlatura can’t convert it on this device\. In Pages, choose Export → PDF, then add the PDF here\./, 'a Pages file is refused by name with the export step');
+await refusedWith('Lease.pages', otherZip(), /^Lease\.pages is an Apple Pages file\. Monal can’t convert it on this device\. In Pages, choose Export → PDF, then add the PDF here\./, 'a Pages file is refused by name with the export step');
 await refusedWith('Deck.pptx', otherZip(), /^Deck\.pptx is a PowerPoint file/, 'a PowerPoint file is refused, not faked into a PDF');
 await refusedWith('Old.doc', oleDoc(), /^Old\.doc is an old Word \(\.doc\) file/, 'an old .doc is refused with the way to a .docx');
 await refusedWith('Scan.tif', Buffer.from([0x49, 0x49, 0x2a, 0, 8, 0, 0, 0, 0, 0]), /^Scan\.tif is a TIFF image/, 'a TIFF is refused by name');
-await refusedWith('Mystery.bin', Buffer.from([1, 2, 0, 3]), /^Mystery\.bin is not a file type Zlatura can convert/, 'an unknown binary is refused by name');
+await refusedWith('Mystery.bin', Buffer.from([1, 2, 0, 3]), /^Mystery\.bin is not a file type Monal can convert/, 'an unknown binary is refused by name');
 const bombDocx = (await import('fflate')).zipSync({ 'word/document.xml': new Uint8Array(3e6) }, { level: 9 });
 await refusedWith('Bomb.docx', bombDocx, /^Bomb\.docx: That file packs a part far tighter/, 'a decompression bomb posing as a Word file is refused, not opened');
 await refusedWith('Huge.pdf', Buffer.concat([Buffer.from('%PDF-1.7\n'), Buffer.alloc(51e6)]), /^Huge\.pdf is 51 MB; a PDF is read up to 50 MB/, 'a 51 MB PDF is refused by its size');

@@ -63,7 +63,7 @@ await one.locator('label:has-text("Show the deal name") input').waitFor();
 check('the hidden-name choice is kept', !(await one.locator('label:has-text("Show the deal name") input').isChecked()));
 const [d2] = await Promise.all([page.waitForEvent('download'), one.locator('button:has-text("Make calendar file")').click()]);
 const t2 = fs.readFileSync(await d2.path(), 'utf8');
-check('one date gives one event titled without the deal name', t2.split('\r\n').filter((l) => l === 'BEGIN:VEVENT').length === 1 && t2.includes('SUMMARY:Zlatura deal: Closing'));
+check('one date gives one event titled without the deal name', t2.split('\r\n').filter((l) => l === 'BEGIN:VEVENT').length === 1 && t2.includes('SUMMARY:Monal deal: Closing'));
 
 for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
 finish(R, 'errors', errors);

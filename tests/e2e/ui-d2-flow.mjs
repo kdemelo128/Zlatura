@@ -48,14 +48,14 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
   const brand = await page.evaluate(() => ({
     symbols: document.querySelectorAll('symbol#brand-mark').length,
     uses: [...document.querySelectorAll('.brand-mark use')].filter((u) => u.getAttribute('href') === '#brand-mark').length,
-    names: [...document.querySelectorAll('.brand-name')].map((n) => n.firstChild && n.textContent.startsWith('Zlatura')).every(Boolean),
+    names: [...document.querySelectorAll('.brand-name')].map((n) => n.firstChild && n.textContent.startsWith('Monal')).every(Boolean),
     sub: document.querySelector('.sidebar [data-brand-sub]').textContent,
     title: document.title,
     bg: getComputedStyle(document.querySelector('.brand-mark')).backgroundColor,
     markBox: (() => { const r = document.querySelector('.sidebar .brand-mark svg').getBoundingClientRect(); return [r.width, r.height]; })(),
   }));
   check(`${size}: the mark is one <symbol> and both brand places use it`, brand.symbols === 1 && brand.uses === 2, JSON.stringify(brand));
-  check(`${size}: the name and the line under it are filled from brand.js`, brand.names && brand.sub === 'Brokerage workspace' && brand.title.includes('Zlatura'), JSON.stringify(brand));
+  check(`${size}: the name and the line under it are filled from brand.js`, brand.names && brand.sub === 'Brokerage workspace' && brand.title.includes('Monal'), JSON.stringify(brand));
   check(`${size}: the mark is drawn (a visible box holding a symbol with a real path)`, await page.evaluate(() => [...document.querySelectorAll('.brand-mark svg')].some((s) => s.getBoundingClientRect().width > 8) && document.querySelector('#brand-mark path').getTotalLength() > 20));
 
   for (const look of ['classic', 'new']) {

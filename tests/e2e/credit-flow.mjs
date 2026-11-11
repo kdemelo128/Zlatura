@@ -62,7 +62,7 @@ await page.waitForTimeout(1500);
 // a hand deal has no Lease section: put the OM's guarantor on the deal, as a read OM would
 await page.evaluate(async () => { const m = await import('./app/store.js'); const [row] = await m.listDeals(); const d = await m.loadDeal(row.id); d.figures.guarantor = 'Example Holdings'; await m.saveDeal(d); });
 
-check('the Credit card offers a record, and a deal has none yet (absent, not "none")', /Zlatura never looks a rating up/.test(await txt('#deal-credit')) && (await credit()) === null);
+check('the Credit card offers a record, and a deal has none yet (absent, not "none")', /Monal never looks a rating up/.test(await txt('#deal-credit')) && (await credit()) === null);
 check('the button is named', (await page.locator('#credit-add').textContent()) === 'Add a credit record');
 await page.reload({ waitUntil: 'load' });
 await page.waitForSelector('#credit-add');
@@ -102,7 +102,7 @@ c = await credit();
 const r = c.ratings[0];
 check('saved: capitals evened on an exact scale match, typedOn set by the app', c.ratings.length === 1 && r.rating === 'BBB-' && r.agency === 'sp' && r.of === 'parent' && r.asOf === '2024-01-15' && r.typedOn === today && r.source === 'agency report, invented', JSON.stringify(r));
 const line = await txt('#deal-credit .credit-rating');
-check('the line carries the attribution', line.includes('Typed by the broker on') && line.includes('; not verified by Zlatura.') && line.includes('As of Jan 15, 2024, from: agency report, invented.') && /^S&P BBB-, stable, for \(name not typed\) \(the parent\)\./.test(line), line);
+check('the line carries the attribution', line.includes('Typed by the broker on') && line.includes('; not verified by Monal.') && line.includes('As of Jan 15, 2024, from: agency report, invented.') && /^S&P BBB-, stable, for \(name not typed\) \(the parent\)\./.test(line), line);
 check('and the scale label, as typed', line.includes('Investment grade on the S&P scale, as typed'));
 const checks = await txt('#credit-checks');
 check('only the parent is rated: the obligor check says it does not stand behind the rent', /Neither the tenant on the lease nor the guarantor is rated, so the rating does not stand behind this rent\./.test(checks));

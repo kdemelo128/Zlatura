@@ -4,7 +4,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { PRODUCT, TAGLINE, MARK, DESCRIPTOR, KEY_PREFIX } from '../app/brand.js';
+import { PRODUCT, TAGLINE, MARK, DESCRIPTOR, KEY_PREFIX, FORMATS, FORMERLY, ABOUT_NAME, OLD_KEY_PREFIX, RENAMED_FLAG } from '../app/brand.js';
+import { icsFor } from '../app/ics.js';
+import { readBackup, planRestore, BACKUP_FORMAT, LOCAL_KEYS } from '../app/backup.js';
 
 const APP = new URL('../app/', import.meta.url);
 const read = (u) => fs.readFileSync(u, 'utf8');
@@ -64,4 +66,73 @@ test('the manifest agrees with brand.js', () => {
 test('what must not change on a rename is still the same', () => {
   assert.equal(KEY_PREFIX, 'zlatura.', 'saved settings are read under this prefix; a rename never moves them');
   assert.equal(MARK.viewBox, '0 0 24 24');
+});
+
+// ---- PR 6: the display name is Monal; every storage id is still the old one (changed later, with a migration) ----
+
+test('the visible name is Monal: brand.js, the title, the manifest, an export', () => {
+  assert.equal(PRODUCT, 'Monal');
+  assert.match(read(new URL('../index.html', import.meta.url)), /<title>Monal<\/title>/);
+  const m = JSON.parse(read(new URL('../manifest.webmanifest', import.meta.url)));
+  assert.equal(m.name, 'Monal');
+  assert.equal(m.short_name, 'Monal');
+  assert.ok(m.description.startsWith('Monal: '));
+  const ics = icsFor([{ evId: 'u1@zlatura.invalid', date: '2027-03-01', title: 'Closing', alarms: [] }], { now: 0, version: '9.9.9' });
+  assert.ok(ics.includes('PRODID:-//Monal//Monal 9.9.9//EN'), 'an exported calendar names the product');
+  assert.match(FORMERLY, /Zlatura/);
+  assert.ok(!ABOUT_NAME.includes('Zlatura'), 'the About text no longer explains the old name');
+});
+
+test('storage ids, backup ids, cache names and the manifest id did NOT change with the name', () => {
+  assert.equal(KEY_PREFIX, 'zlatura.');
+  assert.equal(OLD_KEY_PREFIX, 'comp-loader.');
+  assert.equal(RENAMED_FLAG, 'zlatura.renamed');
+  assert.equal(FORMATS.backup.write, 'zlatura-backup');
+  assert.equal(FORMATS.project.write, 'zlatura-project');
+  assert.equal(FORMATS.template.write, 'zlatura-template');
+  assert.equal(BACKUP_FORMAT, 'zlatura-backup');
+  assert.deepEqual(LOCAL_KEYS, ['zlatura.tools.v1', 'zlatura.subject.v1', 'zlatura.loan.v1']);
+  assert.match(read(new URL('../app/store.js', import.meta.url)), /^const DB = 'zlatura';$/m);
+  const sw = read(new URL('../sw.js', import.meta.url));
+  assert.ok(sw.includes('const CACHE = `zlatura-${VERSION}`;'));
+  assert.ok(sw.includes("const OCR_CACHE = 'zlatura-ocr-tesseract-7.0.0';"));
+  assert.ok(sw.includes("const UW_CACHE = 'zlatura-uwfiller';"));
+  const m = JSON.parse(read(new URL('../manifest.webmanifest', import.meta.url)));
+  assert.equal(m.id, './');
+  assert.equal(m.start_url, './');
+  assert.equal(m.scope, './');
+});
+
+test('a backup made under the old name still restores', () => {
+  const deal = { id: 'd1', name: '8820 Sample Pike', updatedAt: 5, inputs: {} };
+  for (const format of ['zlatura-backup', 'comp-loader-backup']) {
+    const b = readBackup(JSON.stringify({ format, version: 2, deals: [deal], kv: { 'crm.tasks': [{ id: 't1', title: 'Call' }] }, local: { 'zlatura.loan.v1': 'x' } }));
+    const p = planRestore(b, { deals: [], kv: {}, session: null, local: {} });
+    assert.deepEqual(p.deals.put.map((d) => d.id), ['d1'], format);
+    assert.deepEqual(p.kv['crm.tasks'].map((t) => t.title), ['Call'], format);
+    assert.equal(p.local['zlatura.loan.v1'], 'x', format);
+  }
+});
+
+test('no string a person can see still says Zlatura, except the one "formerly" line', () => {
+  // storage and format ids that must keep the old name until the data migration (PR 7): each is matched and removed
+  const ALLOWED = [
+    /zlatura\.[a-z']/gi, // localStorage keys 'zlatura.loan.v1', the renamed flag
+    /zlatura:storage/g, /__zlatura[A-Za-z]*/g, // an internal event and window flags
+    /'zlatura'/g, /'zlatura-(backup|project|template|abstracts|comps|uwfiller|ocr-tesseract-[\d.]+)'/g, /`zlatura-\$\{VERSION\}`/g, // database, format, profile and cache ids
+    /zlatura\.invalid/g, // the host part of calendar UIDs
+    /"Zlatura Serif"/g, // a font family id
+    /'Zlatura Audit'/g, // the name of an audit sheet written by 4.7.128 and before, still recognised when refilling
+    /FORMERLY = 'Formerly called Zlatura\.'/g,
+  ];
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? walk(new URL(`${d.name}/`, dir)) : /\.(js|css)$/.test(d.name) ? [new URL(d.name, dir)] : []));
+  const targets = [...walk(APP), new URL('../index.html', import.meta.url)];
+  const bad = [];
+  for (const u of targets) {
+    let src = read(u);
+    src = u.pathname.endsWith('.html') ? src.replace(/<!--[\s\S]*?-->/g, '') : stripComments(src);
+    for (const re of ALLOWED) src = src.replace(re, '');
+    src.split('\n').forEach((l, i) => { if (/zlatura/i.test(l)) bad.push(`${u.pathname.split('/').slice(-2).join('/')}:${i + 1}: ${l.trim().slice(0, 100)}`); });
+  }
+  assert.deepEqual(bad, []);
 });

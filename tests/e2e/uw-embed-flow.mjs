@@ -5,7 +5,7 @@
  * handler, no outside stylesheet) and its own code runs (a counter, a fetch, a blob worker); no violation other than
  * the two the stand-in provokes on purpose; Open full screen opens the same page in its own tab; a backup holds none of
  * the package; Erase package removes it and the route then says to load it; every Underwrite card is still there.
- * Axe on Zlatura's card at phone and desktop size, 44 px buttons, no sideways scroll at 390 px. The filler's own
+ * Axe on Monal's card at phone and desktop size, 44 px buttons, no sideways scroll at 390 px. The filler's own
  * document is not gated (it is not ours to change).
  *
  *   node uw-embed-flow.mjs        # BASE=http://localhost:8080/ by default */

@@ -11,7 +11,7 @@ const { browser, page, errors } = await phone({ viewport: { width: 1360, height:
 await page.goto(BASE, { waitUntil: 'load' });
 // the page title is set before the app's modules have drawn Home: wait for the view itself (up to 5 s), then check it
 await page.waitForSelector('#view-home', { state: 'visible', timeout: 5000 }).catch(() => {});
-check('the app opens on Home', await page.isVisible('#view-home') && (await page.title()) === 'Home · Zlatura', await page.title());
+check('the app opens on Home', await page.isVisible('#view-home') && (await page.title()) === 'Home · Monal', await page.title());
 for (const [v, title] of [['deal', 'Deals'], ['underwrite', 'Underwrite'], ['comps', 'Comps'], ['tools', 'Tools'], ['settings', 'Settings'], ['home', 'Home']]) {
   await page.click(`.sidebar .tab[data-view="${v}"]`);
   await page.waitForTimeout(150);

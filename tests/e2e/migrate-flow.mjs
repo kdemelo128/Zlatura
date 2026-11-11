@@ -139,7 +139,7 @@ await page.setInputFiles('#backup-file', `${F}backup-newer-deal.json`);
 await page.waitForTimeout(800);
 const toastText = await page.evaluate(() => [...document.querySelectorAll('.toast')].map((t) => t.textContent).join(' '));
 const sheetOpen = await page.locator('dialog.action-sheet[open]').count();
-check('a backup holding a deal saved by a newer version is refused, saying which', /saved by a newer version of Zlatura \(“8820 Sample Pike”\): update the app first\. Nothing was restored\./.test(toastText) && !sheetOpen, toastText);
+check('a backup holding a deal saved by a newer version is refused, saying which', /saved by a newer version of Monal \(“8820 Sample Pike”\): update the app first\. Nothing was restored\./.test(toastText) && !sheetOpen, toastText);
 check('and nothing is restored', (await idb(page, 'deals')).length === count0);
 
 for (const r of R) console.log(r.join(' | '));

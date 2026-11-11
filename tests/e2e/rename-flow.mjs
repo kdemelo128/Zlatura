@@ -88,7 +88,7 @@ try {
     ready = await page.evaluate(() => !!window.__zlaturaReady).catch(() => false);
   }
   if (process.env.DEBUG_NAV) console.log('ready', ready, 'after', loads, 'loads', new Date().toISOString().slice(17, 23));
-  check('the new app loads at the same address', ready && (await page.title()).includes('Zlatura'), await page.title());
+  check('the new app loads at the same address', ready && (await page.title()).includes('Monal'), await page.title());
   await page.waitForLoadState('load');
   await page.waitForTimeout(800);
   const m = await meta(page);
@@ -116,7 +116,7 @@ try {
 
   // a backup made now makes the old copy safe to delete
   const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#backup-make')]);
-  check('a backup is now named and formatted for Zlatura', /^Zlatura backup /.test(dl2.suggestedFilename()) && JSON.parse(fs.readFileSync(await dl2.path(), 'utf8')).format === 'zlatura-backup', dl2.suggestedFilename());
+  check('a backup is now named and formatted for Monal', /^Monal backup /.test(dl2.suggestedFilename()) && JSON.parse(fs.readFileSync(await dl2.path(), 'utf8')).format === 'zlatura-backup', dl2.suggestedFilename());
   await page.waitForTimeout(800);
   check('after that backup the old database is deleted', JSON.stringify(await dbNames(page)) === '["zlatura"]', JSON.stringify(await dbNames(page)));
   const ls2 = await page.evaluate(() => Object.keys(localStorage));
