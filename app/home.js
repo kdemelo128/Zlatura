@@ -8,7 +8,7 @@ import { kvGet } from './store.js';
 import { STAGES, STAGE_LABEL, DEFAULT_STAGES, HIDDEN, stageChoices, stageOf, pipelineSummary, taskBuckets, attention, findContacts, upcomingDates, isoDay } from './pipeline.js';
 import { listAllDeals, updateDeal, showDeal, currentDealId } from './dealui.js';
 import { taskRow, contactLinks, editContact } from './dealcrm.js';
-import { $, el, toast, actionSheet, getXlsx, deliver, printed, XLSX, short, money0, money2, pct, int, niceDate, localDate } from './kit.js';
+import { $, el, statusChip, notice, toast, actionSheet, getXlsx, deliver, printed, XLSX, short, money0, money2, pct, int, niceDate, localDate } from './kit.js';
 import { dateInput } from './dateinput.js';
 import { feesCsv } from './exporters.js';
 import { toolIndex, openToolById } from './toolsui.js';
@@ -39,6 +39,8 @@ const section = (title, id) => {
 };
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; };
+/** The New look restyles Home's markup; Classic keeps today's, so the same data draws both. */
+const isNew = () => document.documentElement.dataset.look === 'new';
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 async function render() {
@@ -82,6 +84,18 @@ async function render() {
   // the four figures that summarize the day
   const weekAgo = Date.now() - 7 * 86400000;
   const made = activity.filter((a) => a.type === 'deliverable');
+  if (isNew()) {
+    // one line that reads at a glance, instead of four identical figure cards
+    const line = el('section', 'home-sumline');
+    line.setAttribute('aria-label', 'Summary');
+    const item = (n, what) => { const x = el('span'); x.append(el('b', null, String(n)), document.createTextNode(what)); line.appendChild(x); return x; };
+    item(p.activeCount, ` active ${p.activeCount === 1 ? 'deal' : 'deals'}${p.activeValue ? `, ${short(p.activeValue)} asking${p.activeUnpriced ? `, ${p.activeUnpriced} unpriced` : ''}` : ''}`);
+    const dueItem = item(b.today.length, ' due today');
+    if (b.overdue.length) dueItem.appendChild(statusChip('warn', `${b.overdue.length} overdue`));
+    item(b.week.length, ' due this week');
+    item(made.filter((a) => a.at >= weekAgo).length, ' files and prints this week');
+    root.appendChild(line);
+  }
   const sum = el('section', 'card home-summary');
   sum.setAttribute('aria-label', 'Summary');
   const tiles = el('div', 'tiles home-tiles');
@@ -91,7 +105,7 @@ async function render() {
   tile('This week', String(b.week.length), 'tasks due');
   tile('Produced', String(made.filter((a) => a.at >= weekAgo).length), 'files and prints this week');
   sum.appendChild(tiles);
-  root.appendChild(sum);
+  if (!isNew()) root.appendChild(sum);
 
   // what needs attention, most urgent first
   const att = attention(deals, tasks);
@@ -174,11 +188,16 @@ function continueCard(deals, tasks) {
     h.appendChild(all);
   }
   if (!recent.length) {
+    const openExample = () => { api.showView('deal'); setTimeout(() => [...document.querySelectorAll('#deal-root button')].find((x) => /fictional example/.test(x.textContent))?.click(), 50); };
+    if (isNew()) {
+      c.appendChild(notice('info', 'Deals you open appear here, newest first, with their figures and next step. Try the fictional example to see one.', { label: 'Open the fictional example deal', run: openExample }));
+      return c;
+    }
     const e = el('div', 'all-clear');
     e.textContent = 'Deals you open appear here, newest first, with their figures and next step. ';
     const ex = el('button', 'linkish', 'Open the fictional example deal');
     ex.type = 'button';
-    ex.addEventListener('click', () => { api.showView('deal'); setTimeout(() => [...document.querySelectorAll('#deal-root button')].find((x) => /fictional example/.test(x.textContent))?.click(), 50); });
+    ex.addEventListener('click', openExample);
     e.appendChild(ex);
     c.appendChild(e);
     return c;
@@ -194,7 +213,7 @@ function continueCard(deals, tasks) {
     left.style.minWidth = '0';
     left.appendChild(el('div', 'cont-name', dealTitle(d)));
     const meta = el('div', 'cont-meta');
-    meta.appendChild(el('span', 'stage-pill', STAGE_LABEL[stageOf(d)]));
+    meta.appendChild(isNew() ? statusChip(stageOf(d) === 'closed' ? 'good' : stageOf(d) === 'dead' ? 'plain' : 'accent', STAGE_LABEL[stageOf(d)]) : el('span', 'stage-pill', STAGE_LABEL[stageOf(d)]));
     const where = [f.ptype, [f.city, f.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
     if (where) meta.appendChild(el('span', null, where));
     meta.appendChild(el('span', null, `updated ${ago(d.updatedAt || d.createdAt)}`));
@@ -224,7 +243,13 @@ const dealTitle = (d) => tagged(d, d.name || (d.figures && d.figures.address) ||
 
 function attentionCard(att) {
   const [c] = section('Needs attention', 'home-attention');
-  if (!att.length) { c.appendChild(el('p', 'all-clear', 'All clear: nothing overdue, and every active deal has a next step.')); return c; }
+  if (!att.length) {
+    const p = el('p', 'all-clear');
+    if (isNew()) p.appendChild(statusChip('good', 'All clear'));
+    p.appendChild(document.createTextNode(isNew() ? 'Nothing overdue, and every active deal has a next step.' : 'All clear: nothing overdue, and every active deal has a next step.'));
+    c.appendChild(p);
+    return c;
+  }
   const ul = el('ul', 'attn');
   for (const a of att.slice(0, 8)) {
     const li = el('li', `k-${a.kind}${a.kind === 'overdue' ? ' warn-text' : ''}`);
@@ -256,6 +281,10 @@ function pipelineCard(p) {
   rep.addEventListener('click', report);
   h.appendChild(rep);
   if (!p.stages.some((s) => s.count)) {
+    if (isNew()) {
+      c.appendChild(notice('info', 'No deals yet. Read an OM, or start a deal by hand, and it appears here by stage.', { label: 'Read an OM', run: () => api.showView('deal') }));
+      return c;
+    }
     const e = el('p', 'all-clear');
     e.textContent = 'No deals yet. Read an OM, or start a deal by hand, and it appears here by stage.';
     c.appendChild(e);
@@ -407,7 +436,11 @@ function tasksCard(tasks, deals, nameOf) {
     for (const t of list) g.appendChild(taskRow(t, { overdue: !!late, dealName: t.dealId ? nameOf[t.dealId] || 'a deleted deal' : null, onDeal: t.dealId && nameOf[t.dealId] ? () => showDeal(t.dealId) : null }));
     c.appendChild(g);
   }
-  if (!any) c.appendChild(el('p', 'all-clear', 'Nothing to do yet. Add a task above, or a next step on any deal.'));
+  if (!any) {
+    const msg = 'Nothing to do yet. Add a task above, or a next step on any deal.';
+    if (isNew()) c.appendChild(notice('info', msg, { label: 'Add a task', run: () => ti.focus() }));
+    else c.appendChild(el('p', 'all-clear', msg));
+  }
   return c;
 }
 
@@ -441,7 +474,10 @@ function contactsCard(contacts, deals, nameOf) {
       row.append(m, contactLinks(ct));
       rows.appendChild(row);
     }
-    if (!found.length) rows.appendChild(el('p', 'hint-sm', contacts.length ? 'No contact matches.' : 'No contacts yet: owners, brokers, lenders and tenants you add are kept here, linked to their deals.'));
+    if (!found.length) {
+      if (isNew() && !contacts.length) rows.appendChild(notice('info', 'No contacts yet: owners, brokers, lenders and tenants you add are kept here, linked to their deals.', { label: 'Add a contact', run: () => add.click() }));
+      else rows.appendChild(el('p', 'hint-sm', contacts.length ? 'No contact matches.' : 'No contacts yet: owners, brokers, lenders and tenants you add are kept here, linked to their deals.'));
+    }
   };
   q.addEventListener('input', () => { contactQuery = q.value; draw(); });
   draw();
