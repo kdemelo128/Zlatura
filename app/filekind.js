@@ -230,10 +230,10 @@ const named = (file, is, ok) => { const e = extOf(file.name); return e && !ok.in
  * bytes, already read. The first 8 KB are read; the file's size is compared with
  * its kind's limit before anything more is read.
  * @param {{ name: string, size: number, slice: (a: number, b: number) => { arrayBuffer: () => Promise<ArrayBuffer> }, arrayBuffer: () => Promise<ArrayBuffer> }} file
- * @param {{ getFflate?: () => Promise<any> }} [opts]
+ * @param {{ getFflate?: () => Promise<any>, bundle?: boolean }} [opts] `bundle`: the caller opens a plain zip as a bundle of documents (Start from documents, the Documents card), so a zip may be up to the zip total; every workbook reader leaves it off and keeps the workbook size
  * @returns {Promise<{ kind: string, macros: boolean, refuse: string|null, buffer?: ArrayBuffer, guarded?: boolean, plainZip?: boolean }>}
  */
-export async function checkUpload(file, { getFflate } = {}) {
+export async function checkUpload(file, { getFflate, bundle = false } = {}) {
   const no = (kind, refuse) => ({ kind, macros: false, refuse });
   const head = new Uint8Array(await file.slice(0, 8192).arrayBuffer());
   const sniffed = sniff(head);
@@ -243,8 +243,8 @@ export async function checkUpload(file, { getFflate } = {}) {
   if (sniffed === 'unknown') return no('unknown', `${file.name || 'That file'} is not a spreadsheet or a text file this app can read. Save the statement as .xlsx or CSV.`);
   if (sniffed === 'text') return file.size > LIMITS.text ? no('text', big(LIMITS.text, 'a text file')) : { kind: 'text', macros: false, refuse: null };
   // a container: a workbook, a Word file, an old .xls
-  // a zip may be a bundle of documents, bigger than any workbook: it is read up to the zip total, and a workbook-sized limit applies once it is known to be a workbook
-  if (file.size > (sniffed === 'zip' ? LIMITS.zipTotal : LIMITS.workbook)) return no(sniffed === 'zip' ? 'zip' : 'ole', big(sniffed === 'zip' ? LIMITS.zipTotal : LIMITS.workbook, sniffed === 'zip' ? 'a zip file' : 'a workbook'));
+  // a zip may be a bundle of documents, bigger than any workbook: for a caller that opens bundles it is read up to the zip total, and the workbook size applies once it is known to be a workbook
+  if (file.size > (sniffed === 'zip' && bundle ? LIMITS.zipTotal : LIMITS.workbook)) return no(sniffed === 'zip' ? 'zip' : 'ole', big(sniffed === 'zip' && bundle ? LIMITS.zipTotal : LIMITS.workbook, sniffed === 'zip' && bundle ? 'a zip file' : 'a workbook'));
   const buffer = await file.arrayBuffer();
   const bytes = new Uint8Array(buffer);
   if (sniffed === 'ole') {
@@ -257,7 +257,7 @@ export async function checkUpload(file, { getFflate } = {}) {
   const fflate = getFflate ? await getFflate() : null;
   const z = fflate ? zipKind(bytes, fflate.unzipSync) : { kind: 'xlsx', macros: false, refuse: null };
   if (z.refuse) return no('zip', file.name ? z.refuse.replace(/^That file/, `“${file.name}”`) : z.refuse);
-  if (z.kind !== 'zip' && file.size > LIMITS.workbook) return no(z.kind === 'docx' ? 'docx' : 'zip', big(LIMITS.workbook, 'a workbook'));
+  if (bundle && z.kind !== 'zip' && file.size > LIMITS.workbook) return no(z.kind === 'docx' ? 'docx' : 'zip', big(LIMITS.workbook, 'a workbook'));
   if (z.kind === 'docx') return no('docx', `${named(file, 'a Word document', ['docx'])}A Word document ${LATER}.`);
   if (z.kind === 'zip') return { ...no('zip', 'That is a zip file, not a spreadsheet. Save the statement as .xlsx or CSV.'), plainZip: true }; // a bundle: Start from documents and the Documents card open it (unpackBundle)
   if (!fflate) return { kind: 'xlsx', macros: z.macros, refuse: null, buffer };

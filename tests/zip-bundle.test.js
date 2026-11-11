@@ -176,14 +176,20 @@ test('a workbook (itself a zip) is still one workbook, and a macro or Word file 
   assert.equal(d.from, null);
 });
 
-test('a zip larger than a workbook may be is read (up to the zip total); a big workbook is still refused at the workbook size', async () => {
+test('a zip larger than a workbook may be is read when a bundle is opened; a workbook reader still refuses it at the workbook size; a big workbook is refused either way', async () => {
   const w = LIMITS.workbook;
+  const noise = enc(Array.from({ length: 400 }, (_, i) => `${(i * 7919 * 104729) % 99991}x${(i * 31337) % 65537}`).join(','));
+  const bigZip = zip({ 'a.csv': enc(ROLL), 'c.csv': noise });
   try {
     LIMITS.workbook = 1000;
-    const r = await checkUpload(file(zip({ 'a.csv': enc(ROLL), 'b.csv': enc(ROLL.repeat(50)), 'c.csv': enc(Array.from({ length: 400 }, (_, i) => `${(i * 7919 * 104729) % 99991}x${(i * 31337) % 65537}`).join(',')) }), 'big.zip'), { getFflate });
+    assert.ok(bigZip.length > 1000);
+    const r = await checkUpload(file(bigZip, 'big.zip'), { getFflate, bundle: true });
     assert.equal(r.plainZip, true, r.refuse);
+    const rz = await checkUpload(file(bigZip, 'big.zip'), { getFflate }); // a workbook reader's call
+    assert.match(rz.refuse, /a workbook is read up to/, rz.refuse);
     const wbk = await t12Book();
-    const rw = await checkUpload(file(wbk, 'big.xlsx'), { getFflate });
-    assert.ok(wbk.length > 1000 && /MB; a workbook is read up to/.test(rw.refuse), rw.refuse);
+    assert.ok(wbk.length > 1000);
+    const rw = await checkUpload(file(wbk, 'big.xlsx'), { getFflate, bundle: true });
+    assert.match(rw.refuse, /MB; a workbook is read up to/, rw.refuse);
   } finally { LIMITS.workbook = w; }
 });

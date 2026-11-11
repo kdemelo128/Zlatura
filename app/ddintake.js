@@ -79,7 +79,7 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
  * @param {{ getFflate?: () => Promise<any>, getXlsx: () => Promise<any>, readPdf: (bytes: Uint8Array) => Promise<{ pages: string[], layouts: any[] }>, problem?: (err: any, file: File) => string }} deps
  */
 export async function intake(file, { getFflate, getXlsx, readPdf, problem = (e) => String((e && e.message) || e) }) {
-  const up = await checkUpload(file, { getFflate });
+  const up = await checkUpload(file, { getFflate, bundle: true });
   const kind = kindOf(up.kind, file.name);
   const info = { name: file.name, kind, size: file.size, sha256: /** @type {string | null} */ (null), pages: /** @type {number | null} */ (null), refuse: /** @type {string | null} */ (null), bytes: /** @type {Uint8Array | null} */ (null), verdict: identify({ name: file.name }), plainZip: !!up.plainZip, from: /** @type {string | null} */ (null) };
   // checkUpload's refusal for a PDF, photo or Word file means "the T-12 reader can't import it"; here only a size limit stops one
@@ -148,7 +148,7 @@ export async function zipMembers(file, info, deps, { from = null, depth = 0, bud
 
 /** An inner file that is itself a zip bundle: its members, or one refused entry (too deep, or not opened); null when it is not a bundle. */
 async function zipMembersOf(inner, deps, { from, depth, budget }) {
-  const up = await checkUpload(inner, { getFflate: deps.getFflate });
+  const up = await checkUpload(inner, { getFflate: deps.getFflate, bundle: true });
   if (!up.plainZip) return null;
   if (depth >= ZIP_DEPTH) return [{ file: null, name: inner.name, from, refuse: `${inner.name} is a zip inside a zip inside a zip; only one zip inside the dropped one is opened, so it was not opened.` }];
   const z = await zipMembers(inner, { plainZip: true }, deps, { from, depth: depth + 1, budget });
