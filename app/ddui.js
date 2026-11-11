@@ -271,11 +271,12 @@ export function renderDocsCard(box, h) {
           typeBy = type ? 'broker' : null;
         }
         const r = addDoc(dd, { ...info, type, typeBy });
-        if (r.error) { warn(r.error); say(''); continue; }
+        if (r.error) { if (seen.length > 1) refusals.push(`${info.name}: ${r.error}`); else warn(r.error); say(''); continue; }
         const where = info.sha256 ? await h.otherDeals(info.sha256).catch(() => []) : [];
         h.touch({ label: `Documents: added ${r.doc.name}${type ? ` as ${typeLabel(type)}` : ''}` });
         say(`Added ${r.doc.name}${from}${type ? ` as ${typeLabel(type)}` : ' with no type'}.${where.length ? ` It is also in ${where.slice(0, 3).join(', ')}.` : ''}${info.sha256 ? '' : file.size > LIMITS.pdf ? ' It is too large to fingerprint, so adding it again will not be spotted.' : ' This browser cannot fingerprint files here, so adding it again will not be spotted.'}`);
         draw();
+        if (info.from) toast(`Added ${r.doc.name}${type ? ` as ${typeLabel(type)}` : ' with no type'}, from ${info.from}.`); // the redraw replaces the status line, so a file from a zip is also said here
       }
       if (refusals.length) warn(refusals.join(' '));
     }

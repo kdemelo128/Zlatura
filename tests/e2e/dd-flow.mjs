@@ -207,6 +207,31 @@ await page.waitForTimeout(1200);
 const dropped = (await dd()).docs.find((x) => x.name === 'dropped-notes.txt');
 check('a file dropped on the card is added as a document of this deal (estoppel, confirmed with a tap), and no OM is read', (await dd()).docs.length === before + 1 && dropped && dropped.type === 'estoppel' && dropped.typeBy === 'broker' && (await page.evaluate(() => localStorage.getItem('zlatura.deal.current'))) === dealId && (await deals()).length === 1);
 
+/* ----------------------------- a zip dropped on the card is opened in memory; each file in it is added as if dropped itself */
+{
+  const { zipSync } = await import('fflate');
+  const gardens = fs.readFileSync(F + 'invented-gardens.csv');
+  const zipped = Buffer.from(zipSync({ 'statements/invented-gardens.csv': new Uint8Array(gardens), '../escape.csv': new TextEncoder().encode('a,b\n1,2\n') }));
+  const n0 = (await dd()).docs.length;
+  await page.setInputFiles('#dd-files', { name: 'bundle.zip', mimeType: 'application/zip', buffer: zipped });
+  await page.waitForFunction(() => /climbs out of the zip/.test(document.querySelector('#dd-alert').textContent));
+  const note = await txt('#dd-alert');
+  check('a zip on the card is opened: the file in it is read as a dropped file is (here the T-12 already on the deal, so a repeat by SHA-256), the "../" part is refused with its reason, nothing is stored for the zip', (await dd()).docs.length === n0 && /invented-gardens\.csv: .*already added/.test(note) && /escape\.csv: Its path in the zip climbs out of the zip/.test(note) && !(await dd()).docs.some((x) => /zip/.test(x.name)), note.slice(0, 300));
+  const z2 = Buffer.from(zipSync({ 'in-zip-notes.txt': new TextEncoder().encode('TENANT ESTOPPEL CERTIFICATE\nThe Tenant certifies the lease is in full force and effect.\nNo defaults exist. Security deposit held. Inside a zip.\n') }));
+  await page.setInputFiles('#dd-files', { name: 'notes.zip', mimeType: 'application/zip', buffer: z2 });
+  await page.waitForSelector('dialog.action-sheet');
+  await page.locator('dialog.action-sheet .action-item', { hasText: 'Yes, it is' }).first().click();
+  await page.waitForTimeout(1200);
+  const inZip = (await dd()).docs.find((x) => x.name === 'in-zip-notes.txt');
+  check('a file from a zip is added by name, typed by the broker\'s tap, and the card says it came from the zip', inZip && inZip.type === 'estoppel' && inZip.typeBy === 'broker' && /Added in-zip-notes\.txt as .*, from notes\.zip\./.test(await txt('.toast')), await txt('.toast'));
+  // put the list back as the next checks expect it
+  const doc = (await dd()).docs.find((x) => x.name === 'in-zip-notes.txt');
+  await page.locator(`li.dd-doc[data-id="${doc.id}"] .dd-more`).click();
+  await page.locator('dialog.action-sheet .action-item', { hasText: 'Remove from list' }).click();
+  await page.waitForTimeout(600);
+  check('and it can be removed again (record only)', (await dd()).docs.length === n0);
+}
+
 /* --------------------------------------------- hostile file names as text */
 await addFiles(mem('<img src=x onerror=window.__pwned=1>.txt', 'see you at noon'));
 await page.waitForSelector('dialog.action-sheet');
