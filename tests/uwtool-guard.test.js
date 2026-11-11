@@ -25,6 +25,9 @@ export const B64_ALLOW = [
   'vendor/pdf-4.7.76-legacy.worker.min.js',
 ];
 
+// the agent and rule files that already name the firm in order to forbid committing its files; already public, owner to decide whether to scrub
+export const DENY_EXEMPT = ['.claude/agents/designer.md', 'AGENTS.md', 'docs/working-rules.md'];
+
 /** One term per line; blank lines and # comments dropped. Returns [{ n, term }] (n is the 1-based line, for messages). */
 export function parseTerms(text) {
   return String(text || '').split(/\r?\n/).map((t, i) => ({ n: i + 1, term: t.trim() }))
@@ -76,7 +79,7 @@ test('no tracked text file or path holds a deny-listed term', (t) => {
     return;
   }
   t.diagnostic(`scanned against ${terms.length} terms from ${source}`);
-  assert.deepEqual(denyFindings(textFiles(ROOT, tracked(ROOT)), terms), []);
+  assert.deepEqual(denyFindings(textFiles(ROOT, tracked(ROOT)).filter((f) => !DENY_EXEMPT.includes(f.path)), terms), []);
 });
 
 test('no tracked text file holds a base64 run over the ceiling', () => {
