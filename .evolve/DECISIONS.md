@@ -77,3 +77,16 @@ the header is still "proposed": treat the defaults as taken under the 2026-11-10
 | 2026-11-07 | Rename to Monal paused; Muse has no API; free Gemini CLI refused by Google |
 | (standing) | Golden outputs identical; do not dismiss CodeQL alerts; clean room; owner's email never stored |
 | (open) | `private/` as default home for documents: owner to confirm |
+
+## Monal: built-in tool, rename, customisable workflow (owner 2026-11-11, blanket approval, no approval stops)
+
+Design note: `docs/proposals/monal-builtin-and-rename.md`.
+
+| # | Decision | Effect on earlier decisions |
+|---|---|---|
+| 1 | The underwriting tool is **built into the app**: no zip to load; it opens as a section like any other | Supersedes embed Q1 "never committed" and Q7 (T1): a **sanitised copy** made by a repeatable script ships in the repo; the package as delivered still never is. `PROJECT_CONTRACT.md` invariant 6 reads, from now on, "the private package *as delivered*" |
+| 2 | The product is renamed **Monal** (the tool's Himalayan-bird mascot): the complete redesign and renaming | Supersedes the 2026-11-07 "rename to Monal paused". Order: display name, then storage ids with a tested migration, then the address (owner action) |
+| 3 | UI: each section (Brokerage, Investing, Lending, Development and the rest) previews on hover in a bubble; the interface responds to the cursor; the user chooses the accent colour; the workflow screen is fully customisable | Accent, hover preview and cursor response on Home are already being built; the customisable Home extends ui-revamp-addendum 4.1 (My workspace) |
+| 4 | Document-reading accuracy and the underwriting tool keep being improved | Reader slices (section 3 of the backlog) continue between the Monal slices |
+| 5 | Decided in the note under the blanket approval: firm template **not** shipped; the tool's own workbook export is the built-in template, plus *Use my own template* kept on the device; the firm's template pack (workbook, layout, firm-only fill code) stays private and loads on the owner's device only | Reversible: a later generic invented template can be added |
+| 6 | Decided in the note: keep the site address (`/zlatura/`) for now; a move is an owner action with a redirect page | Hosting change deferred, not taken |
