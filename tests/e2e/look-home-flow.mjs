@@ -132,6 +132,8 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
     check('desktop: the preview is a tooltip that cannot take the focus, and fades in', pe.role === 'tooltip' && pe.pe === 'none' && pe.tabbable === -1 && pe.anim === 'preview-in', JSON.stringify(pe));
     const glass = await page.evaluate(() => { const s = getComputedStyle(document.querySelector('#preview-bubble')); const m = s.backgroundColor.match(/[\d.]+/g); return { blur: /blur/.test(s.backdropFilter || ''), a: m.length > 3 ? +m[3] : 1 }; });
     check('desktop: the preview follows the glass rule (92% or more opaque)', glass.a >= 0.92, JSON.stringify(glass));
+    const box = await page.evaluate(() => { const r = document.querySelector('#preview-bubble').getBoundingClientRect(), t = document.querySelector('.sidebar .tab[data-view="deal"]').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height, tx: t.right, ty: t.top, th: t.height, fixed: getComputedStyle(document.querySelector('#preview-bubble')).position }; });
+    check('desktop: the preview is on screen, beside the section it describes', box.fixed === 'fixed' && box.x >= box.tx && box.x <= box.tx + 40 && box.y >= 0 && box.y + box.h <= 800 && Math.abs(box.y + box.h / 2 - (box.ty + box.th / 2)) < box.h, JSON.stringify(box));
     await page.keyboard.press('Escape');
     check('desktop: Escape closes the preview', (await page.locator('#preview-bubble').count()) === 0);
     await page.mouse.move(700, 500); await page.waitForTimeout(100);
