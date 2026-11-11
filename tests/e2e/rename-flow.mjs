@@ -112,7 +112,7 @@ try {
   await page.waitForSelector('#settings-data #backup-make');
   await page.waitForFunction(() => /moved here from Comp Loader/.test(document.querySelector('#settings-data')?.textContent || ''), null, { timeout: 10000 }).catch(() => {});
   check('Settings says the data moved and the old copy is kept', /moved here from Comp Loader/.test(await page.textContent('#settings-data')));
-  check('Settings shows the tagline and the name’s meaning', /Every source\. Every assumption\. Every number\./.test(await page.textContent('#settings-about')) && /zlato/.test(await page.textContent('#settings-about')));
+  check('Settings shows the tagline and the name’s meaning and the old name', /Every source\. Every assumption\. Every number\./.test(await page.textContent('#settings-about')) && /Himalayan monal/.test(await page.textContent('#settings-about')) && /Formerly called Zlatura/.test(await page.textContent('#settings-about')));
 
   // a backup made now makes the old copy safe to delete
   const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#backup-make')]);
