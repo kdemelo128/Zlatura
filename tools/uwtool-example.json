@@ -1,0 +1,275 @@
+{
+ "rr": {
+  "source": {
+   "file": "invented-rent-roll.pdf",
+   "doc_type": "rent roll",
+   "pages": 1
+  },
+  "meta": {
+   "property": "Example Plaza",
+   "address": "1 Sample Way, Exampleville",
+   "as_of": "2024-12-31",
+   "period_range": "2024-01 to 2024-12"
+  },
+  "units": [
+   {
+    "id": "u1",
+    "unit": "101",
+    "tenant": "Sample Tenant A",
+    "sqft": 1200,
+    "rent": 2400,
+    "charges": 0,
+    "lease_from": "2023-01-01",
+    "lease_to": "2027-12-31",
+    "page": 1,
+    "cells": {}
+   },
+   {
+    "id": "u2",
+    "unit": "102",
+    "tenant": "Sample Tenant B",
+    "sqft": 1500,
+    "rent": 3000,
+    "charges": 0,
+    "lease_from": "2023-01-01",
+    "lease_to": "2027-12-31",
+    "page": 1,
+    "cells": {}
+   },
+   {
+    "id": "u3",
+    "unit": "103",
+    "tenant": "Sample Tenant C",
+    "sqft": 900,
+    "rent": 1800,
+    "charges": 0,
+    "lease_from": "2023-01-01",
+    "lease_to": "2027-12-31",
+    "page": 1,
+    "cells": {}
+   },
+   {
+    "id": "u4",
+    "unit": "104",
+    "tenant": "Vacant",
+    "sqft": 800,
+    "rent": 0,
+    "charges": 0,
+    "lease_from": "",
+    "lease_to": "",
+    "page": 1,
+    "cells": {}
+   }
+  ],
+  "issues": [],
+  "tie_out": []
+ },
+ "st": {
+  "source": {
+   "file": "invented-income-statement.pdf",
+   "doc_type": "income statement",
+   "pages": 1
+  },
+  "meta": {
+   "property": "Example Plaza",
+   "address": "1 Sample Way, Exampleville",
+   "as_of": "2024-12-31",
+   "period_range": "2024-01 to 2024-12"
+  },
+  "months": [
+   "2024-01",
+   "2024-02",
+   "2024-03",
+   "2024-04",
+   "2024-05",
+   "2024-06",
+   "2024-07",
+   "2024-08",
+   "2024-09",
+   "2024-10",
+   "2024-11",
+   "2024-12"
+  ],
+  "lines": [
+   {
+    "id": "l1",
+    "label": "Rental income",
+    "path": "Statement > Income > Rental income",
+    "values": [
+     7200,
+     7200,
+     7200,
+     7200,
+     7200,
+     7200,
+     7200,
+     7200,
+     7200,
+     7200,
+     7200,
+     7200
+    ],
+    "total": 86400,
+    "page": 1,
+    "cells": []
+   },
+   {
+    "id": "l2",
+    "label": "Reimbursements",
+    "path": "Statement > Income > Reimbursements",
+    "values": [
+     500,
+     500,
+     500,
+     500,
+     500,
+     500,
+     500,
+     500,
+     500,
+     500,
+     500,
+     500
+    ],
+    "total": 6000,
+    "page": 1,
+    "cells": []
+   },
+   {
+    "id": "l3",
+    "label": "Repairs",
+    "path": "Statement > Expenses > Repairs",
+    "values": [
+     300,
+     310,
+     290,
+     300,
+     320,
+     300,
+     280,
+     300,
+     310,
+     300,
+     290,
+     300
+    ],
+    "total": 3600,
+    "page": 1,
+    "cells": []
+   },
+   {
+    "id": "l4",
+    "label": "Insurance",
+    "path": "Statement > Expenses > Insurance",
+    "values": [
+     250,
+     250,
+     250,
+     250,
+     250,
+     250,
+     250,
+     250,
+     250,
+     250,
+     250,
+     250
+    ],
+    "total": 3000,
+    "page": 1,
+    "cells": []
+   },
+   {
+    "id": "l5",
+    "label": "Property tax",
+    "path": "Statement > Expenses > Property tax",
+    "values": [
+     900,
+     900,
+     900,
+     900,
+     900,
+     900,
+     900,
+     900,
+     900,
+     900,
+     900,
+     900
+    ],
+    "total": 10800,
+    "page": 1,
+    "cells": []
+   },
+   {
+    "id": "l6",
+    "label": "Utilities",
+    "path": "Statement > Expenses > Utilities",
+    "values": [
+     400,
+     380,
+     350,
+     300,
+     280,
+     300,
+     350,
+     380,
+     300,
+     320,
+     380,
+     400
+    ],
+    "total": 4140,
+    "page": 1,
+    "cells": []
+   },
+   {
+    "id": "l7",
+    "label": "Management fee",
+    "path": "Statement > Expenses > Management fee",
+    "values": [
+     385,
+     385,
+     385,
+     385,
+     385,
+     385,
+     385,
+     385,
+     385,
+     385,
+     385,
+     385
+    ],
+    "total": 4620,
+    "page": 1,
+    "cells": []
+   },
+   {
+    "id": "l8",
+    "label": "Landscaping",
+    "path": "Statement > Expenses > Landscaping",
+    "values": [
+     120,
+     120,
+     120,
+     120,
+     120,
+     120,
+     120,
+     120,
+     120,
+     120,
+     120,
+     120
+    ],
+    "total": 1440,
+    "page": 1,
+    "cells": []
+   }
+  ],
+  "subtotals": [],
+  "issues": [],
+  "tie_out": []
+ }
+}

@@ -1,6 +1,25 @@
 # Changelog
 
+## 4.7.130: The product is now called Monal (on the development branch; not merged or deployed)
+
+The name on screen changes from Zlatura to Monal, after the Himalayan monal (owner decision, 2026-11-11). Nothing about your saved work changes.
+
+- **Where you see it:** the page title, the installed app's name, the sidebar, About (which says "Formerly called Zlatura"), export headers and footers, backup file names and calendar files.
+- **What did not change:** where deals are stored, the backup format, and the web address. Saved deals, backups made under the old name and installed copies keep working with no migration; a test pins that these identifiers are unchanged and that old backups restore.
+- **One fix on the way:** refilling a workbook made before the rename no longer adds a second audit sheet; the old sheet is replaced.
+- **Tested:** 4 new tests and the eight browser flows that show the name; the name tests fail on the old code. Displayed figures unchanged (646 compared, 0 changed). The full browser suite and Safari were not run here; an iPhone home-screen icon may keep the old name until it is re-added (not tested).
+
 > The product was called Zlatura before this version. Entries below keep the name they were written under.
+
+## 4.7.129: Groundwork for building the underwriting tool into the app: a guard and a repeatable cleaning script (on the development branch; not merged or deployed)
+
+Steps 1 and 2 of `docs/proposals/monal-builtin-and-rename.md`. Nothing of the tool itself is published by this change.
+
+- **Guard:** a test scans every tracked file for terms on a private deny-list (kept outside the repo) and for long encoded blocks, so the firm's workbook, name or layout cannot be committed by mistake. The scan runs wherever the list exists; turning it on in CI needs the owner to add the list as a repository secret.
+- **Cleaning script (`tools/uwtool-import.mjs`):** takes the tool as delivered and writes the copy that can ship: only files on an allow-list are copied, each edit must match exactly or the run fails, and nothing is written if the result still holds a deny-listed term. It records what it did as counts and fingerprints only, so a later release of the tool can be brought in the same way. The tool's code will carry its own "all rights reserved" licence (owner decision, 2026-11-11).
+- **Tried locally on the owner's package (counts only, nothing committed):** 26 edits, 8 blocks or files moved to a private pack, size 6.9 MB to 3.3 MB, no expected text missing, deny-list scan clean. The cleaned copy opens in a browser with no errors, loads an invented example, and builds its own 43-sheet workbook without the firm's workbook.
+- **Tested:** 17 new tests on an invented stand-in package; seven deliberate breaks are each caught. Displayed figures unchanged (646 compared, 0 changed).
+- **Still to do before the tool ships:** its preset cap rates must become blank, its outside font requests and security edits, and wiring it into the Underwrite tab.
 
 ## 4.7.128: Home and the pipeline in the New look, with your own accent colour, hover previews and a text size control (on the development branch; not merged or deployed)
 
