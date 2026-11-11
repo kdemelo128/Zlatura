@@ -180,7 +180,7 @@ export async function renderSettings() {
   });
   custom.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); apply.click(); } });
   accRow.append(accSeg, custom, apply);
-  ul.appendChild(row('Accent colour', 'The colour of buttons, links and the focus ring in the New look. Any colour you pick is adjusted if needed so text stays readable in light and dark. Kept on this device only; it is not in backups.', [accRow, say]));
+  ul.appendChild(row('Accent colour', 'The colour of buttons, links, the current step and the focus ring, in both looks. Any colour you pick is adjusted if needed so text stays readable in light and dark. Kept on this device only; it is not in backups.', [accRow, say]));
   const motion = el('button', 'btn btn-sm', 'Motion');
   motion.type = 'button';
   motion.setAttribute('role', 'switch');
@@ -196,7 +196,7 @@ export async function renderSettings() {
     b.setAttribute('aria-checked', String(n === getTextSize()));
     sizeSeg.appendChild(b);
   }
-  ul.appendChild(row('Text size', 'In the New look, make everything larger, up to 130%. Kept on this device only; it is not in backups.', [sizeSeg]));
+  ul.appendChild(row('Text size', 'Make text larger across the app, up to 130%. Kept on this device only; it is not in backups.', [sizeSeg]));
   look.appendChild(ul);
   stack.appendChild(look);
 
