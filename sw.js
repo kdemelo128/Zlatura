@@ -274,13 +274,19 @@ function uwFile(request, url) {
   }).catch(missing);
 }
 /* A file of the built-in tool: from its bucket, else the network once (then kept). Same-origin and basic responses only. */
+const uwPending = new Map();   // one fetch and one put per file, even when two frames ask at once (a second put of the same key can drop the first)
 function uwToolFile(request) {
   const headers = (type) => ({ 'content-type': type, 'content-security-policy': UW_CSP, 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' });
   const key = new Request(new URL(request.url).origin + new URL(request.url).pathname);
-  return caches.open(UW_TOOL_CACHE).then((c) => c.match(key).then((hit) => hit || fetch(key, { cache: 'reload' }).then((res) => {
-    if (res.ok && res.type === 'basic') c.put(key, res.clone());
-    return res;
-  }))).then((res) => {
+  const load = (c) => c.match(key).then((hit) => {
+    if (hit) return hit;
+    if (!uwPending.has(key.url)) {
+      // kept before it is answered, so going offline right after still works
+      uwPending.set(key.url, fetch(key, { cache: 'reload' }).then((res) => (res.ok && res.type === 'basic' ? c.put(key, res.clone()).then(() => res, () => res) : res)).finally(() => uwPending.delete(key.url)));
+    }
+    return uwPending.get(key.url).then((res) => res.clone());
+  });
+  return caches.open(UW_TOOL_CACHE).then(load).then((res) => {
     if (!res.ok) return res;
     return res.arrayBuffer().then((body) => new Response(body, { status: 200, headers: headers(res.headers.get('content-type') || 'application/octet-stream') }));
   }).catch(() => new Response('<!doctype html><meta charset="utf-8"><title>Offline</title><p>The underwriting tool has not been opened on this device yet, and there is no connection. Open it once while online.</p>', { status: 503, headers: headers('text/html; charset=utf-8') }));

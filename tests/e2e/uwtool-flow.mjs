@@ -34,38 +34,28 @@ async function axe(name) {
   check(`axe: the card, ${name}`, res.length === 0, res.join('\n    '));
 }
 
-await page.goto(`${BASE}#underwrite`, { waitUntil: 'load' });
-await page.waitForSelector('#uw-tool');
+await page.goto(`${BASE}#home`, { waitUntil: 'load' });   // a fresh profile
 await page.evaluate(() => navigator.serviceWorker.ready);
-if (!(await page.evaluate(() => !!navigator.serviceWorker.controller))) { await page.reload({ waitUntil: 'load' }); await page.waitForSelector('#uw-tool'); }
+await page.reload({ waitUntil: 'load' });   // so the worker controls the page from its first byte (the first-ever visit is served from the network and filled on the next open)
 check('the service worker controls the page', await page.evaluate(() => !!navigator.serviceWorker.controller));
 
-/* ---- the card: no package step */
-check('the card says Open underwriting, with Open full screen; there is no file picker and no Load package on it', (await page.textContent('#uwt-open')) === 'Open underwriting' && (await page.locator('#uwt-full').count()) === 1 && (await page.locator('#uw-tool input[type=file]').count()) === 0 && !/Load package|Load folder/.test(await page.textContent('#uw-tool')));
-check('order: Start from documents, Underwriting, Quick underwrite, the list, Calculators, then the firm pack (Advanced)', (await stackIds()) === 'uw-intake,uw-tool,uw-card,uw-list,uw-calc-card,uw-filler', await stackIds());
-check('the frame is made only on open: no iframe and no request for the tool yet', (await page.locator('iframe').count()) === 0 && toolResponses.length === 0);
+/* ---- the tab shows the tool itself: no card to open, no package, no zip */
 const bucketsNow = () => page.evaluate(async () => { const out = {}; for (const k of await caches.keys()) out[k] = (await (await caches.open(k)).keys()).map((r) => new URL(r.url).pathname); return out; });
 const b0 = await bucketsNow();
-check('the tool is not in the install bucket, and has no bucket of its own before the first open', !Object.values(b0).flat().some((p) => /\/app\/uwtool\//.test(p)) && !Object.keys(b0).some((k) => /uwtool/.test(k)), Object.keys(b0).join());
-await axe('phone size, closed');
-
-/* ---- advanced: the firm-pack loader is still there */
-check('Advanced: load my firm\'s template pack is collapsed, and opens to the package loader', await (async () => {
-  const closed = await page.evaluate(() => document.getElementById('uw-filler').tagName === 'DETAILS' && !document.getElementById('uw-filler').open);
-  await page.click('#uwf-title');
-  await page.waitForSelector('#uwf-load');
-  await page.click('#uwf-title');
-  return closed && /template pack/.test(await page.textContent('#uwf-title'));
-})());
-
-/* ---- open */
-await page.click('#uwt-open');
+check('before the tab is opened the tool is not in any bucket, and not in the install bucket', !Object.keys(b0).some((k) => /uwtool/.test(k)) && !Object.values(b0).flat().some((p) => /\/app\/uwtool\//.test(p)));
+await page.locator('button.tab[data-view="underwrite"]:visible').first().click();
 await page.waitForSelector('#uwt-frame');
+check('clicking the Underwrite tab shows the tool inline: no open button, no file picker, no Load package', (await page.locator('#uwt-open, #uwt-full, #uwf-load').count()) === 0 && (await page.locator('#uw-tool input[type=file]').count()) === 0);
+check('a two-way switch: Underwriting (pressed) | Quick underwrite', (await page.getAttribute('#uw-view-tool', 'aria-pressed')) === 'true' && (await page.getAttribute('#uw-view-quick', 'aria-pressed')) === 'false');
+const box = await page.locator('#uwt-frame').boundingBox();
+const vp = page.viewportSize();
+check('the frame fills the tab: full width, and tall enough to use', box.width >= vp.width - 40 && box.height >= 480, JSON.stringify(box));
+await page.screenshot({ path: `${SHOTS}uwtool-tab-phone.png` });
+await page.screenshot({ path: '/tmp/shots/uwtool-tab-phone.png' }).catch(() => {});
 const getFrame = async () => { for (let i = 0; i < 100 && !toolFrame(); i++) await page.waitForTimeout(100); return toolFrame(); };
 const f = await getFrame();
 await f.waitForSelector('#exampleLoad');
 await ready(f);
-check('the tool opens in the frame with no package step; Close underwriting is offered', (await page.textContent('#uwt-open')) === 'Close underwriting' && (await page.getAttribute('#uwt-open', 'aria-expanded')) === 'true');
 const idx = toolResponses.find((r) => /uwtool\/index\.html/.test(r.url));
 check('the page came from the service worker with the strict policy header', !!idx && idx.sw && idx.status === 200 && /script-src 'self'/.test(idx.csp) && /frame-ancestors 'self'/.test(idx.csp) && /connect-src 'self' blob: data:/.test(idx.csp) && !/unsafe-eval|https?:/.test(idx.csp), JSON.stringify(idx));
 check('every file of the tool came from the worker', toolResponses.length > 50 && toolResponses.every((r) => r.sw && r.status === 200), `${toolResponses.length} files; ${toolResponses.filter((r) => !r.sw || r.status !== 200).map((r) => r.url).join(' ')}`);
@@ -111,26 +101,18 @@ const b1 = await bucketsNow();
 const toolBucket = Object.keys(b1).find((k) => /^zlatura-uwtool-/.test(k));
 check('the first open kept the tool in its own bucket (not the install bucket)', !!toolBucket && b1[toolBucket].length > 50 && !Object.entries(b1).some(([k, v]) => k !== toolBucket && v.some((p) => /\/app\/uwtool\//.test(p))), toolBucket + ' ' + (b1[toolBucket] || []).length);
 
-/* ---- full screen */
-const [pop] = await Promise.all([ctx.waitForEvent('page'), page.click('#uwt-full')]);
-await pop.waitForLoadState('load');
-await pop.waitForSelector('#exampleLoad');
-await ready(pop);
-check('Open full screen opens the same tool in its own tab', /\/app\/uwtool\/index\.html$/.test(pop.url()) && (await pop.locator('#f_c1').inputValue()) === '');
-await pop.close();
-
-/* ---- close; other cards unchanged */
-await page.click('#uwt-open');
-await page.waitForSelector('#uwt-frame', { state: 'detached' });
-check('Close underwriting removes the frame; every other Underwrite card is still there', (await page.locator('iframe').count()) === 0 && (await stackIds()) === 'uw-intake,uw-tool,uw-card,uw-list,uw-calc-card,uw-filler');
+/* ---- the quick underwrite is one click away in the same tab, and back */
+await page.click('#uw-view-quick');
+await page.waitForSelector('#uw-card');
+check('Quick underwrite (and every card it had) is still reachable in the tab', (await stackIds()) === 'uw-intake,uw-card,uw-list,uw-calc-card,uw-filler' && (await page.locator('#uwt-frame').count()) === 0, await stackIds());
+await page.click('#uw-view-tool');
+await page.waitForSelector('#uwt-frame');
 
 /* ---- offline after first use */
 await ctx.setOffline(true);
 const off = await ctx.newPage();
 off.setDefaultTimeout(15000);
 await off.goto(`${BASE}#underwrite`, { waitUntil: 'load' });
-await off.waitForSelector('#uwt-open');
-await off.click('#uwt-open');
 await off.waitForSelector('#uwt-frame');
 let offFrame; for (let i = 0; i < 100 && !(offFrame = off.frames().find((x) => /\/app\/uwtool\/index\.html/.test(x.url()))); i++) await off.waitForTimeout(100);
 await offFrame.waitForSelector('#exampleLoad');
@@ -144,9 +126,6 @@ await ctx.setOffline(false);
 /* ---- desktop */
 await page.setViewportSize({ width: 1280, height: 900 });
 await page.goto(`${BASE}#underwrite`, { waitUntil: 'load' });
-await page.waitForSelector('#uwt-open');
-await axe('desktop size, closed');
-await page.click('#uwt-open');
 await page.waitForSelector('#uwt-frame');
 const fd = await getFrame();
 await fd.waitForSelector('#exampleLoad');
@@ -154,7 +133,8 @@ await ready(fd);
 await fd.click('#exampleLoad');
 await fd.waitForFunction(() => /example/i.test(UWEditor.model().name));
 check('desktop: the frame is wide, and the example loads', (await page.locator('#uwt-frame').boundingBox()).width > 600);
-await page.locator('#uw-tool').screenshot({ path: `${SHOTS}uwtool-desktop.png` });
+await page.screenshot({ path: `${SHOTS}uwtool-desktop.png` });
+await page.screenshot({ path: '/tmp/shots/uwtool-tab-desktop.png' }).catch(() => {});
 await axe('desktop size, open');
 
 /* ---- the whole run */

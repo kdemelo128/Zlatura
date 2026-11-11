@@ -319,16 +319,29 @@ function drawList() {
   if (hidden) { const p = el('p', 'hint-sm', `${hidden} more ${hidden === 1 ? 'is' : 'are'} kept on this device but not shown here (made by a newer version of ${PRODUCT}, or unreadable).`); p.style.padding = 'var(--s3) var(--s5)'; box.appendChild(p); }
 }
 
-function draw() {
+let uwView = 'tool';   // 'tool' | 'quick'
+
+function draw(force = false) {
   const root = $('underwrite-root');
   if (!root) return;
+  if (!force && uwView === 'tool' && root.querySelector('#uwt-frame')) return;   // a redraw must not reload the tool under the broker's hands
   root.textContent = '';
+  // two views in the one tab: the built-in tool (inline, the default) and the quick underwrite
+  const sw = el('div', 'uw-switch');
+  sw.setAttribute('role', 'group');
+  sw.setAttribute('aria-label', 'Underwrite view');
+  for (const [id, key, label] of [['uw-view-tool', 'tool', 'Underwriting'], ['uw-view-quick', 'quick', 'Quick underwrite']]) {
+    const b = el('button', 'btn' + (uwView === key ? ' btn-primary' : ''), label);
+    b.type = 'button'; b.id = id; b.setAttribute('aria-pressed', String(uwView === key));
+    b.addEventListener('click', () => { uwView = key; draw(true); });
+    sw.appendChild(b);
+  }
+  if (uwView === 'tool') { root.append(sw, toolCard()); return; }
   const head = el('div', 'view-head');
-  head.appendChild(el('h1', null, 'Underwrite'));
+  head.appendChild(el('h1', null, 'Quick underwrite'));
   head.appendChild(el('p', null, 'Type a price, NOI and loan terms and see the answer. It is not a deal until you save it as one.'));
   const stack = el('div', 'stack');
   stack.appendChild(intakeCard(api));
-  stack.appendChild(toolCard());
   stack.appendChild(card());
   const listBox = el('section', 'card');
   listBox.id = 'uw-list';
@@ -338,7 +351,7 @@ function draw() {
   fillCalculators(calc);
   stack.appendChild(calc);
   stack.appendChild(fillerCard());   // advanced, collapsed: the firm's own template pack
-  root.append(head, stack);
+  root.append(sw, head, stack);
   drawList();
   results();
 }
