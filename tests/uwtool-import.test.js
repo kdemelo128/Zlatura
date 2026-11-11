@@ -118,6 +118,13 @@ test('a string harvested from a removed block is refused if it survives elsewher
   assert.ok(r.counts.harvestedStrings >= 2, 'the strings of 8+ characters in the cut block, markup attributes included');
 });
 
+test('harvestIgnore lets a reviewed ordinary string through, and only that one', () => {
+  const pkg = standin(); pkg['public/tool/style.css'] = enc('/* plain sheet name */');
+  const rules = RULES(); rules.harvestIgnore = ['plain sheet name'];
+  assert.equal(run({ pkg, rules }).ok, true);
+  assert.equal(run({ pkg, rules: { ...rules, harvestIgnore: ['other'] } }).ok, false);
+});
+
 test('MUTATION: the base64 ceiling trips; the exact allow-list exempts only the named file', () => {
   const pkg = standin(); pkg['public/tool/big.js'] = enc(`var x="${'QUJD'.repeat(2000)}";`);   // 8000 chars
   const r = run({ pkg });

@@ -129,6 +129,9 @@ export function buildImport({ pkg, pub, rules, terms, extra = {} }) {
   }
 
   // scan: deny-list terms and harvested strings over every output path and file, then the base64 ceiling
+  // strings the owner has reviewed as ordinary words (rules.harvestIgnore) are not searched for
+  const ignore = new Set(rules.harvestIgnore || []);
+  for (let i = harvested.length - 1; i >= 0; i--) if (ignore.has(harvested[i])) harvested.splice(i, 1);
   const findings = []; const manifestFiles = {};
   const inspect = (hayLabel, hay) => {
     const low = hay.toLowerCase();
