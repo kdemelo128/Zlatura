@@ -159,6 +159,7 @@ for (const sizeName of wanted) {
   await epage.goto(`http://localhost:${app.port}/#underwrite`, { waitUntil: 'load' });
   await epage.evaluate(() => navigator.serviceWorker.ready);
   if (!(await epage.evaluate(() => !!navigator.serviceWorker.controller))) await epage.reload({ waitUntil: 'load' });
+  await epage.click('#uw-view-quick');
   await epage.waitForSelector('#uw-filler', { state: 'attached' });
   await epage.evaluate(() => { document.getElementById('uw-filler').open = true; });   // the firm-pack card is collapsed (Advanced)
   await epage.waitForSelector('#uw-filler .uwf-body');
@@ -178,6 +179,7 @@ for (const sizeName of wanted) {
   await epage.evaluate(() => { delete window.__pk; });
   PROGRESS('package loaded');
   await epage.reload({ waitUntil: 'load' });
+  await epage.click('#uw-view-quick');
   await epage.waitForSelector('#uw-filler', { state: 'attached' });
   await epage.waitForFunction(() => document.getElementById('uw-filler').querySelector('summary'));
   await epage.evaluate(() => { document.getElementById('uw-filler').open = true; });

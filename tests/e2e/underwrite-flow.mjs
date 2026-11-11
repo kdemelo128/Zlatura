@@ -64,7 +64,7 @@ const fits = await page.evaluate(() => [...document.querySelectorAll('.tabbar .t
 check('phone bar: every label fits its slot, even when the bar holds six items (65 px at 390 px)', fits.every((f) => f[3]) && new Set(await page.evaluate(() => [...document.querySelectorAll('.tabbar .tab:not([hidden])')].map((t) => Math.round(t.getBoundingClientRect().top)))).size === 1, JSON.stringify(fits));
 check('the top bar has a Settings gear, at least 36 px', await page.evaluate(() => { const g = document.querySelector('.appbar [data-view="settings"]'); const r = g && g.getBoundingClientRect(); return !!r && r.width >= 36 && r.height >= 36 && g.getAttribute('aria-label') === 'Settings'; }));
 
-await page.click('.tabbar .tab[data-view="underwrite"]');
+await page.click('.tabbar .tab[data-view="underwrite"]'); await page.click('#uw-view-quick');   // the tab opens on the built-in tool; these checks are of the quick underwrite
 await page.waitForSelector('#uw-card');
 check('the Underwrite tab opens its screen, is marked current and titles the page', await page.isVisible('#view-underwrite') && (await page.getAttribute('.tabbar .tab[data-view="underwrite"]', 'aria-current')) === 'page' && (await page.title()) === 'Underwrite · Monal' && page.url().endsWith('#underwrite'), await page.title());
 check('the card starts from the remembered loan terms a new deal uses (65% at 6.75% over 30 years)', (await page.inputValue('#uw-ltv')) === '65' && (await page.inputValue('#uw-rate')) === '6.75' && (await page.inputValue('#uw-amort')) === '30');
@@ -108,6 +108,7 @@ check('it is stored in kv uw.scratch in the proposal’s shape: v 1, whole-numbe
 
 // a reload keeps it
 await page.reload({ waitUntil: 'load' });
+await page.click('#uw-view-quick');
 await page.waitForSelector('#uw-card');
 await page.waitForFunction(() => document.querySelector('#uw-price') && document.querySelector('#uw-price').value !== '');
 check('a reload keeps the quick underwriting and its figures', (await page.inputValue('#uw-price')) === '$2,400,000' && (await page.inputValue('#uw-name')) === 'Quick look: corner retail (fictional)' && JSON.stringify({ ...(await lines('#uw-results')), ...(await lines('#uw-answers')) }) === JSON.stringify(quick));
@@ -131,7 +132,7 @@ for (const k of [...SAME, ...ANSWERS]) check(`on a deal page with the same input
 
 // Save as a deal, then Undo
 const before = (await storeCall('listDeals')).length;
-await page.click('.tabbar .tab[data-view="underwrite"]');
+await page.click('.tabbar .tab[data-view="underwrite"]'); await page.click('#uw-view-quick');   // the tab opens on the built-in tool; these checks are of the quick underwrite
 await page.click('#uw-save-deal');
 await page.waitForSelector('#view-deal:not([hidden]) #deal-tiles .tile');
 await SHOW_PANE('#fig-price');
@@ -156,7 +157,7 @@ await page.click('#uw-save-deal');
 await page.waitForSelector('#view-deal:not([hidden]) #deal-tiles .tile');
 await pause(400);
 check('saved again, the deal is kept and the quick underwriting stays gone', (await storeCall('listDeals')).filter((d) => d.name === 'Quick look: corner retail (fictional)').length === 1 && (await storeCall('kvGet', 'uw.scratch')) === null);
-await page.click('.tabbar .tab[data-view="underwrite"]');
+await page.click('.tabbar .tab[data-view="underwrite"]'); await page.click('#uw-view-quick');   // the tab opens on the built-in tool; these checks are of the quick underwrite
 await page.waitForSelector('#uw-card');
 check('a new blank card follows, starting from the loan terms last typed on a deal (60%)', (await page.inputValue('#uw-ltv')) === '60' && (await page.inputValue('#uw-price')) === '');
 
@@ -192,7 +193,7 @@ check('perf: an edit redraws every figure within 150 ms', Math.max(...times) < 1
 // a write that fails is said out loud, never reported as done
 const KV = (list) => page.evaluate(async (l) => { const s = await import('/app/store.js'); await s.kvSet('uw.scratch', l); }, list);
 const filler = (n, from) => page.evaluate(async ([k, f]) => { const u = await import('/app/uwstore.js'); return Array.from({ length: k }, (_, i) => u.newScratch({ now: 1000 + f + i })); }, [n, from]);
-const reloadUw = async () => { await page.reload({ waitUntil: 'load' }); await page.evaluate(() => { location.hash = '#underwrite'; }); await page.waitForSelector('#uw-card'); };
+const reloadUw = async () => { await page.reload({ waitUntil: 'load' }); await page.evaluate(() => { location.hash = '#underwrite'; }); await page.click('#uw-view-quick'); await page.waitForSelector('#uw-card'); };
 const toastNow = () => page.evaluate(() => (document.querySelector('.toast') || {}).textContent || '');
 // at the cap of 100: Undo of Save as a deal can't bring the quick underwriting back, so the deal must stay
 await KV(await filler(99, 0));
@@ -255,7 +256,7 @@ await page.waitForSelector('#view-settings #settings-data');
 check('Settings opens from the gear in the top bar', await page.isVisible('#view-settings') && await page.isVisible('#settings-data'));
 await page.click('.tabbar .tab[data-view="tools"]');
 check('Tools opens from the bar', await page.isVisible('#view-tools') && (await page.locator('#tools-root button, #tools-root a').count()) > 0);
-await page.click('.tabbar .tab[data-view="underwrite"]');
+await page.click('.tabbar .tab[data-view="underwrite"]'); await page.click('#uw-view-quick');   // the tab opens on the built-in tool; these checks are of the quick underwrite
 await page.click('#uw-calculators');
 check('the Calculators row on Underwrite opens Tools', await page.isVisible('#view-tools'));
 // the search menu
@@ -281,7 +282,7 @@ await D.page.waitForSelector('#view-home', { state: 'visible' });
 const side = await D.page.evaluate(() => [...document.querySelectorAll('.sidebar .tab[data-view]:not([hidden])')].map((t) => t.dataset.view));
 check('desktop sidebar: Home, Deals, Underwrite, Comps, Tools, Settings', JSON.stringify(side) === JSON.stringify(['home', 'deal', 'underwrite', 'comps', 'tools', 'settings']), side.join(','));
 check('desktop: the top bar (and its gear) is not shown', !(await D.page.isVisible('.appbar')));
-await D.page.click('.sidebar .tab[data-view="underwrite"]');
+await D.page.click('.sidebar .tab[data-view="underwrite"]'); await D.page.click('#uw-view-quick');
 await D.page.waitForSelector('#uw-card');
 await D.page.locator('#uw-price').pressSequentially('5200000');
 await D.page.locator('#uw-noi').pressSequentially('338000');
@@ -300,6 +301,8 @@ await D.browser.close();
 
 await browser.close();
 for (const [s, n, d] of R) console.log(s, '|', n, d ? `| ${d}` : '');
-check('no console errors or failed requests', errors.length + D.errors.length === 0, [...errors, ...D.errors].slice(0, 3).join(' | '));
+// the tab opens on the built-in tool: Chrome's sandbox note, and the tool's files cut off when the test switches to Quick underwrite at once, are not faults
+const realErrors = [...errors, ...D.errors].filter((e) => !/can escape its sandboxing|GL Driver Message|\/app\/uwtool\/.*ERR_ABORTED/.test(e));
+check('no console errors or failed requests', realErrors.length === 0, realErrors.slice(0, 3).join(' | '));
 for (const r of R.slice(-1)) if (r[0] === 'FAIL') console.log(r.join(' | '));
 finish(R, 'errors', [...errors, ...D.errors]);

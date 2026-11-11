@@ -31,6 +31,7 @@ const outside = [];
 page.on('request', (r) => { const u = new URL(r.url()); if (u.origin !== new URL(BASE).origin && !/^(data|blob):/.test(r.url())) outside.push(r.url()); });
 
 await page.goto(`${BASE}#underwrite`, { waitUntil: 'load' });
+await page.click('#uw-view-quick');   // the firm-pack card sits in the Quick underwrite view
 await adv();
 await page.waitForSelector('#uw-filler .uwf-body');
 // the service worker must control this page before the iframe can be served from the package
@@ -40,7 +41,7 @@ check('the service worker controls the page', await page.evaluate(() => !!naviga
 
 check('the firm-pack card is the last card, collapsed, and every other card is still there', await page.evaluate(() => {
   const ids = [...document.querySelector('#underwrite-root .stack').children].map((c) => c.id);
-  return ids.join() === 'uw-intake,uw-tool,uw-card,uw-list,uw-calc-card,uw-filler';
+  return ids.join() === 'uw-intake,uw-card,uw-list,uw-calc-card,uw-filler';
 }), await page.evaluate(() => [...document.querySelector('#underwrite-root .stack').children].map((c) => c.id).join()));
 check('before a package is loaded: Load package and Load folder, no frame, no Open buttons', (await page.locator('#uwf-load').count()) === 1 && (await page.locator('#uwf-load-dir').count()) === 1 && (await page.locator('iframe').count()) === 0 && (await page.locator('#uwf-open').count()) === 0);
 check('no package bucket yet', !(await buckets()).includes('zlatura-uwfiller'));
@@ -102,7 +103,7 @@ const frame = page.frames().find((f) => /uw-filler\/index\.html/.test(f.url()));
 check('an inline handler is blocked (no unsafe-inline for scripts)', (await frame.evaluate(() => !!window.standInline)) === false);
 check('nothing left this origin', outside.filter((u) => !/fonts\.googleapis/.test(u)).length === 0, outside.join(' | '));
 // the two violations the stand-in provokes on purpose (an inline handler; an outside stylesheet); anything else fails
-const expected = [/status of 404/, /can escape its sandboxing/, /example\.invalid/, /Refused to evaluate/, /unsafe-eval/, /inline event handler/i, /fonts\.googleapis\.com/, /Content Security Policy directive: "(script-src-attr|style-src-elem)/];
+const expected = [/uwtool\/.*ERR_ABORTED/, /status of 404/, /can escape its sandboxing/, /example\.invalid/, /Refused to evaluate/, /unsafe-eval/, /inline event handler/i, /fonts\.googleapis\.com/, /Content Security Policy directive: "(script-src-attr|style-src-elem)/];
 const unexpectedNow = () => errors.filter((e) => !expected.some((x) => x.test(e)));
 const unexpected = errors.filter((e) => !expected.some((x) => x.test(e)));
 const seen = errors.filter((e) => expected.some((x) => x.test(e)));
@@ -134,6 +135,7 @@ check('a backup holds no filler bytes (no page text, script text, file names or 
 /* ---- desktop: open again, axe, then erase */
 await page.setViewportSize({ width: 1280, height: 900 });
 await page.goto(`${BASE}#underwrite`, { waitUntil: 'load' });
+await page.click('#uw-view-quick');   // the firm-pack card sits in the Quick underwrite view
 await adv();
 await page.waitForSelector('#uwf-open');
 await axe('desktop size, loaded');
