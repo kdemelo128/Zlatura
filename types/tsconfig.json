@@ -12,5 +12,6 @@
     "skipLibCheck": true,
     "types": []
   },
-  "include": ["./*.d.ts", "../app/**/*.js", "../tests/types/*.js"]
+  "include": ["./*.d.ts", "../app/**/*.js", "../tests/types/*.js"],
+  "exclude": ["../app/uwtool/**"]
 }

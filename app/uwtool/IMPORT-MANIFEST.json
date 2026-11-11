@@ -1,0 +1,815 @@
+{
+ "tool": "tools/uwtool-import.mjs",
+ "licence": "all rights reserved (app/uwtool/LICENSE), owner decision 2026-11-11",
+ "package": {
+  "fingerprint": "695a5b5c5d8ee44b38449dd18a439aeda8b567da56c4a40376f989fdfbc9dccb",
+  "files": 81,
+  "outsideRoot": 60
+ },
+ "files": {
+  "LICENSE": {
+   "in": null,
+   "out": "bf413c1f29e2867c64b4427938b05c90d0721fccfcb29437a47bb5a495ded5be",
+   "bytes": 1067
+  },
+  "README.md": {
+   "in": null,
+   "out": "b34a11d792280ad3b8bddf6e223b26d6d48ba7fcd35737d095a0df2e7eb3b67b",
+   "bytes": 2427
+  },
+  "advanced-excel.js": {
+   "in": "e42d559bb3ae9c59bbda4495c5c2e66072d18f9ab5e884862947a89d575c7ca3",
+   "out": "e42d559bb3ae9c59bbda4495c5c2e66072d18f9ab5e884862947a89d575c7ca3",
+   "bytes": 3310
+  },
+  "advanced-ui.js": {
+   "in": "6f968e0b4902b6ffaccc490261b8fdc58623130cca39bc8c563779d81e10e95d",
+   "out": "390e5616e30aa81aadf5fc909ab20603f4b829efc9dac21bfc8d4536dd769606",
+   "bytes": 24732
+  },
+  "advanced.js": {
+   "in": "9c84c0159a5cfb43a92a7dd5075ebe613b97ea2cf1f6b8c183290b3aac534628",
+   "out": "9c84c0159a5cfb43a92a7dd5075ebe613b97ea2cf1f6b8c183290b3aac534628",
+   "bytes": 15166
+  },
+  "analyst-comforts.js": {
+   "in": "af5005cc9a6770024cb3c3888ba457c4ff79aa31f79f37930a387a4f37aa0561",
+   "out": "af5005cc9a6770024cb3c3888ba457c4ff79aa31f79f37930a387a4f37aa0561",
+   "bytes": 7018
+  },
+  "analyst-excel.js": {
+   "in": "4e23e2109eecd6e3b3ba59a7bc5a7de2c9e0571c2983815bc6fa06c079c80217",
+   "out": "4e23e2109eecd6e3b3ba59a7bc5a7de2c9e0571c2983815bc6fa06c079c80217",
+   "bytes": 3293
+  },
+  "analyst-ui.js": {
+   "in": "d8408004323a9390da1cd2904125c20f14d7433d388ff2f38a624a8c026fda4c",
+   "out": "d8408004323a9390da1cd2904125c20f14d7433d388ff2f38a624a8c026fda4c",
+   "bytes": 15408
+  },
+  "analyst.js": {
+   "in": "184f247677ca02dd2a7ed8793e0504492b51578b85a558ccca2e06bc6b81a1aa",
+   "out": "184f247677ca02dd2a7ed8793e0504492b51578b85a558ccca2e06bc6b81a1aa",
+   "bytes": 6414
+  },
+  "appearance.js": {
+   "in": "e0b9fe55b3fda8c68ab1dde3d6ec1548da8e4cde77f03f4decdc1e6b40f565d9",
+   "out": "e0b9fe55b3fda8c68ab1dde3d6ec1548da8e4cde77f03f4decdc1e6b40f565d9",
+   "bytes": 5522
+  },
+  "capital-excel.js": {
+   "in": "833f884e8e25842bdf3b48d2508672d8a49224d5ac47ce0e7b87e44549d66599",
+   "out": "833f884e8e25842bdf3b48d2508672d8a49224d5ac47ce0e7b87e44549d66599",
+   "bytes": 8001
+  },
+  "cashflow-controls.js": {
+   "in": "9459feaa715689855219fc03a084656b7cc1ee0d9dd9a2478b69306784ba7a73",
+   "out": "9459feaa715689855219fc03a084656b7cc1ee0d9dd9a2478b69306784ba7a73",
+   "bytes": 12712
+  },
+  "connections.js": {
+   "in": "38bab115ca03fd9dcb71942a476f545390da0bb159b00d70f6a879a0cd3762da",
+   "out": "38bab115ca03fd9dcb71942a476f545390da0bb159b00d70f6a879a0cd3762da",
+   "bytes": 1338
+  },
+  "deal-visuals.js": {
+   "in": "1cb39dbdc4225b69ee22d5a67c00d27df7bcb7d112ea028262c02cf14c6225da",
+   "out": "1cb39dbdc4225b69ee22d5a67c00d27df7bcb7d112ea028262c02cf14c6225da",
+   "bytes": 5134
+  },
+  "development-calendar-ui.js": {
+   "in": "c5d6935289409ba4826bf6de02d433784aba9608edeaf7c336b4cb5502757874",
+   "out": "c5d6935289409ba4826bf6de02d433784aba9608edeaf7c336b4cb5502757874",
+   "bytes": 2616
+  },
+  "development-calendar.js": {
+   "in": "db94036abd2d224666ff864968b558fda2acd9e7285bffe884582c139d986f57",
+   "out": "db94036abd2d224666ff864968b558fda2acd9e7285bffe884582c139d986f57",
+   "bytes": 2386
+  },
+  "development-controls.js": {
+   "in": "896ebbda37a325c00577912e77c9e2a4e92b9b68405e800c159143a72c9cc8d1",
+   "out": "896ebbda37a325c00577912e77c9e2a4e92b9b68405e800c159143a72c9cc8d1",
+   "bytes": 11750
+  },
+  "development-evidence-ui.js": {
+   "in": "96009b32d7ce1699ea141460252df5ad971cf71a8e8776fdc713c326c523ed4a",
+   "out": "96009b32d7ce1699ea141460252df5ad971cf71a8e8776fdc713c326c523ed4a",
+   "bytes": 2204
+  },
+  "development-operations-ui.js": {
+   "in": "aa844c945c77256702dc0ba18609d41139974efcd645c5f106328a042796d14d",
+   "out": "aa844c945c77256702dc0ba18609d41139974efcd645c5f106328a042796d14d",
+   "bytes": 3296
+  },
+  "development-operations.js": {
+   "in": "aa143df55fd2c80bb25bf064257b75b8d9f6fe34898b2cbb6db458d7a05cebcf",
+   "out": "aa143df55fd2c80bb25bf064257b75b8d9f6fe34898b2cbb6db458d7a05cebcf",
+   "bytes": 3714
+  },
+  "development-plus.js": {
+   "in": "4a91fc17a9339ff4dd4f1229aaf67ea6aec6c380ade3e75ef9f93b63fc3af0bf",
+   "out": "4a91fc17a9339ff4dd4f1229aaf67ea6aec6c380ade3e75ef9f93b63fc3af0bf",
+   "bytes": 5509
+  },
+  "development-reader.js": {
+   "in": "18094bcb6adde3dca2f0f8b9a271ccb8cea748403636cae75fea5e3c846a1754",
+   "out": "18094bcb6adde3dca2f0f8b9a271ccb8cea748403636cae75fea5e3c846a1754",
+   "bytes": 2215
+  },
+  "development-refinance-ui.js": {
+   "in": "d658e7c542b63e701036f24b46f8b86eafc357617af75222f52c8852dad501c7",
+   "out": "d658e7c542b63e701036f24b46f8b86eafc357617af75222f52c8852dad501c7",
+   "bytes": 3724
+  },
+  "development-refinance.js": {
+   "in": "b59ca34bc93c5ab8c56bf1bea0cc7baa7889e44bc4e5f0ec982cfd99388ad9a3",
+   "out": "b59ca34bc93c5ab8c56bf1bea0cc7baa7889e44bc4e5f0ec982cfd99388ad9a3",
+   "bytes": 2123
+  },
+  "development-ui.js": {
+   "in": "fc5f5786ac0d1afef5c33351c81e495b35e108a5b933248ea9817ff560bc655c",
+   "out": "fc5f5786ac0d1afef5c33351c81e495b35e108a5b933248ea9817ff560bc655c",
+   "bytes": 10495
+  },
+  "development.js": {
+   "in": "07c16e5c8aa487c33f43e4158a9e94bb47f1bf154296c0fa30cb4f1e59ede9db",
+   "out": "07c16e5c8aa487c33f43e4158a9e94bb47f1bf154296c0fa30cb4f1e59ede9db",
+   "bytes": 13739
+  },
+  "diligence.js": {
+   "in": "b9070edb4d9819f378553e38102c2793f54ef95f01b8168b048372e27176899c",
+   "out": "b9070edb4d9819f378553e38102c2793f54ef95f01b8168b048372e27176899c",
+   "bytes": 9813
+  },
+  "document-reader.js": {
+   "in": "e988102f357399b28ea3064782cfe7353084757b0ea1f2ca95aa8edd9c94312b",
+   "out": "e988102f357399b28ea3064782cfe7353084757b0ea1f2ca95aa8edd9c94312b",
+   "bytes": 13815
+  },
+  "editor.js": {
+   "in": "c0d42812fbf2aa7bf2ec228ca9da34ea4dc6487a425e558c60721148850d0834",
+   "out": "170e2b5f3a00aa3f7a69526b2af68ef9176513ce6183899a3a2d9f5a885d7af8",
+   "bytes": 41974
+  },
+  "example.json": {
+   "in": "85a852d953fa84066323cd852e313e06d6a9bafb48cc448e779023022f42c505",
+   "out": "dd7554387436b7202c9c8568151132aa43cd5ffdf77e233f2122d0ca129ec68d",
+   "bytes": 4118
+  },
+  "export.js": {
+   "in": "3247555b1e086581a541297985ea012acb604761f005799ddfdfab6ba065de8b",
+   "out": "3247555b1e086581a541297985ea012acb604761f005799ddfdfab6ba065de8b",
+   "bytes": 17596
+  },
+  "filler.js": {
+   "in": "783acacc199ee2d663ffe538163bb8b053551c73c2d911bf746984fe41d91b9d",
+   "out": "6b3cc16ead80bd328a45c95cc890ec3c1e023af8a25e8f8edee7e072a7abd438",
+   "bytes": 70769
+  },
+  "finance.js": {
+   "in": "a5ebb9f48f4b7193c6aec3a208186a4f1750dab122cfccfc9fa63da79c3968a2",
+   "out": "a5ebb9f48f4b7193c6aec3a208186a4f1750dab122cfccfc9fa63da79c3968a2",
+   "bytes": 5153
+  },
+  "fresh-start.js": {
+   "in": "3d037a056271ecf09d17668af9058483bbd2a07eef5966a42dcd9c4d9ae56578",
+   "out": "3d037a056271ecf09d17668af9058483bbd2a07eef5966a42dcd9c4d9ae56578",
+   "bytes": 2145
+  },
+  "glass-interactions.js": {
+   "in": "443afb691a2169bf5a7bd2097359bdd6bf3970f77d899d0c317feba23f45f8a9",
+   "out": "443afb691a2169bf5a7bd2097359bdd6bf3970f77d899d0c317feba23f45f8a9",
+   "bytes": 2448
+  },
+  "handoff-review-ui.js": {
+   "in": "7a1eda020603408d12dc7d53a54c2fe7c31b3c107660219d00fd7661334c1e85",
+   "out": "7a1eda020603408d12dc7d53a54c2fe7c31b3c107660219d00fd7661334c1e85",
+   "bytes": 12976
+  },
+  "handoff-review.js": {
+   "in": "813ad8519b756ebdcd814cf387afae514fdf7dc6de1e9dc93a5b6d2ab0905cca",
+   "out": "813ad8519b756ebdcd814cf387afae514fdf7dc6de1e9dc93a5b6d2ab0905cca",
+   "bytes": 6897
+  },
+  "index.html": {
+   "in": "40695d7a1f0c5d9f7ce2c78be182079eb9679b6a73d7be6ad24073f954fc6c28",
+   "out": "b3259de1a2f4fe6609c11ca1392cd505ec91ffe6699d51e266286e303f9655ce",
+   "bytes": 20845
+  },
+  "interface-comforts.js": {
+   "in": "544643d4b0ba9183fa7cd80f8c64826124ffc1bb489adad974d8786b34ca71dc",
+   "out": "544643d4b0ba9183fa7cd80f8c64826124ffc1bb489adad974d8786b34ca71dc",
+   "bytes": 6335
+  },
+  "live-excel.js": {
+   "in": "cc8b2863d380efd270bdd4967b8348319a32aa942db32f55f2164ae5dbca1cde",
+   "out": "cc8b2863d380efd270bdd4967b8348319a32aa942db32f55f2164ae5dbca1cde",
+   "bytes": 15864
+  },
+  "local-reader.js": {
+   "in": "c108f94d1bcff4d6bbad0a384aedc2c05c116328fb42df5d3b51afc0aaa87156",
+   "out": "c108f94d1bcff4d6bbad0a384aedc2c05c116328fb42df5d3b51afc0aaa87156",
+   "bytes": 6598
+  },
+  "merge.js": {
+   "in": "262801c45a851a3fac14db9c8399e5f3cc00eae0102b1ecca34ae140e0302b75",
+   "out": "d335479b8ae2aea609d58a43546312783d60bd1bd100641e88e2338fc155c00c",
+   "bytes": 13895
+  },
+  "model-history.js": {
+   "in": "5a66dfc1ef073101d2045fedc7409dacc82d4c8e72e3a3c177ff07e86eef36fd",
+   "out": "5a66dfc1ef073101d2045fedc7409dacc82d4c8e72e3a3c177ff07e86eef36fd",
+   "bytes": 707
+  },
+  "model-journal.js": {
+   "in": "b5eaf9c2ef874e5a94f20ce5cd565fb49559159201930f721a6e341a98feae94",
+   "out": "b5eaf9c2ef874e5a94f20ce5cd565fb49559159201930f721a6e341a98feae94",
+   "bytes": 3102
+  },
+  "model.js": {
+   "in": "ba6e7ebb28e8308d2fe15ceb8545f11885f7429e5df027d08b68c08e8b6c0585",
+   "out": "999128250d0f166cdb627a36d7dd42f0cd2945ec1b5ef4cdd4b350f41025a66d",
+   "bytes": 17474
+  },
+  "monal-3d.js": {
+   "in": "9d78de3d95ac08b5e585d813d226171381e0e114d13b438d899964b68dbf2b20",
+   "out": "9d78de3d95ac08b5e585d813d226171381e0e114d13b438d899964b68dbf2b20",
+   "bytes": 14748
+  },
+  "monal-coins.js": {
+   "in": "c0e6944b00e035061a7810525ac4cbcf6428e6232998a47c73decdefb494cf8c",
+   "out": "c0e6944b00e035061a7810525ac4cbcf6428e6232998a47c73decdefb494cf8c",
+   "bytes": 6697
+  },
+  "monal-flight.js": {
+   "in": "86b8a38b14a66f4414c4ce7349202bcfdec07354f91d53bb3408cea6a1b9f242",
+   "out": "86b8a38b14a66f4414c4ce7349202bcfdec07354f91d53bb3408cea6a1b9f242",
+   "bytes": 5223
+  },
+  "monal-guide.js": {
+   "in": "70175786c16f5dd320abd037f676a47279b8461446289b9902baf79f6b119393",
+   "out": "70175786c16f5dd320abd037f676a47279b8461446289b9902baf79f6b119393",
+   "bytes": 8826
+  },
+  "monal-natural.js": {
+   "in": "5833fa01d567a62dcdf87e113e2a4d1bbf2f37fc108cf58d0ff9b7cc4a1f525a",
+   "out": "5833fa01d567a62dcdf87e113e2a4d1bbf2f37fc108cf58d0ff9b7cc4a1f525a",
+   "bytes": 7098
+  },
+  "monal.js": {
+   "in": "1a53e9c84c758813f019c5c74d414bf98903836163c8a21f5e21bb959cdb6e2b",
+   "out": "1a53e9c84c758813f019c5c74d414bf98903836163c8a21f5e21bb959cdb6e2b",
+   "bytes": 9402
+  },
+  "monthly-chart.js": {
+   "in": "75bbc43762186517d95b977993e889ea4839bb43fcdffb2e2df162b0fbbb2e21",
+   "out": "75bbc43762186517d95b977993e889ea4839bb43fcdffb2e2df162b0fbbb2e21",
+   "bytes": 5372
+  },
+  "operations-ui.js": {
+   "in": "c2514fed80ec6cc6185b2f2c6531d9b1ef5d28e710fea779421f58b81bf22f95",
+   "out": "c2514fed80ec6cc6185b2f2c6531d9b1ef5d28e710fea779421f58b81bf22f95",
+   "bytes": 8594
+  },
+  "operations.js": {
+   "in": "7214404473f3e2e66fde6cf65d87d9d5b52a5822caaba13fc4d296dffac6327d",
+   "out": "7214404473f3e2e66fde6cf65d87d9d5b52a5822caaba13fc4d296dffac6327d",
+   "bytes": 3281
+  },
+  "orbit-portal.js": {
+   "in": "72a24f7891953ba56a2798c36295494a73f09ec9e2eff5e7a5d8a3b574fb1763",
+   "out": "72a24f7891953ba56a2798c36295494a73f09ec9e2eff5e7a5d8a3b574fb1763",
+   "bytes": 3574
+  },
+  "orbit-ui.js": {
+   "in": "4bd691f93da271ded143380dad52666d5af40a0eb347512d23b8da9ce0479d4b",
+   "out": "4bd691f93da271ded143380dad52666d5af40a0eb347512d23b8da9ce0479d4b",
+   "bytes": 8504
+  },
+  "parsers.js": {
+   "in": "6e86ae2455749cad75e2a220ea8def02a9acfa04ca1a39ef10beb92dbbb9972c",
+   "out": "528a6a0dd0a0ba6349220a449d20ebbbb492fe996b2dcc334f8cb4e53fb72f34",
+   "bytes": 101935
+  },
+  "pdf.js": {
+   "in": "5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946",
+   "out": "5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946",
+   "bytes": 320004
+  },
+  "pdf.worker.js": {
+   "in": "feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b",
+   "out": "490bbe7a653c22883ca0bc2069605d31d89abd13d92828f6ba5e568a683bfabb",
+   "bytes": 1087357
+  },
+  "plex-fonts.css": {
+   "in": null,
+   "out": "07c6fe520cb804c669a88d59d1c6d51528f193cf2f3eecf92930c6eccf6683c0",
+   "bytes": 1126
+  },
+  "rate-inputs.js": {
+   "in": "7e3e59dda60909c0ef75369ecdcbf3be43ff822f8171c40ba3ee07e3b5607f65",
+   "out": "60abf7277aab192042f4686420ace0dde4ffd701e4ba0b9327be79957bedc649",
+   "bytes": 3788
+  },
+  "restored.css": {
+   "in": "2bd3bb8720fa439e97b515e5ad184fcf2cd150948f68f27ee4162eeaddc3b330",
+   "out": "2bd3bb8720fa439e97b515e5ad184fcf2cd150948f68f27ee4162eeaddc3b330",
+   "bytes": 91526
+  },
+  "review-brief.js": {
+   "in": "28cbee695b895d5269a6fe51ee5c32e19d42126c524d5189b25bd884ad65f473",
+   "out": "610eab1fedb7db17e783d1b82d2d51baedb7e787c6c1576c0eb39f56c5c4944f",
+   "bytes": 8115
+  },
+  "review-corrections.js": {
+   "in": "cd07072348a57f145c4c300c7d302e603ea0150043e0ad42aef980ca61a350e6",
+   "out": "cd07072348a57f145c4c300c7d302e603ea0150043e0ad42aef980ca61a350e6",
+   "bytes": 4017
+  },
+  "scan-controls.js": {
+   "in": "4bc6dd4ff3c3834752f6103df1f4cedbbc709d944eee18bb9abee57d5669c636",
+   "out": "4bc6dd4ff3c3834752f6103df1f4cedbbc709d944eee18bb9abee57d5669c636",
+   "bytes": 3795
+  },
+  "scan-engine.js": {
+   "in": "bc9a661b8b67fcda4371d3df41e68d5142d60c25c1a851c3f6b7039650408551",
+   "out": "bc9a661b8b67fcda4371d3df41e68d5142d60c25c1a851c3f6b7039650408551",
+   "bytes": 8439
+  },
+  "scenario-library.js": {
+   "in": "4ebddbfedbb683df607786c91753499c9477f539f8177a948d06d2c9d17f7aa6",
+   "out": "4ebddbfedbb683df607786c91753499c9477f539f8177a948d06d2c9d17f7aa6",
+   "bytes": 5558
+  },
+  "schedule-tools.js": {
+   "in": "c8601cab28a068b8ac68711d3e688b2c3503cb5391ed78defdece6dd3dec34b7",
+   "out": "c8601cab28a068b8ac68711d3e688b2c3503cb5391ed78defdece6dd3dec34b7",
+   "bytes": 4996
+  },
+  "source-refresh.js": {
+   "in": "42712d5a1cea5b3752abf5fe65b9cc5552377ede47a7195de1005ef1f19b5edc",
+   "out": "42712d5a1cea5b3752abf5fe65b9cc5552377ede47a7195de1005ef1f19b5edc",
+   "bytes": 1480
+  },
+  "source-table-ui.js": {
+   "in": "ac02eadbb8b6db014e19be9c373fa17494b5d48953fe0f31801003708ca11b30",
+   "out": "ac02eadbb8b6db014e19be9c373fa17494b5d48953fe0f31801003708ca11b30",
+   "bytes": 14706
+  },
+  "source-table.js": {
+   "in": "c9437f3c25e12bb0e4ed20e1d9fb865c911adc4276248f313bd05a443b981764",
+   "out": "c9437f3c25e12bb0e4ed20e1d9fb865c911adc4276248f313bd05a443b981764",
+   "bytes": 20035
+  },
+  "template-mapping.js": {
+   "in": "5feb04c2fe8fa2c0bbd894f6f74dcb9ff4b7759461879873afef182633d6d0f9",
+   "out": "5feb04c2fe8fa2c0bbd894f6f74dcb9ff4b7759461879873afef182633d6d0f9",
+   "bytes": 14353
+  },
+  "template-tables.js": {
+   "in": "cbcb084c818d663d26dc54db6a43d664d2794b54d59f3a74cea80e3f3ccc815a",
+   "out": "cbcb084c818d663d26dc54db6a43d664d2794b54d59f3a74cea80e3f3ccc815a",
+   "bytes": 7613
+  },
+  "tenant-detail.js": {
+   "in": "a4b85ddb05c0df1bc2971d8db002db1023ef66a002d9f27c6e0b66454a396854",
+   "out": "a4b85ddb05c0df1bc2971d8db002db1023ef66a002d9f27c6e0b66454a396854",
+   "bytes": 6007
+  },
+  "tool-library.js": {
+   "in": "4e6d56c9e54dda828013d2235943d37e2de45e1fe3afaf6d39fe78334da73463",
+   "out": "4e6d56c9e54dda828013d2235943d37e2de45e1fe3afaf6d39fe78334da73463",
+   "bytes": 6507
+  },
+  "underwriting-review-ui.js": {
+   "in": "2202db365920e0fce910cfe0a06f006c2a524a87f5359e7e220b21082125347d",
+   "out": "2202db365920e0fce910cfe0a06f006c2a524a87f5359e7e220b21082125347d",
+   "bytes": 7909
+  },
+  "underwriting-review.js": {
+   "in": "c5ad45079a0d5cef7a8dd6be240e18d6daac4e61e87248d7c422589384885dca",
+   "out": "c5ad45079a0d5cef7a8dd6be240e18d6daac4e61e87248d7c422589384885dca",
+   "bytes": 12205
+  },
+  "workbook-preview.js": {
+   "in": "d7bd2b891ea7daa916bc6eed4f79d571f3164db72729b2c77d20044f25c54d89",
+   "out": "1a92328f65a44180fcb8ef9bb6440183f4a59a322ddce19d2394a8cd344ca52c",
+   "bytes": 12973
+  },
+  "workspace-comforts.js": {
+   "in": "acc15a6d6f11a0dc6c6121b257bb75c5a4e1b84ad90b31442b1b73b0c37cc7f0",
+   "out": "acc15a6d6f11a0dc6c6121b257bb75c5a4e1b84ad90b31442b1b73b0c37cc7f0",
+   "bytes": 6822
+  },
+  "workspace-ui.js": {
+   "in": "908c0e6b21fdbe077e73003cf9a853f01a1291066db35f95b9b47a3808e623d5",
+   "out": "908c0e6b21fdbe077e73003cf9a853f01a1291066db35f95b9b47a3808e623d5",
+   "bytes": 10748
+  },
+  "xlsx.js": {
+   "in": "c9506197caf809a075b6dee1da0d36fb19da7158ffe8a88e7b0c96c5d8623c99",
+   "out": "a0cba4c1ec66f4aae8eb38747e398629325734b2edc1bc545e912d38ba2c369b",
+   "bytes": 885917
+  },
+  "zip.js": {
+   "in": "acc7e41455a80765b5fd9c7ee1b8078a6d160bbbca455aeae854de65c947d59e",
+   "out": "43d2e3b49afbaa1a0ba03dea4ba33989d6d99bbdb6f706cd0c53af6f5d3f1df9",
+   "bytes": 97685
+  }
+ },
+ "edits": [
+  {
+   "id": "html-spec",
+   "category": "d",
+   "op": "removeBlock",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "html-tpl",
+   "category": "workbook",
+   "op": "removeBlock",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "html-pdfworker",
+   "category": "a",
+   "op": "removeBlock",
+   "applied": 1,
+   "lines": 21
+  },
+  {
+   "id": "filler-slot",
+   "category": "a",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "filler-worker",
+   "category": "a",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "preview-slot",
+   "category": "a",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "cap-1",
+   "category": "c",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "cap-2",
+   "category": "c",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "cap-3",
+   "category": "c",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "err-name",
+   "category": "b",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "importer",
+   "category": "d",
+   "op": "removeBlock",
+   "applied": 1,
+   "lines": 374
+  },
+  {
+   "id": "importer-api",
+   "category": "d",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "plan",
+   "category": "d",
+   "op": "removeBlock",
+   "applied": 1,
+   "lines": 122
+  },
+  {
+   "id": "plan-api",
+   "category": "d",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "hide",
+   "category": "d",
+   "op": "removeBlock",
+   "applied": 1,
+   "lines": 9
+  },
+  {
+   "id": "build",
+   "category": "d",
+   "op": "removeBlock",
+   "applied": 1,
+   "lines": 37
+  },
+  {
+   "id": "build-stub",
+   "category": "d",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "move-classic-template",
+   "category": "d",
+   "op": "dropFile",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "move-legacy-outputs",
+   "category": "d",
+   "op": "dropFile",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "xlpatch-comment",
+   "category": "b",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "review-comment",
+   "category": "d",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "merge-proto",
+   "category": "d",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "editor-bridge",
+   "category": "d",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "tag-legacy",
+   "category": "d",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "tag-classic",
+   "category": "d",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "example",
+   "category": "c",
+   "op": "replaceFile",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "cap-model-default",
+   "category": "c",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "cap-form-show",
+   "category": "c",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "cap-form-save",
+   "category": "c",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "cap-field-hint",
+   "category": "c",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "cap-brief",
+   "category": "c",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "cap-blank-hint",
+   "category": "c",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "cap-blank-placeholder",
+   "category": "c",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e1-eval",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e5-inline",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e5-listener",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e4-fonts",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e4-fonts-file",
+   "category": "security",
+   "op": "addFile",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "csp-meta",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e2-fetch",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e2-offfetch-def",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e2-msg",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e2-nostore",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e2-noload",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e2-keybox",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e2-keytext",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e2-api-integrations",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e2-api-lookup-1",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e2-api-lookup-2",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e3-ocr-editor",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "e3-ocr-filler",
+   "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "ctl-pdf.worker",
+   "category": "lib",
+   "op": "escapeControls",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "ctl-xlsx",
+   "category": "lib",
+   "op": "escapeControls",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "ctl-zip",
+   "category": "lib",
+   "op": "escapeControls",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "docs-licence",
+   "category": "docs",
+   "op": "addFile",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "docs-readme",
+   "category": "docs",
+   "op": "addFile",
+   "applied": 1,
+   "lines": 0
+  }
+ ]
+}

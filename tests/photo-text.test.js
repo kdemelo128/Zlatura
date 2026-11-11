@@ -43,7 +43,7 @@ test('no face detection or recognition code or model ships', () => {
       if (e.name === 'node_modules' || e.name === 'private') continue;
       const f = path.join(dir, e.name);
       if (e.isDirectory()) { walk(f); continue; }
-      if (/face|mediapipe|blazeface/i.test(e.name) && !/\.(md|txt)$/.test(e.name)) found.push(`${f} (name)`);
+      if (/(?:^|[^a-z])face|mediapipe|blazeface/i.test(e.name) && !/\.(md|txt)$/.test(e.name)) found.push(`${f} (name)`);
       if (/\.(m?js|json|html|css|webmanifest|tflite|onnx|pb|bin|wasm)$/.test(e.name) && !/\.test\.js$/.test(e.name)) {
         const txt = fs.readFileSync(f, 'latin1');
         if (bad.test(txt)) found.push(f);

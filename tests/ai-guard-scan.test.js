@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const APP = new URL('../app/', import.meta.url).pathname;
-const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? (/vendor|node_modules/.test(e.name) ? [] : walk(path.join(dir, e.name))) : e.name.endsWith('.js') && !/\.min\.js$/.test(e.name) ? [path.join(dir, e.name)] : []));
+// app/uwtool/ is the built-in tool: its own page under its own policy (tests/uwtool-builtin.test.js scans it for outside hosts), not app code
+const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? (/vendor|node_modules|^uwtool$/.test(e.name) ? [] : walk(path.join(dir, e.name))) : e.name.endsWith('.js') && !/\.min\.js$/.test(e.name) ? [path.join(dir, e.name)] : []));
 // comments and strings may mention these words; only code is scanned
 const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
 const FILES = walk(APP).map((f) => [path.relative(APP, f), code(fs.readFileSync(f, 'utf8'))]);

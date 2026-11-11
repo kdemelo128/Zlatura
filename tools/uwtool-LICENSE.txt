@@ -1,0 +1,22 @@
+Underwriting tool (the code in this folder, app/uwtool/)
+
+Copyright (c) 2026 Kyle Alexander De Melo. ALL RIGHTS RESERVED.
+
+This folder is published so that it can be read. It is NOT open-source software.
+Nothing in it is licensed to you: you may not copy, modify, redistribute,
+sublicense, sell or build on it, in whole or in part, without the copyright
+holder's prior written permission. Using the finished app in a browser to do
+your own underwriting is permitted.
+
+The MIT licence of the rest of this repository (the LICENSE file at the
+repository root) DOES NOT APPLY to this folder.
+
+Third-party libraries kept in this folder keep their own licences, which are
+named in THIRD_PARTY.md at the repository root and in the headers of the
+library files themselves: pdf.js and its worker (Apache-2.0), SheetJS
+(Apache-2.0) and JSZip (MIT, chosen from its MIT or GPLv3 dual licence).
+IBM Plex fonts are not in this folder; they come from the repository's fonts/
+folder (SIL OFL 1.1).
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED.

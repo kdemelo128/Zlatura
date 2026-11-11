@@ -10,7 +10,7 @@
  * What it does, in order, all in memory:
  *   1. reads the package; copies ONLY files on the allow-list (everything else is "left out", counted);
  *   2. applies the rules' edits in order. Every edit names the exact text it expects and fails the run when that text is
- *      not there (or is there a different number of times). Kinds: replace, removeBlock, replaceFile, dropFile;
+ *      not there (or is there a different number of times). Kinds: replace, removeBlock, replaceFile, addFile (a new file from the tools folder), escapeControls (raw control bytes inside a text file become \uXXXX escapes, the same value in a JS string), dropFile;
  *   3. scans every output path and file (and the manifest) for each deny-listed term, for terms harvested from removed
  *      blocks, and for any base64 run over the ceiling. One hit and NOTHING is written (exit 1);
  *   4. writes the files and IMPORT-MANIFEST.json: the package fingerprint, in/out SHA-256 of each file, and each edit's
@@ -96,6 +96,12 @@ export function buildImport({ pkg, pub, rules, terms, extra = {} }) {
       if (r.pack) { pack[r.file] = out[r.file]; removedToPack++; }
       delete out[r.file]; edit({ ...base, applied: 1, lines: 0 }); continue;
     }
+    if (r.op === 'addFile') {
+      const w = extra[r.with];
+      if (r.file in out) { fail('file is already in the output'); continue; }
+      if (!w) { fail('file to add not supplied'); continue; }
+      out[r.file] = w; edit({ ...base, applied: 1, lines: 0 }); continue;
+    }
     if (!(r.file in out)) { fail('file is not in the output'); continue; }
     if (r.op === 'replaceFile') {
       const w = extra[r.with];
@@ -104,6 +110,13 @@ export function buildImport({ pkg, pub, rules, terms, extra = {} }) {
     }
     if (!isText(out[r.file])) { fail('not a text file'); continue; }
     let text = dec(out[r.file]); const want = r.count ?? 1;
+    if (r.op === 'escapeControls') {
+      let n = 0, bad = false;
+      const next = text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, (c, i) => { n++; if (text[i - 1] === '\\') bad = true; return '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'); });
+      if (bad) { fail('a control byte follows a backslash: escaping it would change the text'); continue; }
+      if (n !== want) { fail(`found ${n} control bytes, wanted ${want}`); continue; }
+      out[r.file] = Buffer.from(next); edit({ ...base, applied: 1, lines: 0 }); continue;   // one edit, however many bytes
+    }
     if (r.op === 'replace') {
       if (typeof r.find !== 'string' || !r.find || typeof r.replace !== 'string') { fail('needs find and replace'); continue; }
       const n = countOf(text, r.find);
@@ -193,7 +206,7 @@ export function main(argv, env = process.env) {
   if (!terms.length) { console.error('refused: no deny-list (use --denylist, env DENYLIST or private/uwtool/denylist.txt). Nothing was written.'); return 1; }
   if (packDir && gitIgnored(path.resolve(packDir)) === false) { console.error('refused: the pack folder is inside a git repository and is not git-ignored. Nothing was written.'); return 1; }
   const extra = {};
-  for (const r of rules.edits || []) if (r.op === 'replaceFile' && r.with) { try { extra[r.with] = new Uint8Array(fs.readFileSync(path.resolve(path.dirname(rulesFile), r.with))); } catch { /* reported by buildImport */ } }
+  for (const r of rules.edits || []) if ((r.op === 'replaceFile' || r.op === 'addFile') && r.with) { try { extra[r.with] = new Uint8Array(fs.readFileSync(path.resolve(path.dirname(rulesFile), r.with))); } catch { /* reported by buildImport */ } }
   const pkg = walk(path.resolve(from));
   const r = buildImport({ pkg, pub, rules, terms, extra });
   console.log(JSON.stringify(r.counts, null, 1));

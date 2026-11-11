@@ -16,14 +16,15 @@ test('the service worker caches every file the app needs, and only files that ex
   const sw = read('sw.js');
   const assets = [...sw.slice(sw.indexOf('const ASSETS'), sw.indexOf('];')).matchAll(/'([^']+)'/g)].map((m) => m[1]);
   // the scanned-page reader is fetched on request, not installed (sw.js keeps it in its own cache once fetched)
-  const onDemand = (f) => f.startsWith('vendor/ocr/');
+  // the built-in underwriting tool (app/uwtool/, 3.3 MB) is the same: cached on first open, not at install (sw.js UW_TOOL)
+  const onDemand = (f) => f.startsWith('vendor/ocr/') || f.startsWith('app/uwtool/');
   // the license texts ship beside the files for people (THIRD_PARTY.md), not for the app: never installed
   const isLicense = (f) => f.startsWith('vendor/licenses/');
   const shipped = ['index.html', 'manifest.webmanifest',
     ...list('app'), ...list('vendor'), ...list('fonts'), ...list('icons')].filter((f) => !f.endsWith('.md') && !onDemand(f) && !isLicense(f));
   for (const f of shipped) assert.ok(assets.includes(f), `sw.js does not cache ${f}`);
   for (const a of assets.filter((x) => x !== './')) assert.ok(exists(a), `sw.js caches ${a}, which does not exist`);
-  assert.ok(!assets.some(onDemand), 'the OCR files are not in the install set');
+  assert.ok(!assets.some(onDemand), 'the OCR files and the underwriting tool are not in the install set');
   assert.ok(!assets.some(isLicense), 'the license texts are not in the install set');
   assert.ok(list('vendor/licenses').length >= 6, 'each shipped library has its license text in vendor/licenses');
   assert.ok(list('vendor/ocr').length >= 4, 'the OCR files are in vendor/ocr');

@@ -1,0 +1,168 @@
+<!doctype html><html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Underwriting template filler</title>
+<meta http-equiv="Content-Security-Policy" content="script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' blob: data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="plex-fonts.css">
+<style>
+:root{--bg:#f3f0e8;--card:#fbfaf5;--ink:#1d2421;--muted:#65706a;--line:#d8d3c5;--accent:#1f4d3f;--accent-ink:#fbfaf5;--warn:#8f5600;--warn-bg:#f7ecd5;--bad:#a1281c;--bad-bg:#f6e0dc;--ok:#2d6a3a;--ok-bg:#e1eedd;--field:#fffefa;
+ --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#131815;--card:#1b221e;--ink:#e9e7df;--muted:#9aa59f;--line:#2e3832;--accent:#7fc4a8;--accent-ink:#0f1512;--warn:#e3b45c;--warn-bg:#2d2616;--bad:#f09a8f;--bad-bg:#33201d;--ok:#8fd09b;--ok-bg:#1c2b20;--field:#151b17;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#131815;--card:#1b221e;--ink:#e9e7df;--muted:#9aa59f;--line:#2e3832;--accent:#7fc4a8;--accent-ink:#0f1512;--warn:#e3b45c;--warn-bg:#2d2616;--bad:#f09a8f;--bad-bg:#33201d;--ok:#8fd09b;--ok-bg:#1c2b20;--field:#151b17;color-scheme:dark}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--sans);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+main{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+h1{font-size:26px;line-height:1.2;margin:0;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+h2{font-size:12px;letter-spacing:.09em;text-transform:uppercase;margin:0;color:var(--muted);font-weight:600}
+p{margin:0}
+.lede{color:var(--muted);max-width:62ch;margin-top:8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.drop{border:1.5px dashed var(--accent);border-radius:6px;padding:26px 16px;text-align:center;cursor:pointer;background:var(--field);display:flex;flex-direction:column;gap:6px;align-items:center}
+.drop.over{background:var(--ok-bg)}
+.drop strong{font-weight:600}.drop span{color:var(--muted);font-size:13px}
+button,.btn{font:inherit;font-size:14px;border-radius:4px;padding:8px 14px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer;font-weight:500}
+button.ghost{background:transparent;color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.drop:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.files{display:flex;flex-direction:column;gap:10px}
+.file{border:1px solid var(--line);border-radius:5px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--field);min-width:0}
+.fh{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.fn{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere;min-width:0}
+.tag{font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;padding:2px 8px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.t-ok{color:var(--ok);background:var(--ok-bg)}.t-warn{color:var(--warn);background:var(--warn-bg)}.t-bad{color:var(--bad);background:var(--bad-bg)}.t-mute{color:var(--muted)}
+.small{font-size:13px;color:var(--muted)}
+.msg{font-size:13px;padding:8px 10px;border-radius:4px;border-left:3px solid currentColor;overflow-wrap:anywhere}
+.msg.warn{color:var(--warn);background:var(--warn-bg)}.msg.bad{color:var(--bad);background:var(--bad-bg)}.msg.ok{color:var(--ok);background:var(--ok-bg)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+details summary{cursor:pointer;font-size:13px;color:var(--accent);font-weight:500}
+textarea{width:100%;min-height:90px;font:12px/1.4 var(--mono);background:var(--field);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);min-width:0}
+input,select{font:inherit;font-size:14px;background:var(--field);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:7px 9px;min-width:0;width:100%}
+.slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.slot{border:1px solid var(--line);border-radius:5px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;background:var(--field)}
+.slot b{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.slot.ok{border-color:var(--ok)}.slot.miss{border-style:dashed}
+.items{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow:auto}
+.it{border-left:3px solid var(--line);padding:4px 10px;font-size:13px}.it.Critical{border-color:var(--bad)}.it.Warning{border-color:var(--warn)}
+.it b{font-family:var(--mono);font-weight:500}
+.mono{font-family:var(--mono)}
+.foot{font-size:12px;color:var(--muted);max-width:70ch}
+ul.tight{margin:0;padding-left:18px}
+</style>
+
+<link rel="stylesheet" href="restored.css"></head><body><main>
+<header class="workspace-header"><div class="workspace-topline"><div class="edition-label"><span></span> UNDERWRITING WORKSPACE</div><div class="appearance-controls"><button id="motionToggle" class="ghost" aria-pressed="false">Pause motion</button><button id="glassToggle" class="ghost" type="button" aria-pressed="false">Solid controls</button><button id="themeToggle" class="ghost">Dark theme</button></div></div><div class="brand-sculpture" aria-hidden="true"><div class="glass-orb orb-main"></div><div class="glass-orb orb-small"></div><div class="glass-tile"><svg viewBox="0 0 80 60"><path d="M9 44L25 34L36 38L51 20L70 12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="70" cy="12" r="4" fill="currentColor"/></svg></div><div class="glass-ring"></div></div>
+  <h1>Underwriting<br><span class="heading-secondary">Template filler</span></h1>
+  <p class="lede">Bring your rent roll, financials and leases into one reviewed model. Adjust the assumptions, explore the deal and fill your Excel template.</p>
+<details class="start-guide"><summary>First time here? Start with these four steps</summary><ol><li><b>Add your files.</b> Start with the rent roll and operating statement. Add leases, plats, surveys and plans as supporting evidence.</li><li><b>Review the evidence.</b> Check document types, source totals and pages. Approve a drawing area or lease term before it changes a tenant.</li><li><b>Set the assumptions.</b> Choose comparison years and lease-up. Expand tenant and expense details only when you need them.</li><li><b>Fill and download.</b> Open “UW Read me” in Excel for the input-to-output map and editing instructions.</li></ol><p class="small">Missing documents do not block a partial model. Missing values remain visible for review.</p></details><div class="row top-actions"><button id="exampleLoad" class="ghost">Try a fictional example</button><button id="projectDownload" class="ghost">Save project</button><button id="restoreProject" class="ghost">Open saved project</button><button id="newProject" class="ghost">New property</button><span id="saveState" class="small"></span></div>
+
+<details class="card" id="keybox" hidden><summary>Optional · Connect Claude for visual document reading</summary>
+  <h2 id="hks">Claude connection</h2>
+  <p class="small" id="keyinfo">This copy of the page is running outside claude.ai, so direct visual AI reading uses your Anthropic API key. You can also use local OCR or copy a prompt into Claude or another AI tool and paste the result back. Outside AI reading is turned off in this build. PDFs with a normal text layer and Excel/CSV files do not need it.</p>
+  <div class="row"><input id="f_key" type="password" placeholder="sk-ant-…" autocomplete="off" style="max-width:340px" aria-label="Anthropic API key"><label class="row" style="flex-direction:row;align-items:center"><input type="checkbox" id="f_rem" style="width:auto"> <span>Remember on this device</span></label><button id="b_key">Connect</button><button class="ghost" id="b_unkey" hidden>Disconnect</button></div>
+  <label>API model<input id="f_model" value="claude-sonnet-5-5" autocomplete="off"></label><div id="keymsg" class="msg" hidden></div>
+</details>
+
+<nav class="workflow-nav" aria-label="Underwriting workflow"><a href="#stepFiles" data-step="stepFiles"><span>1</span> Files</a><a href="#stepReview" data-step="stepReview"><span>2</span> Review</a><a href="#stepModel" data-step="stepModel"><span>3</span> Model</a><a href="#stepExport" data-step="stepExport"><span>4</span> Export</a></nav><section class="card" id="stepFiles" aria-labelledby="h1s">
+  <h2 id="h1s">1 · Files</h2>
+  <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose files or drop them here">
+    <strong>Drop files here, or click to choose</strong>
+    <span>Rent roll · operating statement · leases · plats and drawings · CoStar page text · PDF, Word, Excel, CSV, images and ZIP folders</span>
+  </div>
+  <input type="file" id="pick" multiple hidden accept=".pdf,.docx,.xlsx,.xlsm,.xls,.csv,.tsv,.txt,.jpg,.jpeg,.png,.webp,.gif,.tif,.tiff,.zip">
+  <div class="files" id="files" aria-live="polite"></div>
+  <p class="small">Text extraction runs in this browser. “Read with Claude” sends the selected document text or page images to your Claude connection. Public lookups send the property address. Local OCR processes page images on this device.</p>
+</section>
+
+<section class="card" id="stepReview" aria-labelledby="h2s">
+  <h2 id="h2s">2 · What was found</h2>
+  <div class="slots" id="slots"></div><details class="optional-panel"><summary>Diligence checklist · find a document or review item</summary><div id="diligencePanel"></div></details><details class="optional-panel"><summary>Compare historical statements · up to three years</summary><div id="historyPanel"></div></details>
+</section>
+
+<section class="card" id="stepModel" aria-labelledby="h3s">
+  <h2 id="h3s">3 · Property details</h2>
+  <p class="small">Spreadsheets and AI reads usually do not carry these. Anything left blank stays blank in the workbook and is flagged.</p>
+  <div class="grid">
+    <label>Property name<input id="f_prop" autocomplete="off"></label>
+    <label>Address<input id="f_addr" autocomplete="off"></label>
+    <label>Report run date<input id="f_run" type="date"><span class="small" id="h_run"></span></label>
+    <label>Rent roll "as of" date<input id="f_asof" type="date"><span class="small" id="h_asof"></span></label>
+    <label>First comparison year<input id="f_y1" inputmode="numeric" placeholder="auto"><span class="small">Choose any three calendar years below; projections remain separate from source actuals.</span></label>
+    <label>Cap rate 1 (%)<input id="f_c1" inputmode="decimal" placeholder="enter a cap rate"></label>
+    <label>Cap rate 2 (%)<input id="f_c2" inputmode="decimal" placeholder="enter a cap rate"></label>
+    <label>Cap rate 3 (%)<input id="f_c3" inputmode="decimal" placeholder="enter a cap rate"></label>
+    <label>Tax rate (% of assessed value)<input id="f_tax" inputmode="decimal" placeholder="blank if unknown"></label>
+    <label>Accounting, legal and business-tax lines<select id="f_fees"><option value="include">Include in NOI (property-level fees)</option><option value="exclude">Exclude (owner-level)</option></select><span class="small">Applies to lines printed above the NOI line. Excluded lines stay on the Review sheet.</span></label>
+    <label>Expense reimbursements<select id="f_reimb"><option value="charges">Use rent-roll monthly charges</option><option value="nnn">All leases triple net: tenants repay pro-rata share of every expense</option></select><span class="small" id="h_reimb"></span></label>
+  </div>
+  <div id="assumptions"></div><details id="detailedEditor"><summary>Tenant, income &amp; expense details <span id="detailCount"></span></summary><p class="small editor-intro">Add tenants and account lines without a 100-tenant limit. Click a tenant to set reimbursements. Source amounts remain available alongside broker overrides.</p><nav id="nav" aria-label="Underwriting detail"></nav><div id="content"></div></details>
+  <details class="optional-panel"><summary>Financing &amp; investment returns</summary><div id="financingPanel"></div></details><details class="optional-panel" id="analystSection"><summary>Analyst tools <span class="tool-badge">Value · compare · close</span></summary><div id="analystTools"></div></details><details class="optional-panel" id="advancedSection"><summary>Advanced scenarios <span class="tool-badge">Debt · waterfalls · risk · lease terms</span></summary><div id="advancedTools"></div></details><details class="optional-panel" id="operationsSection"><summary>Operating schedules <span class="tool-badge">Utilities · replacements · draws · exposure</span></summary><div id="operationsTools"></div></details><p class="small">Cap rates are placeholders, not market data. They are flagged as a Warning in the workbook until you replace them with a sourced rate.</p>
+</section>
+
+<section class="card" aria-labelledby="hls">
+  <h2 id="hls">Public records (optional)</h2>
+  <p class="small">Review public facts and their sources before accepting them. Address lookup checks location and available DC parcel records. Claude web search or a pasted answer can add zoning, tax and Walk / Transit / Bike scores. Missing scores remain blank; parcel area is never treated as rentable area.</p>
+  <label class="small"><input type="checkbox" id="autoPublic" checked> Find public facts automatically when the property address changes. Review matches before accepting.</label><div class="row"><button id="b_public" class="ghost">Look up public address</button><button id="b_look" disabled>Look up with Claude</button><button class="ghost" id="b_lcopy">Copy prompt</button><span class="small" id="lookstate"></span></div>
+  <details><summary>Paste an answer from another Claude</summary><textarea id="t_look" placeholder="Paste the JSON answer here"></textarea><div class="row" style="margin-top:8px"><button class="ghost" id="b_luse">Use pasted answer</button></div></details>
+  <div id="lookmsg" aria-live="polite" class="files"></div>
+</section>
+
+<section class="card" id="stepExport" aria-labelledby="h4s">
+  <h2 id="h4s">4 · Fill the template</h2><div id="forecastPreview"></div><p class="small">The familiar Summary and seven presentation outputs link to the detailed UW model. Full tenant and account schedules remain available. Open UW Read me first; drawing evidence appears in UW Document evidence.</p>
+  <details><summary>Excel template</summary><p class="small" id="templateStatus">Using the original Claude template</p><p class="small">The supplied Claude Summary keeps its familiar format and links to the expanded UW model. Its tenant preview shows the first 20; the full UW rent roll and recovery detail include every tenant. The original income/expense, building-stack, rent-roll, pricing and ten-year cash-flow outputs are linked to this model. The complete rent-roll output expands for all tenants. Unused original inputs remain hidden. Attach a firm workbook to create reviewed links into its existing cells; unmapped values remain unchanged.</p><div class="row"><button class="ghost" id="chooseTemplate">Attach another workbook</button><button class="ghost" id="clearTemplate">Use original Claude template</button></div></details><div class="row"><button id="build" disabled>Fill template</button><span class="small" id="bstate"></span></div>
+  <label class="row" id="ackrow" hidden style="flex-direction:row;align-items:center;color:var(--bad)"><input type="checkbox" id="ack" style="width:auto"> <span>Some tie-out checks failed. Build anyway; the failures will be listed in the workbook.</span></label>
+  <div id="result" aria-live="polite"></div>
+</section>
+
+<p class="foot">Every projection depends on reviewed inputs. Printed areas and dimension calculations remain separate; this tool does not infer rentable area from an unscaled picture. Check AI-extracted values against the source. In Excel, the Assumptions and Lease inputs tabs drive the formulas. Changes to tenant/account counts, classifications or displayed years require a fresh export.</p>
+</main><dialog id="memoDialog"><div class="memo-actions"><button class="ghost" id="closeMemo">Close</button><button id="printMemoNow">Print / Save PDF</button></div><div id="memoBody"></div></dialog><div id="toast" role="status" hidden></div><dialog id="drawer"><div class="drawer-head"><div><div class="eyebrow" id="drawerEyebrow"></div><h2 id="drawerTitle"></h2></div><button class="ghost" id="closeDrawer" aria-label="Close details">Close</button></div><div id="drawerContent"></div></dialog><dialog id="documentReview"><div class="drawer-head"><h2 id="documentTitle">Document review</h2><button class="ghost" id="closeDocument">Close</button></div><div id="documentContent"></div></dialog><input id="editorFiles" type="file" multiple hidden><input id="template" type="file" accept=".xlsx" hidden><input id="project" type="file" accept=".json" hidden><div hidden><span id="propertyName"></span><button id="export"></button><button id="reset"></button></div>
+
+<script src="pdf.js"></script>
+<script src="zip.js"></script>
+<script src="xlsx.js"></script>
+
+
+
+<script src="development-reader.js"></script>
+<script src="parsers.js"></script><script src="document-reader.js"></script>
+<script src="source-table.js"></script>
+<script src="source-table-ui.js"></script>
+<script src="scan-engine.js"></script>
+<script src="scan-controls.js"></script>
+<script src="local-reader.js"></script>
+<script src="model.js"></script><script src="underwriting-review.js"></script><script src="schedule-tools.js"></script><script src="diligence.js"></script><script src="finance.js"></script><script src="analyst.js"></script><script src="advanced.js"></script><script src="operations.js"></script><script src="connections.js"></script><script src="merge.js"></script><script src="live-excel.js"></script><script src="capital-excel.js"></script><script src="analyst-excel.js"></script><script src="advanced-excel.js"></script><script src="development.js"></script>
+<script src="development-plus.js"></script>
+<script src="development-operations.js"></script>
+<script src="development-refinance.js"></script>
+<script src="development-calendar.js"></script>
+<script src="development-controls.js"></script>
+<script src="development-operations-ui.js"></script>
+<script src="development-refinance-ui.js"></script>
+<script src="development-calendar-ui.js"></script>
+<script src="development-ui.js"></script>
+<script src="tenant-detail.js"></script>
+<script src="export.js"></script><script src="template-tables.js"></script><script src="template-mapping.js"></script><script src="handoff-review.js"></script><script src="model-journal.js"></script><script src="model-history.js"></script>
+<script src="source-refresh.js"></script><script src="editor.js"></script><script src="review-corrections.js"></script><script src="development-evidence-ui.js"></script>
+<script src="filler.js"></script><script src="workspace-ui.js"></script><script src="analyst-ui.js"></script><script src="advanced-ui.js"></script><script src="operations-ui.js"></script><script src="monthly-chart.js"></script><script src="deal-visuals.js"></script><script src="appearance.js"></script>
+<script src="glass-interactions.js"></script>
+<script src="orbit-ui.js"></script>
+<script src="monal.js"></script>
+<script src="monal-flight.js"></script>
+<script src="monal-coins.js"></script>
+<script src="monal-3d.js"></script>
+<script src="monal-natural.js"></script>
+<script src="fresh-start.js"></script>
+<script src="scenario-library.js"></script>
+<script src="tool-library.js"></script>
+<script src="orbit-portal.js"></script>
+<script src="workbook-preview.js"></script>
+<script src="analyst-comforts.js"></script>
+<script src="rate-inputs.js"></script>
+<script src="review-brief.js"></script>
+<script src="workspace-comforts.js"></script>
+<script src="underwriting-review-ui.js"></script>
+<script src="monal-guide.js"></script>
+<script src="interface-comforts.js"></script>
+<script src="cashflow-controls.js"></script>
+<script src="handoff-review-ui.js"></script>
+
+</body></html>
