@@ -205,7 +205,7 @@ test('the package is clean and a confidential deal is marked on every sheet', as
   const wb = await load(await X.buildAbstractWorkbook(ExcelJS, { deal: { ...deal, confidential: true }, abstracts: [ab], fflate }));
   assert.match(wb.worksheets[0].headerFooter.oddHeader, /CONFIDENTIAL/);
   assert.match(wb.worksheets[0].headerFooter.oddFooter, /CONFIDENTIAL/);
-  assert.equal(wb.creator, 'Zlatura');
+  assert.equal(wb.creator, 'Monal');
 });
 
 test('CSV: every cell through the formula guard, CRLF line ends, the page but never the quote', () => {

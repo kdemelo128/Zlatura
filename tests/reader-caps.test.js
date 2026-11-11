@@ -72,9 +72,9 @@ test('a template reader passes a real workbook, and refuses a password-protected
 
 test('a backup or project reader refuses an array, a PNG, a PDF and a zip under a .json name, unread', async () => {
   for (const [head, re] of [[[...enc('[1,2,3]')], /start with “\{”/], [PNG, /start with “\{”/], [pdfHead, /start with “\{”/], [[0x50, 0x4b, 3, 4], /start with “\{”/], [[...enc('plain words')], /start with “\{”/]]) {
-    const f = fake(head, 4000, 'Zlatura backup.json');
+    const f = fake(head, 4000, 'Monal backup.json');
     const r = await checkReader(f, 'json');
-    assert.match(r, /^“Zlatura backup\.json” can’t be read: it is not a backup or project file/);
+    assert.match(r, /^“Monal backup\.json” can’t be read: it is not a backup or project file/);
     assert.match(r, re);
     assert.equal(f.calls.whole, 0);
   }

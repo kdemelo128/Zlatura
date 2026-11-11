@@ -1,5 +1,7 @@
 # Changelog
 
+> The product was called Zlatura before this version. Entries below keep the name they were written under.
+
 ## 4.7.128: Home and the pipeline in the New look, with your own accent colour, hover previews and a text size control (on the development branch; not merged or deployed)
 
 Step 2 of the New look (`docs/proposals/ui-filler-design-language.md`), plus the owner's asks of 2026-11-11. New look only; the Classic look is unchanged.

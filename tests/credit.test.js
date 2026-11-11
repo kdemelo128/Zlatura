@@ -42,7 +42,7 @@ test('a rating needs an agency, a rating, a real as-of date and a source', () =>
 
 test('the line under a rating carries the attribution, and a parent-only rating raises the obligor check', () => {
   const c = rec({ leaseEntity: 'Example Cafe LLC', ratings: [rating({ rating: 'BBB-', outlook: 'stable' })] });
-  assert.equal(ratingLine(c, c.ratings[0]), 'S&P BBB-, stable, for Example Cafe LLC (the tenant on the lease). As of Sep 1, 2026, from: typed from a report. Typed by the broker on Oct 29, 2026; not verified by Zlatura.');
+  assert.equal(ratingLine(c, c.ratings[0]), 'S&P BBB-, stable, for Example Cafe LLC (the tenant on the lease). As of Sep 1, 2026, from: typed from a report. Typed by the broker on Oct 29, 2026; not verified by Monal.');
 });
 
 test('obligor: fires when only the parent is rated, not when the tenant or a guarantor with a guaranty is', () => {

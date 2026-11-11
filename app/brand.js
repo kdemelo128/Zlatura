@@ -1,5 +1,8 @@
 /* brand.js -- the product's name, and the move from the old one.
  *
+ * Monal was called Zlatura until 4.7.128 and Comp Loader before 4.0. Only the DISPLAY name changed with Monal:
+ * every storage id below (KEY_PREFIX, the database, backup ids, cache names, the manifest id) is still
+ * `zlatura`, so saved data, old backups and installed copies need no migration (a later release moves them).
  * Zlatura was called Comp Loader until 4.0. Everything it kept on a device
  * under the old name still works:
  *   - localStorage keys `comp-loader.*` are copied to `zlatura.*` once, the
@@ -14,9 +17,11 @@
  * This module is imported first by ui.js. It has no imports of its own, so it
  * runs before anything else reads localStorage. */
 
-export const PRODUCT = 'Zlatura';
+export const PRODUCT = 'Monal';
 export const TAGLINE = 'Every source. Every assumption. Every number.';
-export const ABOUT_NAME = 'Zlatura joins two words for wealth: zlato, gold in Serbian and Croatian, and fartura, abundance in Brazilian Portuguese.';
+export const ABOUT_NAME = 'Monal is named for the Himalayan monal, a mountain pheasant with bright, many-coloured plumage.';
+/** Shown once, in About, so a person who knew the old name can tell it is the same product. */
+export const FORMERLY = 'Formerly called Zlatura.';
 
 /** The line under the name in the sidebar. */
 export const DESCRIPTOR = 'Brokerage workspace';

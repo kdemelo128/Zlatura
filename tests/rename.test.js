@@ -46,7 +46,7 @@ test('new files are written in the new formats; old format ids are still read', 
   for (const f of ['comp-loader-template', 'zlatura-template']) {
     assert.equal(readPackage(JSON.stringify({ format: f, workbook: 'UEsDBA==', name: 'T' })).name, 'T', f);
   }
-  assert.throws(() => readProject({ format: 'something-else', version: 1 }), /not a Zlatura project/);
+  assert.throws(() => readProject({ format: 'something-else', version: 1 }), /not a Monal project/);
   assert.throws(() => readBackup('{"format":"zlatura-project"}'), /comp project file/);
   assert.deepEqual(FORMATS.backup.read, ['zlatura-backup', 'comp-loader-backup']);
 });

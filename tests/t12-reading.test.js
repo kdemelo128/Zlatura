@@ -199,7 +199,7 @@ test('[old] a currency sign other than $ is found, and the import refusal says s
   assert.equal(formatOf([['Rent', ...six('£1,234.56'), '£7,407.36']]).foreign, '£');
   assert.equal(formatOf([['Rent', ...six('CHF 1’234.56'), '7’407.36']]).foreign, 'CHF');
   assert.equal(formatOf([['Rent', ...six('$1,234.56'), '$7,407.36']]).foreign, null);
-  assert.equal(currencyRefusal('€'), 'Amounts in € can’t be read as dollars. Zlatura reads dollar statements only; this file was not imported.');
+  assert.equal(currencyRefusal('€'), 'Amounts in € can’t be read as dollars. Monal reads dollar statements only; this file was not imported.');
   assert.equal(currencyRefusal(null), null);
 });
 

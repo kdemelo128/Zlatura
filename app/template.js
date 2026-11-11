@@ -832,7 +832,7 @@ export function previewCells(fflate, bytes, cellMap, values, xml) {
  * Fill a workbook: single cells from `cellMap` and tables of rows (a rent roll,
  * comps) under a header. `tables`: [{ sheet, headerRow, columns: [{ col, field }],
  * rows: [{ field: { value, type } }], clear: true }]. With `audit`, a sheet named
- * "Zlatura Audit" lists every cell written, with its source. Returns
+ * "Monal Audit" lists every cell written, with its source. Returns
  * { bytes, report: { written, skipped, preview, tables } }.
  */
 export function fillCells(fflate, bytes, { cellMap = [], values = {}, tables = [], audit = true, auditTitle = '' } = {}, xml) {
@@ -948,7 +948,7 @@ function renameSheet(pkg, from, to) {
 
 const AUDIT = `${PRODUCT} Audit`;
 /** The audit sheet's name before the rename: refilling such a workbook replaces it. */
-const OLD_AUDIT = 'Comp Loader Audit';
+const OLD_AUDITS = ['Zlatura Audit', 'Comp Loader Audit'];
 // cut before escaping: cutting after could split an entity such as &amp; and break the XML
 const esc = (s) => cutText(String(s).replace(XML_BAD, '')).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 /** A sheet listing every cell written and where its value came from; refilling replaces it. */
@@ -968,7 +968,7 @@ function addAuditSheet(pkg, log, auditTitle) {
   ];
   const body = rows.map((r, i) => `<row r="${i + 1}">${r.map((v, j) => cell(i + 1, j + 1, v)).join('')}</row>`).join('');
   const xmlText = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="${MAIN}"><cols><col min="1" max="1" width="22" customWidth="1"/><col min="2" max="2" width="12" customWidth="1"/><col min="3" max="3" width="30" customWidth="1"/><col min="4" max="4" width="22" customWidth="1"/><col min="5" max="5" width="36" customWidth="1"/><col min="6" max="6" width="18" customWidth="1"/></cols><sheetData>${body}</sheetData></worksheet>`;
-  const existing = sheetsOf(pkg).find((s) => s.name === AUDIT) || sheetsOf(pkg).find((s) => s.name === OLD_AUDIT);
+  const existing = sheetsOf(pkg).find((s) => s.name === AUDIT) || sheetsOf(pkg).find((s) => OLD_AUDITS.includes(s.name));
   if (existing) {
     pkg.files[existing.path] = pkg.fflate.strToU8(xmlText);
     pkg.docs.delete(existing.path);

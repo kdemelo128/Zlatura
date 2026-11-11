@@ -269,7 +269,7 @@ test('hostile files: __proto__ headings, 10,000-character cells, control charact
   assert.equal(normHeader('x'.repeat(5000)).length, 200);
 });
 
-test('every heading in the CSV export has a rule, and a Zlatura export imports back to the same comps', () => {
+test('every heading in the CSV export has a rule, and a Monal export imports back to the same comps', () => {
   const p = PROFILES[0];
   for (const h of CSV_HEADINGS) assert.ok(Object.hasOwn(p.columns, normHeader(h)), `${h} has no rule`);
   assert.deepEqual(templateCsv().split('\r\n')[0], `﻿${[...CSV_HEADINGS, 'Building SF Basis', 'Lot Acres', 'Parcel'].join(',')}`);

@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Zlatura",
-  "short_name": "Zlatura",
-  "description": "Zlatura: a commercial real estate brokerage workspace. Every source. Every assumption. Every number. Offering memoranda, comps, rent rolls, your firm's Excel models and deal calculators, kept on the device.",
+  "name": "Monal",
+  "short_name": "Monal",
+  "description": "Monal: a commercial real estate brokerage workspace. Every source. Every assumption. Every number. Offering memoranda, comps, rent rolls, your firm's Excel models and deal calculators, kept on the device.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

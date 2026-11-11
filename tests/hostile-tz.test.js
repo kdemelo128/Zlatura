@@ -70,7 +70,7 @@ test('the audit sheet’s XML still parses when a long text is cut next to an am
   assert.deepEqual(problems, [], 'the audit sheet is well-formed XML');
   const back = new ExcelJS.Workbook();
   await back.xlsx.load(out);
-  assert.ok(back.getWorksheet('Zlatura Audit'));
+  assert.ok(back.getWorksheet('Monal Audit'));
 });
 
 test('the pack: every hostile text is a guarded CSV cell or plain text', () => {

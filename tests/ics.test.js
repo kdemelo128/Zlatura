@@ -17,7 +17,7 @@ const LONG = 'Closing statement review with the lender and the title company, '.
 test('two events, exact text', () => {
   const t = icsFor([ev({}), ev({ evId: 'u2@zlatura.invalid', date: '2027-04-15', title: 'Task, with; marks', alarms: ['-PT15H'] })], opts);
   assert.equal(t, [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Zlatura//Zlatura 9.9.9//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Monal//Monal 9.9.9//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     'BEGIN:VEVENT', 'UID:u1@zlatura.invalid', 'DTSTAMP:20260101T001005Z', 'SEQUENCE:10', 'DTSTART;VALUE=DATE:20270301', 'DTEND;VALUE=DATE:20270302',
     'SUMMARY:Harbor Plaza: Closing',
     'BEGIN:VALARM', 'ACTION:DISPLAY', 'TRIGGER:-P6DT15H', 'DESCRIPTION:Harbor Plaza: Closing is on Mar 1', 'END:VALARM',
@@ -84,7 +84,7 @@ test('a deal offers its open dated key dates and tasks; UIDs are stable per deal
   const b = dealEvents({ ...deal, id: 'dB' }, []);
   assert.ok(b.events.every((e, i) => e.evId !== a.events[i].evId));
   assert.equal(a.events[0].title, 'Harbor Plaza: Closing');
-  assert.equal(dealEvents(deal, tasks, { showName: false }).events[0].title, 'Zlatura deal: Closing');
+  assert.equal(dealEvents(deal, tasks, { showName: false }).events[0].title, 'Monal deal: Closing');
 });
 
 test('the 1031 dates equal exchangeDates, and need exactly one open Closing', () => {

@@ -416,8 +416,8 @@ test('W1: a 4.7.56 backup restores into a device that has quick underwritings, a
 test('W1: a replace restore says it also deletes quick underwritings made by a newer version, which it does not show', () => {
   const device = { ...EMPTY, kv: { 'uw.scratch': [quick('x'), { ...quick('f'), v: 2 }] } };
   const p = planRestore({ deals: [], local: {}, session: null, kv: { 'uw.scratch': [quick('a')] } }, device, 'replace', NOW);
-  assert.match(p.summary.join(' '), /1 quick underwriting on this device made by a newer version of Zlatura is not shown and will be deleted too\./);
-  assert.ok(!/newer version of Zlatura is not shown/.test(planRestore({ deals: [], local: {}, session: null, kv: {} }, { ...EMPTY, kv: { 'uw.scratch': [quick('x')] } }, 'replace', NOW).summary.join(' ')));
+  assert.match(p.summary.join(' '), /1 quick underwriting on this device made by a newer version of Monal is not shown and will be deleted too\./);
+  assert.ok(!/newer version of Monal is not shown/.test(planRestore({ deals: [], local: {}, session: null, kv: {} }, { ...EMPTY, kv: { 'uw.scratch': [quick('x')] } }, 'replace', NOW).summary.join(' ')));
 });
 
 /* ----------------------------------------------------------- the fee record */

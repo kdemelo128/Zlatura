@@ -79,14 +79,14 @@ test('classify: a text file is a table, a JSON list or plain text by its words',
 
 test('classify: hostile and unconvertible files are refused by name, each with its own next step', async () => {
   const refuse = async (name, bytes, size) => (await classify(file(name, bytes, size), { getFflate })).refuse;
-  assert.match(await refuse('Lease.pages', otherZip()), /^Lease\.pages is an Apple Pages file\. Zlatura can’t convert it on this device\. In Pages, choose Export → PDF/);
+  assert.match(await refuse('Lease.pages', otherZip()), /^Lease\.pages is an Apple Pages file\. Monal can’t convert it on this device\. In Pages, choose Export → PDF/);
   assert.match(await refuse('Deck.pptx', otherZip()), /^Deck\.pptx is a PowerPoint file.*Export → PDF/);
   assert.match(await refuse('Old.doc', oleDoc()), /^Old\.doc is an old Word \(\.doc\) file.*\.docx/);
   assert.match(await refuse('Scan.tif', Uint8Array.of(0x49, 0x49, 0x2a, 0, 8, 0, 0, 0, 0, 0)), /^Scan\.tif is a TIFF image/);
   assert.match(await refuse('Plan.dwg', new TextEncoder().encode('AC1015\0\0\0\0')), /^Plan\.dwg is an AutoCAD drawing/);
   assert.match(await refuse('Pics.heic', Uint8Array.from([0, 0, 0, 24, ...new TextEncoder().encode('ftypavif'), 0, 0, 0, 0, 0, 0, 0, 0])), /AVIF/);
-  assert.match(await refuse('Clip.mov', Uint8Array.from([0, 0, 0, 24, ...new TextEncoder().encode('ftypqt  '), 0, 0, 0, 0, 0, 0, 0, 0])), /^Clip\.mov is not a file type Zlatura can convert/);
-  assert.match(await refuse('Blob.bin', Uint8Array.of(1, 2, 0, 3, 4)), /not a file type Zlatura can convert/);
+  assert.match(await refuse('Clip.mov', Uint8Array.from([0, 0, 0, 24, ...new TextEncoder().encode('ftypqt  '), 0, 0, 0, 0, 0, 0, 0, 0])), /^Clip\.mov is not a file type Monal can convert/);
+  assert.match(await refuse('Blob.bin', Uint8Array.of(1, 2, 0, 3, 4)), /not a file type Monal can convert/);
   assert.match(await refuse('Empty.pdf', new Uint8Array(0)), /^Empty\.pdf is empty/);
 });
 

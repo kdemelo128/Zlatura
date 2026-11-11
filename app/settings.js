@@ -13,7 +13,7 @@ import { openTemplates } from './dealui.js';
 import { editStages } from './home.js';
 import { listTemplates } from './library.js';
 import { VERSION } from './exporters.js';
-import { PRODUCT, TAGLINE, ABOUT_NAME } from './brand.js';
+import { PRODUCT, TAGLINE, ABOUT_NAME, FORMERLY } from './brand.js';
 import { listLabels, forgetLabel } from './t12labels.js';
 import { CATEGORY } from './t12.js';
 import { CONVENTIONS, conv, setConventions, conventionValues } from './engine/conventions.js';
@@ -275,7 +275,7 @@ export async function renderSettings() {
   p.appendChild(el('p', 'about-tagline', TAGLINE));
   const nm = el('p');
   nm.style.marginTop = '8px';
-  nm.append(el('b', null, 'About the name. '), ABOUT_NAME);
+  nm.append(el('b', null, 'About the name. '), `${ABOUT_NAME} ${FORMERLY}`);
   p.appendChild(nm);
   const kept = el('p', null, 'Everything you add (deals, comps, templates, tasks, contacts, recordings) is kept in this browser on this device. Nothing is uploaded unless you turn AI on and confirm a send.');
   kept.style.marginTop = '8px';

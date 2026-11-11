@@ -51,7 +51,7 @@ test('project files: version 2 is written, versions 1 and 2 open, 3 is refused i
   const base = { format: FORMAT, docs: [], edits: {}, manual: [], windowMonths: 0 };
   assert.deepEqual(readProject({ ...base, version: 1 }).manual, []);
   assert.deepEqual(readProject({ ...base, version: 2 }).manual, []);
-  assert.throws(() => readProject({ ...base, version: 3 }), { message: 'That project was saved by a newer version of Zlatura. Reload the page to update, then open it again.' });
+  assert.throws(() => readProject({ ...base, version: 3 }), { message: 'That project was saved by a newer version of Monal. Reload the page to update, then open it again.' });
   assert.throws(() => readProject({ ...base, version: '2' }), /newer version/);
 });
 
