@@ -142,7 +142,7 @@ export async function zipMembers(file, info, deps, { from = null, depth = 0, bud
     if (sub) members.push(...sub);
     else members.push({ file: inner, name, from: me, refuse: null });
   }
-  for (const r of bundle.refused) members.push({ file: null, name: r.name, from: me, refuse: `${r.name} ${r.why}.`.replace(/\.\.$/, '.') });
+  for (const r of bundle.refused) members.push({ file: null, name: r.name, from: me, refuse: `${r.why[0].toUpperCase()}${r.why.slice(1)}.` });
   return { members, refuse: null };
 }
 
@@ -150,7 +150,7 @@ export async function zipMembers(file, info, deps, { from = null, depth = 0, bud
 async function zipMembersOf(inner, deps, { from, depth, budget }) {
   const up = await checkUpload(inner, { getFflate: deps.getFflate, bundle: true });
   if (!up.plainZip) return null;
-  if (depth >= ZIP_DEPTH) return [{ file: null, name: inner.name, from, refuse: `${inner.name} is a zip inside a zip inside a zip; only one zip inside the dropped one is opened, so it was not opened.` }];
+  if (depth >= ZIP_DEPTH) return [{ file: null, name: inner.name, from, refuse: 'This is a zip inside a zip inside a zip; only one zip inside the dropped one is opened, so it was not opened.' }];
   const z = await zipMembers(inner, { plainZip: true }, deps, { from, depth: depth + 1, budget });
   return z.refuse ? [{ file: null, name: inner.name, from, refuse: z.refuse }] : z.members;
 }

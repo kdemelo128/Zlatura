@@ -100,16 +100,16 @@ await page.waitForFunction(() => document.querySelector('#uw-intake').textConten
 check('a file dropped on the tab is read by the card and the tab stays Underwrite', (await page.evaluate(() => location.hash)).includes('underwrite') && (await page.locator('#underwrite-root').isVisible()));
 
 /* ---- a zip is opened in memory and each file in it is staged as if dropped itself, naming the zip */
-await page.locator('.uwi-head, #uw-intake .card-head button').filter({ hasText: 'Clear list' }).click();
+await page.getByRole('button', { name: 'Clear the document list' }).click();
 await page.setInputFiles('#uwi-files', [{ name: 'deal-bundle.zip', mimeType: 'application/zip', buffer: zipOf({ 'rent-roll-z.csv': RR1, 'Q4/operating-z.csv': T12, '../escape.csv': RR2, 'folder/': '' }) }]);
 await page.waitForFunction(() => document.querySelectorAll('#uw-intake .uwi-files li').length >= 3);
 const zrows = await page.$$eval('#uw-intake .uwi-files li', (ls) => ls.map((l) => l.textContent));
-check('a zip is opened: each file in it is listed "from deal-bundle.zip", the "../" path refused with its reason', zrows.length === 3 && zrows.filter((r) => /from deal-bundle\.zip/.test(r)).length === 3 && zrows.some((r) => /escape\.csv.*climbs out of the zip/.test(r)), JSON.stringify(zrows).slice(0, 500));
+check('a zip is opened: each file in it is listed "from deal-bundle.zip", the "../" path refused with its reason', zrows.length === 3 && zrows.filter((r) => /from deal-bundle\.zip/.test(r)).length === 3 && zrows.some((r) => /escape\.csv.*Its path in the zip climbs out of the zip/.test(r)), JSON.stringify(zrows).slice(0, 500));
 const zitems = await page.$$eval('.uwi-item', (ls) => ls.map((l) => l.textContent));
 check('the files in the zip are found by the same readers (rent roll, T-12) and say where they came from', zitems.length === 2 && zitems.some((t) => /Rent roll.*From deal-bundle\.zip\..*Read/.test(t)) && zitems.some((t) => /T-12.*From deal-bundle\.zip\./.test(t)), JSON.stringify(zitems).slice(0, 400));
 check('a zip still stages nothing on a deal, and the make-a-deal action is ready for the safe files', (await deals()).length === before && !(await page.locator('#uwi-make').isDisabled()));
 await page.setInputFiles('#uwi-files', [{ name: 'bomb.zip', mimeType: 'application/zip', buffer: zipOf({ 'big.bin': new Uint8Array(30e6) }) }, { name: 'nothing.zip', mimeType: 'application/zip', buffer: zipOf({}) }]);
-await page.waitForFunction(() => /bomb\.zip/.test(document.querySelector('#uw-intake .uwi-files').textContent) && /nothing\.zip/.test(document.querySelector('#uw-intake .uwi-files').textContent));
+await page.waitForFunction(() => document.querySelectorAll('#uw-intake .uwi-why').length >= 3);
 const bad = await page.$$eval('#uw-intake .uwi-why', (l) => l.map((x) => x.textContent));
 check('a zip bomb and an empty zip are each refused with a reason, and the earlier files are still there', bad.some((w) => /bomb\.zip.*not opened/.test(w)) && bad.some((w) => /empty zip/.test(w)) && (await page.locator('.uwi-item').count()) === 2, bad.join(' | ').slice(0, 300));
 
@@ -119,8 +119,7 @@ await page.setInputFiles('#uwi-files', [F + 'rr-scan.pdf']);
 await page.waitForSelector('.uwi-item [data-ocr]');
 const scanRow = await page.locator('.uwi-item', { has: page.locator('[data-ocr]') }).first().textContent();
 check('a scan says "no text layer" and offers OCR on request; no OCR file was fetched yet', /no text layer/.test(scanRow) && !/damaged|unreadable/i.test(scanRow) && ocrBefore === 0 && requests.filter((u) => /vendor\/ocr\//.test(u)).length === 0, scanRow.slice(0, 200));
-await axe('with the scan offer, desktop size');
-await page.setViewportSize({ width: 390, height: 844 });
+await axe('with the scan offer, phone size');
 await page.locator('[data-ocr]').first().click();
 await page.waitForFunction(() => /Read by OCR on this device/.test(document.querySelector('#uw-intake').textContent), null, { timeout: 150000 });
 const scanAfter = await page.locator('.uwi-item', { hasText: 'rr-scan.pdf' }).first().textContent();

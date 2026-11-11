@@ -260,7 +260,7 @@ export function renderDocsCard(box, h) {
       if (!h.stillOpen()) return;
       const refusals = [];
       for (const { file, info } of seen) {
-        if (info.refuse) { if (seen.length === 1) warn(info.refuse); else refusals.push(info.refuse); }
+        if (info.refuse) { if (seen.length === 1) warn(info.refuse); else refusals.push(info.from ? `${info.name}: ${info.refuse}` : info.refuse); }
         if (info.refuse && info.from) continue; // a refused part of a zip: said why below, the others go on
         const from = info.from ? ` (from ${info.from})` : '';
         let { type, typeBy } = info.verdict;

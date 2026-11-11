@@ -131,7 +131,7 @@ test('a cap on files: the parts past it are refused as one line and the rest sta
     assert.equal(out.filter((x) => !x.refuse).length, 2);
     const r = out.filter((x) => x.refuse);
     assert.equal(r.length, 1);
-    assert.match(r[0].refuse, /2 more files .*more than this app opens at once/);
+    assert.match(r[0].refuse, /more than this app opens at once/);
   } finally { LIMITS.zipFiles = cap; }
   const bytesCap = LIMITS.zipTotal;
   try {
