@@ -28,6 +28,14 @@
   try { if (localStorage.getItem('zlatura.look') === 'new') document.documentElement.dataset.look = 'new'; } catch (e) { /* Classic */ }
   /* Solid controls (Settings > Appearance): the New look's floating controls opaque. Only the New look reads it. */
   try { if (localStorage.getItem('zlatura.solid') === '1') document.documentElement.dataset.solid = '1'; } catch (e) { /* frosted */ }
+  /* Device-only New look choices (Settings > Appearance): the accent colour (the app stores the adjusted values, so
+     nothing is computed here), the motion switch and the text size. Never in a backup or a deal. */
+  try {
+    var ac = JSON.parse(localStorage.getItem('zlatura.accent') || 'null'), N = ['la', 'li', 'ls', 'da', 'di', 'ds'];
+    if (ac && ac.c && ac.c.length === 6) { document.documentElement.dataset.accent = '1'; for (var i = 0; i < 6; i++) document.documentElement.style.setProperty('--acc-' + N[i], String(ac.c[i]).slice(0, 7)); }
+  } catch (e) { /* the default accent */ }
+  try { if (localStorage.getItem('zlatura.motion') === 'off') document.documentElement.dataset.motion = 'off'; } catch (e) { /* motion on */ }
+  try { var ts = +localStorage.getItem('zlatura.textsize'); if (ts >= 100 && ts <= 130) { document.documentElement.dataset.textsize = '1'; document.documentElement.style.setProperty('--ts', String(Math.round(ts))); } } catch (e) { /* 100% */ }
 </script>
 <title>Zlatura</title>
 <meta name="description" content="Zlatura, a commercial real estate brokerage workspace. Every source. Every assumption. Every number. Offering memoranda read and underwritten, comps, rent rolls, your firm's Excel models and the calculators a deal needs, on your device.">

@@ -4,7 +4,8 @@
 
 import { $, el, icon, niceDate, parseNum, parsePct } from './kit.js';
 import { getTheme } from './theme.js';
-import { getLook, getSolid } from './look.js';
+import { getLook, getSolid, getMotion, getAccent, setAccent, TEXT_SIZES, getTextSize } from './look.js';
+import { SWATCHES } from './accent.js';
 import * as ai from './ai.js';
 import { renderDataCard } from './backupui.js';
 import { openAiSettings } from './aiui.js';
@@ -147,6 +148,55 @@ export async function renderSettings() {
   solid.dataset.solidToggle = '1';
   solid.setAttribute('aria-checked', String(getSolid()));
   ul.appendChild(row('Solid controls', 'In the New look the step bar, messages and command menu are slightly see-through. Turn this on to make them solid. Kept on this device only; it is not in backups.', [solid]));
+  // accent colour: swatches and a custom colour; a pick that would not read is adjusted, and the person is told
+  const accRow = el('div', 'acc-picker');
+  const accSeg = el('div', 'acc-swatches');
+  accSeg.setAttribute('role', 'radiogroup');
+  accSeg.setAttribute('aria-label', 'Accent colour');
+  for (const [name, hex] of SWATCHES) {
+    const b = el('button', 'acc-swatch');
+    b.type = 'button';
+    b.setAttribute('role', 'radio');
+    b.setAttribute('aria-label', name);
+    b.title = name;
+    b.dataset.accentSet = hex;
+    b.style.setProperty('--sw', hex);
+    b.setAttribute('aria-checked', String(hex === (getAccent() ? getAccent().hex : SWATCHES[0][1])));
+    accSeg.appendChild(b);
+  }
+  const custom = el('input');
+  custom.type = 'text'; custom.id = 'accent-custom'; custom.placeholder = '#2F5D9E'; custom.maxLength = 7; custom.autocomplete = 'off'; custom.spellcheck = false;
+  custom.setAttribute('aria-label', 'Custom accent colour, as #RRGGBB');
+  const apply = el('button', 'btn btn-sm', 'Use this colour');
+  apply.type = 'button'; apply.id = 'accent-apply';
+  const say = el('p', 'hint-sm');
+  say.id = 'accent-say'; say.setAttribute('role', 'status');
+  const a0 = getAccent();
+  if (a0 && a0.adjusted) say.textContent = `${a0.hex} was adjusted so text in it stays readable.`;
+  apply.addEventListener('click', () => {
+    const r = setAccent(custom.value);
+    if (!r) { say.textContent = 'That is not a colour. Type it as #RRGGBB, for example #2F5D9E.'; custom.focus(); return; }
+    say.textContent = r.adjusted ? `${r.hex} was adjusted to ${r.shown} so text in it stays readable.` : `Accent set to ${r.hex}.`;
+  });
+  custom.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); apply.click(); } });
+  accRow.append(accSeg, custom, apply);
+  ul.appendChild(row('Accent colour', 'The colour of buttons, links and the focus ring in the New look. Any colour you pick is adjusted if needed so text stays readable in light and dark. Kept on this device only; it is not in backups.', [accRow, say]));
+  const motion = el('button', 'btn btn-sm', 'Motion');
+  motion.type = 'button';
+  motion.setAttribute('role', 'switch');
+  motion.dataset.motionToggle = '1';
+  motion.setAttribute('aria-checked', String(getMotion()));
+  ul.appendChild(row('Motion', 'In the New look, cards and tiles lift a little and glow under the pointer, and previews fade in. Turn this off to keep them still. Your device’s reduce-motion setting always turns it off. Kept on this device only.', [motion]));
+  const sizeSeg = el('div', 'seg theme-seg wide');
+  sizeSeg.setAttribute('role', 'radiogroup');
+  sizeSeg.setAttribute('aria-label', 'Text size');
+  for (const n of TEXT_SIZES) {
+    const b = el('button', null, `${n}%`);
+    b.type = 'button'; b.setAttribute('role', 'radio'); b.dataset.sizeSet = String(n);
+    b.setAttribute('aria-checked', String(n === getTextSize()));
+    sizeSeg.appendChild(b);
+  }
+  ul.appendChild(row('Text size', 'In the New look, make everything larger, up to 130%. Kept on this device only; it is not in backups.', [sizeSeg]));
   look.appendChild(ul);
   stack.appendChild(look);
 

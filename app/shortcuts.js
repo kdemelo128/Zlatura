@@ -45,6 +45,7 @@ export const SHORTCUTS = [
   { group: 'In a date field', keys: [['Enter']], does: 'Keep the date (or a setting’s number) you typed', src: ['dateinput.js', 'settings.js'], listen: ['Enter'] },
   { group: 'In a date field', keys: [['Esc']], does: 'Put back the last date (or setting)', src: ['dateinput.js', 'settings.js'], listen: ['Escape'] },
   { group: 'Home', keys: [['←'], ['→']], does: 'Move between the pinned workspace tabs, once one has the focus (Enter picks it)', src: ['workspaceui.js'], listen: ['ArrowLeft', 'ArrowRight', 'Home', 'End'] },
+  { group: 'Home', keys: [['Esc']], does: 'Close the preview of a section or workspace (New look, desktop)', src: ['preview.js'], listen: ['Escape'] },
   { group: 'Settings', keys: [['←'], ['→']], does: 'Choose the theme or the look, once that control has the focus', src: ['theme.js', 'look.js'], listen: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'] },
 ];
 
