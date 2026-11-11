@@ -29,7 +29,10 @@ Pages serves `main`. The repo is public.
    unless a change is logged in `DECISIONS.md` with a before/after table.
 5. **Invented fixtures only.** Real files stay in git-ignored `private/`;
    report structure-only counts.
-6. **The private underwriting package is never committed**, quoted or copied.
+6. **The private underwriting package, as delivered, is never committed**,
+   quoted or copied. A cleaned copy of the tool (firm workbook, firm name,
+   template layout and real-deal defaults removed) ships with the app, made
+   by `tools/uwtool-import.mjs` (`docs/proposals/monal-builtin-and-rename.md`).
 7. **Clean room:** no vendor formats, files, layouts, text, leaked code or
    trademarks (`docs/working-rules.md`).
 8. **No feature is removed**; whatever is touched gets better.

@@ -39,12 +39,15 @@ export const SECRET_RULES = [
   ['JWT', new RegExp(j('\\beyJ[A-Za-z0-9_-]{15,}\\.eyJ[A-Za-z0-9_-]{15,}\\.', '[A-Za-z0-9_-]{20,}'))],
   // the broker's filler package carries the firm's workbook as a base64 block (docs/proposals/uw-embed-as-is.md, section 2): it is never committed
   ['embedded workbook block', new RegExp(j('tpl', 'b64'))],
+  // the filler package's other two data blocks (the firm template's layout, an inlined worker): same rule, repo-wide
+  ['embedded tool data block', new RegExp(j('<script[^>]*\\bid\\s*=\\s*["\']', '(?:spec|pdfworker)["\']'))],
   ['base64 run over 256 KB', /[A-Za-z0-9+/=]{262144,}/],
 ];
 // path -> rule names allowed there (documented test strings); none today
 export const SECRET_ALLOW = {
   // the proposal names the block it forbids (the name only, never its contents)
   'docs/proposals/uw-embed-as-is.md': ['embedded workbook block'],
+  'docs/proposals/monal-builtin-and-rename.md': ['embedded workbook block'],
   // vendored libraries that carry their own wasm or worker as one base64 string (THIRD_PARTY.md)
   'vendor/ocr/tesseract-core-7.0.0-simd-lstm.wasm.js': ['base64 run over 256 KB'],
   'vendor/pdf-4.7.76-legacy.worker.min.js': ['base64 run over 256 KB'],
@@ -104,6 +107,7 @@ test('every secret rule fires on a sample, the allowlists are exact, and ordinar
     'Google API key': j('AIza', 'a'.repeat(35)),
     'JWT': j('eyJ', 'a'.repeat(20), '.eyJ', 'b'.repeat(20), '.', 'c'.repeat(24)),
     'embedded workbook block': j('<script id="tpl', 'b64">'),
+    'embedded tool data block': j('<script id="sp', 'ec" type="application/json">'),
     'base64 run over 256 KB': 'A'.repeat(262144),
   };
   // a rule that is deleted, or added without a sample, must fail here: the loop below only visits rules that exist
