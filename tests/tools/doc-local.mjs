@@ -22,6 +22,10 @@
  *                            message; page, sheet and character counts only as buckets. Without the flag the output is
  *                            exactly what it was before.
  *
+ * A zip is opened in memory by the app's own code (ddintake.js zipMembers): each file inside is one row of the table, read as a dropped
+ * file is, and the zip is counted once under the reason 'zip-opened:<files bucket> files'; a refused part is family 'zip-part'
+ * (zip-part-unsafe-path, -too-deep, -over-cap, -not-opened), a zip refused whole or empty family 'zip' (zip-not-opened, zip-empty).
+ *
  * Answer-file keys by family (values are what the document says; amounts in dollars):
  *   t12: months, lines, egi, opex, noi, taxes     rent roll: rows, units, vacant, sf     om: the OM reader's field names
  *   lease: the lease reader's field keys (a value that needs the broker's choice counts as asked)
@@ -41,7 +45,7 @@ import { readLease, pageModel, docType } from '../../app/leaseread.js';
 
 globalThis.window = globalThis.window || {};
 globalThis.document = globalThis.document || { addEventListener() {}, dispatchEvent() {} };
-const { intake } = await import('../../app/ddintake.js');
+const { intake, zipMembers } = await import('../../app/ddintake.js');
 const { headerAndRows, guessField, rowsToLeases } = await import('../../app/rentrollui.js');
 const { emptyRentRoll } = await import('../../app/rentroll.js');
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('../../vendor/pdf-4.7.76-legacy.worker.min.js', import.meta.url).href;
@@ -163,21 +167,39 @@ async function reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridE
   return out;
 }
 
+class Done extends Error {} // a unit decided before any reader runs (a refused part of a zip)
 const reasonCount = {}; const reasonByFam = {};
 const fam = {}; // family -> counts
 const bump = (f, k, n = 1) => { (fam[f] ||= { files: 0, accepted: 0, asked: 0, refused: 0, identified: 0, right: 0, wrong: 0, askedFields: 0, missed: 0, answered: 0 })[k] += n; };
 const labels = {};
 const perFile = [];
 
-let n = 0;
+// A zip is opened in memory by the app's own code (ddintake.js zipMembers) and each file inside it is one unit, read exactly as a
+// dropped file is; the zip itself is not a file in the table. A zip refused whole, or empty, stays one refused unit.
+const ZIP_BUCKETS = [[1, '1'], [5, '2-5'], [20, '6-20'], [Infinity, '21+']];
+const zipPartWhy = (m) => (/climbs out of the zip/.test(m) ? 'zip-part-unsafe-path' : /inside a zip inside a zip/.test(m) ? 'zip-part-too-deep' : /more than this app opens at once/.test(m) ? 'zip-part-over-cap' : 'zip-part-not-opened');
+const units = []; const zipOpened = [];
 for (const f of files) {
+  const file = fileLike(f);
+  let z = null;
+  try { const up = await checkUpload(file, { getFflate, bundle: true }); z = up.plainZip ? await zipMembers(file, { plainZip: true }, { getFflate }) : null; } catch { z = null; }
+  if (z && !z.refuse) {
+    zipOpened.push(z.members.length);
+    for (const m of z.members) units.push({ f: null, rel: `${path.relative(folder, f)}#${m.name}`, file: m.file, partRefuse: m.refuse });
+  } else units.push({ f, rel: path.relative(folder, f), file, zipRefuse: z ? (/empty zip/.test(z.refuse) ? 'zip-empty' : 'zip-not-opened') : null });
+}
+
+let n = 0;
+for (const u of units) {
+  const f = u.f;
   n += 1;
   const label = `file-${String(n).padStart(2, '0')}`;
-  labels[label] = path.relative(folder, f);
+  labels[label] = u.rel;
   let family = 'unreadable'; let outcome = 'refused'; let gotAsked = null;
   let why = [];
   try {
-    const file = fileLike(f);
+    const file = u.file;
+    if (u.zipRefuse || u.partRefuse) { family = u.zipRefuse ? 'zip' : 'zip-part'; outcome = 'refused'; if (REASONS) why = [u.zipRefuse || zipPartWhy(u.partRefuse)]; throw new Done(); }
     const upRes = await checkUpload(file, { getFflate });
     const sniffedKind = upRes.kind;
     let intakeErr = null; let gridErr = null; let pdfErr = null;
@@ -187,7 +209,7 @@ for (const f of files) {
     const v = info.verdict;
     let grids = null; let pages = null;
     if (!info.refuse && !readerNote) {
-      if (sniffedKind === 'pdf') { try { pages = await readPdf(fs.readFileSync(f)); } catch (e) { pdfErr = e; pages = null; } } else if (['xlsx', 'text'].includes(sniffedKind)) { try { grids = await readGrids(file, getXlsx, { maxRows: 1500, getFflate }); } catch (e) { gridErr = e; grids = null; } }
+      if (sniffedKind === 'pdf') { try { pages = await readPdf(new Uint8Array(await file.arrayBuffer())); } catch (e) { pdfErr = e; pages = null; } } else if (['xlsx', 'text'].includes(sniffedKind)) { try { grids = await readGrids(file, getXlsx, { maxRows: 1500, getFflate }); } catch (e) { gridErr = e; grids = null; } }
     }
     if (info.refuse || readerNote) { outcome = 'refused'; family = sniffedKind || 'unknown'; }
     else if (v.type) { outcome = 'accepted'; family = v.reader; }
@@ -200,13 +222,13 @@ for (const f of files) {
     if (REASONS && outcome === 'asked' && v.looks) outcome = 'identified'; // typed confidently, but the app has no reader for that type
     if (REASONS && outcome !== 'accepted') why = await reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridErr, pdfErr, outcome });
     if (outcome === 'accepted') { try { gotAsked = await extract(file, { ...info, verdict: { ...v, reader: family === 'lease' ? 'lease' : v.reader } }, grids, pages); } catch { gotAsked = { got: {}, asked: new Set(), failed: true }; } }
-  } catch (e) { family = 'unreadable'; outcome = 'refused'; if (REASONS) why = [`read-exception:${errClass(e)}`]; }
+  } catch (e) { if (!(e instanceof Done)) { family = 'unreadable'; outcome = 'refused'; if (REASONS) why = [`read-exception:${errClass(e)}`]; } }
   bump(family, 'files'); bump(family, outcome);
   for (const w of why) { reasonCount[w] = (reasonCount[w] || 0) + 1; ((reasonByFam[family] ||= {})[w] = (reasonByFam[family][w] || 0) + 1); }
   // answer file: fields right, wrong, asked, missed
-  const ans = f.replace(/\.[^.\\/]+$/, '') + '.answers.json';
+  const ans = f ? f.replace(/\.[^.\\/]+$/, '') + '.answers.json' : '';
   let tally = null;
-  if (fs.existsSync(ans)) {
+  if (ans && fs.existsSync(ans)) {
     let want = {};
     try { want = JSON.parse(fs.readFileSync(ans, 'utf8')); } catch { want = {}; }
     tally = { right: 0, wrong: 0, asked: 0, missed: 0 };
@@ -224,8 +246,8 @@ for (const f of files) {
   perFile.push(`${label}: ${family}, ${outcome}${why.length ? `; reasons ${why.join(', ')}` : ''}${tally ? `; fields right ${tally.right}, wrong ${tally.wrong}, asked ${tally.asked}, missed ${tally.missed}` : ''}`);
 }
 
-console.log(`doc-local: ${files.length} file(s) read by the app's own readers; counts only (no names, figures or text are printed)`);
-if (!files.length) console.log('No files: put documents in private/docs (git-ignored) or name a folder.');
+console.log(`doc-local: ${units.length} file(s) read by the app's own readers; counts only (no names, figures or text are printed)`);
+if (!units.length) console.log('No files: put documents in private/docs (git-ignored) or name a folder.');
 const X = REASONS ? ' | identified, no reader' : ''; // --reasons adds one last column; everything before it is unchanged
 console.log(`family | files | accepted | asked | refused | answer files | fields right | wrong | asked | missed${X}`);
 const tot = { files: 0, accepted: 0, asked: 0, refused: 0, answered: 0, right: 0, wrong: 0, askedFields: 0, missed: 0 };
@@ -237,6 +259,8 @@ for (const [name, c] of Object.entries(fam).sort()) {
 }
 console.log(`TOTAL | ${tot.files} | ${tot.accepted} | ${tot.asked} | ${tot.refused} | ${tot.answered} | ${tot.right} | ${tot.wrong} | ${tot.askedFields} | ${tot.missed}${REASONS ? ` | ${totIdentified}` : ''}`);
 if (REASONS) {
+  // a zip opened in memory, counted once with its inner file count as a bucket; its files are in the rows above, each as if dropped itself
+  for (const k of zipOpened) { const w = `zip-opened:${bucket(k, ZIP_BUCKETS)} files`; reasonCount[w] = (reasonCount[w] || 0) + 1; ((reasonByFam.zip ||= {})[w] = (reasonByFam.zip[w] || 0) + 1); }
   console.log('');
   console.log('reason | files (refused, asked and identified files only; a file can have several: its main reason, then its shape)');
   for (const [r, n] of Object.entries(reasonCount).sort()) console.log(`${r} | ${n}`);
