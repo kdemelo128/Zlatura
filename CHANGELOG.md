@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.7.129: Groundwork for building the underwriting tool into the app: a guard and a repeatable cleaning script (on the development branch; not merged or deployed)
+
+Steps 1 and 2 of `docs/proposals/monal-builtin-and-rename.md`. Nothing of the tool itself is published by this change.
+
+- **Guard:** a test scans every tracked file for terms on a private deny-list (kept outside the repo) and for long encoded blocks, so the firm's workbook, name or layout cannot be committed by mistake. The scan runs wherever the list exists; turning it on in CI needs the owner to add the list as a repository secret.
+- **Cleaning script (`tools/uwtool-import.mjs`):** takes the tool as delivered and writes the copy that can ship: only files on an allow-list are copied, each edit must match exactly or the run fails, and nothing is written if the result still holds a deny-listed term. It records what it did as counts and fingerprints only, so a later release of the tool can be brought in the same way. The tool's code will carry its own "all rights reserved" licence (owner decision, 2026-11-11).
+- **Tried locally on the owner's package (counts only, nothing committed):** 26 edits, 8 blocks or files moved to a private pack, size 6.9 MB to 3.3 MB, no expected text missing, deny-list scan clean. The cleaned copy opens in a browser with no errors, loads an invented example, and builds its own 43-sheet workbook without the firm's workbook.
+- **Tested:** 17 new tests on an invented stand-in package; seven deliberate breaks are each caught. Displayed figures unchanged (646 compared, 0 changed).
+- **Still to do before the tool ships:** its preset cap rates must become blank, its outside font requests and security edits, and wiring it into the Underwrite tab.
+
 ## 4.7.128: Home and the pipeline in the New look, with your own accent colour, hover previews and a text size control (on the development branch; not merged or deployed)
 
 Step 2 of the New look (`docs/proposals/ui-filler-design-language.md`), plus the owner's asks of 2026-11-11. New look only; the Classic look is unchanged.
