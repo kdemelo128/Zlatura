@@ -1,0 +1,8 @@
+{
+  "root": "public/tool/",
+  "allow": ["public/tool/"],
+  "allowExt": ["html", "js", "mjs", "css", "json", "svg", "png", "jpg", "jpeg", "gif", "webp", "ico", "woff", "woff2", "ttf", "wasm", "txt"],
+  "base64Ceiling": 4096,
+  "base64Allow": [],
+  "minTermLength": 3
+}
