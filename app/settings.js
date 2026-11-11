@@ -43,6 +43,29 @@ const row = (title, desc, controls) => {
 };
 const btn = (label, fn, cls = '') => { const b = el('button', `btn btn-sm ${cls}`.trim(), label); b.type = 'button'; b.addEventListener('click', fn); return b; };
 
+/**
+ * A collapsible group of Settings cards: a native <details> (keyboard and screen reader operable), closed unless `open`.
+ * Which groups were open is kept across the re-draws Settings does when data changes (see renderSettings), and a group
+ * can be asked open from elsewhere with a `settingsgroup` event (the backup reminder on Home opens "Data and backup").
+ */
+const group = (id, title, hint, cards, { open = false, solo = false } = {}) => {
+  const d = el('details', `set-group${solo ? ' solo' : ''}`);
+  d.id = `set-g-${id}`;
+  if (open) d.open = true;
+  const sm = el('summary');
+  sm.append(el('span', 'set-g-title', title), el('span', 'set-g-hint', hint));
+  const body = el('div', 'set-g-body');
+  for (const c of cards) body.appendChild(c);
+  d.append(sm, body);
+  return d;
+};
+let wantGroup = null;
+document.addEventListener('settingsgroup', (e) => {
+  wantGroup = e.detail;
+  const d = document.getElementById(`set-g-${wantGroup}`);
+  if (d) { d.open = true; wantGroup = null; }
+});
+
 /** A number setting's text, as shown at rest: no thousands marks, so what is typed back reads the same. */
 const numText = (v) => String(v);
 // a number that must stay on one side of its partner (conventions.js setConventions keeps each pair in order): what to tell the person
@@ -101,12 +124,14 @@ export async function renderSettings() {
   const root = $('settings-root');
   if (!root) return;
   const [aiSet, templates] = await Promise.all([ai.getSettings(), listTemplates().catch(() => [])]);
+  const wasOpen = new Map(/** @type {HTMLDetailsElement[]} */ ([...root.querySelectorAll('details.set-group')]).map((d) => [d.id, d.open]));
   root.textContent = '';
   const head = el('div', 'view-head');
   head.appendChild(el('h1', null, 'Settings'));
-  head.appendChild(el('p', null, 'How the app looks, the templates and stages your firm uses, the AI connection, and your data on this device.'));
+  head.appendChild(el('p', null, 'How the app looks, your templates and calculations, AI, and your data and backups.'));
   root.appendChild(head);
   const stack = el('div', 'stack');
+  const cards = {};
 
   // appearance
   const look = section('Appearance', 'settings-look');
@@ -129,7 +154,7 @@ export async function renderSettings() {
     b.appendChild(el('span', null, label));
     seg.appendChild(b);
   }
-  ul.appendChild(row('Theme', 'System follows your device: light by day, dark at night if it is set to switch.', [seg]));
+  ul.appendChild(row('Theme', 'System follows your device.', [seg]));
   const lookSeg = el('div', 'seg theme-seg wide');
   lookSeg.setAttribute('role', 'radiogroup');
   lookSeg.setAttribute('aria-label', 'Look');
@@ -141,13 +166,13 @@ export async function renderSettings() {
     b.setAttribute('aria-checked', String(v === getLook()));
     lookSeg.appendChild(b);
   }
-  ul.appendChild(row('Look', 'Classic is the look you know. The New look has new colors, type and solid bars; nothing else changes and you can switch back at any time.', [lookSeg]));
+  ul.appendChild(row('Look', 'Classic is the look you know. The New look is calmer, with new type and colors. You can switch back at any time.', [lookSeg]));
   const solid = el('button', 'btn btn-sm', 'Solid controls');
   solid.type = 'button';
   solid.setAttribute('role', 'switch');
   solid.dataset.solidToggle = '1';
   solid.setAttribute('aria-checked', String(getSolid()));
-  ul.appendChild(row('Solid controls', 'In the New look the step bar, messages and command menu are slightly see-through. Turn this on to make them solid. Kept on this device only; it is not in backups.', [solid]));
+  ul.appendChild(row('Solid controls', 'New look only: make the step bar, messages and search menu solid instead of see-through.', [solid]));
   // accent colour: swatches and a custom colour; a pick that would not read is adjusted, and the person is told
   const accRow = el('div', 'acc-picker');
   const accSeg = el('div', 'acc-swatches');
@@ -180,13 +205,13 @@ export async function renderSettings() {
   });
   custom.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); apply.click(); } });
   accRow.append(accSeg, custom, apply);
-  ul.appendChild(row('Accent colour', 'The colour of buttons, links, the current step and the focus ring, in both looks. Any colour you pick is adjusted if needed so text stays readable in light and dark. Kept on this device only; it is not in backups.', [accRow, say]));
+  ul.appendChild(row('Accent colour', 'The colour of buttons, links, the current step and the focus ring, in both looks. A colour that would be hard to read is adjusted a little. Kept on this device only.', [accRow, say]));
   const motion = el('button', 'btn btn-sm', 'Motion');
   motion.type = 'button';
   motion.setAttribute('role', 'switch');
   motion.dataset.motionToggle = '1';
   motion.setAttribute('aria-checked', String(getMotion()));
-  ul.appendChild(row('Motion', 'In the New look, cards and tiles lift a little and glow under the pointer, and previews fade in. Turn this off to keep them still. Your device’s reduce-motion setting always turns it off. Kept on this device only.', [motion]));
+  ul.appendChild(row('Motion', 'New look only: cards lift a little and previews fade in. Turn off to keep everything still. Your device’s reduce-motion setting always wins.', [motion]));
   const sizeSeg = el('div', 'seg theme-seg wide');
   sizeSeg.setAttribute('role', 'radiogroup');
   sizeSeg.setAttribute('aria-label', 'Text size');
@@ -196,39 +221,39 @@ export async function renderSettings() {
     b.setAttribute('aria-checked', String(n === getTextSize()));
     sizeSeg.appendChild(b);
   }
-  ul.appendChild(row('Text size', 'Make text larger across the app, up to 130%. Kept on this device only; it is not in backups.', [sizeSeg]));
+  ul.appendChild(row('Text size', 'Make text larger across the app, up to 130%. Kept on this device only.', [sizeSeg]));
   look.appendChild(ul);
-  stack.appendChild(look);
+  cards.look = look;
 
   // templates and reports
-  const tpl = section('Templates and reports', 'settings-templates');
+  const tpl = section('Templates', 'settings-templates');
   const tl = el('ul', 'set-list');
   const live = templates.filter((t) => !t.archived).length;
   tl.appendChild(row('Template library', live ? `${live} workbook${live === 1 ? '' : 's'} mapped and ready to fill from any deal.` : 'Map your firm’s underwriting or rent roll workbook once, then fill it for any deal.', [btn('Open library', () => openTemplates())]));
   tl.appendChild(row('Comp workbook output', `Choose between the ${PRODUCT} comp workbook and your own comp template on the Comps screen.`, [btn('Go to Comps', () => api.showView('comps'))]));
   tpl.appendChild(tl);
-  stack.appendChild(tpl);
+  cards.tpl = tpl;
 
   // pipeline
   const pipe = section('Pipeline', 'settings-pipeline');
   const pl = el('ul', 'set-list');
   pl.appendChild(row('Deal stages', 'Rename stages to your firm’s words, or hide the ones you do not use.', [btn('Edit stages', () => editStages())]));
   pipe.appendChild(pl);
-  stack.appendChild(pipe);
+  cards.pipe = pipe;
 
-  stack.appendChild(workspaceSettings(section, row, btn));
+  cards.ws = workspaceSettings(section, row, btn);
 
   // AI
-  const aic = section('AI', 'settings-ai', ai.isReady(aiSet) ? 'on' : 'off');
+  const aic = section('AI connection', 'settings-ai', ai.isReady(aiSet) ? 'on' : 'off');
   const al = el('ul', 'set-list');
   let host = '';
   try { host = aiSet.url ? new URL(aiSet.url).host : ''; } catch { host = aiSet.url; }
   al.appendChild(row('AI server', ai.isReady(aiSet) ? `On, through ${host}. Documents, questions and recordings are sent only when you confirm each one.` : 'Off. Reading documents with AI, the deal assistant and transcription need your firm’s AI server; with AI off nothing leaves this device.', [btn('AI settings…', () => openAiSettings(api))]));
   aic.appendChild(al);
-  stack.appendChild(aic);
+  cards.ai = aic;
 
   // calculation conventions: the two that are settings, and every other one stated
-  const cv = section('Calculation conventions', 'settings-conventions');
+  const cv = section('Calculation rules', 'settings-conventions');
   const cl = el('ul', 'set-list');
   for (const c of CONVENTIONS) {
     if (c.settable && c.kind === 'number') cl.appendChild(numberRow(c));
@@ -247,7 +272,7 @@ export async function renderSettings() {
     } else cl.appendChild(row(c.label, c.value, []));
   }
   cv.appendChild(cl);
-  stack.appendChild(cv);
+  cards.cv = cv;
 
   // the T-12 labels filed by hand: matched that way on every statement after; any can be forgotten
   const t12s = section('T-12 labels you filed', 'settings-t12');
@@ -262,12 +287,11 @@ export async function renderSettings() {
     }
     t12s.appendChild(ll);
   }
-  stack.appendChild(t12s);
+  cards.t12 = t12s;
 
   // data
   const data = el('section', 'card');
   data.id = 'settings-data';
-  stack.appendChild(data);
 
   // about
   const about = section('About', 'settings-about', `${PRODUCT} ${VERSION}`);
@@ -291,7 +315,20 @@ export async function renderSettings() {
   p.appendChild(k);
   p.appendChild(Object.assign(el('p', null, '© 2026 Kyle Alexander De Melo · MIT License'), { style: 'margin-top:8px' }));
   about.appendChild(p);
-  stack.appendChild(about);
+  // a few clearly named groups; only Appearance is open at first. Every card and control is still here, under one of them.
+  const groups = [
+    group('appearance', 'Appearance', 'Theme, look, accent colour, text size', [cards.look], { open: true, solo: true }),
+    group('work', 'Workspace and templates', 'Workspace, pipeline stages, template library', [cards.ws, cards.pipe, cards.tpl]),
+    group('calc', 'Calculations', 'Calculation rules and the T-12 labels you filed', [cards.cv, cards.t12]),
+    group('ai', 'Documents and AI', 'The AI connection and what is sent', [cards.ai], { solo: true }),
+    group('data', 'Data and backup', 'Backups, restore, storage', [data], { solo: true }),
+    group('about', 'About', 'Version, name, shortcuts', [about], { solo: true }),
+  ];
+  for (const g of groups) {
+    if (wasOpen.has(g.id)) g.open = wasOpen.get(g.id);
+    if (wantGroup && g.id === `set-g-${wantGroup}`) { g.open = true; wantGroup = null; }
+    stack.appendChild(g);
+  }
 
   root.appendChild(stack);
   await renderDataCard(data, api);

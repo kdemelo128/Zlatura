@@ -117,8 +117,8 @@
 
 /* ====================================================== New look tokens
  * Only under [data-look="new"] (Settings > Appearance > Look); Classic is the
- * rules above, untouched. The palette is a warm off-white page, white cards,
- * one plum accent and three quiet status colours, with IBM Plex Sans (figures
+ * rules above, untouched. The palette is a near-white (near-black in dark) page, white cards,
+ * hairline edges, one accent (the person's choice, blue by default) and three quiet status colours, with IBM Plex Sans (figures
  * and labels) and Plex Mono (file names and cell references only), large soft
  * radii, and frosted glass on the floating controls only
  * (docs/proposals/ui-filler-design-language.md sections 1 and 2). Every text
@@ -145,49 +145,49 @@
   --d3: 260ms;
   /* glass: floating controls only, 92% or more opaque, one blur (see "glass" below) */
   --blur: 20px;
-  --bg: #F7F4EF; --side: #FFFDF9; --surface: #FFFDF9; --surface-2: #F5F0EB; --surface-3: #ECE5E0; --fill: rgba(53, 43, 53, .06);
-  --ink: #352B35; --muted: #62575F; --faint: #6B5F69; --line: #E5DCE1; --line-strong: #8A7D88; --edge: #8A7D88;
-  --primary: #78516C; --primary-ink: #FFF9F4; --accent: #78516C; --accent-ink: #FFF9F4; --accent-soft: #F1E7EE;
-  /* brass is a swatch for the accent choice; in this look the names carry the plum */
-  --brass: #78516C; --brass-mark: #78516C; --brass-soft: #F1E7EE;
-  --good: #47785D; --warn: #906122; --critical: #A74F58;
-  --good-soft: #EDF4E9; --warn-soft: #FFF2DB; --critical-soft: #FFF0ED;
-  /* four tones and washes: tool and workspace tiles only, never data or status */
-  --tone-1: #78516C; --wash-1: #F1E7EE; --tone-2: #43705A; --wash-2: #E9F0EA; --tone-3: #8F5A2B; --wash-3: #FBEBDD; --tone-4: #9A4A5C; --wash-4: #F8E6EA;
+  --bg: #F7F7F8; --side: #FBFBFC; --surface: #FFFFFF; --surface-2: #F2F2F4; --surface-3: #E8E8EC; --fill: rgba(29, 29, 31, .05);
+  --ink: #1D1D1F; --muted: #5A5A61; --faint: #66666E; --line: #E4E4E8; --line-strong: #85858D; --edge: #85858D;
+  --primary: #1961B3; --primary-ink: #FFFFFF; --accent: #1961B3; --accent-ink: #FFFFFF; --accent-soft: #E3ECF6;
+  /* brass is a swatch for the accent choice; in this look the names carry the one accent */
+  --brass: #1961B3; --brass-mark: #1961B3; --brass-soft: #E3ECF6;
+  --good: #1B7A48; --warn: #8A5700; --critical: #C2362B;
+  --good-soft: #EAF5EE; --warn-soft: #FBF3E0; --critical-soft: #FDEEEC;
+  /* four tones and washes: tool and workspace tiles only, never data or status; the first follows the accent, the rest are quiet */
+  --tone-1: #1961B3; --wash-1: #E3ECF6; --tone-2: #3F6B5A; --wash-2: #E9F0EC; --tone-3: #7A5A2A; --wash-3: #F3EEE4; --tone-4: #5B5F7A; --wash-4: #ECEDF3;
   --sale: #0072B2; --list: #B85000; --trend: #5F6570;
-  --shadow: none; --shadow-md: none; --shadow-lg: 0 12px 34px rgba(53, 43, 53, .08), 0 2px 6px rgba(53, 43, 53, .05);
-  --glass: rgba(255, 253, 249, .92); --glint: inset 0 1px 0 rgba(255, 255, 255, .75);
-  --bar: #F7F4EF; --scrim: rgba(33, 30, 37, .4);
+  --shadow: none; --shadow-md: none; --shadow-lg: 0 8px 28px rgba(0, 0, 0, .08), 0 1px 3px rgba(0, 0, 0, .05);
+  --glass: rgba(255, 255, 255, .92); --glint: inset 0 1px 0 rgba(255, 255, 255, .8);
+  --bar: #F7F7F8; --scrim: rgba(0, 0, 0, .35);
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root[data-look="new"]:not([data-theme="light"]) {
-    --bg: #211E25; --side: #2C2730; --surface: #2C2730; --surface-2: #342D38; --surface-3: #3D3541; --fill: rgba(255, 255, 255, .07);
-    --ink: #F5E9EF; --muted: #C3AEBA; --faint: #B3A0AB; --line: #4D414E; --line-strong: #8D818E; --edge: #8D818E;
-    --primary: #D7A1BB; --primary-ink: #30212D; --accent: #D7A1BB; --accent-ink: #30212D; --accent-soft: #3A2B36;
-    --brass: #D7A1BB; --brass-mark: #D7A1BB; --brass-soft: #3A2B36;
-    --good: #A4C59B; --warn: #EDC58D; --critical: #F0A4AA;
-    --good-soft: #2C3A31; --warn-soft: #3D3326; --critical-soft: #422D32;
-    --tone-1: #D7A1BB; --wash-1: #3A2B36; --tone-2: #A9CDB6; --wash-2: #28352D; --tone-3: #F0BE8C; --wash-3: #3B2F25; --tone-4: #F0A9BA; --wash-4: #3E2A2F;
+    --bg: #111113; --side: #1C1C1F; --surface: #1C1C1F; --surface-2: #26262A; --surface-3: #303035; --fill: rgba(255, 255, 255, .06);
+    --ink: #F5F5F7; --muted: #B8B8C0; --faint: #A6A6AE; --line: #2E2E33; --line-strong: #80808A; --edge: #80808A;
+    --primary: #67A4E9; --primary-ink: #101012; --accent: #67A4E9; --accent-ink: #101012; --accent-soft: #2B3747;
+    --brass: #67A4E9; --brass-mark: #67A4E9; --brass-soft: #2B3747;
+    --good: #7FCB9A; --warn: #E8B766; --critical: #F08A82;
+    --good-soft: #1C2E24; --warn-soft: #33291A; --critical-soft: #3A2220;
+    --tone-1: #67A4E9; --wash-1: #2B3747; --tone-2: #8FC4AE; --wash-2: #1F2E28; --tone-3: #D9B98A; --wash-3: #30281D; --tone-4: #A9AEC9; --wash-4: #26283A;
     --sale: #56B4E9; --list: #E69F00; --trend: #979CA4;
     --shadow: none; --shadow-md: none; --shadow-lg: 0 12px 34px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .3);
-    --glass: rgba(44, 39, 48, .92); --glint: inset 0 1px 0 rgba(255, 255, 255, .08);
-    --bar: #211E25; --scrim: rgba(0, 0, 0, .6);
+    --glass: rgba(28, 28, 31, .92); --glint: inset 0 1px 0 rgba(255, 255, 255, .06);
+    --bar: #111113; --scrim: rgba(0, 0, 0, .6);
     color-scheme: dark;
   }
 }
 :root[data-look="new"][data-theme="dark"] {
-  --bg: #211E25; --side: #2C2730; --surface: #2C2730; --surface-2: #342D38; --surface-3: #3D3541; --fill: rgba(255, 255, 255, .07);
-  --ink: #F5E9EF; --muted: #C3AEBA; --faint: #B3A0AB; --line: #4D414E; --line-strong: #8D818E; --edge: #8D818E;
-  --primary: #D7A1BB; --primary-ink: #30212D; --accent: #D7A1BB; --accent-ink: #30212D; --accent-soft: #3A2B36;
-  --brass: #D7A1BB; --brass-mark: #D7A1BB; --brass-soft: #3A2B36;
-  --good: #A4C59B; --warn: #EDC58D; --critical: #F0A4AA;
-  --good-soft: #2C3A31; --warn-soft: #3D3326; --critical-soft: #422D32;
-  --tone-1: #D7A1BB; --wash-1: #3A2B36; --tone-2: #A9CDB6; --wash-2: #28352D; --tone-3: #F0BE8C; --wash-3: #3B2F25; --tone-4: #F0A9BA; --wash-4: #3E2A2F;
+  --bg: #111113; --side: #1C1C1F; --surface: #1C1C1F; --surface-2: #26262A; --surface-3: #303035; --fill: rgba(255, 255, 255, .06);
+  --ink: #F5F5F7; --muted: #B8B8C0; --faint: #A6A6AE; --line: #2E2E33; --line-strong: #80808A; --edge: #80808A;
+  --primary: #67A4E9; --primary-ink: #101012; --accent: #67A4E9; --accent-ink: #101012; --accent-soft: #2B3747;
+  --brass: #67A4E9; --brass-mark: #67A4E9; --brass-soft: #2B3747;
+  --good: #7FCB9A; --warn: #E8B766; --critical: #F08A82;
+  --good-soft: #1C2E24; --warn-soft: #33291A; --critical-soft: #3A2220;
+  --tone-1: #67A4E9; --wash-1: #2B3747; --tone-2: #8FC4AE; --wash-2: #1F2E28; --tone-3: #D9B98A; --wash-3: #30281D; --tone-4: #A9AEC9; --wash-4: #26283A;
   --sale: #56B4E9; --list: #E69F00; --trend: #979CA4;
   --shadow: none; --shadow-md: none; --shadow-lg: 0 12px 34px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .3);
-  --glass: rgba(44, 39, 48, .92); --glint: inset 0 1px 0 rgba(255, 255, 255, .08);
-  --bar: #211E25; --scrim: rgba(0, 0, 0, .6);
+  --glass: rgba(28, 28, 31, .92); --glint: inset 0 1px 0 rgba(255, 255, 255, .06);
+  --bar: #111113; --scrim: rgba(0, 0, 0, .6);
   color-scheme: dark;
 }
 /* a hovered primary button moves toward the ink, so its label keeps its contrast (toward the page it would not) */
@@ -1254,6 +1254,22 @@ dialog.sheet:has(.ab-editor) .sheet-card { height: calc(100dvh - 24px); }
 .set-text b { display: block; font-weight: 600; font-size: var(--t-15); }
 .set-text span { display: block; color: var(--muted); font-size: var(--t-13); margin-top: 2px; line-height: 1.5; }
 .set-ctl { display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center; }
+/* Settings groups: a native <details> per group, closed except Appearance; the cards inside are the ones that were
+   always there. A group with a single card shows the card without a second title. */
+.set-group { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); min-width: 0; }
+.set-group > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--s1) var(--s3); min-height: 44px; padding: var(--s4) var(--s5); border-radius: var(--r); }
+.set-group > summary::-webkit-details-marker { display: none; }
+.set-group > summary::after { content: "+"; margin-left: auto; color: var(--muted); font-weight: 600; font-size: var(--t-17); }
+.set-group[open] > summary::after { content: "\2013"; }
+.set-g-title { font: 650 var(--t-17)/1.25 var(--ui); color: var(--ink); }
+.set-g-hint { color: var(--muted); font-size: var(--t-13); }
+.set-g-body { display: grid; gap: var(--s3); padding: 0 var(--s3) var(--s3); }
+.set-group[open] > summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.set-g-body > .card { border-color: var(--line); box-shadow: none; }
+.set-group.solo > .set-g-body { padding: 0; }
+.set-group.solo > .set-g-body > .card { border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--r) var(--r); }
+.set-group.solo > .set-g-body > .card > .card-head h2 { display: none; }
+.set-group.solo > .set-g-body > .card > .card-head:not(:has(.count)) { display: none; }
 /* a number setting (settings.js numberRow): read on leaving it, a 44 pt box with its unit beside */
 .conv-num { width: 7.5em; min-height: 44px; text-align: right; font-variant-numeric: tabular-nums; }
 .conv-num[aria-invalid="true"] { border-color: var(--critical); box-shadow: inset 0 0 0 1px var(--critical); }
@@ -1706,7 +1722,7 @@ input.ci44, select.ci44 { height: 44px; }
  * (docs/proposals/ui-filler-design-language.md sections 2 to 4, PR 2). Only [data-look="new"]; Classic is the rules above. */
 
 /* ---- accent: the person's colour. look.js stores the adjusted values (accent.js: 4.5:1 text, 3:1 ring, both themes);
-   the plum above is the default and is used when none is set. */
+   the default blue above is used and is used when none is set. */
 /* Both looks: buttons (--primary), links, the current tab and the focus ring (--accent) take the chosen colour. */
 :root[data-accent] { --accent: var(--acc-la); --primary: var(--acc-la); --accent-ink: var(--acc-li); --primary-ink: var(--acc-li); --accent-soft: var(--acc-ls); }
 @media (prefers-color-scheme: dark) {

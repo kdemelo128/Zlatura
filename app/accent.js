@@ -1,14 +1,14 @@
-/* accent.js -- the New look's accent colour is the person's choice. Plum is the default; any colour they pick is
+/* accent.js -- the New look's accent colour is the person's choice. Blue is the default; any colour they pick is
  * adjusted (hue and saturation kept, lightness moved) until text in it reads at 4.5:1 and its focus ring at 3:1 on
  * the page and cards, in the light theme and in the dark one. Pure: no DOM, no storage (look.js keeps the choice). */
 
 const BG = {
-  light: ['#F7F4EF', '#FFFDF9', '#F5F0EB', '#ECE5E0'],
-  dark: ['#211E25', '#2C2730', '#342D38', '#3D3541'],
+  light: ['#F7F7F8', '#FFFFFF', '#F2F2F4', '#E8E8EC'],
+  dark: ['#111113', '#1C1C1F', '#26262A', '#303035'],
 };
-const INK = { light: '#352B35', dark: '#F5E9EF' };
+const INK = { light: '#1D1D1F', dark: '#F5F5F7' };
 /** Swatches offered in Settings: name, colour. The first is the default and is stored as "no choice". */
-export const SWATCHES = Object.freeze([['Plum', '#78516C'], ['Blue', '#2F5D9E'], ['Green', '#2F6B4F'], ['Clay', '#A24B2B'], ['Teal', '#1F6F78'], ['Slate', '#4A5A6A']]);
+export const SWATCHES = Object.freeze([['Blue', '#1961B3'], ['Plum', '#78516C'], ['Green', '#2F6B4F'], ['Clay', '#A24B2B'], ['Teal', '#1F6F78'], ['Slate', '#4A5A6A']]);
 export const DEFAULT_ACCENT = SWATCHES[0][1];
 
 const hex2 = (n) => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2, '0');
@@ -54,7 +54,7 @@ function forTheme(hex, theme) {
   for (let i = 0; i < 100; i++) {
     soft = mix(BG[theme][1], accent, theme === 'light' ? 0.12 : 0.2);
     // the button's label: the page's near-white on a dark accent, near-black on a light one; the hover goes 12% toward the ink
-    const cands = ['#FFF9F4', '#30212D'].map((c) => ({ c, r: Math.min(ratio(c, accent), ratio(c, mix(accent, INK[theme], 0.12))) })).sort((a, b) => b.r - a.r);
+    const cands = ['#FFFFFF', '#101012'].map((c) => ({ c, r: Math.min(ratio(c, accent), ratio(c, mix(accent, INK[theme], 0.12))) })).sort((a, b) => b.r - a.r);
     const cand = cands[0];
     ink = cand.c;
     if (worst(accent, theme, soft) >= 4.6 && cand.r >= 4.6) break;

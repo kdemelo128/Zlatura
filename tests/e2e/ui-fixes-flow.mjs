@@ -54,7 +54,7 @@ for (const look of ['classic', 'new']) {
   check(`${look}: the text size is kept across a reload`, Math.abs(k1.token / s0.token - 1.3) < 0.02 && Math.abs(k1.chip / s0.chip - 1.3) < 0.02, `${k1.token} ${k1.chip}`);
   await go(page, 'settings');
   check(`${look}: the chosen swatch and size are shown as chosen`, (await page.getAttribute(`[data-accent-set="${GREEN}"]`, 'aria-checked')) === 'true' && (await page.getAttribute('[data-size-set="130"]', 'aria-checked')) === 'true');
-  await page.click('[data-accent-set="#78516C"]'); await page.click('[data-size-set="100"]');
+  await page.click('[data-accent-set="#1961B3"]'); await page.click('[data-size-set="100"]');
   const back = await sizes(page);
   check(`${look}: 100% puts the sizes back`, Math.abs(back.token - s0.token) < 0.01 && Math.abs(back.chip - s0.chip) < 0.01, `${back.token} ${back.chip}`);
   await browser.close();

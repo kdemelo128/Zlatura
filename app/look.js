@@ -30,14 +30,14 @@ export function setSolid(on) {
   syncControls();
 }
 
-/** The accent choice as { hex, adjusted }; null when the default plum is in use. */
+/** The accent choice as { hex, adjusted }; null when the default blue is in use. */
 export function getAccent() {
   try { const a = JSON.parse(localStorage.getItem(ACCENT_KEY) || 'null'); return a && typeof a.h === 'string' && Array.isArray(a.c) && a.c.length === 6 ? { hex: a.h, adjusted: !!a.adj } : null; } catch { return null; }
 }
 
 /**
  * Choose the accent. The colour is adjusted until text in it reads (accent.js); a value that is not a colour is refused
- * (null). The default plum clears the choice. Returns { hex, adjusted, shown } for what the person should be told.
+ * (null). The default blue clears the choice. Returns { hex, adjusted, shown } for what the person should be told.
  * @param {string | null} input
  */
 export function setAccent(input) {

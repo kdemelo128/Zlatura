@@ -196,8 +196,8 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
   check(`${size}: Home takes the chosen accent`, prim === 'rgb(47, 93, 158)', prim);
   await axe(page, `${size}: Home with the blue accent`);
   await go(page, 'settings');
-  await page.click('[data-accent-set="#78516C"]');
-  check(`${size}: choosing plum again clears the choice`, (await page.getAttribute('html', 'data-accent')) === null && (await page.evaluate(() => localStorage.getItem('zlatura.accent'))) === null);
+  await page.click('[data-accent-set="#1961B3"]');
+  check(`${size}: choosing the default blue again clears the choice`, (await page.getAttribute('html', 'data-accent')) === null && (await page.evaluate(() => localStorage.getItem('zlatura.accent'))) === null);
 
   // ---- text size (device-only) and the Motion switch
   await page.click('[data-size-set="130"]');
