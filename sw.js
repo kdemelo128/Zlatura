@@ -64,6 +64,7 @@ const ASSETS = [
   'app/uwstore.js',
   'app/uwfiller/hashes.js',
   'app/uwfiller/pkg.js',
+  'app/uwfiller/tool.js',
   'app/uwfiller/ui.js',
   'app/units.js',
   'app/underwrite.js',
@@ -196,6 +197,12 @@ const UW_CSP = [
   "object-src 'none'", "base-uri 'none'", "form-action 'none'",
 ].join('; ');
 
+// the built-in underwriting tool (app/uwtool/, about 3.3 MB, made by tools/uwtool-import.mjs): not in the install set, so
+// installing stays small. Fetched the first time it is opened, kept in a bucket named for this release (the old one is
+// dropped on activate, as CACHE is), so it works offline after first use. Answered with the same policy as the filler
+// above, and the page carries that policy as a <meta> too. Its own page, no framing by anyone but this origin.
+const UW_TOOL_CACHE = `zlatura-uwtool-${VERSION}`;
+
 self.addEventListener('install', (e) => {
   // cache: 'reload' skips the browser's HTTP cache (GitHub Pages lets it keep a
   // file for ten minutes), so a fresh install never stores a stale copy
@@ -207,7 +214,7 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== OCR_CACHE && k !== UW_CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== OCR_CACHE && k !== UW_CACHE && k !== UW_TOOL_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -266,11 +273,25 @@ function uwFile(request, url) {
     return hit.arrayBuffer().then((body) => new Response(body, { status: 200, headers: headers(hit.headers.get('content-type') || 'application/octet-stream') }));
   }).catch(missing);
 }
+/* A file of the built-in tool: from its bucket, else the network once (then kept). Same-origin and basic responses only. */
+function uwToolFile(request) {
+  const headers = (type) => ({ 'content-type': type, 'content-security-policy': UW_CSP, 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' });
+  const key = new Request(new URL(request.url).origin + new URL(request.url).pathname);
+  return caches.open(UW_TOOL_CACHE).then((c) => c.match(key).then((hit) => hit || fetch(key, { cache: 'reload' }).then((res) => {
+    if (res.ok && res.type === 'basic') c.put(key, res.clone());
+    return res;
+  }))).then((res) => {
+    if (!res.ok) return res;
+    return res.arrayBuffer().then((body) => new Response(body, { status: 200, headers: headers(res.headers.get('content-type') || 'application/octet-stream') }));
+  }).catch(() => new Response('<!doctype html><meta charset="utf-8"><title>Offline</title><p>The underwriting tool has not been opened on this device yet, and there is no connection. Open it once while online.</p>', { status: 503, headers: headers('text/html; charset=utf-8') }));
+}
+const UW_TOOL_ROOT = () => new URL('app/uwtool/', self.registration.scope).pathname;
 const UW_ROOT = () => new URL('uw-filler/', self.registration.scope).pathname;
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
   if (url.pathname.startsWith(UW_ROOT())) { e.respondWith(uwFile(e.request, url)); return; }
+  if (url.pathname.startsWith(UW_TOOL_ROOT())) { e.respondWith(uwToolFile(e.request)); return; }
   e.respondWith(OCR.test(url.pathname) ? ocrFile(e.request) : IMMUTABLE.test(url.pathname) ? cacheFirst(e.request) : networkFirst(e.request));
 });

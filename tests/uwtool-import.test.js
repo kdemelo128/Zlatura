@@ -203,3 +203,30 @@ test('the shipped example is invented, has the shape the tool reads, and its tot
   assert.match(JSON.stringify(ex), /Example Plaza/);
   assert.ok(Buffer.byteLength(JSON.stringify(ex)) < 5000);
 });
+
+test('addFile brings in a new file from the tools folder (and refuses to overwrite); escapeControls writes the same string', () => {
+  const rules = RULES();
+  rules.edits.push({ id: 'add', category: 'docs', op: 'addFile', file: 'LICENSE', with: 'example.json' });
+  const r = run({ rules });
+  assert.equal(r.ok, true, r.errors.join(' | '));
+  assert.equal(text(r, 'LICENSE'), '{"invented":true}');
+  assert.ok(r.manifest.files.LICENSE && r.manifest.files.LICENSE.in === null, 'it is in the manifest as an added file');
+  const clash = RULES(); clash.edits.push({ id: 'add', category: 'docs', op: 'addFile', file: 'app.js', with: 'example.json' });
+  assert.match(run({ rules: clash }).errors.join(), /edit add: file is already in the output/);
+  // a library string with a raw control byte: escaped, and the string means the same
+  const pkg = standin(); pkg['public/tool/lib.js'] = enc('var s = "PK\u0003\u0004";\n');
+  const er = RULES(); er.edits.push({ id: 'ctl', category: 'lib', op: 'escapeControls', file: 'lib.js', count: 2 });
+  const ok = run({ pkg, rules: er });
+  assert.equal(ok.ok, true, ok.errors.join(' | '));
+  assert.equal(text(ok, 'lib.js'), 'var s = "PK\\u0003\\u0004";\n');
+  assert.equal(eval(text(ok, 'lib.js').replace('var s =', '(') .replace(/;\n$/, ')')), 'PK\u0003\u0004');
+  assert.equal(ok.counts.editsApplied, RULES().edits.length + 1, 'one edit, however many bytes');
+});
+test('MUTATION: escapeControls with the wrong count, or a control byte after a backslash, fails and names the edit', () => {
+  const pkg = standin(); pkg['public/tool/lib.js'] = enc('var s = "PK\u0003\u0004";\n');
+  const bad = RULES(); bad.edits.push({ id: 'ctl', category: 'lib', op: 'escapeControls', file: 'lib.js', count: 3 });
+  assert.match(run({ pkg, rules: bad }).errors.join(), /edit ctl: found 2 control bytes, wanted 3/);
+  const pkg2 = standin(); pkg2['public/tool/lib.js'] = enc('var s = "\\\u0003";\n');
+  const e2 = RULES(); e2.edits.push({ id: 'ctl', category: 'lib', op: 'escapeControls', file: 'lib.js', count: 1 });
+  assert.match(run({ pkg: pkg2, rules: e2 }).errors.join(), /edit ctl: a control byte follows a backslash/);
+});

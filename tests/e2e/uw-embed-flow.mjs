@@ -21,6 +21,8 @@ page.setDefaultTimeout(10000);
 const zipFile = (name, edit) => ({ name, mimeType: 'application/zip', buffer: Buffer.from(standinZip(edit)) });
 const buckets = () => page.evaluate(() => caches.keys());
 const txt = (sel) => page.textContent(sel);
+// the firm-pack loader is the collapsed Advanced card (the built-in tool, uwtool-flow.mjs, is the normal way in)
+const adv = async () => { await page.waitForSelector('#uw-filler', { state: 'attached' }); await page.evaluate(() => { document.getElementById('uw-filler').open = true; }); };
 
 const responses = [];
 page.on('response', (r) => { if (r.url().includes('/uw-filler/')) responses.push({ url: r.url(), status: r.status(), sw: r.fromServiceWorker(), csp: r.headers()['content-security-policy'] || '' }); });
@@ -29,15 +31,16 @@ const outside = [];
 page.on('request', (r) => { const u = new URL(r.url()); if (u.origin !== new URL(BASE).origin && !/^(data|blob):/.test(r.url())) outside.push(r.url()); });
 
 await page.goto(`${BASE}#underwrite`, { waitUntil: 'load' });
+await adv();
 await page.waitForSelector('#uw-filler .uwf-body');
 // the service worker must control this page before the iframe can be served from the package
 await page.evaluate(() => navigator.serviceWorker.ready);
-if (!(await page.evaluate(() => !!navigator.serviceWorker.controller))) { await page.reload({ waitUntil: 'load' }); await page.waitForSelector('#uw-filler .uwf-body'); }
+if (!(await page.evaluate(() => !!navigator.serviceWorker.controller))) { await page.reload({ waitUntil: 'load' }); await adv(); await page.waitForSelector('#uw-filler .uwf-body'); }
 check('the service worker controls the page', await page.evaluate(() => !!navigator.serviceWorker.controller));
 
-check('the card sits under Start from documents and above Quick underwrite; every other card is still there', await page.evaluate(() => {
+check('the firm-pack card is the last card, collapsed, and every other card is still there', await page.evaluate(() => {
   const ids = [...document.querySelector('#underwrite-root .stack').children].map((c) => c.id);
-  return ids.join() === 'uw-intake,uw-filler,uw-card,uw-list,uw-calc-card';
+  return ids.join() === 'uw-intake,uw-tool,uw-card,uw-list,uw-calc-card,uw-filler';
 }), await page.evaluate(() => [...document.querySelector('#underwrite-root .stack').children].map((c) => c.id).join()));
 check('before a package is loaded: Load package and Load folder, no frame, no Open buttons', (await page.locator('#uwf-load').count()) === 1 && (await page.locator('#uwf-load-dir').count()) === 1 && (await page.locator('iframe').count()) === 0 && (await page.locator('#uwf-open').count()) === 0);
 check('no package bucket yet', !(await buckets()).includes('zlatura-uwfiller'));
@@ -58,6 +61,7 @@ check('no frame yet: the iframe is made only when the card is opened', (await pa
 
 /* ---- axe, layout, buttons (phone, then desktop) */
 async function axe(name) {
+  await page.waitForTimeout(600);   // the card's own fade-in ends before a contrast scan
   if (!(await page.evaluate(() => !!window.axe))) await page.addScriptTag({ path: AXE });
   const res = await page.evaluate(async () => {
     const r = await window.axe.run(document.querySelector('#uw-filler'), { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }, resultTypes: ['violations'] });
@@ -130,6 +134,7 @@ check('a backup holds no filler bytes (no page text, script text, file names or 
 /* ---- desktop: open again, axe, then erase */
 await page.setViewportSize({ width: 1280, height: 900 });
 await page.goto(`${BASE}#underwrite`, { waitUntil: 'load' });
+await adv();
 await page.waitForSelector('#uwf-open');
 await axe('desktop size, loaded');
 await page.click('#uwf-open');

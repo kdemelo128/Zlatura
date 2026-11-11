@@ -1,4 +1,5 @@
-/* uwfiller/ui.js -- the "Underwriting filler" card on the Underwrite tab. The filler is the broker's own package (a zip
+/* uwfiller/ui.js -- the "Firm template pack (advanced)" card on the Underwrite tab, kept from embed P1: the broker's own
+ * full package, with their firm's template, for the one case the built-in tool (tool.js) does not cover. The filler is the broker's own package (a zip
  * or the public/tool folder from their computer, loaded once, kept in Cache Storage by pkg.js and served by sw.js at
  * uw-filler/). It runs untouched in an iframe made when the broker opens it; this card only loads it, opens it, opens it
  * full screen and erases it. Built with el() and textContent only. */
@@ -18,9 +19,8 @@ let opened = false;   // the frame is on screen
 
 /** The card, empty; fill() draws it. */
 export function fillerCard() {
-  const c = el('section', 'card uwf');
+  const c = el('details', 'card uwf uwf-adv');   // collapsed: the built-in tool above is the normal way in
   c.id = 'uw-filler';
-  c.setAttribute('aria-labelledby', 'uwf-title');
   opened = false;
   fill(c);
   return c;
@@ -31,15 +31,12 @@ async function fill(c = document.getElementById('uw-filler')) {
   let info = null;
   try { info = await packageInfo({ base: base() }); } catch { /* no Cache Storage here: treated as not loaded */ }
   c.textContent = '';
-  const head = el('div', 'card-head');
-  const h2 = el('h2', null, 'Underwriting filler');
-  h2.id = 'uwf-title';
-  h2.tabIndex = -1;
-  head.appendChild(h2);
-  c.appendChild(head);
+  const sum = el('summary', 'uwf-sum', `Advanced: load my firm's template pack`);
+  sum.id = 'uwf-title';
+  c.appendChild(sum);
   const body = el('div', 'uwf-body');
   if (!info) {
-    body.appendChild(el('p', 'hint-sm', `Load your filler package from this computer. It is kept on this device only: it is not part of a backup, and ${PRODUCT} sends nothing anywhere for it. Only a package version the owner has approved will load.`));
+    body.appendChild(el('p', 'hint-sm', `Load your firm's template pack: your own full underwriting package, with your firm's template, from this computer. It is kept on this device only: it is not part of a backup, and ${PRODUCT} sends nothing anywhere for it. Only a package version the owner has approved will load.`));
     const acts = el('div', 'uwf-acts');
     const zip = el('input'); zip.type = 'file'; zip.accept = '.zip,application/zip'; zip.hidden = true; zip.id = 'uwf-zip'; zip.setAttribute('aria-label', 'Choose the filler package zip');
     zip.addEventListener('change', () => { const f = zip.files[0]; zip.value = ''; if (f) loadZip(f); });

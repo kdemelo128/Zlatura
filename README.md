@@ -41,7 +41,7 @@ page makes no request to any other site, and once it has loaded it works with
 no connection at all. The optional AI features are the exception, and only
 when a firm runs its own AI server and a broker turns them on (see below).
 
-© 2026 Kyle Alexander De Melo. MIT License.
+© 2026 Kyle Alexander De Melo. MIT License, except `app/uwtool/` (the built-in underwriting tool), which is all rights reserved: see `app/uwtool/LICENSE`.
 
 ## Comps
 
@@ -666,4 +666,4 @@ can't be checked against a text layer, so they show as unchecked.
 
 ## Licence
 
-MIT; see `LICENSE`. Bundled dependencies keep their own licences; see `THIRD_PARTY.md`.
+MIT; see `LICENSE`. **Exception: `app/uwtool/` (the built-in underwriting tool) is all rights reserved (`app/uwtool/LICENSE`); the MIT licence does not apply to that folder.** Bundled dependencies keep their own licences; see `THIRD_PARTY.md`.

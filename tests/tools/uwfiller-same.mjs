@@ -159,6 +159,8 @@ for (const sizeName of wanted) {
   await epage.goto(`http://localhost:${app.port}/#underwrite`, { waitUntil: 'load' });
   await epage.evaluate(() => navigator.serviceWorker.ready);
   if (!(await epage.evaluate(() => !!navigator.serviceWorker.controller))) await epage.reload({ waitUntil: 'load' });
+  await epage.waitForSelector('#uw-filler', { state: 'attached' });
+  await epage.evaluate(() => { document.getElementById('uw-filler').open = true; });   // the firm-pack card is collapsed (Advanced)
   await epage.waitForSelector('#uw-filler .uwf-body');
   PROGRESS('app up');
   // one file at a time over the wire: the whole package as base64 in one call would be about 9 MB
@@ -176,6 +178,9 @@ for (const sizeName of wanted) {
   await epage.evaluate(() => { delete window.__pk; });
   PROGRESS('package loaded');
   await epage.reload({ waitUntil: 'load' });
+  await epage.waitForSelector('#uw-filler', { state: 'attached' });
+  await epage.waitForFunction(() => document.getElementById('uw-filler').querySelector('summary'));
+  await epage.evaluate(() => { document.getElementById('uw-filler').open = true; });
   await epage.waitForSelector('#uwf-open');
   await epage.click('#uwf-open');
   await epage.waitForSelector('#uwf-frame');

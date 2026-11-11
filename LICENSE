@@ -22,6 +22,12 @@ SOFTWARE.
 
 ---
 
+EXCEPTION: the folder app/uwtool/ (the built-in underwriting tool) is NOT covered by the MIT
+License above. It is ALL RIGHTS RESERVED; see app/uwtool/LICENSE. The MIT License of the rest
+of this repository does not apply to it.
+
+---
+
 Third-party components bundled under vendor/ and fonts/ keep their own licences:
 
   pdf.js (Mozilla)        Apache License 2.0

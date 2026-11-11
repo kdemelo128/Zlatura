@@ -12,6 +12,7 @@ import { toolIndex, openToolById } from './toolsui.js';
 import { activeWorkspace, workspaceReady } from './workspaceui.js';
 import { intakeCard, initIntake } from './intakeui.js';
 import { fillerCard } from './uwfiller/ui.js';
+import { toolCard } from './uwfiller/tool.js';
 import { newScratch, work, dealFields, loadScratch, saveScratch, deleteScratch, MAX_SCRATCH } from './uwstore.js';
 
 let api = null;
@@ -327,7 +328,7 @@ function draw() {
   head.appendChild(el('p', null, 'Type a price, NOI and loan terms and see the answer. It is not a deal until you save it as one.'));
   const stack = el('div', 'stack');
   stack.appendChild(intakeCard(api));
-  stack.appendChild(fillerCard());
+  stack.appendChild(toolCard());
   stack.appendChild(card());
   const listBox = el('section', 'card');
   listBox.id = 'uw-list';
@@ -336,6 +337,7 @@ function draw() {
   calc.id = 'uw-calc-card';
   fillCalculators(calc);
   stack.appendChild(calc);
+  stack.appendChild(fillerCard());   // advanced, collapsed: the firm's own template pack
   root.append(head, stack);
   drawList();
   results();
