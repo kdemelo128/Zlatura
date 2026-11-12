@@ -48,7 +48,8 @@ test('the verdict of a two-sheet workbook carries both readers; one-sheet workbo
 
 test('staged, a two-sheet workbook offers a rent roll use and a T-12 use of the one file', async () => {
   const p = I.newPlan();
-  const [first] = await I.stageFiles(p, [await book(addRoll, addT12)], deps);
+  const file = await book(addRoll, addT12);
+  const [first] = await I.stageFiles(p, [file], deps);
   const live = p.items.filter((x) => x.state === 'staged');
   assert.equal(live.length, 2);
   assert.deepEqual(live.map((x) => x.use).sort(), ['Use as T-12', 'Use as rent roll']);
@@ -60,8 +61,9 @@ test('staged, a two-sheet workbook offers a rent roll use and a T-12 use of the 
   // using one leaves the other still on offer
   I.markUsed(p, live.find((x) => x.type === 'rentroll').id);
   assert.deepEqual(I.readyItems(p, null).map((x) => x.type), ['t12']);
-  // the same workbook added again is a repeat, not a third use
-  await I.stageFiles(p, [await book(addRoll, addT12)], deps);
+  // Reuse the exact bytes: a regenerated XLSX can have different ZIP timestamps.
+  // The same workbook added again is a repeat, not a third use.
+  await I.stageFiles(p, [file], deps);
   assert.equal(p.items.filter((x) => x.state === 'staged').length, 1);
 });
 
