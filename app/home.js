@@ -11,6 +11,7 @@ import { listAllDeals, updateDeal, showDeal, currentDealId } from './dealui.js';
 import { taskRow, contactLinks, editContact } from './dealcrm.js';
 import { $, el, statusChip, notice, toast, actionSheet, getXlsx, deliver, printed, XLSX, short, money0, money2, pct, int, niceDate, localDate } from './kit.js';
 import { dateInput } from './dateinput.js';
+import { foldControl } from './fold.js';
 import { feesCsv } from './exporters.js';
 import { toolIndex, openToolById } from './toolsui.js';
 import { activeWorkspace, workspaceReady, workspaceBar, restoreTabFocus } from './workspaceui.js';
@@ -37,6 +38,25 @@ const section = (title, id) => {
   h.appendChild(el('h2', null, title));
   c.appendChild(h);
   return [c, h];
+};
+
+/**
+ * Fold a Home card: its title becomes a button, the rest of the card its body. Closed by default
+ * when `open` is false (until the person chooses), with `summary` shown in its place. Returns the fold.
+ */
+const fold = (c, id, { open, summary }) => {
+  const head = c.querySelector(':scope > .card-head');
+  const h2 = head.querySelector('h2');
+  const body = el('div', 'fold-body');
+  for (const n of [...c.childNodes]) if (n !== head) body.appendChild(n);
+  c.appendChild(body);
+  c.classList.add('fold');
+  const f = foldControl({ scope: 'home', id, title: h2.textContent, body, open, summary });
+  h2.textContent = '';
+  h2.appendChild(f.btn);
+  h2.after(f.sum);
+  f.set(f.isOpen(), false);
+  return f;
 };
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; };
@@ -418,7 +438,7 @@ export async function editStages() {
 
 function tasksCard(tasks, deals, nameOf) {
   const [c, h] = section('Tasks', 'home-tasks');
-  const tog = el('button', 'btn btn-sm btn-gray', showDone ? 'Hide done' : 'Show done');
+  const tog = el('button', 'btn btn-sm btn-gray fold-hide-closed', showDone ? 'Hide done' : 'Show done');
   tog.type = 'button';
   tog.addEventListener('click', () => { showDone = !showDone; render(); });
   h.appendChild(tog);
@@ -456,6 +476,15 @@ function tasksCard(tasks, deals, nameOf) {
     const msg = 'Nothing to do yet. Add a task above, or a next step on any deal.';
     if (isNew()) c.appendChild(notice('info', msg, { label: 'Add a task', run: () => ti.focus() }));
     else c.appendChild(el('p', 'all-clear', msg));
+  }
+  const open = tasks.filter((t) => !t.done);
+  const f = fold(c, 'tasks', { open: open.length > 0, summary: open.length ? `${plural(open.length, 'open task')}${b.overdue.length ? ` · ${b.overdue.length} overdue` : ''}` : 'Nothing to do yet' });
+  if (!open.length) {
+    // an empty card is one quiet row: its add action opens it and puts the cursor in the title
+    const quick = el('button', 'btn btn-sm btn-gray fold-add', 'Add a task');
+    quick.type = 'button';
+    quick.addEventListener('click', () => { f.set(true); ti.focus(); });
+    h.insertBefore(quick, tog);
   }
   return c;
 }
@@ -498,6 +527,7 @@ function contactsCard(contacts, deals, nameOf) {
   q.addEventListener('input', () => { contactQuery = q.value; draw(); });
   draw();
   c.appendChild(list);
+  fold(c, 'contacts', { open: contacts.length > 0, summary: contacts.length ? plural(contacts.length, 'contact') : 'No contacts yet' });
   return c;
 }
 
@@ -515,6 +545,8 @@ function activityCard(activity, nameOf) {
   }
   if (!recent.length) ul.appendChild(el('li', 'hint-sm', 'Nothing yet: stage changes, tasks, contacts and the files you produce are listed here.'));
   c.appendChild(ul);
+  const latest = recent[0];
+  fold(c, 'activity', { open: false, summary: latest ? `${plural(recent.length, 'item')} · latest: ${latest.text} (${ago(latest.at)})` : 'Nothing yet' });
   return c;
 }
 
