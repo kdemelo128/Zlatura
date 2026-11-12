@@ -3,7 +3,7 @@
  * already holds is not replaced, the tool's starting values are not the broker's. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { planIn, applyIn, planOut, changedPaths, MAPPED } from '../app/uwfiller/bridge.js';
+import { planIn, applyIn, planOut, changedPaths, MAPPED, fillRecord } from '../app/uwfiller/bridge.js';
 
 const DEFAULTS = { price: '', loan: '', rate: '', amortization: 30, ioMonths: 0, termYears: 10, holdYears: 10, exitCap: '', saleCost: 0.02, closing: 0 };
 const blankModel = () => ({ version: 3, name: 'Untitled property', address: '', finance: { ...DEFAULTS } });
@@ -115,4 +115,39 @@ test('out: values the deal cannot take are skipped with a reason', () => {
 test('changedPaths: reads the tool\'s change log defensively', () => {
   assert.equal(changedPaths(null).size, 0); assert.equal(changedPaths({ changeLog: 'x' }).size, 0);
   assert.deepEqual([...changedPaths({ changeLog: [null, { changes: null }, { changes: [{ path: 'a' }, { path: 5 }, null] }] })], ['a']);
+});
+
+test('out: a value the bridge itself filled (for this deal or another) is never offered back', () => {
+  const m = blankModel(); m.finance.price = 5000000;   // filled from deal A; the tool's change log counts it as typed
+  const rec = fillRecord({}, 'A', [{ path: 'finance.price', value: 5000000 }]);
+  const changed = new Set(['finance.price']);
+  const B = deal({ figures: {} });
+  assert.equal(planOut(m, B, { defaults: DEFAULTS, changed }).changes.length, 1, 'without the record it is offered (the old bug)');
+  const p = planOut(m, B, { defaults: DEFAULTS, changed, filled: rec });
+  assert.equal(p.changes.length, 0);
+  assert.match(p.skipped.find((x) => x.label === 'Price').why, /filled in from a deal/);
+  assert.equal(planOut(m, deal({ figures: { price: 1 } }), { defaults: DEFAULTS, changed, filled: rec }).changes.length, 0, 'also for the deal it came from, unchanged');
+  m.finance.price = 5100000;   // the broker then edits it: offered
+  assert.equal(planOut(m, B, { defaults: DEFAULTS, changed, filled: rec }).changes.length, 1);
+});
+
+test('in: a hold or amortization the tool cannot take is listed with its true reason', () => {
+  const why = (d, label) => planIn(deal(d), blankModel(), { defaults: DEFAULTS }).notCarried.find((n) => n.label === label)?.why;
+  assert.match(why({ live: { hold: 5.5 } }, 'Hold period, years'), /not a whole number of years/);
+  assert.match(why({ live: { hold: 12 } }, 'Hold period, years'), /outside the tool.s 1 to 10/);
+  assert.match(why({ loan: { amort: 20.5 } }, 'Amortization, years'), /whole number of years, 50 at most/);
+  assert.match(why({ loan: { amort: 60 } }, 'Amortization, years'), /whole number of years, 50 at most/);
+  const p = planIn(deal({ live: { hold: 5.5 }, loan: { amort: 60, rate: 6.5 } }), blankModel(), { defaults: DEFAULTS });
+  assert.ok(!p.fill.some((f) => f.id === 'hold' || f.id === 'amort'));
+});
+
+test('in: a confidential deal is not put into the shared tool project; every field is listed with the reason', () => {
+  const p = planIn(deal({ confidential: true }), blankModel(), { defaults: DEFAULTS });
+  assert.equal(p.fill.length, 0);
+  for (const l of ['Property name', 'Price', 'Interest rate', 'Hold period, years']) assert.match(p.notCarried.find((n) => n.label === l).why, /confidential deal/);
+});
+
+test('out: an amortization that is not whole years, or above 50, is not brought', () => {
+  const m = blankModel(); m.finance.amortization = 20.5;
+  assert.equal(planOut(m, deal(), { defaults: DEFAULTS, changed: new Set(['finance.amortization']) }).changes.length, 0);
 });

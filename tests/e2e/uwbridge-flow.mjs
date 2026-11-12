@@ -84,6 +84,38 @@ async function axe(page, sel, name) {
   check('Undo puts the deal back exactly', JSON.stringify(await dealNow(page)) === before, JSON.stringify(await dealNow(page)));
   void id;
 
+  /* deal A's figures are never offered to deal B; a stale confirm writes nothing; Undo does not run over newer edits */
+  await toolFrame(page).evaluate(() => { const m = UWEditor.model(); m.finance.rate = 0.065; m.finance.amortization = 25; UWEditor.commit(); });   // back to what deal A put in
+  const bId = await makeDeal(page, { name: 'Invented Blank B', figures: { address: '3 Example Rd' }, sources: {}, loan: {}, live: {}, targets: {} });
+  const bBefore = JSON.stringify(await dealNow(page));
+  await openTool(page);
+  check('deal B: the tool still holds deal A\'s price, which the bridge filled', (await model(page)).finance.price === 2000000);
+  await page.click('#uw-bring');
+  check('Bring into deal for B does not offer A\'s price (B\'s stays blank)', /Nothing to bring/.test(await page.textContent('.toast')) && (await page.locator('#sheet[open] .uw-diff').count()) === 0 && JSON.stringify(await dealNow(page)) === bBefore, await page.textContent('.toast'));
+  await page.click('#uw-back');
+  await page.waitForFunction(() => !document.body.classList.contains('uw-full'));
+  await page.evaluate(async (a) => { await (await import('./app/dealui.js')).showDeal(a); }, id);
+  await openTool(page);
+  const setDeal = (fn) => page.evaluate(async ([i, f]) => { await (await import('./app/dealui.js')).updateDeal(i, new Function('d', f)); }, [id, fn]);
+  await toolFrame(page).evaluate(() => { const m = UWEditor.model(); m.finance.rate = 0.07; UWEditor.commit(); });
+  await page.click('#uw-bring');
+  await page.waitForSelector('#sheet[open] .uw-diff');
+  check('the confirm mentions nothing about price when price is not in it', !/price is marked/.test(await page.textContent('#sheet-sub')));
+  await setDeal('d.loan.rate = 6.75;');   // the deal moves while the sheet is open
+  await page.click('#sheet-foot button:has-text("Bring into deal")');
+  await page.waitForTimeout(500);
+  check('a deal that changed after the plan is not overwritten, and the broker is told', (await dealNow(page)).loan.rate === 6.75 && /deal changed/i.test(await page.textContent('.toast')), `${(await dealNow(page)).loan.rate} ${await page.textContent('.toast')}`);
+  await page.click('#uw-bring');
+  await page.waitForSelector('#sheet[open] .uw-diff');
+  await page.click('#sheet-foot button:has-text("Bring into deal")');
+  await page.waitForSelector('.toast button:has-text("Undo")');
+  check('brought: the rate is the tool\'s', (await dealNow(page)).loan.rate === 7);
+  await setDeal('d.loan.rate = 7.5;');   // edited after
+  await page.click('.toast button:has-text("Undo")');
+  await page.waitForTimeout(500);
+  check('Undo does not put the old figure over a newer edit', (await dealNow(page)).loan.rate === 7.5 && /except 1/.test(await page.textContent('.toast')), `${(await dealNow(page)).loan.rate} ${await page.textContent('.toast')}`);
+  void bId;
+
   /* export with the app */
   await page.click('#uw-export');
   await page.waitForSelector('#sheet[open]');

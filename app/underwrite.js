@@ -14,7 +14,7 @@ import { activeWorkspace, workspaceReady } from './workspaceui.js';
 import { intakeCard, initIntake } from './intakeui.js';
 import { fillerCard } from './uwfiller/ui.js';
 import { toolCard } from './uwfiller/tool.js';
-import { planIn, applyIn, planOut, changedPaths } from './uwfiller/bridge.js';
+import { planIn, applyIn, planOut, changedPaths, fillRecord } from './uwfiller/bridge.js';
 import { newScratch, work, dealFields, loadScratch, saveScratch, deleteScratch, MAX_SCRATCH } from './uwstore.js';
 
 let api = null;
@@ -367,7 +367,7 @@ function slimBar(sw) {
   acts.id = 'uw-acts';
   const nc = button('btn btn-sm', 'Not carried over', () => { const open = !$('uw-note') || $('uw-note').hidden; paintNote(open); });
   nc.id = 'uw-notcarried'; nc.setAttribute('aria-expanded', 'false'); nc.setAttribute('aria-controls', 'uw-note');
-  const bring = button('btn btn-sm', 'Bring into deal', bringIntoDeal); bring.id = 'uw-bring';
+  const bring = button('btn btn-sm', 'Bring into deal', () => bringIntoDeal()); bring.id = 'uw-bring';
   const exp = button('btn btn-sm', 'Export with the app', () => openTemplates()); exp.id = 'uw-export';
   exp.title = 'Your own or your company’s template, with this deal’s figures';
   acts.append(nc, bring, exp);
@@ -384,6 +384,9 @@ function slimBar(sw) {
 const TOOL_TITLE = 'Underwriting tool';
 let bridged = null;          // { id, filled: [text], notCarried: [{label, why}] } for the deal the tool was last opened with
 const filledFor = new Map(); // deal id -> what was filled into the tool in this page's life
+const FILLED_KEY = 'uw.bridge.filled';   // what the bridge put into the tool, per deal: never offered back as the broker's own
+const readFilled = () => { try { const v = JSON.parse(localStorage.getItem(FILLED_KEY) || '{}'); return v && typeof v === 'object' ? v : {}; } catch { return {}; } };
+const writeFilled = (rec) => { try { localStorage.setItem(FILLED_KEY, JSON.stringify(rec)); } catch { /* fine */ } };
 let justReloaded = false;    // the frame is reloaded once after a fill; its load must not fill again
 let bridging = false;
 
@@ -406,12 +409,13 @@ async function bridgeDeal() {
   if (!d) { bridged = null; justReloaded = false; refreshBar(); return; }
   bridging = true;
   try {
-    if (!(await toolReady(f))) { bridged = null; return; }
+    if (!(await toolReady(f))) { bridged = null; justReloaded = false; return; }
     const w = /** @type {any} */ (f.contentWindow);
     const model = w.UWEditor.model();
     const plan = planIn(d, model, { defaults: w.UWFinance.defaults(), changed: changedPaths(model) });
     if (plan.fill.length && !justReloaded) {
       applyIn(model, plan);
+      writeFilled(fillRecord(readFilled(), d.id, plan.fill));   // before the commit: the tool's log will count these as typed
       w.UWEditor.commit();   // the tool saves its own project; it reads it back when it loads
       filledFor.set(d.id, [...(filledFor.get(d.id) || []), ...plan.fill.map((x) => `${x.label}: ${x.shown}`)]);
       justReloaded = true;
@@ -431,6 +435,7 @@ function refreshBar(acts = $('uw-acts')) {
   const nc = $('uw-notcarried');
   if (nc) nc.textContent = bridged && bridged.id === d?.id ? `Not carried over (${bridged.notCarried.length})` : 'Not carried over';
   if (nc) nc.disabled = !(bridged && bridged.id === d?.id);
+  const br = $('uw-bring'); if (br) br.disabled = !(bridged && bridged.id === d?.id);
   if (!d || !bridged) paintNote(false);
   else if ($('uw-note') && !$('uw-note').hidden) paintNote(true);
 }
@@ -452,14 +457,15 @@ function paintNote(open) {
 async function bringIntoDeal() {
   const d = dealForBridge(); const w = toolWin();
   if (!d || !w) { toast('Open the tool with a deal open first.'); return; }
+  if (bridged?.id !== d.id) { toast('The tool was not opened for this deal. Open the Underwrite tab from this deal first.'); return; }
   let plan;
-  try { const model = w.UWEditor.model(); plan = planOut(model, d, { defaults: w.UWFinance.defaults(), changed: changedPaths(model) }); } catch { toast('The tool’s figures could not be read.'); return; }
+  try { const model = w.UWEditor.model(); plan = planOut(model, d, { defaults: w.UWFinance.defaults(), changed: changedPaths(model), filled: readFilled() }); } catch { toast('The tool’s figures could not be read.'); return; }
   if (!plan.changes.length) { toast(`Nothing to bring into the deal: ${plan.skipped.length ? 'the tool’s fields are blank, still at their starting values, or the same as the deal’s.' : 'the figures match.'}`); return; }
   const name = d.name || 'this deal';
   const go = await new Promise((resolve) => {
     const ok = button('btn btn-primary', 'Bring into deal', () => { api.sheetClose(); resolve(true); });
     const no = button('btn', 'Cancel', () => { api.sheetClose(); resolve(false); });
-    const body = api.sheetOpen({ eyebrow: 'Underwriting tool', title: `Bring into ${name}?`, sub: 'These figures replace the deal’s. Nothing else is changed, and you can undo it.', foot: [no, ok] });
+    const body = api.sheetOpen({ eyebrow: 'Underwriting tool', title: `Bring into ${name}?`, sub: `These figures replace the deal’s. Nothing else is changed, and you can undo it.${plan.changes.some((c) => c.id === 'price') ? ' The price is marked as typed, from the tool.' : ''}`, foot: [no, ok] });
     const tbl = el('div', 'uw-diff');
     for (const c of plan.changes) { const row = el('div', 'uw-diff-r'); row.append(el('b', null, c.label), el('span', 'uw-diff-b', `Before: ${c.beforeShown}`), el('span', 'uw-diff-a', `After: ${c.afterShown}`)); tbl.appendChild(row); }
     body.appendChild(tbl);
@@ -467,21 +473,36 @@ async function bringIntoDeal() {
   });
   if (!go) return;
   const set = (x, path, v) => { const [g, k] = path.split('.'); x[g] ||= {}; if (v === null || v === undefined) { if (g === 'live') delete x[g][k]; else x[g][k] = null; } else x[g][k] = v; };
-  const before = new Map(); let src;
+  const cur = (x, path) => { const [g, k] = path.split('.'); const v = x[g] ? x[g][k] : undefined; return v === undefined || v === '' ? null : v; };
+  const same = (a, b) => (typeof a === 'number' && typeof b === 'number' ? Math.abs(a - b) < 1e-9 : a === b);
+  const before = new Map(); let src; let stale = false;
   const done = await updateDeal(d.id, (x) => {
+    // the plan was made before the confirm: if the deal moved since, write nothing
+    if (plan.changes.some((c) => !same(cur(x, c.dealPath), c.before))) { stale = true; return false; }
     src = x.sources?.price ? { ...x.sources.price } : undefined;
-    for (const c of plan.changes) { before.set(c.dealPath, c.before); set(x, c.dealPath, c.after); }
-    if (before.has('figures.price')) { x.sources ||= {}; x.sources.price = { hand: true, tool: TOOL_TITLE }; }
+    for (const c of plan.changes) { before.set(c.dealPath, c); set(x, c.dealPath, c.after); }
+    if (before.has('figures.price')) {   // as dealui's applyFromTools does: keep the source's own figure (orig), mark it typed from the tool
+      x.sources ||= {};
+      const s0 = x.sources.price;
+      if (s0) { s0.hand = s0.orig !== x.figures.price; s0.tool = TOOL_TITLE; } else x.sources.price = { hand: true, tool: TOOL_TITLE };
+    }
+    return true;
   }, { kind: 'tool', label: `From the ${TOOL_TITLE}: ${plan.changes.map((c) => c.label.toLowerCase()).join(', ')}` });
+  if (stale) { toast('The deal changed while you were deciding. Open the tool again.'); return; }
   if (!done) { toast('The deal could not be changed.'); return; }
   toast(`${plan.changes.length} figure${plan.changes.length === 1 ? '' : 's'} brought into ${name}.`, {
     label: 'Undo',
     run: async () => {
+      let skipped = 0;
       await updateDeal(d.id, (x) => {
-        for (const [path, v] of before) set(x, path, v);
-        if (before.has('figures.price')) { x.sources ||= {}; if (src) x.sources.price = src; else delete x.sources.price; }
+        for (const [path, c] of before) {
+          if (!same(cur(x, path), c.after)) { skipped += 1; continue; }   // edited since: not put back over the newer value
+          set(x, path, c.before);
+          if (path === 'figures.price') { x.sources ||= {}; if (src) x.sources.price = src; else delete x.sources.price; }
+        }
+        return skipped < before.size;
       }, { kind: 'tool', label: `Undid: figures brought from the ${TOOL_TITLE}` });
-      toast('Undone: the deal has its earlier figures again.');
+      toast(skipped ? `Undone, except ${skipped} figure${skipped === 1 ? '' : 's'} you have changed since: those were left as they are.` : 'Undone: the deal has its earlier figures again.');
     },
   }, 9000);
 }

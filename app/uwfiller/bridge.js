@@ -39,10 +39,12 @@ const ROWS = [
     read: (d) => (ok(d.loan?.rate) && d.loan.rate > 0 && d.loan.rate <= 100 ? pctToDec(d.loan.rate) : null),
     back: (v) => (ok(v) && v > 0 && v <= 1 ? decToPct(v) : null), dealPath: 'loan.rate', dealShown: (v) => `${v}%` },
   { id: 'amort', label: 'Amortization, years', path: 'finance.amortization', fin: 'amortization', shown: (v) => `${v} years`,
-    read: (d) => (ok(d.loan?.amort) && d.loan.amort > 0 ? d.loan.amort : null),
-    back: (v) => (ok(v) && v > 0 ? v : null), dealPath: 'loan.amort', dealShown: (v) => `${v} years` },
+    read: (d) => (Number.isInteger(d.loan?.amort) && d.loan.amort > 0 && d.loan.amort <= 50 ? d.loan.amort : null),
+    why: (d) => (ok(d.loan?.amort) ? 'the deal’s amortization is not a whole number of years, 50 at most, as the tool takes' : null),
+    back: (v) => (Number.isInteger(v) && v > 0 && v <= 50 ? v : null), dealPath: 'loan.amort', dealShown: (v) => `${v} years` },
   { id: 'hold', label: 'Hold period, years', path: 'finance.holdYears', fin: 'holdYears', shown: (v) => `${v} years`,
     read: (d) => (Number.isInteger(d.live?.hold) && d.live.hold >= 1 && d.live.hold <= 10 ? d.live.hold : null),
+    why: (d) => (ok(d.live?.hold) ? (Number.isInteger(d.live.hold) ? 'the deal’s hold is outside the tool’s 1 to 10 years' : 'the deal’s hold is not a whole number of years') : null),
     back: (v) => (Number.isInteger(v) && v >= 1 && v <= 10 ? v : null), dealPath: 'live.hold', dealShown: (v) => `${v} years` },
   { id: 'exitCap', label: 'Exit cap rate', path: 'finance.exitCap', fin: 'exitCap', shown: (v) => `${decToPct(v)}%`,
     read: (d) => (ok(d.live?.exitCap) && d.live.exitCap > 0 && d.live.exitCap <= 100 ? pctToDec(d.live.exitCap) : null),
@@ -66,19 +68,23 @@ const same = (a, b) => (ok(a) && ok(b) ? Math.abs(a - b) < 1e-9 : a === b);
 
 /**
  * What opening the tool for this deal does. Nothing is changed here.
- * @param {{ name?: string, asOf?: string, figures?: any, loan?: any, live?: any, hasRentRoll?: boolean, hasStatement?: boolean }} deal
+ * @param {{ name?: string, confidential?: boolean, asOf?: string, figures?: any, loan?: any, live?: any, hasRentRoll?: boolean, hasStatement?: boolean }} deal
  * @param {any} model the tool's model (UWEditor.model())
  * @param {{ defaults?: any, changed?: Set<string> }} [opts] the tool's own starting values, and the paths the broker has changed
  * @returns {{ fill: { id: string, path: string, label: string, value: any, shown: string }[], kept: { id: string, label: string, why: string }[], notCarried: { label: string, why: string }[] }}
  */
 export function planIn(deal, model, { defaults = {}, changed = new Set() } = {}) {
   const fill = []; const kept = []; const notCarried = [];
+  if (deal.confidential) {   // the tool keeps one shared project; a confidential deal's figures do not go into it until each deal has its own
+    for (const r of ROWS) notCarried.push({ label: r.label, why: 'confidential deal: it is not put into the tool’s shared project' });
+    return { fill, kept, notCarried };
+  }
   for (const r of ROWS) {
     const v = r.read(deal);
     const cur = get(model, r.path);
     if (v === null) {
       if (r.id === 'name' || r.id === 'asOf') continue;
-      const had = r.id === 'hold' && ok(deal.live?.hold) ? 'the deal’s hold is outside the tool’s 1 to 10 years' : 'the deal has no value for it';
+      const had = (r.why && r.why(deal)) || 'the deal has no value for it';
       notCarried.push({ label: r.label, why: `${had}; the tool is left as it is${r.start === undefined && r.fin && !blank(defaults[r.fin]) ? ` (it starts at ${r.shown(defaults[r.fin])}: check it)` : ''}` });
       continue;
     }
@@ -110,13 +116,15 @@ export function applyIn(model, plan) {
  * is blank, or still at the tool's own starting value, is never brought (it would clear the deal, or invent a value).
  * @returns {{ changes: { id: string, label: string, dealPath: string, before: any, after: any, beforeShown: string, afterShown: string }[], skipped: { label: string, why: string }[] }}
  */
-export function planOut(model, deal, { defaults = {}, changed = new Set() } = {}) {
+export function planOut(model, deal, { defaults = {}, changed = new Set(), filled = {} } = {}) {
+  const mine = (path, v) => Object.values(filled).some((rec) => rec && path in rec && same(rec[path], v));
   const changes = []; const skipped = [];
   for (const r of ROWS) {
     if (!r.back) continue;
     const raw = get(model, r.path);
     if (blank(raw)) { skipped.push({ label: r.label, why: 'blank in the tool' }); continue; }
     if (untouched(r, model, defaults, changed)) { skipped.push({ label: r.label, why: 'still the tool’s starting value, not one you set' }); continue; }
+    if (mine(r.path, raw)) { skipped.push({ label: r.label, why: 'filled in from a deal, not set by you' }); continue; }
     const after = r.back(raw);
     if (after === null) { skipped.push({ label: r.label, why: 'not a value the deal can take' }); continue; }
     const before = get(deal, r.dealPath);
@@ -131,5 +139,12 @@ export function planOut(model, deal, { defaults = {}, changed = new Set() } = {}
 export function changedPaths(model) {
   const out = new Set();
   for (const e of Array.isArray(model?.changeLog) ? model.changeLog : []) for (const c of Array.isArray(e?.changes) ? e.changes : []) if (c && typeof c.path === 'string') out.add(c.path);
+  return out;
+}
+
+/** The record of what the bridge filled into the tool, per deal id and path: `{ [dealId]: { [path]: value } }`. Returns a new record. */
+export function fillRecord(rec, dealId, fills) {
+  const out = { ...(rec || {}) };
+  out[dealId] = { ...(out[dealId] || {}), ...Object.fromEntries(fills.map((f) => [f.path, f.value])) };
   return out;
 }
