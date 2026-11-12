@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.7.134: The underwriting tool is built into the Underwrite tab (on the development branch; not merged or deployed)
+
+- The underwriting tool is built into the app: the Underwrite tab opens on it directly, with no package to load and no separate window. Quick underwrite stays one tap away in the same tab.
+- The tool ships as a cleaned copy under its own all-rights-reserved licence (`app/uwtool/LICENSE`); it makes no outside requests and leaves a blank cap rate blank.
+
 ## 4.7.133: Bird branding, manual deal entry and actual annual PDF statements (on the development branch; not merged or deployed)
 
 This release refreshes the offline cache for the previously merged bird logo,
