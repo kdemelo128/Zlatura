@@ -67,12 +67,16 @@ const BAD_ZIP = 'That file could not be opened as an Excel workbook. It may be d
  * would overrun (so a part declared at 1,000 bytes that inflates to 300 MB
  * costs one piece, not 300 MB) and refused if it ends short. Returns
  * { name: bytes } (a folder is an empty entry) or throws an Error whose message
- * is the reason. `fflate` supplies Inflate.
+ * is the reason. `fflate` supplies Inflate. With `skipped` (an array: a bundle of documents), a part that is password protected or
+ * compressed in a way this app does not open is not unpacked and is listed there as { name, why }, and the others are still
+ * opened; without it either refuses the whole file, as a workbook must be. The caps (entries, total, ratio) refuse the whole file
+ * either way, and a skipped part is never inflated.
  * @param {Uint8Array} bytes
  * @param {any} fflate
+ * @param {{ name: string, why: string }[]} [skipped]
  * @returns {Record<string, Uint8Array>}
  */
-export function safeUnzip(bytes, fflate) {
+export function safeUnzip(bytes, fflate, skipped) {
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const u64 = (at) => { const v = dv.getBigUint64(at, true); if (v > 0xffffffffn) throw new Error(BAD_ZIP); return Number(v); };
   let eocd = -1;
@@ -102,7 +106,10 @@ export function safeUnzip(bytes, fflate) {
     const skip = nameLen + extraLen + dv.getUint16(at + 32, true);
     let local = dv.getUint32(at + 42, true);
     if (at + 46 + skip > bytes.length) throw new Error(BAD_ZIP);
-    const name = new TextDecoder().decode(bytes.subarray(at + 46, at + 46 + nameLen));
+    const rawName = bytes.subarray(at + 46, at + 46 + nameLen);
+    // a name is UTF-8 (flag bit 11, or whatever is valid UTF-8); an older zip writes its code page, read here as Windows-1252, which keeps every byte as one character
+    let name;
+    try { name = new TextDecoder('utf-8', { fatal: true }).decode(rawName); } catch { name = new TextDecoder('windows-1252').decode(rawName); }
     // a field set to 0xffffffff is held in the zip64 extra field (header 1), in this order
     if (original === 0xffffffff || size === 0xffffffff || local === 0xffffffff) {
       let x = at + 46 + nameLen; const end = x + extraLen; let found = false;
@@ -119,14 +126,16 @@ export function safeUnzip(bytes, fflate) {
       }
       if (!found) throw new Error(BAD_ZIP);
     }
-    if ((flags & 1) || (method !== 0 && method !== 8)) throw new Error(BAD_ZIP);
     if (local + 30 > bytes.length || dv.getUint32(local, true) !== 0x04034b50) throw new Error(BAD_ZIP);
+    /** @type {string | null} */ let skip1 = null;
+    if (flags & 1) { if (!skipped) throw new Error(BAD_ZIP); skip1 = 'it is password protected, so it was not opened'; }
+    else if (method !== 0 && method !== 8) { if (!skipped) throw new Error(BAD_ZIP); skip1 = `it is compressed in a way this app does not open (method ${method}), so it was not opened; save it again with ordinary zip compression`; }
     total += original;
     if (total > LIMITS.zipTotal) throw new Error(`That file would unpack to over ${LIMITS.zipTotal / 1e6} MB (the most is ${LIMITS.zipTotal / 1e6} MB). It was not opened.`);
     if (original > LIMITS.zipRatio * Math.max(size, 1)) throw new Error('That file packs a part far tighter than a spreadsheet does, which is how a decompression bomb looks. It was not opened.');
     const start = local + 30 + dv.getUint16(local + 26, true) + dv.getUint16(local + 28, true);
     if (start + size > bytes.length) throw new Error(BAD_ZIP);
-    list.push({ name, method, size, original, start, local });
+    list.push({ name, method, size, original, start, local, skip: skip1 });
     at += 46 + skip;
   }
   // no two parts may share bytes: many entries pointing at one part would unpack it many times
@@ -134,6 +143,7 @@ export function safeUnzip(bytes, fflate) {
   for (let i = 1; i < spans.length; i++) if (spans[i][0] < spans[i - 1][1]) throw new Error(BAD_ZIP);
   const files = /** @type {Record<string, Uint8Array>} */ (Object.create(null));
   for (const e of list) {
+    if (e.skip) { if (skipped) skipped.push({ name: e.name, why: e.skip }); continue; }
     const data = bytes.subarray(e.start, e.start + e.size);
     if (e.method === 0) {
       if (e.size !== e.original) throw new Error(MISMATCH);
@@ -171,8 +181,10 @@ export function unsafePath(name) {
  */
 export function unpackBundle(bytes, fflate, budget = { files: 0, bytes: 0 }) {
   let parts;
-  try { parts = safeUnzip(bytes, fflate); } catch (e) { throw new Error(String((e && e.message) || BAD_ZIP).replace('as an Excel workbook', 'as a zip file').replace('not really .xlsx', 'not really a zip')); }
+  /** @type {{ name: string, why: string }[]} */ const skipped = [];
+  try { parts = safeUnzip(bytes, fflate, skipped); } catch (e) { throw new Error(String((e && e.message) || BAD_ZIP).replace('as an Excel workbook', 'as a zip file').replace('not really .xlsx', 'not really a zip')); }
   const files = []; const refused = []; let over = 0;
+  for (const k of skipped) if (!(k.name.endsWith('/') || JUNK.test(k.name))) refused.push(k);
   for (const [name, data] of Object.entries(parts)) {
     if (name.endsWith('/') || JUNK.test(name)) continue;
     const bad = unsafePath(name);

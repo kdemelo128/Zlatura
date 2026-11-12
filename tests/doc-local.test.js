@@ -136,7 +136,7 @@ test('doc-local --reasons: a reason code per refused, asked or identified invent
   const per = (n) => lines.find((l) => l.startsWith(`file-0${n}:`));
   assert.match(per(1), /^file-01: ask:budget, identified; reasons no-reader-for-type:budget, pages:1$/);
   assert.match(per(2), /^file-02: scan, refused; reasons no-text-layer:none, pages:1$/);
-  assert.match(per(3), /^file-03: zip, refused; reasons zip-not-opened$/);
+  assert.match(per(3), /^file-03: zip, refused; reasons zip-not-opened, zip-cause:bomb-guard$/);
   // a plain zip is opened in memory and its one text file is read like a dropped file (it is not a file in the table itself)
   assert.match(per(4), /^file-04: unclassified, refused; reasons unknown-title$/);
   assert.match(per(5), /^file-05: unclassified, refused; reasons unknown-title, sheets:2-3, hidden-sheets:1$/);
@@ -252,7 +252,7 @@ test('doc-local --reasons: a zip is opened and counted by the files inside it; a
   assert.match(per(2), /^file-02: unknown, refused; reasons binary-unknown$/);
   assert.match(per(3), /^file-03: zip-part, refused; reasons zip-part-unsafe-path$/);
   assert.match(per(4), /^file-04: zip, refused; reasons zip-empty$/);
-  assert.match(per(5), /^file-05: zip, refused; reasons zip-not-opened$/);
+  assert.match(per(5), /^file-05: zip, refused; reasons zip-not-opened, zip-cause:bomb-guard$/);
   for (const row of ['zip-opened:2-5 files | 1', 'zip-part-unsafe-path | 1', 'zip-empty | 1', 'zip-not-opened | 1']) assert.ok(lines.includes(row), `${row}\n${r.stdout}`);
   const out = r.stdout + r.stderr;
   for (const s of [CANARY_NAME, CANARY_FIGURE, 'a-bundle', 'rr.csv', 'blob.bin', 'up.csv', path.dirname(d)]) assert.ok(!out.includes(s), `the output must not hold "${s}"`);
@@ -269,4 +269,26 @@ test('doc-local: a Word file is read by its table (a rent roll, as a CSV) and it
   assert.match(r.stdout, /^rrsheet \| 1 \| 1 \| 0 \| 0 /m, 'the table is a rent roll the sheet reader accepted');
   assert.match(r.stdout, /^docx-text \| 1 \| 0 \| 0 \| 1 /m);
   assert.ok(!/docx-later/.test(r.stdout));
+});
+
+test('doc-local --reasons: a zip with one password-protected part is opened, the part gets its own code, and a bomb is named by its guard', () => {
+  const enc = (s) => new TextEncoder().encode(s);
+  const csv = 'Unit,Tenant,SF,Monthly Rent,Lease End\n101,Invented Co,1000,2400,2028-01-31\n102,Sample LLC,1500,3300,2029-06-30\n';
+  const z = fflate.zipSync({ 'a.csv': [enc(csv), { level: 6 }], 'b.csv': [enc(csv), { level: 6 }] });
+  const dv = new DataView(z.buffer, z.byteOffset, z.byteLength);
+  for (let i = 0; i + 46 < z.length; i++) {
+    if (dv.getUint32(i, true) !== 0x02014b50 || new TextDecoder().decode(z.subarray(i + 46, i + 49)) !== 'b.c') continue;
+    dv.setUint16(i + 8, dv.getUint16(i + 8, true) | 1, true);
+    const local = dv.getUint32(i + 42, true);
+    dv.setUint16(local + 6, dv.getUint16(local + 6, true) | 1, true);
+  }
+  const d = path.join(tmp(), 'docs');
+  fs.mkdirSync(d);
+  fs.writeFileSync(path.join(d, 'mixed.zip'), z);
+  fs.writeFileSync(path.join(d, 'bomb.zip'), fflate.zipSync({ 'big.bin': new Uint8Array(30e6) }));
+  const r = run(DOC, [d, '--allow-outside-private', '--reasons']);
+  assert.equal(r.status, 0, r.stderr);
+  const lines = r.stdout.split('\n');
+  for (const row of ['zip-part-password-protected | 1', 'zip-cause:bomb-guard | 1', 'zip-opened:2-5 files | 1']) assert.ok(lines.includes(row), `${row}\n${r.stdout}`);
+  assert.match(r.stdout, /^rrsheet \| 1 \| 1 /m);
 });

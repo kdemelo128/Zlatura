@@ -27,7 +27,7 @@
  *
  * A zip is opened in memory by the app's own code (ddintake.js zipMembers): each file inside is one row of the table, read as a dropped
  * file is, and the zip is counted once under the reason 'zip-opened:<files bucket> files'; a refused part is family 'zip-part'
- * (zip-part-unsafe-path, -too-deep, -over-cap, -not-opened), a zip refused whole or empty family 'zip' (zip-not-opened, zip-empty).
+ * (zip-part-unsafe-path, -too-deep, -over-cap, -password-protected, -odd-compression, -not-opened), a zip refused whole or empty family 'zip' (zip-not-opened, zip-empty).
  *
  * Answer-file keys by family (values are what the document says; amounts in dollars):
  *   t12: months, lines, egi, opex, noi, taxes     rent roll: rows, units, vacant, sf     om: the OM reader's field names
@@ -146,7 +146,7 @@ async function reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridE
   const k = upRes.kind;
   if (k === 'docx') out.push('docx-later');
   else if (k === 'image') out.push('no-reader-for-type:image');
-  else if (k === 'zip') out.push(/^That is a zip file/.test(upRes.refuse || '') ? 'zip-not-workbook' : 'zip-not-opened');
+  else if (k === 'zip') { const plain = /^That is a zip file/.test(upRes.refuse || ''); out.push(plain ? 'zip-not-workbook' : 'zip-not-opened'); if (!plain) out.push(`zip-cause:${zipCause(upRes.refuse || '')}`); }
   else if (k === 'xls') out.push('old-xls');
   else if (k === 'doc') out.push('old-doc');
   else if (k === 'encrypted') out.push('encrypted');
@@ -190,7 +190,9 @@ const perFile = [];
 // A zip is opened in memory by the app's own code (ddintake.js zipMembers) and each file inside it is one unit, read exactly as a
 // dropped file is; the zip itself is not a file in the table. A zip refused whole, or empty, stays one refused unit.
 const ZIP_BUCKETS = [[1, '1'], [5, '2-5'], [20, '6-20'], [Infinity, '21+']];
-const zipPartWhy = (m) => (/climbs out of the zip/.test(m) ? 'zip-part-unsafe-path' : /inside a zip inside a zip/.test(m) ? 'zip-part-too-deep' : /more than this app opens at once/.test(m) ? 'zip-part-over-cap' : 'zip-part-not-opened');
+const zipPartWhy = (m) => (/password protected/.test(m) ? 'zip-part-password-protected' : /compressed in a way/.test(m) ? 'zip-part-odd-compression' : /climbs out of the zip/.test(m) ? 'zip-part-unsafe-path' : /inside a zip inside a zip/.test(m) ? 'zip-part-too-deep' : /more than this app opens at once/.test(m) ? 'zip-part-over-cap' : 'zip-part-not-opened');
+/** Why a zip was refused whole, as a code (the app's own message is matched, never printed). */
+const zipCause = (m) => (/password protected/.test(m) ? 'password-protected' : /decompression bomb|far tighter|not the size/.test(m) ? 'bomb-guard' : /holds \d+ parts/.test(m) ? 'too-many-parts' : /unpack to over/.test(m) ? 'too-big' : /could not be opened as a zip/.test(m) ? 'damaged-or-unusual' : 'other');
 const units = []; const zipOpened = [];
 for (const f of files) {
   const file = fileLike(f);
@@ -199,7 +201,7 @@ for (const f of files) {
   if (z && !z.refuse) {
     zipOpened.push(z.members.length);
     for (const m of z.members) units.push({ f: null, rel: `${path.relative(folder, f)}#${m.name}`, file: m.file, partRefuse: m.refuse });
-  } else units.push({ f, rel: path.relative(folder, f), file, zipRefuse: z ? (/empty zip/.test(z.refuse) ? 'zip-empty' : 'zip-not-opened') : null });
+  } else units.push({ f, rel: path.relative(folder, f), file, zipRefuse: z ? (/empty zip/.test(z.refuse) ? 'zip-empty' : 'zip-not-opened') : null, zipCause: z && !/empty zip/.test(z.refuse) ? zipCause(z.refuse) : null });
 }
 // a Word file is its tables (each read as a CSV, as in the app: docxread.js) and/or its text (classified; no reader takes prose)
 for (let i = units.length - 1; i >= 0; i--) {
@@ -224,7 +226,7 @@ for (const u of units) {
   let why = [];
   try {
     const file = u.file;
-    if (u.zipRefuse || u.partRefuse) { family = u.zipRefuse ? 'zip' : 'zip-part'; outcome = 'refused'; if (REASONS) why = [u.zipRefuse || zipPartWhy(u.partRefuse)]; throw new Done(); }
+    if (u.zipRefuse || u.partRefuse) { family = u.zipRefuse ? 'zip' : 'zip-part'; outcome = 'refused'; if (REASONS) why = u.zipRefuse ? [u.zipRefuse, ...(u.zipCause ? [`zip-cause:${u.zipCause}`] : [])] : [zipPartWhy(u.partRefuse)]; throw new Done(); }
     if (u.docxText) { // Word text outside any table: nothing reads prose as figures, so it is identified or asked, never read
       const v = u.docxText.verdict;
       family = 'docx-text'; outcome = v.type ? 'accepted' : v.looks ? 'identified' : v.ask.length ? 'asked' : 'refused';

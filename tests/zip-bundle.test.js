@@ -193,3 +193,59 @@ test('a zip larger than a workbook may be is read when a bundle is opened; a wor
     assert.match(rw.refuse, /MB; a workbook is read up to/, rw.refuse);
   } finally { LIMITS.workbook = w; }
 });
+
+/* patch a finished zip: set the encryption flag, or the compression method, of the entry named `name`, in both its headers */
+function patchEntry(bytes, name, { flag = 0, method = null }) {
+  const out = bytes.slice(); const dv = new DataView(out.buffer);
+  for (let i = 0; i + 46 < out.length; i++) {
+    if (dv.getUint32(i, true) === 0x02014b50) {
+      const n = dv.getUint16(i + 28, true);
+      if (new TextDecoder().decode(out.subarray(i + 46, i + 46 + n)) !== name) continue;
+      dv.setUint16(i + 8, dv.getUint16(i + 8, true) | flag, true);
+      if (method !== null) dv.setUint16(i + 10, method, true);
+      const local = dv.getUint32(i + 42, true);
+      dv.setUint16(local + 6, dv.getUint16(local + 6, true) | flag, true);
+      if (method !== null) dv.setUint16(local + 8, method, true);
+    }
+  }
+  return out;
+}
+
+test('one password-protected part is refused with its own plain reason; the rest of the zip still opens', async () => {
+  const z = patchEntry(zip({ 'rent-roll.csv': enc(ROLL), 'secret-t12.csv': enc(ROLL.replace('Acme', 'Other')) }), 'secret-t12.csv', { flag: 1 });
+  const out = await lookAt(file(z, 'mixed.zip'), deps);
+  assert.equal(out.length, 2);
+  const bad = out.find((x) => x.info.refuse);
+  assert.match(bad.info.refuse, /secret-t12\.csv|password protected/);
+  assert.match(bad.info.refuse, /password protected, so it was not opened/);
+  const good = out.find((x) => !x.info.refuse);
+  assert.equal(good.info.verdict.type, 'rentroll');
+  assert.equal(good.info.from, 'mixed.zip');
+});
+
+test('a part compressed in a way this app does not open (not stored, not deflate) is refused alone, naming the method; the rest opens', async () => {
+  const z = patchEntry(zip({ 'a.csv': enc(ROLL), 'b.csv': enc(ROLL) }, 0), 'b.csv', { method: 14 });
+  const out = await lookAt(file(z, 'odd.zip'), deps);
+  assert.equal(out.length, 2);
+  assert.match(out.find((x) => x.info.refuse).info.refuse, /compressed in a way this app does not open \(method 14\)/);
+  assert.equal(out.filter((x) => !x.info.refuse).length, 1);
+});
+
+test('a workbook (not a bundle) with an encrypted or odd part is still refused whole, as before', async () => {
+  const bytes = patchEntry(await t12Book(), 'xl/workbook.xml', { flag: 1 });
+  const up = await checkUpload(file(bytes, 'stmt.xlsx'), { getFflate });
+  assert.ok(up.refuse, 'a workbook whose part cannot be read is refused');
+});
+
+test('a part whose name is not UTF-8 (an old zip’s code page) is opened, named by its bytes read as Windows-1252, not refused or mangled into replacement characters', async () => {
+  const z = zip({ 'XXrent roll.csv': enc(ROLL) }, 0);
+  const at = z.findIndex((b, i) => b === 0x58 && z[i + 1] === 0x58); // the first "XX" (local header)
+  const patched = z.slice();
+  for (let i = 0; i + 1 < patched.length; i++) if (patched[i] === 0x58 && patched[i + 1] === 0x58) { patched[i] = 0x82; patched[i + 1] = 0x90; } // both headers: two bytes that are not valid UTF-8
+  assert.ok(at >= 0);
+  const out = await lookAt(file(patched, 'legacy.zip'), deps);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].info.refuse, null);
+  assert.ok(!out[0].info.name.includes('�'));
+  assert.equal(out[0].info.verdict.type, 'rentroll');
+});
