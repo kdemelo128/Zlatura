@@ -15,6 +15,6 @@ document.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch')return;co
 document.addEventListener('focusin',e=>{const t=target(e);if(t&&t.matches(':focus-visible'))show(t);});
 document.addEventListener('focusout',e=>{if(target(e))hide();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&cur)hide();});
-addEventListener('scroll',()=>{if(cur)hide();},true);
+addEventListener('scroll',()=>{if(!cur)return;if(cur.isConnected)place(cur);else hide();},true);   // keep it beside its control while the page scrolls (focus scrolls into view)
 window.UWHint={show,hide};
 })();
