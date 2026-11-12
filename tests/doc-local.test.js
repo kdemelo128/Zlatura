@@ -143,13 +143,13 @@ test('doc-local --reasons: a reason code per refused, asked or identified invent
   assert.match(per(6), /^file-06: docx-text, refused; reasons docx-unreadable$/);
   // a workbook with an unreadable date cell is read now (the cell is blank, sheetread.js), so it ends as an untitled sheet, not a failed read
   assert.match(per(7), /^file-07: unclassified, refused; reasons unknown-title, sheets:1, hidden-sheets:0$/);
-  assert.match(per(8), /^file-08: xlsx, refused; reasons macro-flag$/);
+  assert.match(per(8), /^file-08: unclassified, refused; reasons unknown-title, macros-values-only, sheets:2-3, hidden-sheets:1$/);
   assert.ok(/^file-09: rrsheet, accepted$/.test(per(9)), 'an accepted file carries no reason');
   // the counts tables
   assert.ok(lines.includes('reason | files (refused, asked and identified files only; a file can have several: its main reason, then its shape)'), r.stdout);
-  for (const row of ['no-reader-for-type:budget | 1', 'no-text-layer:none | 1', 'zip-not-opened | 1', 'zip-opened:1 files | 1', 'unknown-title | 3', 'docx-unreadable | 1', 'macro-flag | 1', 'sheets:2-3 | 1', 'hidden-sheets:1 | 1', 'pages:1 | 2']) assert.ok(lines.includes(row), `${row}\n${r.stdout}`);
+  for (const row of ['no-reader-for-type:budget | 1', 'no-text-layer:none | 1', 'zip-not-opened | 1', 'zip-opened:1 files | 1', 'unknown-title | 4', 'docx-unreadable | 1', 'macros-values-only | 1', 'sheets:2-3 | 2', 'hidden-sheets:1 | 2', 'pages:1 | 2']) assert.ok(lines.includes(row), `${row}\n${r.stdout}`);
   assert.ok(lines.includes('family | reason | files'));
-  assert.ok(lines.includes('unclassified | unknown-title | 3'), r.stdout);
+  assert.ok(lines.includes('unclassified | unknown-title | 4'), r.stdout);
   assert.ok(!r.stdout.includes('zip-not-workbook'), 'a plain zip is opened now');
   assert.ok(!r.stdout.includes('sheet-read-failed'), 'no read fails on an unreadable date any more');
   assert.ok(lines.includes('ask:budget | no-reader-for-type:budget | 1'), r.stdout);

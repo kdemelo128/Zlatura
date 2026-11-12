@@ -71,14 +71,19 @@ test('[old] an .xlsx saved with a .csv name is read as a workbook', async () => 
   assert.ok(g[0].rows.length > 10);
 });
 
-test('an .xlsm (a workbook with macros) is refused by readGrids with the macro reason; a plain .xlsx is read', async () => {
+test('an .xlsm (a workbook with macros) is read for its values by readGrids, with the note that macros were not run; a plain .xlsx has no such note', async () => {
   const bytes = await layoutFile(LAYOUTS[1], ExcelJS);
   const z = fflate.unzipSync(bytes);
   z['xl/vbaProject.bin'] = Uint8Array.from([1, 2, 3, 4]);
-  await assert.rejects(readGrids(new File([fflate.zipSync(z)], 'statement.xlsm'), getXlsx, { getFflate }), /never runs macros/);
-  await assert.rejects(readGrids(new File([fflate.zipSync(z)], 'renamed.xlsx'), getXlsx, { getFflate }), /never runs macros/);
-  const plain = await readGrids(new File([bytes], 'statement.xlsx'), getXlsx, { getFflate });
-  assert.equal(plain[0].macros, false);
+  const base = await readGrids(new File([bytes], 'statement.xlsx'), getXlsx, { getFflate });
+  for (const name of ['statement.xlsm', 'renamed.xlsx']) {
+    const g = await readGrids(new File([fflate.zipSync(z)], name), getXlsx, { getFflate });
+    assert.equal(g[0].macros, true);
+    assert.match(g[0].note, /Macros were not run; values as last saved\./);
+    assert.deepEqual(g[0].rows, base[0].rows, 'the same values as the workbook without the macro part');
+  }
+  assert.equal(base[0].macros, false);
+  assert.ok(!base[0].note || !/acros/.test(base[0].note));
 });
 
 test('[old] a PDF, a password-protected container and a too-big text file are refused by readGrids with their messages', async () => {

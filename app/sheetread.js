@@ -2,7 +2,7 @@
  * the rent roll import and the T-12 import both start here. Pure apart from
  * readGrids(), which loads ExcelJS when a workbook needs it. */
 import { readText } from './textfile.js';
-import { checkUpload, hardenZip, MACRO_REFUSAL } from './filekind.js';
+import { checkUpload, hardenZip, MACRO_REFUSAL, MACRO_NOTE } from './filekind.js';
 
 /** A date cell that holds no real date (a workbook can store a serial no calendar has), directly or as a formula's result. */
 export function badDate(v) {
@@ -111,13 +111,13 @@ export function guardedBuffer(buffer, fflate) {
  * checked (filekind.js): `up` is checkUpload's result, or it is run here.
  * Throws the reason when the file is refused or can't be opened.
  */
-export async function loadXlsx(file, getXlsx, up = null, { allowMacros = false } = {}) {
+export async function loadXlsx(file, getXlsx, up = null, _opts = {}) { // _opts: kept for callers that passed allowMacros; a workbook with macros is always read for values now
   const { ExcelJS, fflate } = await getXlsx();
   const NOT_XLSX = 'That file could not be opened as an Excel workbook. It may be damaged, password protected or not really .xlsx.';
   up = up || await checkUpload(file, { getFflate: async () => fflate });
   if (up.refuse) throw new Error(up.refuse);
   if (up.kind !== 'xlsx') throw new Error(NOT_XLSX);
-  if (up.macros && !allowMacros) throw new Error(MACRO_REFUSAL); // refused by content, before ExcelJS sees it: macros are never run and their values are not read
+  // a workbook with macros is read for its cell values only: the macro part (xl/vbaProject.bin) is never opened, run or kept; ExcelJS has no VBA engine. Callers say so (MACRO_NOTE).
   const buffer = up.guarded ? up.buffer : guardedBuffer(up.buffer || await file.arrayBuffer(), fflate);
   const wb = new ExcelJS.Workbook();
   try { await wb.xlsx.load(buffer); } catch { throw new Error(NOT_XLSX); }
@@ -149,7 +149,7 @@ export async function readGrids(file, getXlsx, { maxRows = 400, includeHidden = 
   }
   const wb = await loadXlsx(file, getXlsx, up);
   const grids = gridsOf(wb, { maxRows, includeHidden });
-  const note = badDateNote(grids.reduce((n, g) => n + g.badDates, 0));
+  const note = [badDateNote(grids.reduce((n, g) => n + g.badDates, 0)), up.macros ? MACRO_NOTE : ''].filter(Boolean).join(' ');
   return grids.map((g) => ({ ...g, macros: !!up.macros, ...(note ? { note } : {}) }));
 }
 

@@ -15,7 +15,7 @@
  *   --allow-outside-private  lets a folder elsewhere be read (the tests use it on invented files)
  *   --reasons                after the family table, WHY each refused, asked or identified file ended where it did:
  *                            a 'reason | files' table and a 'family | reason | files' table, counts only. A reason is
- *                            a code from the app's own code paths (zip-not-opened, docx-later, macro-flag,
+ *                            a code from the app's own code paths (zip-not-opened, docx-unreadable, macros-values-only,
  *                            sheet-read-failed:<error class>, pdf-read-failed:<error class>, no-text-layer:<chars bucket>,
  *                            no-reader-for-type:<type>, both-readers-accept, text-names-reader-type:<type>,
  *                            om-wording-also-other-type, classifier-broad:<N> candidates, unknown-title, word-narrative)
@@ -153,7 +153,6 @@ async function reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridE
   else if (k === 'ole') out.push('ole-unknown');
   else if (k === 'unknown') out.push('binary-unknown');
   else if (upRes.refuse && /^That file is \d/.test(upRes.refuse)) out.push('too-big');
-  else if (k === 'xlsx' && upRes.macros) out.push('macro-flag'); // refused by content (sheetread.js loadXlsx): its sheets are not opened, so no shape either
   else if (intakeErr) out.push(`${k === 'pdf' ? 'pdf' : 'sheet'}-read-failed:${errClass(intakeErr)}`);
   else if (k === 'pdf' && !pages) out.push(`pdf-read-failed:${errClass(pdfErr)}`);
   else if ((k === 'xlsx' || k === 'text') && !grids && gridErr) out.push(`sheet-read-failed:${errClass(gridErr)}`);
@@ -171,9 +170,10 @@ async function reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridE
     out.push(t.length / Math.max(pages.pages.length, 1) >= 2000 && (t.match(/\d/g) || []).length / Math.max(t.length, 1) < 0.1 ? 'word-narrative' : 'unknown-title');
   } else out.push('unknown-title');
   if (k === 'pdf' && info.pages) out.push(`pages:${bucket(info.pages, PAGE_BUCKETS)}`);
-  if (k === 'xlsx' && !upRes.macros) {
+  if (k === 'xlsx') {
     let all = grids; // the shape counts hidden sheets too; the readers' own read above is untouched
     try { all = await readGrids(file, getXlsx, { maxRows: 1, includeHidden: true, getFflate }); } catch { /* the shape of an unreadable workbook is unknown */ }
+    if (upRes.macros) out.push('macros-values-only'); // read for its cell values; the macros were not run (sheetread.js)
     if (all) { out.push(`sheets:${bucket(all.length, SHEET_BUCKETS)}`); out.push(`hidden-sheets:${bucket(all.filter((g) => g.hidden).length, HIDDEN_BUCKETS)}`); }
   }
   return out;

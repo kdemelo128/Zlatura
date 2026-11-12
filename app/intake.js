@@ -15,6 +15,7 @@ import { typeLabel, isType } from './ddtypes.js';
 import { blocked } from './ai.js';
 import { ocrNote } from './ocrpdf.js';
 import { expandDocx } from './docxread.js';
+import { checkUpload, MACRO_NOTE } from './filekind.js';
 
 /** The documents the checklist asks about first. */
 export const CHECKLIST = Object.freeze(['rentroll', 't12', 'lease', 'om']);
@@ -215,6 +216,9 @@ export async function stageFiles(plan, files, deps, dd = null, onStep = () => {}
     /** @type {{ file: any, info: any }[]} */ let seen;
     try { seen = await lookAt(file, deps); } catch (err) {
       seen = [{ file, info: { name: file.name, kind: 'other', size: file.size, sha256: null, pages: null, verdict: {}, refuse: `${file.name} couldn’t be looked at: ${(err && /** @type {any} */ (err).message) || err}` } }];
+    }
+    for (const s of seen) { // a workbook with macros is read for its values only; say so on its row
+      if (s.info && s.info.kind === 'xlsx' && !s.info.refuse && s.file) { try { if ((await checkUpload(s.file, { getFflate: deps.getFflate })).macros) s.info.note = MACRO_NOTE; } catch { /* the workbook's own read already said what is wrong */ } }
     }
     seen = await expandDocx(seen, deps); // a Word file is its tables (read as CSV rows) or its text
     // a zip is several files: each part is staged exactly as if it had been dropped itself, naming the zip it came from
