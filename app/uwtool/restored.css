@@ -176,7 +176,8 @@ html[data-motion="off"] #uwHint{transition:none;transform:none}
 .qc-head{display:flex;flex-direction:column;gap:4px}
 .qc-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 .quick-check input{min-height:44px;background:var(--card)}
-.quick-check button,.quick-check summary{min-height:44px}
+.quick-check button,.quick-check summary{min-height:46px}
+.quick-check label,.quick-check .small{color:var(--ink)}
 .quick-check summary{display:flex;align-items:center}
 .qc-err{color:var(--bad);min-height:0}.qc-err:empty{display:none}
 .qc-blank:empty{display:none}
