@@ -1864,14 +1864,17 @@ input.ci44, select.ci44 { height: 44px; }
 }
 /* the entrance: the hero and then each card rise 8 px and fade in, 220 ms, a few tens of milliseconds apart (first draw only) */
 @media (prefers-reduced-motion: no-preference) {
-  :root[data-look="new"]:not([data-motion="off"]) .home-enter :is(.home-head .date, .home-head h1, .home-head .lede, .home-head .view-actions, .home-sumline, .bento > *) { animation: home-rise 220ms var(--ease-soft) both; }
+  :root[data-look="new"]:not([data-motion="off"]) .home-enter :is(.home-head .date, .home-head h1, .home-head .lede, .home-quiet, .home-sumline, .bento > *) { animation: home-rise 220ms var(--ease-soft) both; }
   :root[data-look="new"]:not([data-motion="off"]) .home-enter .home-head h1 { animation-delay: 40ms; }
   :root[data-look="new"]:not([data-motion="off"]) .home-enter .home-head .lede { animation-delay: 80ms; }
-  :root[data-look="new"]:not([data-motion="off"]) .home-enter .home-head .view-actions { animation-delay: 120ms; }
+  :root[data-look="new"]:not([data-motion="off"]) .home-enter .home-quiet { animation-delay: 120ms; }
+  /* the primary action only fades: a transform animation on it, or on a parent of it, would stop it floating on a phone */
+  :root[data-look="new"]:not([data-motion="off"]) .home-enter .home-primary { animation: home-fade 220ms var(--ease-soft) 120ms both; }
   :root[data-look="new"]:not([data-motion="off"]) .home-enter .bento > :nth-child(2) { animation-delay: 60ms; }
   :root[data-look="new"]:not([data-motion="off"]) .home-enter .bento > :nth-child(3) { animation-delay: 100ms; }
   :root[data-look="new"]:not([data-motion="off"]) .home-enter .bento > :nth-child(n+4) { animation-delay: 140ms; }
 }
+@keyframes home-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes home-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 /* phone: the one primary action floats above the tab bar (the content below leaves room for it) */

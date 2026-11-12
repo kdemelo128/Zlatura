@@ -44,6 +44,7 @@ const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good 
 const isNew = () => document.documentElement.dataset.look === 'new';
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
+let enteredAt = 0;
 async function render() {
   const root = $('home-root');
   if (!root) return;
@@ -52,8 +53,9 @@ async function render() {
   await workspaceReady();
   const ws = activeWorkspace();
   const scrollY = window.scrollY;
-  // the New look's entrance plays when Home is first drawn, not on every redraw after an edit
-  root.classList.toggle('home-enter', !root.firstElementChild);
+  // the New look's entrance plays only when Home is first drawn (and a redraw straight after), not after every edit
+  enteredAt ||= Date.now();
+  root.classList.toggle('home-enter', Date.now() - enteredAt < 800);
   root.textContent = '';
   const nameOf = Object.fromEntries(deals.map((d) => [d.id, tagged(d, d.name || d.figures.address || 'Untitled deal')]));
   const p = pipelineSummary(deals);
