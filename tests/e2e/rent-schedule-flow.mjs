@@ -52,7 +52,9 @@ const text = async (page, sel) => ((await page.locator(sel).count()) ? (await pa
 {
   const { browser, page } = await open('a', [lease('la', '100', 'Acme Test Co', [P('2026-01-01', '2030-12-31', 100000), P('2031-01-01', '2035-12-31', 110000)])], { lease_type: 'NNN', options: 'Two 5-year options' });
   const card = await text(page, '#deal-rentsched');
-  check('A: the card is there, called Rent schedule', /^Rent schedule/.test(card), card.slice(0, 80));
+  // the section's title is the fold button above the card (the card's own heading is not repeated)
+  const title = await text(page, '#dsec-rentsched .fold-title');
+  check('A: the card is there, called Rent schedule', /^Rent schedule/.test(title) && /Copy rent schedule/.test(card), `${title} | ${card.slice(0, 80)}`);
   check('A: the first period: $100,000.00 a year, $8,333.33 a month, 5.00% of the price', /Years 1–5/.test(card) && /\$100,000\.00/.test(card) && /\$8,333\.33/.test(card) && /5\.00%/.test(card), card);
   check('A: the second period: $110,000.00, 5.50%, +10.00% over the first', /\$110,000\.00/.test(card) && /5\.50%/.test(card) && /\s10\.00%\s/.test(card), card);
   check('A: the column is Rent ÷ price, not Cap rate', /Rent ÷ price/i.test(card) && !/Cap rate \(rent/i.test(card));

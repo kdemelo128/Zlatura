@@ -965,7 +965,8 @@ function clearBars(target) {
   let bottom = 0;
   for (const e of document.querySelectorAll('.appbar, .deal-nav')) {
     const r = e.getBoundingClientRect(); const s = getComputedStyle(e);
-    if (r.width && r.height && (s.position === 'fixed' || s.position === 'sticky') && r.top < 5) bottom = Math.max(bottom, r.bottom);
+    const t = parseFloat(s.top);
+    if (r.width && r.height && (s.position === 'fixed' || s.position === 'sticky') && Math.abs(r.top - (Number.isFinite(t) ? t : 0)) < 1) bottom = Math.max(bottom, r.bottom);
   }
   const top = target.getBoundingClientRect().top;
   if (top < bottom + 8) window.scrollBy({ top: top - bottom - 8, behavior: 'instant' });
