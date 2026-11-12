@@ -41,9 +41,54 @@ export function docKind(pages, layouts = null) {
   const om = OM_WORDS.filter((re) => re.test(text)).length >= 2;
   const titled = ROLL_TITLE.test(head) || AS_OF.test(head);
   if (om) return { kind: 'om', why: ['It reads like an offering memorandum (asking price, cap rate or investment summary wording).'], roll };
-  if (roll && titled) return { kind: 'rentroll', why: [`A rent roll table of ${roll.rows.length} rows${ROLL_TITLE.test(head) ? ', titled as one' : ', with an “As of” date'}.`], roll };
+  const scopeChecks = roll ? reportScopeChecks(pages, roll) : [];
+  if (roll && titled) return { kind: 'rentroll', why: [`A rent roll table of ${roll.rows.length} rows${ROLL_TITLE.test(head) ? ', titled as one' : ', with an “As of” date'}.`], roll, scopeChecks };
   if (T12_TITLE.test(head) || monthLine(pages)) return { kind: 't12', why: ['It reads like an operating statement (month columns or a statement title).'], roll };
-  return { kind: 'unknown', why: [roll ? 'There is a table that looks like a rent roll, but nothing on the first two pages says this is one.' : 'No rent roll table was found.'], roll };
+  return { kind: 'unknown', why: [roll ? 'There is a table that looks like a rent roll, but nothing on the first two pages says this is one.' : 'No rent roll table was found.'], roll, scopeChecks };
+}
+
+const ALL_UNITS = /^(?:all|any|unfiltered|not applied)(?:\s+(?:units?|tenants?|residents?|statuses))?[.!]?$/i;
+const FILTER_FIELD = /\b(property|unit|tenant|resident|occupancy|status)\s+filter\s*:/gi;
+const SUBSET = '(?:only\\s+(?:a\\s+)?subset\\s+of\\s+(?:(?:the|selected)\\s+)?(?:units?|tenants?|residents?)|(?:a\\s+)?subset\\s+of\\s+(?:the\\s+)?(?:units?|tenants?|residents?)|selected\\s+(?:units?|tenants?|residents?)\\s+only|(?:occupied|vacant)\\s+units?\\s+only|only\\s+(?:occupied|vacant)\\s+units?|exclud(?:es|ing)\\s+(?:all\\s+)?vacant\\s+units?)';
+const SCOPE_NOTICE = new RegExp(`^[ \\t]*(?:(?:this\\s+report|this\\s+rent\\s+roll)\\s+(?:lists|includes|contains|shows|covers)\\s+|report\\s+(?:scope|coverage)\\s*:\\s*)${SUBSET}[.!]?[ \\t]*(?=\\n|$)`, 'gim');
+
+/** Parsed text rolls only: inspect filter headers and explicit report-scope notices,
+ * never classify arbitrary tenant cells or subtotal prose as coverage metadata.
+ * These checks are transient; pdfRollRecord makes fresh acceptance state per preview. */
+function reportScopeChecks(pages, roll) {
+  const starts = new Map();
+  for (const r of roll.rows || []) {
+    const { page, line } = r.src || {};
+    if (Number.isInteger(page) && page > 0 && Number.isInteger(line) && line > 0) starts.set(page, Math.min(starts.get(page) || Infinity, line));
+  }
+  if (!starts.size) return [];
+  const first = Math.min(...starts.keys());
+  for (let pi = 0; pi < pages.length; pi += 1) {
+    const lines = String(pages[pi] || '').split('\n');
+    const header = pi + 1 > first && !starts.has(pi + 1) ? [] : lines.slice(0, starts.has(pi + 1) ? starts.get(pi + 1) - 1 : lines.length);
+    let found = null;
+    for (let li = 0; li < header.length && !found; li += 1) {
+      const text = header[li].trim();
+      const fields = [...text.matchAll(FILTER_FIELD)];
+      if (!fields.length || fields[0].index !== 0) continue;
+      for (let fi = 0; fi < fields.length; fi += 1) {
+        const f = fields[fi];
+        if (f[1].toLowerCase() === 'property') continue;
+        const value = text.slice(f.index + f[0].length, fields[fi + 1]?.index ?? text.length).replace(/[;|]+\s*$/, '').trim();
+        if (!ALL_UNITS.test(value)) { found = { line: li + 1, text }; break; }
+      }
+    }
+    if (!found) {
+      // A report may print its explicit scope notice in a footer or on a cover.
+      const text = lines.join('\n');
+      const match = [...text.matchAll(SCOPE_NOTICE)][0];
+      if (match) found = { line: text.slice(0, match.index).split('\n').length, text: match[0].trim() };
+    }
+    if (found) return [{ id: 'layout:report-scope', kind: 'layout', level: 'fail', page: pi + 1, line: found.line, row: null, col: null,
+      colLabel: 'Report coverage', cell: { text: found.text }, lineText: found.text, amount: 0,
+      text: 'This report shows a unit/resident filter or a subset notice. Its coverage needs review: it must not silently replace a complete rent roll. Obtain the full report or explicitly accept this check before using these rows.' }];
+  }
+  return [];
 }
 
 const CHARGE_WORD = /\b(?:charges?|fees?|cam|reimb\w*|escrow)\b/i;
@@ -89,7 +134,7 @@ export function pdfRollRecord(doc, { asOf = null, file = '', scanned = [] } = {}
   const roll = doc.roll;
   const { qc, rows } = omRollRecord({ rentRoll: roll, scanned }, { figures: {}, sources: {}, asOf, file });
   if (!roll) return { qc, rows: [], held: false };
-  const extra = layoutChecks(roll);
+  const extra = [...layoutChecks(roll), ...(doc.scopeChecks || []).map((c) => ({ ...c, cell: c.cell ? { ...c.cell } : null }))];
   const holds = extra.some((c) => c.level === 'fail');
   const all = rows.length ? rows : (qc.held || []);
   qc.checks.push(...extra);

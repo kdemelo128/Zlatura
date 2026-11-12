@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { docKind, layoutChecks, pdfRollRecord } from '../app/rrdoc.js';
 import { fromOmRows } from '../app/lease.js';
+import { blockingChecks, resolveCheck } from '../app/dataqc.js';
 import { tbl, C9, R } from './rr-fixtures.js';
 
 const rows = [
@@ -68,6 +69,67 @@ const pmRows = [
   ['A2', 'Quillfeather Books', '1,500', '3,500.00', '300.00', '3,500.00', '06/01/2022', '05/31/2027', '0.00'],
 ];
 const pmText = `Rent roll with Monthly Charges\nAs of: 10/01/2026\n\n${tbl(PM, pmRows)}\n\n${filler}`;
+
+const scopeDoc = (meta = '', options = {}) => docKind([`Rent roll\nAs of: 10/01/2026\n${meta}\n${tbl(PM, options.rows || pmRows)}\n${options.after || filler}`]);
+const scopeRecord = (doc) => pdfRollRecord(doc, { asOf: '2026-10-17', file: 'invented-pm.pdf' });
+const coverage = (record) => record.qc.checks.filter((c) => c.id === 'layout:report-scope');
+
+test('PM report filters marked All do not hold a complete report, including multiple metadata fields on one line', () => {
+  for (const meta of ['Unit Filter: All\nStatus Filter: All', 'Property Filter: Example only\nUnit Filter: All units', 'Unit Filter: All  Status Filter: All', 'Unit Filter: Any\nResident Filter: Not applied']) {
+    const record = scopeRecord(scopeDoc(meta));
+    assert.equal(coverage(record).length, 0, meta); assert.equal(record.held, false, meta); assert.equal(record.rows.length, 2);
+  }
+});
+test('an active status filter is caught after an All unit filter and keeps the source rows held', () => {
+  for (const meta of ['Unit Filter: All\nStatus Filter: Occupied', 'Unit Filter: All  Status Filter: Occupied']) {
+    const record = scopeRecord(scopeDoc(meta));
+    assert.equal(record.held, true); assert.deepEqual(record.rows, []); assert.equal(record.qc.held.length, 2);
+    assert.equal(coverage(record).length, 1); assert.equal(blockingChecks(record.qc).some((c) => c.id === 'layout:report-scope'), true);
+    assert.match(coverage(record)[0].lineText, /Status Filter: Occupied/); assert.equal(coverage(record)[0].page, 1);
+    assert.deepEqual(record.qc.held.map((r) => r.annual), [60000, 42000]);
+  }
+});
+test('selected unit/resident filters and unknown or blank filter syntax require coverage review', () => {
+  for (const meta of ['Unit Filter: A1', 'Resident Filter: Selected', 'Occupancy Filter: Vacant only', 'Status Filter: Not understood', 'Unit Filter: ']) {
+    const record = scopeRecord(scopeDoc(meta)); assert.equal(record.held, true, meta); assert.equal(coverage(record).length, 1, meta);
+  }
+});
+test('explicit report subset notices, including a wrapped notice, require review', () => {
+  for (const meta of ['This report lists only a subset of units.', 'This report lists only a subset\nof units.', 'Report scope: Occupied units only', 'This rent roll includes selected residents only.']) {
+    const record = scopeRecord(scopeDoc(meta)); assert.equal(record.held, true, meta); assert.match(coverage(record)[0].text, /coverage needs review/);
+  }
+});
+test('tenant names, subtotal captions and explanatory or marketing prose are not report metadata', () => {
+  for (const meta of ['Occupied units only subtotal', 'This report includes occupied units only as a subtotal.', 'Marketing mentions selected units only for this example.', 'The Unit Filter: Occupied is an example in the help text.']) {
+    const record = scopeRecord(scopeDoc(meta, { after: `${filler}\nOccupied units only subtotal\nExample: this report lists only a subset of units.` }));
+    assert.equal(coverage(record).length, 0, meta); assert.equal(record.held, false, meta);
+  }
+  const record = scopeRecord(scopeDoc('', { rows: pmRows.map((r, i) => [r[0], i ? r[1] : 'Unit Filter: Occupied', ...r.slice(2)]) }));
+  assert.equal(coverage(record).length, 0); assert.equal(record.held, false);
+});
+test('an explicit report subset notice in a footer remains a failed coverage check', () => {
+  const record = scopeRecord(scopeDoc('', { after: `${filler}\nThis report lists only a subset of units.` }));
+  assert.equal(record.held, true); assert.equal(coverage(record).length, 1);
+});
+test('an active filter on a later row-bearing page is not missed', () => {
+  const doc = docKind([pmText, `Rent roll continued\nUnit Filter: All\nStatus Filter: Occupied\n${tbl(PM, pmRows.map((r, i) => [`B${i + 1}`, ...r.slice(1)]))}\n${filler}`]);
+  const record = scopeRecord(doc); assert.equal(record.held, true); assert.equal(coverage(record)[0].page, 2); assert.equal(coverage(record)[0].line, 3);
+});
+test('a preceding report cover page with an active filter is checked', () => {
+  const record = scopeRecord(docKind([`Rent roll report\nResident Filter: Selected\n${filler}`, pmText]));
+  assert.equal(record.held, true); assert.equal(coverage(record)[0].page, 1);
+});
+test('acceptance belongs to one preview; rebuilding the same document stays held', () => {
+  const doc = scopeDoc('Status Filter: Occupied'); const first = scopeRecord(doc);
+  resolveCheck(first.qc, 'layout:report-scope', 'accepted', 1);
+  assert.equal(blockingChecks(first.qc).some((c) => c.id === 'layout:report-scope'), false);
+  assert.equal(doc.scopeChecks[0].resolved, undefined);
+  const second = scopeRecord(doc); assert.equal(second.held, true); assert.equal(blockingChecks(second.qc).some((c) => c.id === 'layout:report-scope'), true);
+});
+test('an untitled table still asks what it is, and coverage remains held if the broker chooses it', () => {
+  const doc = docKind([`Schedule\nUnit Filter: A1\n${tbl(PM, pmRows)}\n${filler}`]);
+  assert.equal(doc.kind, 'unknown'); assert.equal(scopeRecord(doc).held, true);
+});
 
 const RC = [{ h: 'Unit', w: 5 }, { h: 'Tenant', w: 22 }, { h: 'Sqft', w: 6, r: 1 }, { h: 'Rent & Charges', w: 15, r: 1 }];
 const rcRows = [['A1', 'Maple Leaf Bakery', '2,000', '5,400.00'], ['A2', 'Quillfeather Books', '1,500', '3,800.00']];
@@ -191,7 +253,30 @@ import { PDF_SPECS, pdfOf } from './rr-fixtures.js';
 const pdfjs = await import('../vendor/pdf-4.7.76-legacy.min.js');
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf-4.7.76-legacy.worker.min.js', import.meta.url).href;
 const { pdfPages } = await import('../app/pdftext.js');
+import { pmCoveragePdf } from './pmcoverage-fixtures.js';
 const read = async (name) => { const layouts = []; const pages = await pdfPages(pdfjs, pdfOf(PDF_SPECS[name]()), { layouts, verbosity: 0 }); return docKind(pages, layouts); };
+
+test('a real positioned PDF preserves the filter check and holds the independently expected rent totals', async () => {
+  for (const filtered of [false, true]) {
+    const layouts = []; const pages = await pdfPages(pdfjs, pmCoveragePdf(filtered), { layouts, verbosity: 0 });
+    const record = scopeRecord(docKind(pages, layouts));
+    assert.equal(record.held, filtered); assert.equal(coverage(record).length, filtered ? 1 : 0);
+    const rows = filtered ? record.qc.held : record.rows;
+    assert.deepEqual(rows.map((r) => r.annual), [60000, 42000, 36000]);
+    if (filtered) assert.match(coverage(record)[0].lineText, /Unit Filter: All.*Status Filter: Occupied/);
+  }
+});
+
+test('separate charges and zero market rent never replace missing or explicit monthly base rent', () => {
+  const cols = [{ h: 'Unit', w: 6 }, { h: 'Resident', w: 23 }, { h: 'Status', w: 10 }, { h: 'Sqft', w: 7, r: 1 }, { h: 'Market Rent', w: 13, r: 1 }, { h: 'Monthly Base Rent', w: 19, r: 1 }, { h: 'Monthly Charges', w: 17, r: 1 }, { h: 'Lease From', w: 12 }, { h: 'Lease To', w: 12 }, { h: 'Past Due', w: 11, r: 1 }];
+  const rows = [['101', 'Invented Household', 'Occupied', '800', '0.00', '1,200.00', '125.00', '01/01/2025', 'MTM', '0.00'], ['102', 'Example Resident', 'Occupied', '900', '0.00', '1,300.00', '150.00', '02/01/2025', '01/31/2027', '15.00']];
+  const pages = (data) => [`Rent Roll\nAs of: 10/01/2026\n${tbl(cols, data)}`, 'Rent Roll Summary\nUnit Type    Number of Units    Average Rent\nOne bedroom    2    1,250.00'];
+  const record = scopeRecord(docKind(pages(rows)));
+  assert.equal(record.held, false); assert.equal(record.rows.length, 2);
+  assert.deepEqual(record.rows.map((r) => r.annual), [14400, 15600]);
+  const missing = docKind(pages(rows.map((r) => [...r.slice(0, 5), '', ...r.slice(6)])));
+  assert.ok(missing.roll.rows.every((r) => r.annual == null && r.monthly == null));
+});
 
 test('PDF: a due-diligence rent roll is a rent roll of six rows, clean', async () => {
   const d = await read('rr-dd');
