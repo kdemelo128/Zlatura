@@ -42,7 +42,7 @@ const SYN = {
   nnn: ['nnn', 'triple net', 'triple-net', 'net lease'],
 };
 /** @type {[string, RegExp][]} */
-const SYN_RE = Object.entries(SYN).map(([id, ps]) => [id, new RegExp(`(?<![a-z0-9])(?:${ps.slice().sort((a, b) => b.length - a.length).map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+')).join('|')})(?![a-z0-9])`, 'g')]);
+const SYN_RE = Object.entries(SYN).map(([id, ps]) => [id, new RegExp(`(^|[^a-z0-9])(?:${ps.slice().sort((a, b) => b.length - a.length).map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+')).join('|')})(?![a-z0-9])`, 'g')]);
 
 /** Words that carry no topic: question words, fillers and the document nouns a question names the source with. */
 const STOP = new Set(('a an the and or of to in on at for from by with without as is are was were be been being am do does did done has have had having it its this that these those there here what whats which who whom whose when where why how ' +
@@ -79,7 +79,7 @@ export function tokens(raw, { fold = false } = {}) {
   let text = String(raw ?? '').toLowerCase().replace(/[’‘]/g, '\'').replace(/'s\b/g, '').replace(/\bt[- ]?12\b/g, 't12');
   const out = [];
   // a question's words that make up a concept are one idea with it (not weighed twice); a passage keeps both
-  for (const [id, re] of SYN_RE) { re.lastIndex = 0; if (re.test(text)) { out.push(`~${id}`); if (fold) text = text.replace(re, ' '); } }
+  for (const [id, re] of SYN_RE) { re.lastIndex = 0; if (re.test(text)) { out.push(`~${id}`); if (fold) text = text.replace(re, '$1 '); } }
   // an amount, percent or day is one token, and its digits are not also words
   text = text.replace(DATE_RE, (m) => { const iso = parseDateText(m); if (!iso) return m; out.push(`@${iso}`, iso.slice(0, 4)); return ' '; });
   text = text.replace(MONEY_RE, (m) => { const v = money(m); if (v === null || v < 1000) return m; out.push(`#${v}`); return ' '; });

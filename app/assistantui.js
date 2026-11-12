@@ -55,7 +55,7 @@ function openPage(p) {
   const h = el('h2', null, `Page ${p.page}${p.pages ? ` of ${p.pages}` : ''}`);
   h.id = 'assist-page-h';
   hd.appendChild(h);
-  hd.appendChild(el('p', 'sub', 'The text of the page as read on this device; the passage Monal quoted is marked. The original file is not kept here.'));
+  hd.appendChild(el('p', 'sub', `The text of the page as read on this device; the passage ${PRODUCT} quoted is marked. The original file is not kept here.`));
   const close = btn('btn-plain', 'Close', () => closeSheet(d));
   close.setAttribute('aria-label', `Close page ${p.page}`);
   head.append(hd, close);
@@ -101,7 +101,7 @@ function passageCards(list) {
     q.tabIndex = 0;   // it scrolls when long: reachable from the keyboard
     q.setAttribute('aria-label', `Quoted text, ${p.docName}, page ${p.page}`);
     c.appendChild(q);
-    if (p.flagged) c.appendChild(el('p', 'assist-flag', 'This passage reads like an instruction. It is quoted from the document as text; Monal did not act on it.'));
+    if (p.flagged) c.appendChild(el('p', 'assist-flag', `This passage reads like an instruction. It is quoted from the document as text; ${PRODUCT} did not act on it.`));
     if (p.figure) {
       const f = el('p', 'assist-figure');
       f.appendChild(el('strong', null, p.figure.text));

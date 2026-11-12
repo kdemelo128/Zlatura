@@ -64,7 +64,7 @@ export function extractField(fieldId, text, { subject = [] } = {}) {
   const F = FIELDS[fieldId];
   if (!F || !text || looksLikeInstruction(text)) return null;
   const subj = subject.map((s) => s.toLowerCase());
-  const after = F.labels ? new RegExp(`(?<![A-Za-z])(${F.labels})${SEP}${VALUE[F.kind]}`, 'i') : null;
+  const after = F.labels ? new RegExp(`(?:^|[^A-Za-z])(${F.labels})${SEP}${VALUE[F.kind]}`, 'i') : null;
   for (const raw of String(text).split('\n')) {
     const line = raw.trim();
     if (!line) continue;
