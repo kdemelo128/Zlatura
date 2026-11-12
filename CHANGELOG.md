@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.7.135: New look: a calmer Home in the built-in underwriting tool's style (on the development branch; not merged or deployed)
+
+In the New look, Home now has a clean hero: a large greeting, one sentence, and one primary action (Read an OM). Add comps and New task sit beside it as quiet text buttons; nothing was removed. On a phone the primary action floats above the tab bar, 44 px or larger, and the page leaves room so it never covers the last card. Cards are softer (larger radius, faint shadow), a deal row or pipeline card lifts 2 px on hover, and the page rises in gently the first time it is drawn. Motion is transform and opacity only, 150 to 250 ms, and stops with reduced motion or the Motion switch. The accent is the one you chose. Classic is unchanged.
+
 ## 4.7.134: The underwriting tool is built into the Underwrite tab (on the development branch; not merged or deployed)
 
 - The underwriting tool is built into the app: the Underwrite tab opens on it directly, with no package to load and no separate window. Quick underwrite stays one tap away in the same tab.

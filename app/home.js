@@ -84,7 +84,9 @@ async function render() {
   if (isNew()) {
     // one primary action (on a phone it floats above the tab bar); the other two sit in a quiet row of text buttons
     om.classList.add('btn-lg', 'home-primary');
-    om.insertAdjacentHTML('afterbegin', icon('plus', 20));
+    om.textContent = '';
+    om.insertAdjacentHTML('beforeend', icon('plus', 20));
+    om.appendChild(document.createTextNode('Read an OM'));
     cp.classList.add('btn-plain'); nt.classList.add('btn-plain');
     const quiet = el('div', 'home-quiet');
     quiet.append(cp, nt);
