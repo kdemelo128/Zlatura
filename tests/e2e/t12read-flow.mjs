@@ -5,7 +5,7 @@
  *   4. a workbook with a Budget sheet (more lines), a hidden sheet and two actual sheets: the Budget sheet
  *      is not offered, the broker chooses, the hidden sheet is not read;
  *   5. an empty month cell is said to be empty, not a confirmed $0;
- *   6. a PDF named .xlsx is refused saying what it is;
+ *   6. a malformed PDF named .xlsx is refused without replacing the statement;
  *   7. nothing overflows the screen. Each check fails on 4.7.28. */
 import fs from 'fs';
 import { createRequire } from 'module';
@@ -95,10 +95,12 @@ await page.goto(BASE + '#deal', { waitUntil: 'load' });
 await page.waitForSelector('#deal-t12 #t12-replace');
 
 // 6
+const beforeBadPdf = await page.textContent('#deal-t12');
 await importFile('t12read-fake.xlsx');
 await page.waitForTimeout(500);
 const bad = await toastText();
-check('a PDF named .xlsx is refused, saying it is a PDF', /is really a PDF, whatever its name says/.test(bad), bad);
+check('a malformed PDF named .xlsx reports its unreadable PDF content', /PDF could not be read/.test(bad), bad);
+check('a malformed PDF leaves the previous statement unchanged', await page.textContent('#deal-t12') === beforeBadPdf);
 
 check('phone: nothing overflows the screen', await fits());
 errors.push(...P.errors);

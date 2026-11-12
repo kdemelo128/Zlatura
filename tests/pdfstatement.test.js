@@ -24,10 +24,13 @@ for (const column of ['Annualized T-12 2025', 'Pro Forma 2025', 'Stabilized 2025
 }
 test('an actual column is kept separate from per-SF and pro-forma columns', () => {
   assert.deepEqual(eligible({ columns: ['Actual 2025', 'Per SF', 'Pro Forma'] }).map((c) => c.label), ['Actual 2025']);
+  assert.deepEqual(eligible({ columns: ['Actual 2025', 'Total'] }).map((c) => c.label), ['Actual 2025']);
 });
 test('a partial, unclear or future year stays held', () => {
   for (const title of ['Operating Statement - YTD 2025', 'Annual Operating Statement - YTD 2025', 'Operating Statement - 3 months ended 2025', 'Operating Statement']) assert.equal(eligible({ title }).length, 0);
   assert.equal(eligible({ title: 'Annual Operating Statement - Year ended 2028', columns: ['Actual 2028'] }).length, 0);
+  assert.equal(eligible({ title: 'Annual Operating Statement - Year ended December 31, 2026', columns: ['Actual 2026'] }).length, 0);
+  assert.equal(eligible({ title: 'Annual Operating Statement - Year ended June 30, 2026', columns: ['Actual 2026'] }).length, 0);
 });
 test('missing amounts and dashes never silently become zero, while a printed zero remains a zero', () => {
   for (const value of [null, '—']) assert.equal(eligible({ values: { Insurance: value } }).length, 0);
@@ -42,6 +45,13 @@ test('a foreign currency and explicit model output stay held', () => {
   assert.equal(eligible({ title: 'Annual Operating Statement CAD - Year ended 2025' }).length, 0);
   assert.equal(eligible({ title: 'Underwriting Model Output\nAnnual Operating Statement - Year ended 2025' }).length, 0);
 });
+test('a single printed scale is used once; conflicting units stay held', () => {
+  const values = { 'Rental income':'$120.00', 'Other income':'$6.00', 'Effective Gross Income':'$126.00', 'Real Estate Taxes':'$12.00', 'Insurance':'$3.00', 'Total Operating Expenses':'$15.00', 'Net Operating Income':'$111.00' };
+  assert.equal(statementTotals(read({ title:'Annual Operating Statement - Year ended 2025, in thousands', values })).noi,111000);
+  assert.equal(eligible({ title:'Annual Operating Statement - Year ended 2025, in thousands', values:{...values,'Rental income':'$120k'} }).length,0);
+  assert.equal(eligible({ title:'Annual Operating Statement - Year ended 2025, in thousands\nFigures in millions', values }).length,0);
+});
+
 test('printed totals still go through the shared arithmetic QC', () => {
   assert.ok(t12OpenChecks(read({ values: { 'Net Operating Income': '$110,000' } })).some((c) => c.level === 'fail'));
 });

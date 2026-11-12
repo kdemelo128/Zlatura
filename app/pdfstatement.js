@@ -4,6 +4,7 @@
 import { statementTables } from './omstatement.js';
 import { importStatement, matchLabel, numberFormatOf, amountOf } from './t12.js';
 import { toCents } from './engine/money.js';
+import { scaleOf } from './scale.js';
 const MODEL = /\b(?:annuali[sz]ed|stabili[sz]ed|budget|forecast|pro[ -]?forma|projected|projection|per\s+(?:unit|sf)|year\s+\d)\b|%/i;
 const FULL_YEAR = /\bannual\b|\b(?:year|twelve months|12 months)\s+end(?:ed|ing)\b/i;
 const PARTIAL = /\bYTD\b|year[ -]to[ -]date|\b(?:[1-9]|1[01])\s+months?\s+end(?:ed|ing)\b/i;
@@ -19,10 +20,15 @@ export function pdfStatementChoices(pages, { layouts = null, asOfYear = new Date
     const year = column.year || (years.length === 1 ? Number(years[0]) : null);
     let why = null;
     if (MODEL.test(column.label) || !['actual', 'total'].includes(column.kind) || column.unrecognised) why = 'This column is not an explicit actual total.';
+    else if (column.kind === 'total' && table.columns.filter((c) => !['unit', 'psf', 'pct'].includes(c.kind)).length !== 1) why = 'A Total beside other financial columns has no explicit actual basis; choose the labelled actual column.';
     else if (modelDocument || MODEL.test(table.title)) why = 'This table is model output, not source actuals.';
-    else if (!year || year > asOfYear || !FULL_YEAR.test(context) || PARTIAL.test(context)) why = 'Confirm the full-year actual period; it is not explicit here.';
+    // This first adapter admits completed prior-year totals only. A current-year
+    // "Actual" heading alone cannot establish that its full reporting period ended.
+    else if (!year || year >= asOfYear || !FULL_YEAR.test(context) || PARTIAL.test(context)) why = 'Confirm a completed prior-year actual period; a current, future, partial or unclear period stays held.';
     else if (/[€£¥₹]|\b(?:EUR|GBP|CAD|AUD|JPY)\b/i.test(context + ' ' + table.rows.map((r) => r.lineText).join(' '))) why = 'Confirm the currency; these figures are not identified as USD.';
     const body = table.rows.filter((r) => !r.heading);
+    const printedScales = new Set(String(pages[table.page - 1] || '').split('\n').map((line) => scaleOf(line).scale).filter((scale) => scale !== 1));
+    if (!why && (printedScales.size > 1 || (table.scale !== 1 && body.some((r) => r.cells[column.idx]?.suffix)))) why = 'Conflicting table or cell units need confirmation; these amounts were not scaled.';
     if (!why && table.rows.some((r) => r.heading && !/^(?:operating )?(?:income|expenses?|revenue)$/i.test(r.label.trim()) && matchLabel(r.label, { suggest: false }).category)) why = 'A line item has no amount; it is held, not read as zero.';
     if (!why && body.some((r) => r.ambiguous || !r.cells[column.idx] || r.cells[column.idx].dash || r.cells[column.idx].pct)) why = 'A line has a blank, dash, percentage or ambiguous column; it is held, not read as zero.';
     const labels = body.map((r) => r.label).join('\n');

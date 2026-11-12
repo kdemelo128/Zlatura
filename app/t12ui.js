@@ -530,7 +530,9 @@ export async function importFile(h, file) {
       const refusal = await checkReader(file, 'pdf');
       if (refusal) throw new Error(refusal);
       const layouts = [];
-      const pages = await pdfPages(await getPdfjs(), new Uint8Array(await file.arrayBuffer()), { layouts });
+      let pages;
+      try { pages = await pdfPages(await getPdfjs(), new Uint8Array(await file.arrayBuffer()), { layouts }); }
+      catch (err) { throw new Error(`The PDF could not be read: ${err.message || String(err)}`); }
       const choices = pdfStatementChoices(pages, { layouts });
       if (!choices.some((c) => c.eligible)) throw new Error(choices.find((c) => c.why)?.why || 'No explicit full-year actual operating statement was found. A scan needs OCR; an unclear period or model output is not imported as actuals.');
       const id = await actionSheet('Which annual actual column should be imported?', choices.map((c) => ({ label: `Page ${c.page} · ${c.label}`, sub: c.why || `Year ended ${c.year} · annual totals only, no monthly values invented`, value: c.id, disabled: !c.eligible })));
