@@ -53,6 +53,7 @@ const ASSETS = [
   'app/omroll.js',
   'app/scale.js',
   'app/omstatement.js',
+  'app/pdfstatement.js',
   'app/dataqc.js',
   'app/dataqcui.js',
   'app/compmodel.js',

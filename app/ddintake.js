@@ -10,6 +10,7 @@
 import { checkUpload, LIMITS, unpackBundle } from './filekind.js';
 import { readGrids } from './sheetread.js';
 import { docKind } from './rrdoc.js';
+import { pdfStatementChoices } from './pdfstatement.js';
 import { layoutOf, sheetChoices, pickSheet } from './t12.js';
 import { headerAndRows } from './rentrollui.js';
 import { classify, scoreText, suggestFromName } from './ddtypes.js';
@@ -38,6 +39,7 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
     const dk = docKind(pages, layouts);
     out.scanned = dk.kind === 'scanned';
     if (dk.kind === 'rentroll') return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrpdf' };
+    if (dk.kind === 't12' && pdfStatementChoices(pages, { layouts }).some((c) => c.eligible)) return { ...out, type: 't12', typeBy: 'reader', reader: 't12pdf' };
     // "any two OM words" also reads an appraisal or a broker opinion of value: when the text says another type at least as loudly, ask
     if (dk.kind === 'om') {
       const sc = scoreText(out.text);

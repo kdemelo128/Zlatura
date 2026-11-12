@@ -4,9 +4,11 @@
  * out in t12.js; dealui.js keeps the deal, its history and its saves, and
  * hands this module what it needs (`h`). */
 
-import { el, toast, actionSheet, money0, money2, niceDate, getXlsx, getFflate } from './kit.js';
+import { el, toast, actionSheet, money0, money2, niceDate, getXlsx, getFflate, getPdfjs } from './kit.js';
 import { readGrids, pastedRows } from './sheetread.js';
-import { checkUpload } from './filekind.js';
+import { checkUpload, checkReader, LIMITS } from './filekind.js';
+import { pdfPages } from './pdftext.js';
+import { pdfStatementChoices, statementFromPdfChoice } from './pdfstatement.js';
 import {
   CATEGORIES, CATEGORY, SIDES, statementTotals, annualized, openLines, fileLine, periodText, rematch, sourceText, periodShort, lineNotes,
   statementNotes, markSeen, suggestionText, sheetChoices, pickSheet, layoutOf, numberFormatOf, importStatement, currencyRefusal,
@@ -35,7 +37,7 @@ export function renderT12Card(box, h) {
   box.appendChild(head);
   const t = d.t12;
   if (!t) {
-    box.appendChild(el('p', 'hint', 'Import a trailing-12 operating statement (.xlsx or .csv). Each line goes in a standard category; lines it can’t place go to Review; its NOI is set beside the OM’s and the rent roll’s.'));
+    box.appendChild(el('p', 'hint', 'Import a trailing-12 operating statement (.xlsx, .csv or a PDF with full-year actuals). Each line goes in a standard category; lines it can’t place go to Review; its NOI is set beside the OM’s and the rent roll’s.'));
     box.appendChild(importButton(h, 'Import a T-12…', 'btn btn-primary'));
     box.appendChild(pasteButton(h, 'btn btn-gray', 'Paste a statement…'));
     return;
@@ -505,7 +507,7 @@ function importButton(h, label, cls) {
   b.addEventListener('click', () => {
     const inp = el('input');
     inp.type = 'file';
-    inp.accept = '.xlsx,.xlsm,.csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12';
+    inp.accept = '.pdf,application/pdf,.xlsx,.xlsm,.csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12';
     inp.id = 't12-file';
     inp.hidden = true;
     inp.addEventListener('change', () => { const f = inp.files[0]; inp.remove(); if (f) importFile(h, f); });
@@ -523,6 +525,26 @@ export async function importFile(h, file) {
   try {
     // what the file is comes from its bytes and size, never its name; nothing is read whole before this passes
     const up = await checkUpload(file, { getFflate });
+    if (up.kind === 'pdf') {
+      if (file.size > LIMITS.pdf) throw new Error(`An operating-statement PDF is read up to ${LIMITS.pdf / 1e6} MB.`);
+      const refusal = await checkReader(file, 'pdf');
+      if (refusal) throw new Error(refusal);
+      const layouts = [];
+      const pages = await pdfPages(await getPdfjs(), new Uint8Array(await file.arrayBuffer()), { layouts });
+      const choices = pdfStatementChoices(pages, { layouts });
+      if (!choices.some((c) => c.eligible)) throw new Error(choices.find((c) => c.why)?.why || 'No explicit full-year actual operating statement was found. A scan needs OCR; an unclear period or model output is not imported as actuals.');
+      const id = await actionSheet('Which annual actual column should be imported?', choices.map((c) => ({ label: `Page ${c.page} · ${c.label}`, sub: c.why || `Year ended ${c.year} · annual totals only, no monthly values invented`, value: c.id, disabled: !c.eligible })));
+      const choice = choices.find((c) => c.id === id && c.eligible);
+      if (!choice) return;
+      const format = choice.number.ask ? await askFormat(file.name, choice.number) : choice.number.format;
+      if (!format) return;
+      const mem = await remembered();
+      t = statementFromPdfChoice(choice, { file: file.name, size: file.size, corrections: mem.corrections, history: mem.history, numberFormat: format });
+      if (h.deal !== d) return;
+      keepStatement(h, d, t, null);
+      if (h.registerRead && h.deal === d && d.t12 === t) h.registerRead(file, { reader: 't12', target: 't12', type: 't12', kind: 'pdf', pages: pages.length, checks: qcCounts(t12Qc(t)) });
+      return;
+    }
     if (up.refuse) { toast(up.refuse, null, 9000); return; }
     const grids = await readGrids(file, getXlsx, { maxRows: 1500, includeHidden: true, upload: up, getFflate });
     note = grids[0] && grids[0].note;
