@@ -11,7 +11,9 @@ import { buildImport, parseTerms, allowed, harvest, base64Runs, fingerprint, mai
 const enc = (s) => new Uint8Array(Buffer.from(s));
 const FIRM = ['Ac', 'meCorp'].join('');            // invented firm word, built at run time
 const SECRET_SHEET = ['Zork', 'Sheet'].join('');
-const PUB = JSON.parse(fs.readFileSync(new URL('../tools/uwtool-import.public.json', import.meta.url), 'utf8'));
+const PUB_FILE = JSON.parse(fs.readFileSync(new URL('../tools/uwtool-import.public.json', import.meta.url), 'utf8'));
+// the stand-in packages do not hold the real tool's files: the public edits are tested on their own (last tests)
+const PUB = { ...PUB_FILE, edits: [] };
 
 /** The invented package: a tool folder with one data block, one firm line, plus things that must stay out. */
 function standin() {
@@ -165,7 +167,8 @@ test('the command line writes the output and manifest; refuses with no deny-list
     fs.writeFileSync(path.join(dir, 'example.json'), '{"invented":true}');
     const dl = path.join(dir, 'deny.txt'); fs.writeFileSync(dl, `${FIRM}\n${SECRET_SHEET}\n`);
     const quiet = (fn) => { const l = console.log, e = console.error; console.log = console.error = () => {}; try { return fn(); } finally { console.log = l; console.error = e; } };
-    const base = ['--from', from, '--rules', rulesF, '--out', out, '--pack', pack];
+    const pubF = path.join(dir, 'public.json'); fs.writeFileSync(pubF, JSON.stringify(PUB));
+    const base = ['--from', from, '--rules', rulesF, '--out', out, '--pack', pack, '--public', pubF];
     assert.equal(quiet(() => main([...base, '--denylist', path.join(dir, 'missing.txt')], {})), 1, 'no deny-list: refuses');
     assert.ok(!fs.existsSync(out));
     assert.equal(quiet(() => main([...base, '--denylist', dl], {})), 0);
@@ -181,14 +184,15 @@ test('the command line writes the output and manifest; refuses with no deny-list
     // an output folder that is not an import is not wiped
     const other = path.join(dir, 'other'); fs.mkdirSync(other); fs.writeFileSync(path.join(other, 'mine.txt'), 'keep');
     fs.writeFileSync(rulesF, JSON.stringify(RULES()));
-    assert.equal(quiet(() => main(['--from', from, '--rules', rulesF, '--out', other, '--denylist', dl], {})), 1);
+    assert.equal(quiet(() => main(['--from', from, '--rules', rulesF, '--out', other, '--public', pubF, '--denylist', dl], {})), 1);
     assert.ok(fs.existsSync(path.join(other, 'mine.txt')));
     assert.equal(quiet(() => main([], {})), 2);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('the public settings hold no firm term: an allow-list, ceilings and nothing else', () => {
-  assert.deepEqual(Object.keys(PUB).sort(), ['allow', 'allowExt', 'base64Allow', 'base64Ceiling', 'licence', 'minTermLength', 'root']);
+  assert.deepEqual(Object.keys(PUB_FILE).sort(), ['allow', 'allowExt', 'base64Allow', 'base64Ceiling', 'edits', 'licence', 'minTermLength', 'root']);
+  for (const e of PUB_FILE.edits) assert.deepEqual(Object.keys(e).sort(), ['category', 'file', 'find', 'id', 'op', 'replace'], 'a public edit is one exact-match replace');
   assert.deepEqual(PUB.allow, ['public/tool/']);
 });
 
@@ -229,4 +233,15 @@ test('MUTATION: escapeControls with the wrong count, or a control byte after a b
   const pkg2 = standin(); pkg2['public/tool/lib.js'] = enc('var s = "\\\u0003";\n');
   const e2 = RULES(); e2.edits.push({ id: 'ctl', category: 'lib', op: 'escapeControls', file: 'lib.js', count: 1 });
   assert.match(run({ pkg: pkg2, rules: e2 }).errors.join(), /edit ctl: a control byte follows a backslash/);
+});
+
+test('a public edit is applied after the private rules, exactly once, and fails the run when its text is not there', () => {
+  const pub = { ...PUB, edits: [{ id: 'pub-fix', category: 'security', op: 'replace', file: 'app.js', find: 'export const ok = 1;', replace: 'export const ok = 2;' }] };
+  const pkg = standin();
+  const r = run({ pkg, pub });
+  assert.equal(r.ok, true, r.errors.join('; '));
+  assert.ok(r.manifest.edits.some((e) => e.id === 'pub-fix' && e.applied === 1));
+  const bad = run({ pkg, pub: { ...pub, edits: [{ ...pub.edits[0], find: 'text that is not in the file' }] } });
+  assert.equal(bad.ok, false);
+  assert.ok(bad.errors.some((e) => /pub-fix/.test(e)));
 });

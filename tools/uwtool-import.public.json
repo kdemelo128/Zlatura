@@ -5,5 +5,15 @@
   "licence": "all rights reserved (app/uwtool/LICENSE), owner decision 2026-11-11",
   "base64Ceiling": 4096,
   "base64Allow": [],
-  "minTermLength": 3
+  "minTermLength": 3,
+  "edits": [
+    {
+      "id": "docx-text-sanitize",
+      "category": "security",
+      "op": "replace",
+      "file": "parsers.js",
+      "find": "const xml = await f.async('string'), text = xml.replace(/<\\/w:p>/g, '\\n').replace(/<w:tab\\/>/g, '\\t').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '\"').replace(/&apos;/g, \"'\");",
+      "replace": "const xml = await f.async('string'), text = ((s) => { for (let p; p !== s;) { p = s; s = s.replace(/<[^>]+>/g, ''); } const E = { amp: '&', lt: '<', gt: '>', quot: '\"', apos: \"'\" }; return s.replace(/&(amp|lt|gt|quot|apos);/g, (m, k) => E[k]); })(xml.replace(/<\\/w:p>/g, '\\n').replace(/<w:tab\\/>/g, '\\t'));"
+    }
+  ]
 }
