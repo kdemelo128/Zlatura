@@ -132,7 +132,8 @@ export function understandAction(raw, { today = new Date() } = {}) {
   // a figure
   const names = FIELDS.map((f) => `(?<${f.key}>${f.re})`).join('|');
   const verbed = new RegExp(`^${polite}(?:set|change|update|make|put|correct|fix)(?: the| this deal'?s| my)* (?:${names})\\s*(?:to|at|as|=|is|should be)\\s*(.+)$`).exec(t);
-  const stated = verbed ? null : new RegExp(`^(?:the |this deal'?s )?(?:${names})\\s*(?:is|=|are)\\s*(.+)$`).exec(t);
+  // a bare statement ("occupancy is 92%") is an edit only when nothing but the value follows: "the price is $5m, what is the cap rate" is a question
+  const stated = verbed || /[?]/.test(orig) ? null : new RegExp(`^(?:the |this deal'?s )?(?:${names})\\s*(?:is|=|are)\\s*(\\$?\\d[\\d,]*(?:\\.\\d+)?\\s?(?:k|mm|m|b|%|percent|pct|sf|units?|points?|pts?|bps)?)$`).exec(t);
   const fm = verbed || stated;
   if (fm) {
     const f = FIELDS.find((x) => fm.groups[x.key]);

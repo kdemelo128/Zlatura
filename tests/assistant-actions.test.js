@@ -182,3 +182,18 @@ test('strict readers', () => {
   assert.deepEqual(X.strictPct('6.5'), { bare: '6.5' });
   assert.ok(X.strictPct('50 bps').points);
 });
+
+test('questions that contain a figure stay questions, with their release 1 answers', () => {
+  const id = (t) => A.understand(t, { today: TODAY }).id;
+  const c = ask('the price is $5m, what is the cap rate');
+  assert.equal(c.kind, 'answer');
+  assert.match(c.lines[0], /At a price of \$5,000,000 the cap rate is 6\.30%/);     // 315,000 / 5,000,000
+  const p = ask('the cap rate is 7%, what price');
+  assert.equal(p.kind, 'answer');
+  assert.match(p.lines[0], /7\.00% cap rate works out to a price of \$4,500,000/);
+  for (const q of ['the noi is 300k, what is the cap rate at $4.6M', 'occupancy is 92%, what is the dscr', 'price is 4.6m?', 'is the price 4.6m', 'the price is what',
+    'price is $4.6m, right?', 'occupancy is 92% so how does that compare to my comps', 'the price is $5m and what is the break-even occupancy', 'the units are how many', 'the cap rate is 7%. what would the price be']) {
+    assert.ok(!['set_figure', 'set_stage', 'next_step', 'add_contact', 'add_note', 'make_scenario', 'start_export'].includes(id(q)), `${q} -> ${id(q)}`);
+  }
+  assert.equal(ask('occupancy is 92%').kind, 'confirm');     // a bare statement is still an edit
+});
