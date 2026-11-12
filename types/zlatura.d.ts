@@ -84,6 +84,8 @@ interface OmRentRow {
   /** read from an OM by position (omroll.js): a holdover, the bumps as printed, market rent, and where each value came from */
   monthly?: UsdPerMonth; holdover?: boolean; bumps?: string; market?: number; status?: string; ocr?: boolean;
   src?: { page: number; line: number; cells: Record<string, { page: number; line: number; col: number; text: string }> };
+  /** the broker's answer to a rent column that did not say monthly or annual (rrdoc.js) */
+  periodChosen?: 'monthly' | 'annual' | 'psf' | 'mpsf';
   derived?: string[]; confidence?: 'high' | 'medium' | 'low'; score?: number; why?: string[];
 }
 interface RentPeriod { start: IsoDate; end: IsoDate; rate: RentInUnit; unit: RentUnit; source?: string; note?: string; edited?: boolean }

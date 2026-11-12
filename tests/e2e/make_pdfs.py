@@ -45,7 +45,7 @@ def scan_image(items, path, dpi=200):
         dr.text((x, (792 - it["y"]) * k), it["s"], fill=0, font=f, anchor="ls")
     im.save(path)
 # and invented operating statements (tests/om-statement-fixtures.js): headings centred over their columns
-for name, spec in {**pages["rr_specs"], **pages.get("stmt_specs", {})}.items():
+for name, spec in {**pages["rr_specs"], **pages.get("stmt_specs", {}), **pages.get("pm_specs", {})}.items():
     c = canvas.Canvas(f"{d}/{name}.pdf", pagesize=letter)
     for i, pg in enumerate(spec):
         if isinstance(pg, dict):

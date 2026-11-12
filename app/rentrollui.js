@@ -22,7 +22,7 @@ import {
   COLUMNS, PRESETS, MARKET_UNIT, layoutFromPreset, visibleColumns, customColumn, newLease, duplicateLease,
   gridContext, viewRows, ocrReading,
 } from './rentroll.js';
-import { docKind, pdfRollRecord } from './rrdoc.js';
+import { docKind, pdfRollRecord, reapplyAccepted } from './rrdoc.js';
 import { compareRolls } from './reconcile.js';
 import { qcPanel } from './dataqcui.js';
 import { blockingChecks, resolveCheck, qcCounts } from './dataqc.js';
@@ -958,6 +958,9 @@ function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
   let record = null;                 // { qc, rows, held } once the broker has chosen to read it as a rent roll
   let mode = rr.leases.length ? null : 'replace';
   let ocrStatus = '';
+  const periods = {};                // the broker's answers: column kind -> 'monthly' | 'annual' | 'psf' | 'mpsf'
+  const accepted = new Map();        // check id -> its text when accepted: kept when the pages are read again, only if the text is unchanged
+  let replaceSubset = false;         // a filtered report may replace a rent roll only after a second, explicit confirmation
   const use = el('button', 'btn btn-primary', 'Use this rent roll');
   use.type = 'button';
   use.id = 'rrpdf-use';
@@ -969,7 +972,13 @@ function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
     const ocr = (record.qc.ocr || []).filter((o) => { const c = record.qc.checks.find((x) => x.id === `ocr:${o.page}`); return o.rows.length && c && c.resolved; }).flatMap((o) => o.rows);
     return [...base, ...ocr];
   };
-  const startRecord = () => { record = pdfRollRecord(doc, { asOf: rr.settings.asOf || localDate(), file: file.name, scanned: doc.kind === 'scanned' ? pages.map((_, i) => i + 1) : [] }); };
+  const startRecord = () => {
+    const was = record;
+    record = pdfRollRecord(doc, { asOf: rr.settings.asOf || localDate(), file: file.name, scanned: doc.kind === 'scanned' ? pages.map((_, i) => i + 1) : [], periods });
+    // pages already read by OCR keep their rows and their checks through a re-read
+    if (was && was.qc.ocr) { record.qc.ocr = was.qc.ocr; record.qc.checks.push(...was.qc.checks.filter((c) => /^ocr:/.test(c.id))); for (const c of was.qc.checks) if (/^scanned:/.test(c.id) && c.resolved) { const n = record.qc.checks.find((x) => x.id === c.id); if (n) n.resolved = c.resolved; } }
+    reapplyAccepted(record.qc, accepted);
+  };
 
   async function readPage(p) {
     if (ocrStatus) return;
@@ -1008,9 +1017,19 @@ function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
       id: 'rrpdf-qc', title: 'Data QC', qc: record.qc,
       intro: 'The rent roll as read from the PDF: each check, and the page, row and cell it points to. Nothing is added until you tap “Use this rent roll”.',
       blockedText: 'A failed check holds the rent roll back. Look at the page, then resolve each failed check or accept the reading as it stands.',
-      onResolve: (c) => { resolveCheck(record.qc, c.id, 'accepted'); draw(); },
-      onAcceptAll: () => { for (const c of record.qc.checks) if (c.level === 'fail' && !c.resolved) resolveCheck(record.qc, c.id, 'accepted'); draw(); },
+      onResolve: (c) => { accepted.set(c.id, c.text); resolveCheck(record.qc, c.id, 'accepted'); draw(); },
+      // a question (monthly or annual?) and a filtered report each need their own answer, never a blanket accept
+      onAcceptAll: () => { for (const c of record.qc.checks) if (c.level === 'fail' && !c.resolved && !c.choices && c.kind !== 'subset') { accepted.set(c.id, c.text); resolveCheck(record.qc, c.id, 'accepted'); } draw(); },
       extra: (c) => {
+        if (c.choices && !c.resolved) {
+          return c.choices.map((v) => {
+            const b = el('button', 'btn btn-sm btn-primary qc-period', { annual: 'Annual', monthly: 'Monthly', psf: 'Per SF, a year', mpsf: 'Per SF, a month' }[v]);
+            b.type = 'button';
+            b.dataset.period = v;
+            b.addEventListener('click', () => { periods[c.periodKind] = v; startRecord(); draw(); });
+            return b;
+          });
+        }
         if (c.kind !== 'scanned' || c.resolved) return [];
         if (!ocrSupported()) return [el('span', 'hint-sm', 'OCR needs a newer browser.')];
         return (c.pages || [c.page]).slice(0, 6).map((p) => {
@@ -1066,10 +1085,19 @@ function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
         const dup = rows.filter((r) => r.suite && have.has(String(r.suite).trim().toLowerCase())).length;
         if (dup) g.appendChild(el('p', 'warn-text', `${dup} suite${dup === 1 ? ' is' : 's are'} already in the rent roll: adding counts the same space twice.`));
       }
+      if (record.subset && mode === 'replace') {
+        const lab = el('label', 'chk warn-text');
+        const box = el('input');
+        box.type = 'checkbox'; box.id = 'rrpdf-replace-subset'; box.checked = replaceSubset;
+        box.addEventListener('change', () => { replaceSubset = box.checked; draw(); });
+        lab.append(box, document.createTextNode(' This report says it is filtered, so it may be only some of the units. Replace the whole rent roll with it anyway.'));
+        g.appendChild(lab);
+      }
       body.appendChild(g);
     }
-    use.disabled = !rows.length || blocking > 0 || !mode;
-    use.title = use.disabled ? (!rows.length ? 'No rows were read.' : blocking ? 'A failed check holds the rent roll back.' : 'Choose replace or add.') : '';
+    const needsSubsetOk = !!(record.subset && rr.leases.length && mode === 'replace' && !replaceSubset);
+    use.disabled = !rows.length || blocking > 0 || !mode || needsSubsetOk;
+    use.title = use.disabled ? (!rows.length ? 'No rows were read.' : blocking ? 'A failed check holds the rent roll back.' : !mode ? 'Choose replace or add.' : 'Confirm replacing with a filtered report.') : '';
   }
 
   use.addEventListener('click', () => {
@@ -1081,7 +1109,7 @@ function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
     const leases = fromOmRows(rows, { asOf: rr.settings.asOf || localDate(), buildingSf: rr.settings.buildingSf, kind: 'pdf', file: file.name }).leases;
     rr.leases = mode === 'add' ? [...old, ...leases] : leases;
     api.sheetClose();
-    changed(true, { kind: 'import', label: `Imported ${leases.length} unit${leases.length === 1 ? '' : 's'} from the rent roll PDF “${file.name}”${mode === 'replace' && old.length ? ', replacing the rent roll' : ''}${accepted ? `; ${accepted} failed check${accepted === 1 ? '' : 's'} accepted` : ''}`, snapshot: snap });
+    changed(true, { kind: 'import', label: `Imported ${leases.length} unit${leases.length === 1 ? '' : 's'} from the ${record.subset ? 'filtered ' : ''}rent roll PDF “${file.name}”${mode === 'replace' && old.length ? ', replacing the rent roll' : ''}${accepted ? `; ${accepted} failed check${accepted === 1 ? '' : 's'} accepted` : ''}`, snapshot: snap });
     changed.registerRead(file, { reader: 'rrpdf', target: 'rr', type: 'rentroll', kind: 'pdf', pages: pages.length, checks: qcCounts(record.qc) });
     toast(`${leases.length} unit${leases.length === 1 ? '' : 's'} imported from ${file.name}. Each rent is one documented period.`, { label: 'Undo', run: () => { rr.leases = old; changed(); } }, 9000);
   });
