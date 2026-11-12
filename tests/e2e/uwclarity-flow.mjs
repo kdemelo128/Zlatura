@@ -77,9 +77,11 @@ async function area(title, root, attr, tabs) {
   check(`${title}: all six tabs are there under plain group headings`, JSON.stringify(names) === JSON.stringify(tabs) && (await f.locator(`${root} .nav-group-label`).count()) >= 3, JSON.stringify(names));
   const clicks = [], hints = [], tall = [], what = []; figures[title] = {};
   for (const t of tabs) {
-    await f.locator(`${root} [${attr}="${t.replace(/"/g, '\\"')}"]`).click();
-    clicks.push(await f.locator(`${root} [${attr}="${t}"]`).evaluate((b) => b.classList.contains('selected')));
-    hints.push(await f.evaluate(([root, attr, t]) => { const b = document.querySelector(`${root} [${attr}="${t}"]`); const w = document.querySelector(`${root} .tab-what`); return !!b.dataset.hint && !!w && w.textContent.trim().length > 20; }, [root, attr, t]));
+    // a CSS string escapes backslash and quote; the tab names are the tool's own, but the selector is built safely either way
+    const sel = `${root} [${attr}="${t.replace(/[\\"]/g, '\\$&')}"]`;
+    await f.locator(sel).click();
+    clicks.push(await f.locator(sel).evaluate((b) => b.classList.contains('selected')));
+    hints.push(await f.evaluate(([root, attr, t]) => { const b = document.querySelector(`${root} [${attr}="${CSS.escape(t)}"]`); const w = document.querySelector(`${root} .tab-what`); return !!b.dataset.hint && !!w && w.textContent.trim().length > 20; }, [root, attr, t]));
     tall.push(...await smalls(root)); figures[title][t] = await leaves(root);
     for (const n of FORMER[t] || []) what.push([n, (await f.locator(`${root} button`, { hasText: n }).count()) > 0]);
   }
