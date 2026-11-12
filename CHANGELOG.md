@@ -1,8 +1,22 @@
 # Changelog
 
-## 4.7.141: Clearer "Choose your next move", analyst toolkit and advanced scenarios in the underwriting tool (on the development branch; not merged or deployed)
+## 4.7.142: Clearer "Choose your next move", analyst toolkit and advanced scenarios in the underwriting tool (on the development branch; not merged or deployed)
 
 The tool's ten cards now sit under four plain headings (Work the numbers, Check the evidence, Build the model, Share the result), most used first, one "Start here" card in each, each with its one-line description and a longer "what this does" hint (on mouse hover and keyboard focus; on a touch tap it shows for a few seconds). The analyst toolkit and advanced scenarios keep all six tabs each, now under three headings with a one-line description under the tabs. Every button, select, text field and fold in the three areas is at least 44 px tall. The hint only fades (150 ms, opacity and transform) and does not animate under reduced motion. No control was removed or renamed and no calculation or stored value changed: the fictional example shows the same figures (checked by a hash of every displayed figure on the page and on all twelve tabs). New browser flow `uwclarity-flow` (31 checks, 19 of which fail on the old code), with axe inside the tool's frame. Edited directly in `app/uwtool/` (`tool-library.js`, `analyst-ui.js`, `advanced-ui.js`, new `clarity.js`, `restored.css`).
+
+## 4.7.141: A property manager's rent roll PDF is checked for completeness, rent basis and period before it is used (on the development branch; not merged or deployed)
+
+The rent roll PDF import already read a property manager's report and held it when a column looked like charges. It now follows the approved reader rules for the other cases that make such a report misleading.
+
+- **Filtered report.** A report that says it is filtered (a "Status Filter: Current" line, even beside "Unit Filter: All", a "Status: Current" header, or words such as "filtered" or "showing 12 of 48") fails a completeness check. Its rows can be reviewed, "Accept the reading as it stands" does not accept it, and replacing a rent roll you already have needs a second, separate confirmation.
+- **Base rent only.** Charges, balances and market rent never fill rent. A bare "Rent" column beside charges or market rent, with no sentence calling it base or contract rent, is asked about; with no rent column at all every rent stays blank and a note says why. A zero market rent does not make a zero contract rent; a missing rent stays blank.
+- **Monthly or annual is asked.** A rent column whose period the page never states (not in its heading, not in a sentence) now asks "Monthly or Annual?" with one button each; the rent is read again with the answer. Before, the reader guessed from the figures. A page that states a different period from the guess ("rent is annual") is asked too, never applied silently; the choice is written on each lease's note, and an accepted check carries over to a re-read only if its wording is unchanged.
+- **Summary pages.** A page titled as a summary whose table has no suites or lease dates, and whose columns differ from the rest of the roll's, is no longer read as units (before, its small table could replace the real rent roll); a warning says how many rows were left out. A page with the same columns is more of the roll and is kept.
+- **Untitled table.** Still only offered as a possible rent roll, read after "It is a rent roll: read it" (now covered by a test).
+
+Preview, Use and Undo are unchanged: nothing is stored until "Use this rent roll", each lease keeps its PDF, page and line, and Undo restores the roll. No saved-deal result or data format changed; the reader's `periods` option is off unless the broker answers.
+
+Tested with invented fixtures only (`tests/pmroll-fixtures.js`): 19 unit tests with hand-worked rents (13,375 a month is 160,500 a year; a 5,000 answered annual stays 5,000), and a browser flow (`pmroll-flow`, phone and desktop, 66 checks, axe clean). Eighteen mutations of the new guards each fail a test. Real property-manager files, Safari and a physical phone are not tested.
 
 ## 4.7.140: The underwriting tool is now maintained in this repository (on the development branch; not merged or deployed)
 

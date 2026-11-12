@@ -754,7 +754,7 @@ export function fromOmRows(rows, { asOf, page = null, buildingSf = null, kind = 
     if (!r.vacant && pos(r.annual)) {
       const pStart = start || asOf;
       const pEnd = end || (r.mtm ? addDays(addMonths(asOf, 1), -1) : null);
-      if (pStart && pEnd) L.periods.push({ start: pStart, end: pEnd, rate: r.annual, unit: 'year', source: 'documented', note: pdf ? `Rent roll PDF${fileName ? ` “${fileName}”` : ''}${(r.src && r.src.page) || page ? `, page ${(r.src && r.src.page) || page}` : ''}` : page ? `OM rent roll, page ${page}` : 'OM rent roll' });
+      if (pStart && pEnd) L.periods.push({ start: pStart, end: pEnd, rate: r.annual, unit: 'year', source: 'documented', note: pdf ? `Rent roll PDF${fileName ? ` “${fileName}”` : ''}${(r.src && r.src.page) || page ? `, page ${(r.src && r.src.page) || page}` : ''}${r.periodChosen ? `, ${r.periodChosen} rent, period chosen by the broker` : ''}` : page ? `OM rent roll, page ${page}` : 'OM rent roll' });
       else L.periods.push({ start: pStart, end: pStart, rate: r.annual, unit: 'year', source: 'documented', note: pdf ? 'no expiration date in the rent roll PDF' : 'no expiration date in the OM' });
     }
     return L;

@@ -825,10 +825,11 @@ function tableScore(t, P) {
 
 /**
  * The OM's rent roll, or null. `pages`: page text from layout.js; `layouts`:
- * each page's geometry from layout.js (optional). Returns { rows, totals,
+ * each page's geometry from layout.js (optional); `periods`: { column kind: reading } the broker chose for a column
+ * that does not say monthly or annual. Returns { rows, totals,
  * columns, units, pages, page, segments, confidence, issues }.
  */
-export function rentRoll(pages, { layouts = null } = {}) {
+export function rentRoll(pages, { layouts = null, periods = null } = {}) {
   const P = pages.map((p, pi) => pageLines(p, layouts && layouts[pi]));
   const geo = !!(layouts && layouts.some((g) => g && g.lines));
   const tables = [];
@@ -865,6 +866,8 @@ export function rentRoll(pages, { layouts = null } = {}) {
     const doubt = rentScaleDoubt(t);
     applyScales(t);
     t.units = readings(t);
+    // the broker's answer to "is this column monthly or annual?" (rrdoc.js): that column is then stated, not inferred
+    if (periods) for (const [k, reading] of Object.entries(periods)) if (t.units[k] && READING_WORD[reading]) t.units[k] = { ...t.units[k], reading, basis: 'stated', note: 'chosen by the broker' };
     t.competing = competing(t);
     t.unknownCols = t.cols.filter((c) => c.kind === 'other' && !/^(?:#|no\.?)$/i.test(c.label.trim())).map((c) => `“${c.label}”`).join(', ');
     const base = rows.length;

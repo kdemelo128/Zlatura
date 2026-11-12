@@ -7,6 +7,7 @@
  * broker approves it. Design: docs/proposals/rentroll-pdf-and-om-fill.md, section (c). */
 
 import { rentRoll } from './omroll.js';
+import { READING_NAME } from './units.js';
 import { omRollRecord } from './rentroll.js';
 
 const ROLL_TITLE = /rent roll|tenant ledger|tenancy schedule|rent schedule|tenant roster|lease schedule|tenant schedule/i;
@@ -36,14 +37,44 @@ export function docKind(pages, layouts = null) {
   const text = pages.join('\n');
   if (text.replace(/\s/g, '').length < 200) return { kind: 'scanned', why: ['The PDF has almost no text: it is a scan or a picture.'], roll: null };
   const head = pages.slice(0, 2).join('\n');
-  let roll = null;
-  try { roll = rentRoll(pages, { layouts }); } catch { roll = null; }
+  const { roll, summary } = readRoll(pages, layouts, null);
   const om = OM_WORDS.filter((re) => re.test(text)).length >= 2;
   const titled = ROLL_TITLE.test(head) || AS_OF.test(head);
-  if (om) return { kind: 'om', why: ['It reads like an offering memorandum (asking price, cap rate or investment summary wording).'], roll };
-  if (roll && titled) return { kind: 'rentroll', why: [`A rent roll table of ${roll.rows.length} rows${ROLL_TITLE.test(head) ? ', titled as one' : ', with an “As of” date'}.`], roll };
-  if (T12_TITLE.test(head) || monthLine(pages)) return { kind: 't12', why: ['It reads like an operating statement (month columns or a statement title).'], roll };
-  return { kind: 'unknown', why: [roll ? 'There is a table that looks like a rent roll, but nothing on the first two pages says this is one.' : 'No rent roll table was found.'], roll };
+  // `src` lets the preview read the same pages again with the broker's answers (pdfRollRecord's `periods`)
+  const out = (kind, why) => ({ kind, why, roll, summary, src: { pages, layouts } });
+  if (om) return out('om', ['It reads like an offering memorandum (asking price, cap rate or investment summary wording).']);
+  if (roll && titled) return out('rentroll', [`A rent roll table of ${roll.rows.length} rows${ROLL_TITLE.test(head) ? ', titled as one' : ', with an “As of” date'}.`]);
+  if (T12_TITLE.test(head) || monthLine(pages)) return out('t12', ['It reads like an operating statement (month columns or a statement title).']);
+  return out('unknown', [roll ? 'There is a table that looks like a rent roll, but nothing on the first two pages says this is one.' : 'No rent roll table was found.']);
+}
+
+const SUMMARY_TITLE = /\b(?:summary|recap|statistics|totals?)\b/i;
+/**
+ * The rent roll table, without a summary page's table. A page titled as a summary (occupancy by status, totals by
+ * type) can hold a small table of its own whose rows are not units; read as a roll it would stand in for the real one
+ * or count the same space twice. A page counts as a summary only when it is titled as one in its first lines AND no row
+ * read from it has a suite or a lease date, AND its table's columns differ from the rest of the roll's (the same
+ * columns mean more of the roll). `summary` lists { page, rows } for each page left out.
+ */
+function readRoll(pages, layouts, periods) {
+  const read = (pgs, lay) => { try { return rentRoll(pgs, { layouts: lay, ...(periods ? { periods } : {}) }); } catch { return null; } };
+  const cand = [];
+  pages.forEach((p, i) => {
+    const top = String(p).split('\n').filter((l) => l.trim()).slice(0, 4).join('\n');
+    if (!SUMMARY_TITLE.test(top)) return;
+    const only = read(pages.map((q, j) => (j === i ? q : '')), layouts && layouts.map((g, j) => (j === i ? g : null)));
+    if (only && only.rows.every((r) => !r.suite && !r.start && !r.end)) cand.push({ page: i + 1, rows: only.rows.length, kinds: only.columns.map((c) => c.kind).join() });
+  });
+  const full = () => ({ roll: read(pages, layouts), summary: [] });
+  if (!cand.length) return full();
+  const without = (list) => read(pages.map((q, i) => (list.some((x) => x.page === i + 1) ? '' : q)), layouts && layouts.map((g, i) => (list.some((x) => x.page === i + 1) ? null : g)));
+  const rest = without(cand);
+  if (!rest) return full();
+  // a page whose table has the same columns as the rest is more of the roll, not a summary of it
+  const restKinds = rest.columns.map((c) => c.kind).join();
+  const summary = cand.filter((x) => x.kinds !== restKinds);
+  if (summary.length === cand.length) return { roll: rest, summary };
+  return summary.length ? { roll: without(summary) || read(pages, layouts), summary } : full();
 }
 
 const CHARGE_WORD = /\b(?:charges?|fees?|cam|reimb\w*|escrow)\b/i;
@@ -57,9 +88,11 @@ const RENT_WORD = /\b(?:rent|rental|base|contract|in[- ]place|current|lease rate
  * competes with a bare "Rent" column and says nothing of rent itself; a column the reader does not know whose
  * heading looks like money. Until a profile for that report's layout exists, these keep a misread from being used.
  */
-export function layoutChecks(roll) {
+export function layoutChecks(roll, { pages = [], summary = [], periods = {} } = {}) {
   const out = [];
   const cols = roll.columns || [];
+  const text = pages.join('\n');
+  const colBase = (c, idx) => ({ kind: 'layout', level: 'fail', page: roll.page || null, line: null, row: null, col: idx, colLabel: c.label, cell: { text: c.label }, lineText: c.label, amount: 0 });
   const bareRent = cols.some((c) => c.kind === 'rent');
   // a rent reading that already failed as a competing column is not failed a second time
   const competes = (c) => (roll.issues || []).some((i) => i.kind === 'compete' && i.level === 'fail' && (i.cols || []).includes(cols.indexOf(c)));
@@ -76,6 +109,65 @@ export function layoutChecks(roll) {
       out.push({ ...base, id: `layout:${idx}`, text: `The “${c.label}” column looks like money, and this reader does not know what it is, so this layout is not recognised. Check the page before using this rent roll.` });
     }
   });
+  // the checks below read the page's own words, so they need the pages (layoutChecks(roll) alone keeps the column rules)
+  if (!pages.length) return out;
+  // a rent column whose period the page never states is asked, not guessed (a figure that merely fits one reading is still a guess)
+  cols.forEach((c, idx) => {
+    if (!RENT_KIND_COLS.includes(c.kind)) return;
+    if (periods[c.kind]) { out.push({ ...colBase(c, idx), level: 'info', id: `period:${idx}`, text: `You chose ${READING_NAME[periods[c.kind]]} for the “${c.label}” column: the page does not say.` }); return; }
+    if (c.basis !== 'inferred' && c.basis !== 'ask') return;
+    // a sentence that states the period settles it only when it says what the figures were read as; a different word is a question
+    const said = (PERIOD_STATED.exec(text) || [])[1];
+    const word = said && (/^month/i.test(said) || /per month/i.test(said) ? 'monthly' : 'annual');
+    if (word && (c.reading === word || (word === 'monthly' && c.reading === 'mpsf') || (word === 'annual' && c.reading === 'psf'))) return;
+    const family = ['psf', 'mpsf'].includes(c.reading) ? ['psf', 'mpsf'] : ['monthly', 'annual'];
+    out.push({ ...colBase(c, idx), id: `period:${idx}`, periodKind: c.kind, choices: family,
+      text: `Does the “${c.label}” column show ${family.map((r) => READING_NAME[r]).join(' or ')}? ${word ? `The page says ${word}, but the figures were read as ${READING_NAME[c.reading]}` : 'The page does not say'}. It looks like ${READING_NAME[c.reading]}, but that is a guess: choose one.` });
+  });
+  // charges, balances and market rent never stand in for base rent: with those columns beside it, a bare "Rent" must be called base or contract rent
+  const rentCols = cols.filter((c) => RENT_KIND_COLS.includes(c.kind));
+  const others = cols.some((c) => c.kind === 'recov' || c.kind === 'market' || (c.kind === 'other' && (CHARGE_WORD.test(c.label) || NOT_RENT.test(c.label))));
+  if (!rentCols.length) {
+    out.push({ ...colBase({ label: 'Rent' }, null), level: 'warn', id: 'norent', col: null, colLabel: '', cell: null, lineText: '', text: 'No column is labelled base or contract rent, so rent is left blank. Charges, balances and market rent are not used in its place.' });
+  } else if (others && !(roll.issues || []).some((i) => i.kind === 'compete' && i.level === 'fail')) {
+    cols.forEach((c, idx) => {
+      if (!RENT_KIND_COLS.includes(c.kind) || BASE_LABEL.test(c.label) || BASE_STATED.test(text) || CHARGE_WORD.test(c.label)) return;
+      out.push({ ...colBase(c, idx), id: `basis:${idx}`, text: `Is the “${c.label}” column the base (contract) rent? This report also prints charges, balances or market rent, and the “${c.label}” heading does not say which it is. Only a base or contract rent column fills rent.` });
+    });
+  }
+  // a summary page's table is not units: said, so a missing row is not a surprise
+  for (const { page: p, rows: n } of summary) out.push({ kind: 'layout', level: 'warn', id: `summary:${p}`, page: p, line: null, row: null, col: null, colLabel: '', cell: null, lineText: '', amount: 0, text: `Page ${p} is a summary: its table was not read as units, so no row is counted twice. ${n} row${n === 1 ? ' was' : 's were'} left out; if any of them is a unit, check the page.` });
+  // a report that says it is filtered is a part of the roll: held until the broker says it may stand
+  for (const f of filterNotes(pages)) out.push({ kind: 'subset', level: 'fail', id: `subset:${f.page}:${f.line}`, page: f.page, line: f.line, row: null, col: null, colLabel: '', cell: { text: f.text }, lineText: f.text, amount: 0,
+    text: `Page ${f.page} says this report is filtered (“${f.text}”). It may be only some of the units, so it is not the full rent roll. Review the rows; to use them, confirm this is the roll you mean, and replacing a rent roll you already have needs a second confirmation.` });
+  return out;
+}
+
+const RENT_KIND_COLS = ['annual', 'monthly', 'rent', 'psf', 'mpsf'];
+// a sentence about the figures, not a column heading: "Rent is the contractual monthly rent"
+const PERIOD_STATED = /\b(?:rents?|amounts?|figures?)\s+(?:is|are|shown|stated|reported|listed|quoted)\b[^\n.;]{0,40}\b(monthly|annual(?:ly)?|per month|per year)\b/i;
+const BASE_STATED = /\brents?\s+(?:is|are)\b[^\n.;]{0,30}\b(?:contract\w*|base|in[- ]place)\b/i;
+const BASE_LABEL = /\b(?:base|contract\w*|in[- ]place|scheduled|current|actual|lease rate)\b/i;
+const FILTER_ALL = /^(?:all(?:\s+\w+)?|none|n\/a|any|no filters?|\(all\)|-+|—)$/i;
+const FILTER_WORDS = /\b(?:filtered|subset)\b|\b(?:partial (?:list|report|rent roll)|selected (?:units|tenants) only|not all (?:units|tenants)|(?:current|occupied|vacant|active|expired|notice|future) (?:units|tenants|leases) only|only (?:current|occupied|vacant|active) (?:units|tenants|leases)|showing \d+ of \d+)\b/i;
+/**
+ * Lines that say the report is a filtered view: "Status Filter: Current" (every filter line is judged on its own, so a
+ * "Unit Filter: All" beside it does not clear it), a bare "Status: Current" header line, or words such as "filtered".
+ * @returns {{ page: number, line: number, text: string }[]}
+ */
+export function filterNotes(pages) {
+  const out = [];
+  pages.forEach((p, pi) => String(p).split('\n').forEach((raw, li) => {
+    const line = raw.trim();
+    if (!line || line.length > 200) return;
+    let hit = false;
+    const re = /(?:^|\s)([A-Za-z]+(?: [A-Za-z]+)?)?\s*filters?(?:\s+applied)?\s*[:=]\s*(.+?)(?=\s+(?:[A-Za-z]+\s+)?filters?\s*[:=]|$)/gi;
+    for (let m = re.exec(line); m; m = re.exec(line)) if (!FILTER_ALL.test(m[2].trim())) hit = true;
+    const status = /^(?:tenant |lease |unit |occupancy )?status\s*[:=]\s*(.+)$/i.exec(line);
+    if (status && !FILTER_ALL.test(status[1].trim())) hit = true;
+    if (!/filters?\s*[:=]/i.test(line) && !/\b(?:not|un)\s*filtered\b/i.test(line) && FILTER_WORDS.test(line)) hit = true;
+    if (hit) out.push({ page: pi + 1, line: li + 1, text: line.replace(/\s+/g, ' ').slice(0, 120) });
+  }));
   return out;
 }
 
@@ -83,20 +175,32 @@ export function layoutChecks(roll) {
  * The Data QC record for a rent roll PDF, in the shape an OM's is (rentroll.js omRollRecord), with no OM figures to
  * compare against (so the roll is never checked against itself) and the layout checks added. A failed check holds
  * the rows back: they stay in `qc.held` until the broker resolves or accepts every fail.
- * @returns {{ qc: any, rows: any[], held: boolean }} rows: those that may be used now; held: whether a fail holds them
+ * @returns {{ qc: any, rows: any[], held: boolean, subset: boolean }} rows: those that may be used now; held: whether a fail holds
+ * them; subset: the report says it is filtered (replacing a rent roll then needs a second confirmation)
  */
-export function pdfRollRecord(doc, { asOf = null, file = '', scanned = [] } = {}) {
-  const roll = doc.roll;
+export function pdfRollRecord(doc, { asOf = null, file = '', scanned = [], periods = {} } = {}) {
+  // the broker's answers re-read the same pages, so each row's rent follows the period chosen
+  const chosen = Object.keys(periods).length && doc.src ? readRoll(doc.src.pages, doc.src.layouts, periods).roll : null;
+  const roll = chosen || doc.roll;
   const { qc, rows } = omRollRecord({ rentRoll: roll, scanned }, { figures: {}, sources: {}, asOf, file });
-  if (!roll) return { qc, rows: [], held: false };
-  const extra = layoutChecks(roll);
+  if (!roll) return { qc, rows: [], held: false, subset: false };
+  const extra = layoutChecks(roll, { pages: doc.src ? doc.src.pages : [], summary: doc.summary || [], periods: chosen ? periods : {} });
+  // a rent column that is asked about is answered by a choice, not accepted as a guess: its plain accept-as-read fail goes
+  for (const q of extra.filter((c) => c.choices)) qc.checks = qc.checks.filter((c) => !(c.kind === 'unit' && c.level === 'fail' && c.col === q.col));
+  if (chosen) for (const r of [...rows, ...(qc.held || [])]) r.periodChosen = Object.values(periods)[0];
   const holds = extra.some((c) => c.level === 'fail');
+  const subset = extra.some((c) => c.kind === 'subset');
   const all = rows.length ? rows : (qc.held || []);
   qc.checks.push(...extra);
   if (holds) {
     qc.held = all;
     qc.applied = false;
-    return { qc, rows: [], held: true };
+    return { qc, rows: [], held: true, subset };
   }
-  return { qc, rows, held: !rows.length && !!qc.held };
+  return { qc, rows, held: !rows.length && !!qc.held, subset };
+}
+
+/** Re-accept checks after the pages are read again: only one whose id AND text are the same as when it was accepted (a changed reading is a new question). `accepted`: Map id -> text. */
+export function reapplyAccepted(qc, accepted) {
+  for (const c of qc.checks) if (accepted.has(c.id) && accepted.get(c.id) === c.text) c.resolved = { how: 'accepted', at: Date.now() };
 }
