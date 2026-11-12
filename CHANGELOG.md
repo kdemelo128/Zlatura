@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.7.149: An OM's rent roll with run-together header words is read, and a counts-only OM diagnostic for the owner's own files (on the development branch; not merged or deployed)
+
+An OM whose rent roll header runs words together ("LeaseEnd", "AnnualRent") read its rows but left the lease end and annual rent columns unmatched, so those figures were blank on the deal.
+
+- **Header words split.** `app/omroll.js` splits a capital that follows a lower-case letter before it matches a header cell. An ordinary header reads exactly as before. Only this one change is taken from the unmerged page-classification branch; its routing changes are not (they sent an operating statement with a roll on page 3 to the rent roll reader).
+- **`doc-local.mjs --om`** (a measuring tool, not part of the app). For every PDF the classifier calls an OM, or that has OM wording, it runs the deal page's own OM reading path (`readOm`, `omReadRecord`, `omRollRecord`) and prints counts only per file label: pages, text characters per page bucket, pages with no text layer, pages scored as a rent roll, rows read, with a rent, with SF, with a lease end, total rows dropped, rows on the deal or held by a check, OCR needed and offered, and a reason code when the roll is not found or partly read (`tests/tools/om-diag.mjs`). No name, text or figure is printed. Works with `--reasons`.
+- **Tested.** Invented OMs for every reason code (scanned roll, split roll, run-together header, two-row header, rent per SF only, header without a tenant column, header in one cell, held by a failed check, ambiguous rent column) in `tests/om-diag.test.js`; a deal-page browser check (`tests/e2e/om-joined-flow.mjs`) that fails on the old code (lease ends blank). Saved deal results and golden figures unchanged.
+
 ## 4.7.148: Ask Monal now answers from your deal's own documents, on your device (on the development branch; not merged or deployed)
 
 Monal could answer from a deal's figures and the app's calculations, but not from what the OM, a lease, a T-12 or a Word memo actually say. Ask Monal now reads the documents of the open deal (as read in this session) and answers from them, with no language model, no new library, no network request and no change to the data format.
