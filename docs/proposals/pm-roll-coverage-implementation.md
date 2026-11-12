@@ -32,3 +32,8 @@ subset notices, negative prose/cell/subtotal cases, preview-specific acceptance,
 actual positioned PDF extraction, explicit monthly base rent versus charges/zero
 market rent, missing base rent, Cancel/Use/Undo and reload. Full regression and
 GitHub CI remain required before calling the PR ready.
+
+Independent review: choosing to treat an OM/statement-labelled table as a roll
+does not accept its coverage; every classification with a parsed roll retains
+the checks. Header boundaries and explicit-notice exclusions use all parsed
+cell provenance, including tenant text above a numeric row anchor.

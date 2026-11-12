@@ -130,6 +130,12 @@ test('an untitled table still asks what it is, and coverage remains held if the 
   const doc = docKind([`Schedule\nUnit Filter: A1\n${tbl(PM, pmRows)}\n${filler}`]);
   assert.equal(doc.kind, 'unknown'); assert.equal(scopeRecord(doc).held, true);
 });
+test('choosing to read an OM- or statement-labelled table as a roll does not accept its coverage', () => {
+  for (const [title, kind] of [['Offering Memorandum\nAsking Price $3,000,000 - Cap Rate 6.1%', 'om'], ['Operating Statement', 't12']]) {
+    const doc = docKind([`${title}\nStatus Filter: Occupied\n${tbl(PM, pmRows)}\n${filler}`]);
+    assert.equal(doc.kind, kind); assert.ok(doc.roll); assert.equal(scopeRecord(doc).held, true);
+  }
+});
 
 const RC = [{ h: 'Unit', w: 5 }, { h: 'Tenant', w: 22 }, { h: 'Sqft', w: 6, r: 1 }, { h: 'Rent & Charges', w: 15, r: 1 }];
 const rcRows = [['A1', 'Maple Leaf Bakery', '2,000', '5,400.00'], ['A2', 'Quillfeather Books', '1,500', '3,800.00']];
@@ -262,8 +268,16 @@ test('a real positioned PDF preserves the filter check and holds the independent
     const record = scopeRecord(docKind(pages, layouts));
     assert.equal(record.held, filtered); assert.equal(coverage(record).length, filtered ? 1 : 0);
     const rows = filtered ? record.qc.held : record.rows;
-    assert.deepEqual(rows.map((r) => r.annual), [60000, 42000, 36000]);
+    assert.deepEqual(rows.map((r) => r.annual), filtered ? [60000, 42000] : [60000, 42000, 36000]);
     if (filtered) assert.match(coverage(record)[0].lineText, /Unit Filter: All.*Status Filter: Occupied/);
+  }
+});
+test('a wrapped first-tenant cell above its numeric anchor is body text, not filter metadata', async () => {
+  for (const name of ['Unit Filter: Occupied', 'This report lists only a subset of units.']) {
+    const layouts = []; const pages = await pdfPages(pdfjs, pmCoveragePdf(false, { tenantAbove: name }), { layouts, verbosity: 0 });
+    const doc = docKind(pages, layouts); const record = scopeRecord(doc);
+    assert.equal(doc.roll.rows.length, 3); assert.equal(doc.roll.rows[0].tenant, name);
+    assert.equal(record.held, false, name); assert.equal(coverage(record).length, 0, name);
   }
 });
 
@@ -275,7 +289,11 @@ test('separate charges and zero market rent never replace missing or explicit mo
   assert.equal(record.held, false); assert.equal(record.rows.length, 2);
   assert.deepEqual(record.rows.map((r) => r.annual), [14400, 15600]);
   const missing = docKind(pages(rows.map((r) => [...r.slice(0, 5), '', ...r.slice(6)])));
+  assert.equal(missing.roll.rows.length, 2);
   assert.ok(missing.roll.rows.every((r) => r.annual == null && r.monthly == null));
+  const final = scopeRecord(missing); const finalRows = final.rows.length ? final.rows : final.qc.held || [];
+  assert.equal(finalRows.length, 2); assert.deepEqual(finalRows.map((r) => r.suite), ['101', '102']);
+  assert.ok(finalRows.every((r) => r.annual == null && r.monthly == null));
 });
 
 test('PDF: a due-diligence rent roll is a rent roll of six rows, clean', async () => {

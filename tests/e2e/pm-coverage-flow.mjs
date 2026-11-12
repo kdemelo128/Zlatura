@@ -11,11 +11,12 @@ for(const[size,opts]of [['phone',{}],['desktop',{viewport:{width:1280,height:900
   await page.getByRole('button',{name:'Enter figures by hand',exact:true}).click();
   await page.click('#tab-rentroll');
   const saved=()=>page.evaluate(async()=>{const m=await import('./app/dealui.js');return (await m.listAllDeals()).find(d=>d.id===m.currentDealId());});
-  const open=async(filtered)=>{
+  const open=async(filtered,kind=null)=>{
    await page.locator('#deal-rentroll button[aria-label="More rent roll actions"]').click();
    const[chooser]=await Promise.all([page.waitForEvent('filechooser'),page.locator('.action-sheet .action-item',{hasText:'Import from PDF'}).click()]);
-   await chooser.setFiles({name:filtered?'invented-filtered-pm.pdf':'invented-complete-pm.pdf',mimeType:'application/pdf',buffer:Buffer.from(pmCoveragePdf(filtered))});
-   await page.waitForSelector('#rrpdf-use');await page.locator('.rrpdf-rows tbody tr').first().waitFor();
+   await chooser.setFiles({name:filtered?'invented-filtered-pm.pdf':'invented-complete-pm.pdf',mimeType:'application/pdf',buffer:Buffer.from(pmCoveragePdf(filtered,{kind}))});
+   await page.waitForSelector('#rrpdf-use');
+   if(kind)await page.locator('#rrpdf-read-anyway').waitFor();else await page.locator('.rrpdf-rows tbody tr').first().waitFor();
   };
   await open(false);
   check(`${size}: All/All report has no failed coverage check`,await page.locator('[data-check="layout:report-scope"]').count()===0);
@@ -45,8 +46,9 @@ for(const[size,opts]of [['phone',{}],['desktop',{viewport:{width:1280,height:900
   check(`${size}: the new preview is held until accepted again`,await page.locator('#rrpdf-use').isDisabled());
   await page.locator('#rrpdf-qc button',{hasText:'Accept the reading as it stands'}).click();
   await page.click('#rrpdf-use');
-  await page.locator('.toast',{hasText:'3 units imported from invented-filtered-pm.pdf'}).waitFor();
-  check(`${size}: confirmed replacement records the chosen PDF source`,(await saved()).rr.leases.every(l=>l.source.kind==='pdf'&&l.source.page===1));
+  await page.locator('.toast',{hasText:'2 units imported from invented-filtered-pm.pdf'}).waitFor();
+  const replacement=await saved();
+  check(`${size}: confirmed replacement has exactly the two selected units and chosen PDF source`,replacement.rr.leases.length===2&&replacement.rr.leases.every(l=>l.source.kind==='pdf'&&l.source.page===1&&l.source.file==='invented-filtered-pm.pdf'));
   // Read history after its storage-backed Undo label refreshes, rather than
   // treating the in-memory deal as evidence that autosave has completed.
   await page.locator('#deal-undo[aria-label*="invented-filtered-pm.pdf"][aria-label*="1 failed check accepted"]').waitFor({state:'attached'});
@@ -61,7 +63,16 @@ for(const[size,opts]of [['phone',{}],['desktop',{viewport:{width:1280,height:900
   check(`${size}: Undo is durably saved`,persisted.rr.leases.every(l=>l.source.file==='invented-complete-pm.pdf'));
   await page.reload({waitUntil:'load'});await page.waitForSelector('#fig-price');
   check(`${size}: the restored prior source survives reload`,(await saved()).rr.leases.every(l=>l.source.file==='invented-complete-pm.pdf'));
+  await page.click('#tab-rentroll');await open(true,'om');
+  check(`${size}: a document-type override is asked separately from coverage`,await page.locator('#rrpdf-qc').count()===0);
+  await page.click('#rrpdf-read-anyway');
+  await page.locator('#rrpdf-qc .qc-item.qc-fail[data-check="layout:report-scope"]').waitFor();
+  await page.locator('input[name="rrpdf-mode"][value="replace"]').check();
+  check(`${size}: choosing rent roll type does not accept incomplete coverage`,await page.locator('#rrpdf-use').isDisabled());
+  await page.click('#sheet-close');
+  check(`${size}: cancelling that override keeps the full original roll`,JSON.stringify((await saved()).rr.leases)===JSON.stringify(original.rr.leases));
   check(`${size}: no browser errors`,!errors.length,errors.join('\n'));
  }finally{await browser.close();}
 }
-for(const[s,n,d]of R)console.log(s,'|',n,d);finish(R);
+for(const[s,n,d]of R)console.log(s,'|',n,d);
+finish(R);

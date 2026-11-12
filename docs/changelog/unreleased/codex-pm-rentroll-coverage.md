@@ -13,10 +13,14 @@ stored field, engine, financial formula, dependency or service is added. The
 existing history records the accepted-failure count; full coverage-note text is
 not permanently saved per lease. Scans and unparsed layouts are outside this slice.
 
-Synthetic evidence: 43 reader unit tests, 36 phone/desktop browser checks with
+Synthetic evidence: 45 reader unit tests, 42 phone/desktop browser checks with
 PDF extraction, independent rent totals, cancellation, explicit acceptance,
-source records, durable history/Undo and reload. Old code fails nine unit tests
-and both new browser guard checks. Four deliberate guard mutations fail their
+source records, durable history/Undo and reload. Old code fails ten unit tests
+and both new browser guard checks. Six deliberate guard mutations fail their
 regressions. Quick/type/golden checks pass; 646 displayed figures unchanged.
 Full regression evidence is recorded in the PR. Real brokerage reports, Safari,
 a physical phone and Microsoft Excel are not tested here.
+
+Coverage checks also survive an explicit document-kind override. Parsed wrapped
+tenant cells are excluded from metadata checks; the filtered fixture omits a
+unit, so confirmed replacement and Undo prove an actual row-set change.

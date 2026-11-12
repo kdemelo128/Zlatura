@@ -40,10 +40,10 @@ export function docKind(pages, layouts = null) {
   try { roll = rentRoll(pages, { layouts }); } catch { roll = null; }
   const om = OM_WORDS.filter((re) => re.test(text)).length >= 2;
   const titled = ROLL_TITLE.test(head) || AS_OF.test(head);
-  if (om) return { kind: 'om', why: ['It reads like an offering memorandum (asking price, cap rate or investment summary wording).'], roll };
   const scopeChecks = roll ? reportScopeChecks(pages, roll) : [];
+  if (om) return { kind: 'om', why: ['It reads like an offering memorandum (asking price, cap rate or investment summary wording).'], roll, scopeChecks };
   if (roll && titled) return { kind: 'rentroll', why: [`A rent roll table of ${roll.rows.length} rows${ROLL_TITLE.test(head) ? ', titled as one' : ', with an “As of” date'}.`], roll, scopeChecks };
-  if (T12_TITLE.test(head) || monthLine(pages)) return { kind: 't12', why: ['It reads like an operating statement (month columns or a statement title).'], roll };
+  if (T12_TITLE.test(head) || monthLine(pages)) return { kind: 't12', why: ['It reads like an operating statement (month columns or a statement title).'], roll, scopeChecks };
   return { kind: 'unknown', why: [roll ? 'There is a table that looks like a rent roll, but nothing on the first two pages says this is one.' : 'No rent roll table was found.'], roll, scopeChecks };
 }
 
@@ -57,9 +57,20 @@ const SCOPE_NOTICE = new RegExp(`^[ \\t]*(?:(?:this\\s+report|this\\s+rent\\s+ro
  * These checks are transient; pdfRollRecord makes fresh acceptance state per preview. */
 function reportScopeChecks(pages, roll) {
   const starts = new Map();
+  const bodies = new Map();
   for (const r of roll.rows || []) {
-    const { page, line } = r.src || {};
-    if (Number.isInteger(page) && page > 0 && Number.isInteger(line) && line > 0) starts.set(page, Math.min(starts.get(page) || Infinity, line));
+    const spans = new Map();
+    for (const c of [r.src, ...Object.values(r.src?.cells || {})]) {
+      const { page, line } = c || {};
+      if (!Number.isInteger(page) || page < 1 || !Number.isInteger(line) || line < 1) continue;
+      const span = spans.get(page) || { from: line, to: line };
+      span.from = Math.min(span.from, line); span.to = Math.max(span.to, line); spans.set(page, span);
+    }
+    for (const [page, span] of spans) {
+      starts.set(page, Math.min(starts.get(page) || Infinity, span.from));
+      if (!bodies.has(page)) bodies.set(page, []);
+      bodies.get(page).push(span);
+    }
   }
   if (!starts.size) return [];
   const first = Math.min(...starts.keys());
@@ -81,7 +92,11 @@ function reportScopeChecks(pages, roll) {
     if (!found) {
       // A report may print its explicit scope notice in a footer or on a cover.
       const text = lines.join('\n');
-      const match = [...text.matchAll(SCOPE_NOTICE)][0];
+      const match = [...text.matchAll(SCOPE_NOTICE)].find((m) => {
+        const from = text.slice(0, m.index).split('\n').length;
+        const to = from + m[0].split('\n').length - 1;
+        return !(bodies.get(pi + 1) || []).some((span) => from <= span.to && to >= span.from);
+      });
       if (match) found = { line: text.slice(0, match.index).split('\n').length, text: match[0].trim() };
     }
     if (found) return [{ id: 'layout:report-scope', kind: 'layout', level: 'fail', page: pi + 1, line: found.line, row: null, col: null,
