@@ -1,6 +1,6 @@
 /* Home: the pipeline, tasks, contacts, activity and deliverables, and a
  * deal's Pipeline card, kept consistent with each other and across a reload. */
-import { phone, BASE, SHOTS, finish } from './lib.mjs';
+import { phone, BASE, SHOTS, finish, midClick } from './lib.mjs';
 import { execFileSync } from 'child_process';
 const F = new URL('./files/', import.meta.url).pathname;
 const { browser, page, errors } = await phone();
@@ -31,7 +31,8 @@ await page.evaluate(() => document.dispatchEvent(new CustomEvent('crmchange')));
 await page.waitForTimeout(500);
 check('a refresh keeps a half-typed next step and the focus', (await page.inputValue('#deal-task-title')) === 'Order the appraisal' && (await page.evaluate(() => document.activeElement.id)) === 'deal-task-title');
 await page.fill('#deal-task-title', '');
-await page.locator('#deal-crm button', { hasText: '+ New contact' }).click();
+// the contacts sit near the end of the Overview now: bring them to the middle of the screen, clear of the bars
+await midClick(page, page.locator('#deal-crm button', { hasText: '+ New contact' }));
 await page.waitForSelector('#contact-name');
 await page.fill('#contact-name', 'Dana Whitlock');
 await page.fill('#contact-company', 'Harbor Capital Advisors');
@@ -45,7 +46,7 @@ check('the contact is linked to the deal, with call and email links', await page
 const soon = await page.evaluate(() => { const d = new Date(Date.now() + 3 * 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
 await page.selectOption('#deal-date-label', 'Due diligence expires');
 await page.fill('#deal-date', soon);
-await page.locator('#deal-crm form').filter({ has: page.locator('#deal-date') }).locator('button[type=submit]').click();
+await midClick(page, page.locator('#deal-crm form').filter({ has: page.locator('#deal-date') }).locator('button[type=submit]'));
 await page.waitForFunction(() => /Key dates \(1\)/.test(document.querySelector('#deal-crm').textContent));
 check('a key date is kept on the deal', /Key dates \(1\)/.test(await page.textContent('#deal-crm')));
 // a deliverable from the Deal tab
