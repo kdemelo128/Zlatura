@@ -1198,8 +1198,10 @@ dialog.sheet:has(.ab-editor) .sheet-card { height: calc(100dvh - 24px); }
 
 /* tasks */
 .task-add { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--s2); padding: 0 var(--s5) var(--s3); }
-.home-task-add { grid-template-columns: minmax(0, 1fr) auto auto auto; }
-@media (max-width: 640px) { .home-task-add { grid-template-columns: minmax(0, 1fr) auto; } .home-task-add #task-title { grid-column: 1 / -1; } }
+/* the title gets its own row: beside the date and deal pickers it was squeezed to two letters in the half-width card */
+.home-task-add { grid-template-columns: auto minmax(0, 1fr) auto; }
+.home-task-add #task-title { grid-column: 1 / -1; }
+@media (max-width: 640px) { .home-task-add { grid-template-columns: minmax(0, 1fr) auto; } }
 .task-add input { border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: inherit; font-size: calc(15px * var(--ts, 100) / 100); padding: 0 10px; min-width: 0; min-height: var(--ctl-h); }
 .task-add input:focus, .task-add select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .task-group { padding: 0 var(--s5) var(--s3); }
@@ -1833,3 +1835,77 @@ body.uw-full #underwrite-root { display: flex; flex-direction: column; flex: 1 1
 .uw-slim .uw-switch .btn { min-height: 40px; padding: 0 10px; font-size: var(--t-13); }
 @media (max-width: 479px) { .uw-slim { gap: var(--s2); padding-left: calc(var(--s2) + env(safe-area-inset-left, 0px)); padding-right: calc(var(--s2) + env(safe-area-inset-right, 0px)); } .uw-deal { flex-basis: 2.5rem; } .uw-back-t { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } .uw-slim .uw-switch .btn { padding: 0 8px; } }
 body.uw-full .uwt { flex: 1 1 auto; min-height: 0; padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); background: #fff; }
+
+/* ======================================================= New look: Home in the built-in tool's style
+ * Traits taken from the tool's own screens, restated in this app's tokens: a large, tightly tracked title over a quiet
+ * lede; a small mono eyebrow; soft 20 px cards with a faint shadow and a hairline; hover is a 2 px lift and a deeper
+ * shadow over 200 ms; a pill-shaped primary action with a soft accent glow; one accent. Entrances and hovers move with
+ * transform and opacity only, 150 to 250 ms, and not at all with reduced motion or the Motion switch. Only [data-look="new"]. */
+:root[data-look="new"] { --shadow-soft: 0 4px 14px rgba(20, 24, 40, .05); --shadow-lift: 0 12px 24px rgba(20, 24, 40, .10); --ease-soft: cubic-bezier(.2, .7, .2, 1); }
+@media (prefers-color-scheme: dark) {
+  :root[data-look="new"]:not([data-theme="light"]) { --shadow-soft: 0 4px 14px rgba(0, 0, 0, .28); --shadow-lift: 0 12px 24px rgba(0, 0, 0, .45); }
+}
+:root[data-look="new"][data-theme="dark"] { --shadow-soft: 0 4px 14px rgba(0, 0, 0, .28); --shadow-lift: 0 12px 24px rgba(0, 0, 0, .45); }
+
+/* the hero: eyebrow, title, one sentence, one action */
+:root[data-look="new"] .home-head { display: block; padding: var(--s10) 0 var(--s4); }
+:root[data-look="new"] .home-head .date { font: 500 var(--t-14)/1.2 var(--ui); letter-spacing: 0; text-transform: none; color: var(--muted); margin: 0 0 var(--s3); }
+:root[data-look="new"] .home-head h1 { font-size: clamp(2.125rem, 1.5rem + 2.6vw, 3rem); line-height: 1.08; letter-spacing: -.035em; font-weight: 600; }
+:root[data-look="new"] .home-head .lede { font-size: 1.0625rem; line-height: 1.55; margin-top: var(--s3); max-width: 46ch; }
+:root[data-look="new"] .home-head .view-actions { margin: var(--s6) 0 0; gap: var(--s2) var(--s5); }
+:root[data-look="new"] .home-quiet { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s2); }
+:root[data-look="new"] .home-quiet .btn-plain { background: none; border-color: transparent; }
+:root[data-look="new"] .home-quiet .btn-plain:hover:not(:disabled) { background: var(--accent-soft); border-color: transparent; }
+:root[data-look="new"] .home-primary { min-height: 52px; padding: 0 var(--s6); border-radius: var(--r-pill); font-size: var(--t-15); box-shadow: 0 6px 16px color-mix(in srgb, var(--primary) 28%, transparent); }
+
+/* quiet chrome: the workspace switcher and its note are one slim row, not a second header */
+:root[data-look="new"] .wsp-bar { margin: var(--s2) 0 var(--s4); }
+:root[data-look="new"] .wsp-switch { border-radius: var(--r-pill); background: var(--surface); }
+:root[data-look="new"] .wsp-note { padding: var(--s3) var(--s4); background: var(--accent-soft); border-radius: var(--r-md); gap: var(--s2) var(--s3); }
+:root[data-look="new"] .wsp-note > span { flex: 1 1 24rem; }
+
+/* the day at a glance: figures on the page, not in a box */
+:root[data-look="new"] .home-sumline { background: none; border: 0; border-radius: 0; padding: var(--s2) 0; gap: var(--s3) var(--s8); }
+:root[data-look="new"] .home-sumline > span { flex-direction: column; align-items: flex-start; gap: 2px; }
+:root[data-look="new"] .home-sumline b { font-size: 1.5rem; letter-spacing: -.02em; line-height: 1.1; }
+:root[data-look="new"] .home-sumline .chip { margin-top: var(--s1); }
+
+/* cards: soft, large radius, a lift on hover */
+:root[data-look="new"] .home-sec { border-radius: 20px; box-shadow: var(--shadow-soft); overflow: hidden; }
+:root[data-look="new"] .bento { gap: var(--s5); }
+:root[data-look="new"] .home-sec .card-head { padding: var(--s5) var(--s6) var(--s3); }
+:root[data-look="new"] .home-sec .card-head h2 { letter-spacing: -.02em; }
+:root[data-look="new"] .cont-row { padding: var(--s4) var(--s6); }
+:root[data-look="new"] .cont li + li { border-top-color: var(--line); }
+:root[data-look="new"] .pipe-card { border-radius: var(--r-md); box-shadow: var(--shadow-soft); }
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  :root[data-look="new"]:not([data-motion="off"]) .cont-row { transition: transform 200ms var(--ease-soft), background-color var(--d1), box-shadow 200ms var(--ease-soft); }
+  :root[data-look="new"]:not([data-motion="off"]) .cont-row:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); position: relative; }
+  :root[data-look="new"]:not([data-motion="off"]) .pipe-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+  :root[data-look="new"]:not([data-motion="off"]) .home-primary { transition: transform 200ms var(--ease-soft), box-shadow 200ms var(--ease-soft), background-color var(--d1); }
+  :root[data-look="new"]:not([data-motion="off"]) .home-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 22px color-mix(in srgb, var(--primary) 36%, transparent); }
+}
+/* the entrance: the hero and then each card rise 8 px and fade in, 220 ms, a few tens of milliseconds apart (first draw only) */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-look="new"]:not([data-motion="off"]) .home-enter :is(.home-head .date, .home-head h1, .home-head .lede, .home-quiet, .home-sumline, .bento > *) { animation: home-rise 220ms var(--ease-soft) both; }
+  :root[data-look="new"]:not([data-motion="off"]) .home-enter .home-head h1 { animation-delay: 40ms; }
+  :root[data-look="new"]:not([data-motion="off"]) .home-enter .home-head .lede { animation-delay: 80ms; }
+  :root[data-look="new"]:not([data-motion="off"]) .home-enter .home-quiet { animation-delay: 120ms; }
+  /* the primary action only fades: a transform animation on it, or on a parent of it, would stop it floating on a phone */
+  :root[data-look="new"]:not([data-motion="off"]) .home-enter .home-primary { animation: home-fade 220ms var(--ease-soft) 120ms both; }
+  :root[data-look="new"]:not([data-motion="off"]) .home-enter .bento > :nth-child(2) { animation-delay: 60ms; }
+  :root[data-look="new"]:not([data-motion="off"]) .home-enter .bento > :nth-child(3) { animation-delay: 100ms; }
+  :root[data-look="new"]:not([data-motion="off"]) .home-enter .bento > :nth-child(n+4) { animation-delay: 140ms; }
+}
+@keyframes home-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes home-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* phone: the one primary action floats above the tab bar (the content below leaves room for it) */
+@media (max-width: 759px) {
+  :root[data-look="new"] #view-home { padding-bottom: 88px; }
+  :root[data-look="new"] .home-head { padding-top: var(--s6); }
+  :root[data-look="new"] .home-head .view-actions { margin-top: var(--s4); }
+  :root[data-look="new"] .home-primary { position: fixed; z-index: 40; right: var(--gutter); bottom: calc(var(--tab-h) + 16px + env(safe-area-inset-bottom, 0px)); box-shadow: var(--shadow-lg); }
+  :root[data-look="new"] .home-sumline { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4) var(--s5); align-items: start; }
+}

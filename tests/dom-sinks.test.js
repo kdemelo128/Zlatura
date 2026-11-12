@@ -137,6 +137,7 @@ const ALLOW = [
   { file: 'app/abstractui.js', re: INS, n: 1, why: ICON },
   { file: 'app/command.js', re: INS, n: 1, why: ICON },
   { file: 'app/underwrite.js', re: INS, n: 1, why: ICON },
+  { file: 'app/home.js', re: INS, n: 1, why: ICON },
   { file: 'app/workspaceui.js', re: INS, n: 3, why: ICON },
   { file: 'app/command.js', re: SET, n: 1, why: `${ICON}; it.icon is a constant on each command item` },
   { file: 'app/dateinput.js', re: SET, n: 1, why: ICON },
