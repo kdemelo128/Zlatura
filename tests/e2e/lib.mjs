@@ -52,12 +52,3 @@ export async function phone(opts = {}) {
 
 // the end of every flow lives in its own module so `npm test` can check it without a browser
 export { finish } from './finish.mjs';
-
-/** Click a control that sits low on a long page: bring it to the middle of the screen first, clear of the sticky
- * bars and the bottom tab bar, then click where it is (Playwright's own scroll can leave it under either). */
-export async function midClick(page, locator) {
-  await locator.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(250);
-  const b = await locator.boundingBox();
-  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
-}

@@ -833,7 +833,7 @@ function renderDeal(r) {
     main.appendChild(g);
     const chip = el('button', 'deal-chip', gl);
     chip.type = 'button';
-    chip.addEventListener('click', () => { gh.scrollIntoView({ block: 'start', behavior: 'instant' }); gh.focus({ preventScroll: true }); });
+    chip.addEventListener('click', () => { gh.scrollIntoView({ block: 'start', behavior: 'instant' }); clearBars(gh); gh.focus({ preventScroll: true }); });
     chips.appendChild(chip);
   }
   nav.appendChild(chips);
@@ -960,6 +960,16 @@ function syncSections(m = lastM, comps = null) {
     try { s.f.sum.textContent = s.summary(m, comps); } catch { s.f.sum.textContent = ''; }
   }
 }
+/** After a scroll to `target`, nudge the page so it is not under the sticky bars (the app bar, the tabs and the group chips). */
+function clearBars(target) {
+  let bottom = 0;
+  for (const e of document.querySelectorAll('.appbar, .deal-nav')) {
+    const r = e.getBoundingClientRect(); const s = getComputedStyle(e);
+    if (r.width && r.height && (s.position === 'fixed' || s.position === 'sticky') && r.top < 5) bottom = Math.max(bottom, r.bottom);
+  }
+  const top = target.getBoundingClientRect().top;
+  if (top < bottom + 8) window.scrollBy({ top: top - bottom - 8, behavior: 'instant' });
+}
 /** Open the fold holding `target`, so a jump or a reader's link lands on something visible. */
 function revealSection(target) {
   const s = secs.find((x) => x.wrap.contains(target));
@@ -1005,6 +1015,7 @@ async function openDealSections() {
     focus.focus({ preventScroll: true });
   }
   target.scrollIntoView({ block: 'start', behavior: 'instant' });
+  clearBars(focus instanceof HTMLElement ? focus : target);
 }
 
 const PANES = [['overview', 'Overview'], ['rentroll', 'Rent roll'], ['whatif', 'What if'], ['visit', 'Site visit']];
