@@ -3,11 +3,13 @@
  * page adds no rows. Every name and figure is invented (tests/pmroll-fixtures.js); the cents are worked by hand. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { docKind, pdfRollRecord, layoutChecks, filterNotes } from '../app/rrdoc.js';
+import { docKind, pdfRollRecord, layoutChecks, filterNotes, reapplyAccepted } from '../app/rrdoc.js';
+import { tbl } from './rr-fixtures.js';
 import { fromOmRows } from '../app/lease.js';
 import { pmText, PM_ROWS, PM_ANNUAL } from './pmroll-fixtures.js';
 
 const record = (o, ro = {}) => { const doc = docKind(pmText(o)); return { doc, ...pdfRollRecord(doc, { asOf: '2026-10-01', file: 'pm.pdf', ...ro }) }; };
+const OMCOLS = [{ h: 'Suite', w: 5 }, { h: 'Tenant', w: 22 }, { h: 'SF', w: 6, r: 1 }, { h: 'Lease End', w: 11 }, { h: 'Rent/SF', w: 8, r: 1 }];
 const used = (r) => (r.rows.length ? r.rows : r.qc.held || []);
 const fails = (r) => r.qc.checks.filter((c) => c.level === 'fail');
 
@@ -123,12 +125,61 @@ test('a page that states the period in a sentence, or a heading that does, asks 
   assert.equal(fails(record({ rentHead: 'Annual Rent', note: '' })).filter((c) => c.id.startsWith('period:')).length, 0);
 });
 
+test('a page that states a period different from the guess does not silence the question: asked, never applied silently', () => {
+  const r = record({ note: 'Rent is the contractual annual rent; charges are billed separately.' });
+  assert.equal(r.held, true, 'the figures read as monthly, the page says annual: ask');
+  assert.ok(r.qc.checks.some((c) => c.id.startsWith('period:') && c.level === 'fail'));
+  const a = record({ note: 'Rent is the contractual annual rent; charges are billed separately.' }, { periods: { rent: 'annual' } });
+  assert.equal(used(a).find((x) => x.suite === 'A1').annual, 5000);
+});
+
+test('a column that fits two readings (rent per SF, no period) is a question with choices, so Accept-all cannot take the guess', () => {
+  const doc = docKind([`Rent Roll\nAs of: 10/01/2026\n\n${tbl(OMCOLS, [['101', 'Maple Leaf Bakery', '2,000', '12/31/2030', '18.00'], ['102', 'Quillfeather Books', '1,500', '05/31/2027', '20.00']])}\n\nUnaudited figures prepared by the manager for the buyer’s due diligence; the property is a small neighbourhood retail centre with steady foot traffic and a mix of local tenants on staggered leases.`]);
+  const r = pdfRollRecord(doc, { asOf: '2026-10-01' });
+  const q = r.qc.checks.find((c) => c.id.startsWith('period:'));
+  assert.ok(q && q.choices.length === 2);
+  assert.ok(!r.qc.checks.some((c) => c.kind === 'unit' && c.level === 'fail'), 'the plain accept-as-read fail for the same column is replaced by the question');
+});
+
+test('a period the broker chose is written on the lease note', () => {
+  const r = record({ note: '' }, { periods: { rent: 'annual' } });
+  const L = fromOmRows(used(r), { asOf: '2026-10-01', kind: 'pdf', file: 'pm.pdf' }).leases.find((x) => x.unit === 'A1');
+  assert.match(L.periods[0].note, /annual rent, period chosen by the broker/);
+});
+
+test('an accepted check carries over to a re-read only when its text is identical', () => {
+  const a = record({ lines: ['Status Filter: Current'], note: '' });
+  const f = a.qc.checks.find((c) => c.kind === 'subset');
+  const keep = new Map([[f.id, f.text], ['period:3', 'old words']]);
+  reapplyAccepted(a.qc, keep);
+  assert.ok(f.resolved);
+  const changed = new Map([[f.id, 'a different meaning']]);
+  const b = record({ lines: ['Status Filter: Current'], note: '' });
+  reapplyAccepted(b.qc, changed);
+  assert.ok(!b.qc.checks.find((c) => c.kind === 'subset').resolved);
+});
+
+test('a page titled as a summary with the same columns as the roll is part of the roll: no unit is dropped', () => {
+  const C = [{ h: 'Tenant', w: 22 }, { h: 'SF', w: 6, r: 1 }, { h: 'Annual Rent', w: 12, r: 1 }];
+  const rows = [['Maple Leaf Bakery', '2,000', '$60,000'], ['Quillfeather Books', '1,500', '$42,000'], ['Copperline Yoga', '1,200', '$36,000'], ['Bluefin Sushi Bar', '1,800', '$54,000'], ['Pinecone Cafe', '1,000', '$30,000']];
+  const d = docKind([`Tenant summary\nAs of: 10/01/2026\n\n${tbl(C, rows.slice(0, 2))}`, `${tbl(C, rows.slice(2))}\n\nPrepared by the property manager for the buyer’s due diligence; unaudited, as of the date above, with a mix of local tenants on staggered leases.`]);
+  assert.equal(d.roll.rows.length, 5);
+  assert.deepEqual(d.summary, []);
+});
+
+test('filter wording: a status line with = or Occupancy; single-spaced “All” filters are not a subset', () => {
+  assert.equal(filterNotes(['Occupancy Status: Occupied']).length, 1);
+  assert.equal(filterNotes(['Status = Current']).length, 1);
+  assert.equal(filterNotes(['Unit Filter: All Status Filter: All']).length, 0);
+  assert.equal(filterNotes(['Unit Filter: All Status Filter: Current']).length, 1);
+});
+
 test('a summary page’s table is not units: no duplicate rows, and the broker is told', () => {
   const r = record();
-  assert.deepEqual(r.doc.summary, [3]);
+  assert.deepEqual(r.doc.summary.map((x) => x.page), [3]);
   assert.equal(used(r).length, 6);
   assert.ok(!used(r).some((x) => /^(?:occupied|vacant)$/i.test(x.tenant) && !x.suite), 'no “Occupied” or “Vacant” summary line is a unit');
-  assert.ok(r.qc.checks.some((c) => c.id === 'summary:3' && c.level === 'info' && /summary/.test(c.text)));
+  assert.ok(r.qc.checks.some((c) => c.id === 'summary:3' && c.level === 'warn' && /summary/.test(c.text) && /1 row was left out/.test(c.text)));
   // a page titled as a summary that does hold units (suites, dates) is a rent roll page, not a summary
   const titled = docKind([pmText({ summary: false, split: 6 })[0].replace('Rent Roll\n', 'Rent Roll Summary\n')]);
   assert.deepEqual(titled.summary, []);

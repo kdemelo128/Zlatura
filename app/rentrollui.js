@@ -22,7 +22,7 @@ import {
   COLUMNS, PRESETS, MARKET_UNIT, layoutFromPreset, visibleColumns, customColumn, newLease, duplicateLease,
   gridContext, viewRows, ocrReading,
 } from './rentroll.js';
-import { docKind, pdfRollRecord } from './rrdoc.js';
+import { docKind, pdfRollRecord, reapplyAccepted } from './rrdoc.js';
 import { compareRolls } from './reconcile.js';
 import { qcPanel } from './dataqcui.js';
 import { blockingChecks, resolveCheck, qcCounts } from './dataqc.js';
@@ -959,7 +959,7 @@ function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
   let mode = rr.leases.length ? null : 'replace';
   let ocrStatus = '';
   const periods = {};                // the broker's answers: column kind -> 'monthly' | 'annual' | 'psf' | 'mpsf'
-  const accepted = new Set();        // checks the broker accepted: kept when the pages are read again with an answer
+  const accepted = new Map();        // check id -> its text when accepted: kept when the pages are read again, only if the text is unchanged
   let replaceSubset = false;         // a filtered report may replace a rent roll only after a second, explicit confirmation
   const use = el('button', 'btn btn-primary', 'Use this rent roll');
   use.type = 'button';
@@ -973,8 +973,11 @@ function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
     return [...base, ...ocr];
   };
   const startRecord = () => {
+    const was = record;
     record = pdfRollRecord(doc, { asOf: rr.settings.asOf || localDate(), file: file.name, scanned: doc.kind === 'scanned' ? pages.map((_, i) => i + 1) : [], periods });
-    for (const id of accepted) resolveCheck(record.qc, id, 'accepted');
+    // pages already read by OCR keep their rows and their checks through a re-read
+    if (was && was.qc.ocr) { record.qc.ocr = was.qc.ocr; record.qc.checks.push(...was.qc.checks.filter((c) => /^ocr:/.test(c.id))); for (const c of was.qc.checks) if (/^scanned:/.test(c.id) && c.resolved) { const n = record.qc.checks.find((x) => x.id === c.id); if (n) n.resolved = c.resolved; } }
+    reapplyAccepted(record.qc, accepted);
   };
 
   async function readPage(p) {
@@ -1014,9 +1017,9 @@ function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
       id: 'rrpdf-qc', title: 'Data QC', qc: record.qc,
       intro: 'The rent roll as read from the PDF: each check, and the page, row and cell it points to. Nothing is added until you tap “Use this rent roll”.',
       blockedText: 'A failed check holds the rent roll back. Look at the page, then resolve each failed check or accept the reading as it stands.',
-      onResolve: (c) => { accepted.add(c.id); resolveCheck(record.qc, c.id, 'accepted'); draw(); },
+      onResolve: (c) => { accepted.set(c.id, c.text); resolveCheck(record.qc, c.id, 'accepted'); draw(); },
       // a question (monthly or annual?) and a filtered report each need their own answer, never a blanket accept
-      onAcceptAll: () => { for (const c of record.qc.checks) if (c.level === 'fail' && !c.resolved && !c.choices && c.kind !== 'subset') { accepted.add(c.id); resolveCheck(record.qc, c.id, 'accepted'); } draw(); },
+      onAcceptAll: () => { for (const c of record.qc.checks) if (c.level === 'fail' && !c.resolved && !c.choices && c.kind !== 'subset') { accepted.set(c.id, c.text); resolveCheck(record.qc, c.id, 'accepted'); } draw(); },
       extra: (c) => {
         if (c.choices && !c.resolved) {
           return c.choices.map((v) => {
