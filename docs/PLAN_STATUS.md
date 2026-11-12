@@ -21,9 +21,11 @@ first. The evidence for each feature, in more detail, is in
 real brokerage file, live AI or speech service, Microsoft Excel, Safari,
 Firefox or screen reader has been used for any item (see the end of this file).
 
-Last updated: 4.7.66; two Part 21.2 breaches fixed: the rent schedule uses only a typed price, and commission tiers that don't rise give no figure (PR opening); 4.7.65 file names handed to the phone are cleaned first (#93, merged); file names handed to the phone are cleaned first (code scanning alert 12) (PR opening); 4.7.64 the net lease rent schedule (#91, merged); the net lease rent schedule (PR opening); 4.7.63 key dates to the phone calendar (#89, merged); key dates to the phone calendar as an .ics file (PR opening); 4.7.62 the Back button (#88, merged); the Back button F3 (PR opening); 4.7.61 the deal fee record (#86, merged); the deal fee record 5.1, data format 5 (PR opening); 4.7.60; F6/F7, hostile text and time zones (PR opening); L5, text in a site photo (#84, merged); Phase B1c, the research screens (#83, merged); browser runs on eight port slots (#82, merged); counts recounted (the directive row had 18 of its 40 items; F12 and the Data QC panel ticked); underwriting U7, recoveries counted twice (#81, merged); Phase B1b, research briefs on the device (#80, merged); check:full runs the AI server tests (#79, merged); Phase B1a, the research route (#78, merged); the -$0 display fix (#77, merged); AI server injection set (#76, merged); fast-check property tests (#75, merged); CI security scanners (#74, merged); tool ideas and GitHub tools scan (#73, merged); F12, AI server limits (#72, merged); CodeQL alert fixes (4.7.46, #70, merged); Pillow audit (#68, merged); ponytail skill (#67, merged); underwriting U6, T-12 line checks (#66, merged); underwriting U5, rent roll checks (#65, merged); underwriting U4, WALT by total area (#64, merged); underwriting U3, strict review (#63, merged); underwriting U2, normalised NOI on screen (#62, merged); underwriting U1, normalise() (#61, merged); T-12 PR 3b, value flags and run rate (#60, merged); T-12 PR 3a, periods and the Data QC panel (#59, merged); T-12 PR 2, suggestions (#58, merged); A3 skills and glossary (#57, merged); git guardrail hook (#56, merged); security fixes F1 to F3 (#55, merged); T-12 PR 1b, the paste box (#54, merged); T-12 PR 1, the reading foundation (#53, merged); security checklist and tools decisions (#51, merged); support-code rule (PR opening); underwriting proposal (#48), roll comparison (#47), property-manager profile (#46), rent roll PDF upload (#45), `impact-flow` fix (#44) merged (2026-10-17).
+Last updated: 4.7.133 (annual actual PDF slice, in review); earlier: 4.7.66; two Part 21.2 breaches fixed: the rent schedule uses only a typed price, and commission tiers that don't rise give no figure (PR opening); 4.7.65 file names handed to the phone are cleaned first (#93, merged); file names handed to the phone are cleaned first (code scanning alert 12) (PR opening); 4.7.64 the net lease rent schedule (#91, merged); the net lease rent schedule (PR opening); 4.7.63 key dates to the phone calendar (#89, merged); key dates to the phone calendar as an .ics file (PR opening); 4.7.62 the Back button (#88, merged); the Back button F3 (PR opening); 4.7.61 the deal fee record (#86, merged); the deal fee record 5.1, data format 5 (PR opening); 4.7.60; F6/F7, hostile text and time zones (PR opening); L5, text in a site photo (#84, merged); Phase B1c, the research screens (#83, merged); browser runs on eight port slots (#82, merged); counts recounted (the directive row had 18 of its 40 items; F12 and the Data QC panel ticked); underwriting U7, recoveries counted twice (#81, merged); Phase B1b, research briefs on the device (#80, merged); check:full runs the AI server tests (#79, merged); Phase B1a, the research route (#78, merged); the -$0 display fix (#77, merged); AI server injection set (#76, merged); fast-check property tests (#75, merged); CI security scanners (#74, merged); tool ideas and GitHub tools scan (#73, merged); F12, AI server limits (#72, merged); CodeQL alert fixes (4.7.46, #70, merged); Pillow audit (#68, merged); ponytail skill (#67, merged); underwriting U6, T-12 line checks (#66, merged); underwriting U5, rent roll checks (#65, merged); underwriting U4, WALT by total area (#64, merged); underwriting U3, strict review (#63, merged); underwriting U2, normalised NOI on screen (#62, merged); underwriting U1, normalise() (#61, merged); T-12 PR 3b, value flags and run rate (#60, merged); T-12 PR 3a, periods and the Data QC panel (#59, merged); T-12 PR 2, suggestions (#58, merged); A3 skills and glossary (#57, merged); git guardrail hook (#56, merged); security fixes F1 to F3 (#55, merged); T-12 PR 1b, the paste box (#54, merged); T-12 PR 1, the reading foundation (#53, merged); security checklist and tools decisions (#51, merged); support-code rule (PR opening); underwriting proposal (#48), roll comparison (#47), property-manager profile (#46), rent roll PDF upload (#45), `impact-flow` fix (#44) merged (2026-10-17).
 
 ## Now
+
+- **4.7.133, in review:** explicit prior-year annual actual PDF statements reuse the T-12 engine; modeled columns, unclear periods, missing amounts and ambiguous number formatting are held. Tested with synthetic fixtures only. This is the annual text-PDF slice; monthly PDFs, scans and the PM profile remain later slices. Logo #153 and manual deal inputs #154 are merged; all 32 deal figures are available without an upload.
 
 - **Dev tooling (4.7.105, PR opening):** Model Hub local dashboard (`[~]`, stub-tested; no vendor reply through it yet).
 - **Dev tooling (4.7.102, PR opening):** harness roles and per-vendor connectors (`[~]`, stub-tested; no vendor run yet).
@@ -113,7 +115,7 @@ Last updated: 4.7.66; two Part 21.2 breaches fixed: the rent schedule uses only 
 | The 15 pillars (Part 2) | 1 | 8 | 0 | 6 | 0 | 15 |
 | Phase 0: audit and baseline | 9 | 0 | 0 | 0 | 0 | 9 |
 | Phase 1: foundations | 18 | 21 | 0 | 5 | 0 | 44 |
-| Phase 2: underwriting and documents | 16 | 46 | 0 | 45 | 0 | 107 |
+| Phase 2: underwriting and documents | 16 | 50 | 0 | 41 | 0 | 107 |
 | Phase 3: firm templates | 6 | 5 | 0 | 4 | 1 | 16 |
 | Phase 4: comps and capital markets | 8 | 12 | 0 | 18 | 0 | 38 |
 | Phase 5: marketing, diligence, buyers | 6 | 7 | 0 | 31 | 0 | 44 |
@@ -121,7 +123,7 @@ Last updated: 4.7.66; two Part 21.2 breaches fixed: the rent schedule uses only 
 | Phase 7: workspaces and integrations | 1 | 4 | 0 | 9 | 0 | 14 |
 | Phase 8: final audit | 1 | 2 | 0 | 7 | 1 | 11 |
 | Real-world validation | 0 | 0 | 0 | 0 | 5 | 5 |
-| **All** | **120** | **123** | **1** | **153** | **8** | **405** |
+| **All** | **120** | **127** | **1** | **149** | **8** | **405** |
 
 The pillars are counted on their own as well as through the items of the
 phases that build them.
@@ -655,7 +657,7 @@ The T-12 import (4.7.0, `app/t12.js`, `app/t12ui.js`, `tests/t12.test.js`,
 eight invented layouts only, and not yet on a real T-12. The owner's "T-12
 multi-format import" waits on proposal 2a.
 - [x] Import XLSX and CSV, read on the device (4.7.0). Synthetic only.
-- [ ] Import a text PDF (after 2a)
+- [~] Import a text PDF: explicit prior-year annual actual columns (4.7.133, synthetic only); monthly PDFs remain later
 - [ ] Import OCR'd scans, labelled as OCR (after 2a)
 - [~] Mapping interface: each line goes to one of 21 standard categories,
   keeping its own wording and account number; "Every line" changes any

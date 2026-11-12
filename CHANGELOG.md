@@ -1,5 +1,32 @@
 # Changelog
 
+## 4.7.133: Bird branding, manual deal entry and actual annual PDF statements (on the development branch; not merged or deployed)
+
+This release refreshes the offline cache for the previously merged bird logo,
+all 32 deal-figure inputs when starting by hand, and the duplicate-workbook
+fixture fix. The logo and icons share one original artwork; manual inputs keep
+the existing parsing, provenance and save paths. The duplicate-upload check
+reuses identical workbook bytes rather than regenerating ZIP timestamps.
+
+Standalone PDFs with explicitly dated, completed prior-year actual operating
+statements can enter the existing annual T-12 basis. Choose the column and any
+ambiguous number format; a separate Use confirmation applies the figures. Page,
+year, provenance, checks and Undo are kept, with no invented monthly values.
+Annualized, pro-forma, budget, per-unit, per-SF, percentage and model columns stay
+out of actuals. Missing amounts, ambiguous periods/columns and conflicting scales
+stay held. Current-year statements, including fiscal periods, remain held in
+this first conservative slice. No library, stored field, schema or financial
+engine is added.
+
+Synthetic checks: 16 reader unit tests, 34 phone/desktop browser assertions,
+old-app failure and six caught guard mutations; 646 displayed figures unchanged.
+The manual-entry flow passes 42 checks. The Workspace reload check now waits for
+the sheet's asynchronous history navigation; all 99 assertions are preserved.
+The malformed-PDF check verifies the previous statement stays unchanged.
+
+Monthly PDFs, scans and real brokerage documents are outside this reader slice.
+Safari, a physical phone and Microsoft Excel have not been tested here.
+
 ## 4.7.132: Accent colour and text size work in both looks, Settings in six groups, a calmer New look (on the development branch; not merged or deployed)
 
 The accent swatches and the text size changed nothing in Classic: both were wired to the New look only, and in the New look the text size left every size written in pixels unchanged.
