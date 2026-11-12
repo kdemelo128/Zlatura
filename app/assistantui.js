@@ -5,14 +5,16 @@
  * A question is understood (assistant.js) and answered (assistantanswer.js) on this device; this file only
  * draws the result. Everything is drawn as text nodes: no HTML from a question, a deal or a document ever
  * reaches the page. The assistant makes no network request. Anything that changes something (a task) is
- * shown first, waits for a yes and offers Undo, through crm.js, the same path the Home screen uses. */
+ * shown first, as a before and after list, waits for a yes of its own and offers Undo. A task, next step or contact
+ * goes through crm.js (the path Home and the deal's Pipeline card use); a figure, stage, note, scenario or export
+ * through dealui.js assistantApply, which uses the deal screen's own functions. */
 
 import { el, openSheet, closeSheet } from './kit.js';
 import { PRODUCT, installBrand } from './brand.js';
 import { understand, suggestions } from './assistant.js';
 import { answer } from './assistantanswer.js';
-import { dealForAssistant, assistantGo } from './dealui.js';
-import { addTask, deleteTask } from './crm.js';
+import { dealForAssistant, assistantGo, assistantApply } from './dealui.js';
+import { addTask, deleteTask, updateTask, saveContact, deleteContact, listTasks } from './crm.js';
 
 let view = 'home';
 let dlg = null;
@@ -75,6 +77,19 @@ function draw(r) {
     sec.appendChild(ul);
     box.appendChild(sec);
   }
+  if (r.changes && r.changes.length) {
+    const dl = el('dl', 'assist-changes');
+    for (const c of r.changes) {
+      const row = el('div', 'assist-change');
+      row.appendChild(el('dt', null, c.label));
+      const dd = el('dd', null);
+      if (c.before) dd.appendChild(el('span', `assist-old${c.typed ? ' assist-typed' : ''}`, `Now: ${c.before}${c.typed ? ' (typed by you)' : ''}`));
+      dd.appendChild(el('span', 'assist-new', `${c.before ? 'Becomes' : 'Adds'}: ${c.after}`));
+      row.appendChild(dd);
+      dl.appendChild(row);
+    }
+    box.appendChild(dl);
+  }
   if (r.suggest && r.suggest.length) {
     const row = el('div', 'assist-chips');
     for (const s of r.suggest) row.appendChild(btn('btn-sm assist-chip', s, () => ask(s)));
@@ -84,28 +99,51 @@ function draw(r) {
   return box;
 }
 
-/** The yes/no for an action that changes something; a yes is followed by Undo. */
+/** Make one confirmed change and say what it was; `undo` puts back exactly what was there (null when nothing changed). */
+async function perform(a) {
+  if (a.kind === 'task') {
+    const t = await addTask({ title: a.title, due: a.due, dealId: a.dealId, source: 'assistant' });
+    return { said: `Task added: ${t.title}${t.due ? `, due ${t.due}` : ''}. It is on ${a.dealId ? 'this deal’s Next steps and on Home' : 'Home'}.`, undo: () => deleteTask(t.id), undone: 'Undone: the task was removed.' };
+  }
+  if (a.kind === 'taskdue') {
+    const t = await updateTask(a.taskId, { due: a.due });
+    if (!t) throw new Error('that next step is gone');
+    return { said: `The next step “${t.title}” is now due ${a.due}.`, undo: () => updateTask(a.taskId, { due: a.before }), undone: `Undone: the date is back to ${a.before || 'no date'}.` };
+  }
+  if (a.kind === 'contact') {
+    const c = await saveContact({ name: a.name, role: a.role, company: a.company, phone: a.phone, email: a.email, dealIds: [a.dealId] });
+    return { said: `Contact added: ${c.name}, linked to this deal. It is on the deal’s contacts.`, undo: () => deleteContact(c.id), undone: 'Undone: the contact was removed.' };
+  }
+  const r = await assistantApply(a);
+  const said = { figure: 'Done: the figure is set and marked as typed by you.', stage: 'Done: the stage is changed.', note: 'Done: the note is added to the site visit notes.', scenario: 'Done: the scenario is saved. The deal’s own figures are unchanged.', export: 'Opened. Nothing in the deal changed.' }[a.kind] || 'Done.';
+  return { said, undo: r.undo, undone: 'Undone: the deal is back exactly as it was.' };
+}
+
+/** The yes/no for an action that changes something; a yes is followed by Undo. Each is for this one change only. */
 function confirmRow(action, box) {
   const row = el('div', 'assist-confirm');
-  const yes = btn('btn-primary', 'Add the task');
+  const yes = btn('btn-primary', action.yes || 'Add the task');
   const no = btn('btn-gray', 'Cancel');
   yes.addEventListener('click', async () => {
     yes.disabled = true; no.disabled = true;
     try {
-      const t = await addTask({ title: action.title, due: action.due, dealId: action.dealId, source: 'assistant' });
+      const done = await perform(action);
       row.textContent = '';
-      row.appendChild(el('p', 'assist-done', `Task added: ${t.title}${t.due ? `, due ${t.due}` : ''}. It is on Home.`));
-      const undo = btn('btn-sm btn-gray', 'Undo', async () => {
-        undo.disabled = true;
-        try { await deleteTask(t.id); row.textContent = ''; row.appendChild(el('p', 'assist-done', 'Undone: the task was removed.')); } catch (e) { row.appendChild(el('p', 'warn-text', `That could not be undone: ${e.message || e}`)); }
-      });
-      row.appendChild(undo);
+      row.appendChild(el('p', 'assist-done', done.said));
+      live.textContent = done.said;
+      if (done.undo) {
+        const undo = btn('btn-sm btn-gray', 'Undo', async () => {
+          undo.disabled = true;
+          try { await done.undo(); row.textContent = ''; row.appendChild(el('p', 'assist-done', done.undone)); live.textContent = done.undone; } catch (e) { undo.disabled = false; row.appendChild(el('p', 'warn-text', `That could not be undone: ${e.message || e}`)); }
+        });
+        row.appendChild(undo);
+      }
     } catch (e) {
       row.textContent = '';
-      row.appendChild(el('p', 'warn-text', `The task was not added: ${e.message || e}`));
+      row.appendChild(el('p', 'warn-text', `Nothing was changed: ${e.message || e}`));
     }
   });
-  no.addEventListener('click', () => { row.textContent = ''; row.appendChild(el('p', 'assist-done', 'Cancelled: nothing was saved.')); });
+  no.addEventListener('click', () => { row.textContent = ''; row.appendChild(el('p', 'assist-done', 'Cancelled: nothing was saved.')); live.textContent = 'Cancelled: nothing was saved.'; });
   row.append(yes, no);
   return row;
 }
@@ -116,7 +154,7 @@ function say(node) {
 }
 
 /** Ask one question: show it, answer it, and act when the answer is an "open". */
-export function ask(text) {
+export async function ask(text) {
   const q = String(text || '').trim();
   if (!q) return null;
   say(el('div', 'assist-msg assist-me', q));
@@ -124,7 +162,9 @@ export function ask(text) {
   let r;
   try {
     const snap = dealForAssistant();
+    /** @type {any} */
     const ctx = snap || { deal: null, input: null, m: {}, rrSum: null, comps: null, today: new Date(), hasDeal: false };
+    if (snap) ctx.tasks = await listTasks().catch(() => []);   // the deal's open next steps, for "move the next step"
     r = answer(understand(q, { today: ctx.today }), ctx);
   } catch (e) {
     r = { kind: 'refuse', lines: [`I couldn’t work that out: ${e && e.message ? e.message : e}. Nothing was changed.`], items: [], cites: [], blanks: [], suggest: [] };

@@ -19,6 +19,7 @@ import { DEAL_INPUTS, sourceOf } from './dealfields.js';
 import { sourceLabel } from './aifacts.js';
 import { QUESTIONS, GLOSSARY } from './assistant.js';
 import { PRODUCT } from './brand.js';
+import { previewFor } from './assistantact.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const LABEL = Object.fromEntries(DEAL_INPUTS.map((f) => [f.key, f.label]));
@@ -326,6 +327,7 @@ export function answer(q, ctx) {
   }
   const f = { cap_at_price: capAtPrice, price_for_cap: priceForCap, dscr: dscrAnswer, expiries: expiriesAnswer, walt: waltAnswer, missing: missingAnswer, review: reviewAnswer,
     comps: compsAnswer, breakeven: breakevenAnswer, commission: commissionAnswer, source: sourceAnswer, metric: metricAnswer, summary: summaryAnswer, notes: notesAnswer,
+    ...Object.fromEntries(['set_figure', 'set_stage', 'next_step', 'add_contact', 'add_note', 'make_scenario', 'start_export', 'open_doc'].map((id) => [id, previewFor])),
     glossary: glossaryAnswer, task: taskAnswer, open: openAnswer, help: helpAnswer }[q.id];
   return f(q, ctx);
 }

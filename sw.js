@@ -156,6 +156,7 @@ const ASSETS = [
   'app/settings.js',
   'app/command.js',
   'app/assistant.js',
+  'app/assistantact.js',
   'app/assistantanswer.js',
   'app/assistantui.js',
   'app/dealfields.js',

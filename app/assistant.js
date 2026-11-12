@@ -8,6 +8,7 @@
 
 import { parseNum, parsePct } from './kit.js';
 import { parseDateText } from './dateinput.js';
+import { understandAction } from './assistantact.js';
 
 /**
  * The questions Monal answers (release 1). `example` is also what the panel suggests; `needsDeal` says
@@ -30,6 +31,14 @@ export const QUESTIONS = [
   { id: 'notes', title: 'Show my site visit notes', example: 'What do my notes say?', needsDeal: true },
   { id: 'glossary', title: 'Explain a term', example: 'Explain DSCR', needsDeal: false },
   { id: 'task', title: 'Add a follow-up task (asks first, with Undo)', example: 'Add a task to call the lender on Friday', needsDeal: false },
+  { id: 'set_figure', title: 'Set a deal figure you state (asks first, with Undo)', example: 'Set the asking price to $4.6M', needsDeal: true },
+  { id: 'set_stage', title: 'Move the deal to a pipeline stage (asks first, with Undo)', example: 'Move this deal to Under contract', needsDeal: true },
+  { id: 'next_step', title: 'Set or move the deal’s next step (asks first, with Undo)', example: 'Set the next step: send the LOI by Friday', needsDeal: true },
+  { id: 'add_contact', title: 'Add a contact and link it to the deal (asks first, with Undo)', example: 'Add a contact Jane Roe, lender, at Example Bank', needsDeal: true },
+  { id: 'add_note', title: 'Add to the site visit notes (asks first, with Undo)', example: 'Add a note: owner says the roof was replaced in 2021', needsDeal: true },
+  { id: 'make_scenario', title: 'Save a scenario at a price or cap rate (asks first, with Undo)', example: 'Create a scenario at $4.6M', needsDeal: true },
+  { id: 'start_export', title: 'Start an export the deal screen offers: Excel, share, template (asks first)', example: 'Export this deal to Excel', needsDeal: true },
+  { id: 'open_doc', title: 'Open a document, or the page a figure cites', example: 'Open the OM at page 12', needsDeal: true },
   { id: 'open', title: 'Open a screen or section', example: 'Open the rent roll', needsDeal: false },
   { id: 'help', title: 'What I can do', example: 'What can you do?', needsDeal: false },
 ];
@@ -201,6 +210,9 @@ export function understand(raw, { today = new Date() } = {}) {
   const pc = percentIn(text);
   const has = (re) => re.test(text);
 
+  // requests that change the deal (assistantact.js): matched first, each by its own opening verb
+  const act = understandAction(raw, { today });
+  if (act) return act;
   // a request to add a task: the verb comes first, so "what follow-ups are due" is not one
   if ((/^(please |can you |could you |i need to |i want to |i'd like to )?(add|create|make|draft|set up|new|put|schedule|remind me|follow up)\b/.test(text)) && has(/\b(tasks?|reminders?|follow[- ]?ups?|to[- ]?do|todo|remind me)\b/)) {
     const due = dueFrom(raw, today);
@@ -210,7 +222,11 @@ export function understand(raw, { today = new Date() } = {}) {
   const verb = /^(please |can you |could you )?(open|go to|take me to|show me|show|jump to|bring up|switch to|navigate to|go)\b/.exec(text);
   if (verb) {
     const rest = text.slice(verb[0].length);
+    const pg = /\b(?:page|pg|p\.?)\s?(\d{1,4})\b/.exec(rest);
+    if (pg) return { id: 'open_doc', rest, page: Number(pg[1]) };
     for (const [re, name, go, needsDeal] of OPEN_TARGETS) if (re.test(rest) && !/\b(at|if|for a)\b.*\bcap\b/.test(rest)) return { id: 'open', name, go, needsDeal };
+    // nothing on the screen list: maybe a document of the deal, by its name (looked for in assistantact.js)
+    if (/^(open|bring up|go to|jump to)$/.test(verb[2]) && !/\b(cap|price|noi|dscr)\b/.test(rest)) return { id: 'open_doc', rest, page: null };
   }
   // explain a term: "explain DSCR", "what is a cap rate", "what does WALT mean"; "what is the DSCR" asks for this deal's figure
   const explain = /^(explain|define|describe|what does (.+) mean|what do you mean by|meaning of|tell me what)\b/.test(text) || /\bwhat does (.+) (mean|stand for)\b/.test(text);
