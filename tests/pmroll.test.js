@@ -1,0 +1,153 @@
+/* A property manager's rent roll PDF, read as its own document: only a base or contract rent column fills rent, a filtered
+ * report is held, an untitled table needs the broker's say-so, a period the page does not state is asked, and a summary
+ * page adds no rows. Every name and figure is invented (tests/pmroll-fixtures.js); the cents are worked by hand. */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { docKind, pdfRollRecord, layoutChecks, filterNotes } from '../app/rrdoc.js';
+import { fromOmRows } from '../app/lease.js';
+import { pmText, PM_ROWS, PM_ANNUAL } from './pmroll-fixtures.js';
+
+const record = (o, ro = {}) => { const doc = docKind(pmText(o)); return { doc, ...pdfRollRecord(doc, { asOf: '2026-10-01', file: 'pm.pdf', ...ro }) }; };
+const used = (r) => (r.rows.length ? r.rows : r.qc.held || []);
+const fails = (r) => r.qc.checks.filter((c) => c.level === 'fail');
+
+test('a clean property-manager report: six units, wrapped name joined, MTM and vacant marked, rent only from the base rent column', () => {
+  const r = record();
+  assert.equal(r.doc.kind, 'rentroll');
+  assert.equal(r.held, false);
+  const rows = used(r);
+  assert.deepEqual(rows.map((x) => x.suite), ['A1', 'A2', 'A3', 'B1', 'B2', 'B3']);
+  assert.equal(rows[1].tenant, 'Northgate Family Dentistry, PC');
+  assert.equal(rows[1].sf, 1500);
+  assert.equal(rows[2].vacant, true);
+  assert.equal(rows[5].mtm, true);
+  // hand-worked: monthly base rent x 12
+  assert.deepEqual(rows.map((x) => x.annual), Object.values(PM_ANNUAL));
+  assert.equal(rows.reduce((a, x) => a + (x.annual || 0), 0), 160500);   // 5,000 + 3,500 + 3,000 + 1,875 = 13,375 a month
+  assert.equal(13375 * 12, 160500);
+  assert.equal(fails(r).length, 0);
+});
+
+test('market rent and charges never stand in for a missing base rent; a zero market rent is not a zero contract rent', () => {
+  const rows = used(record());
+  const byUnit = Object.fromEntries(rows.map((x) => [x.suite, x]));
+  assert.equal(byUnit.B2.annual, null, 'B2 prints charges of 200.00 and market 0.00, and no base rent: blank, not 2,400 and not 0');
+  assert.equal(byUnit.B2.monthly, null);
+  assert.equal(byUnit.A3.annual, null, 'a vacant unit’s market rent (1,800.00) is not its rent');
+  assert.equal(byUnit.B1.annual, 36000, 'a zero market rent leaves the printed base rent alone');
+  const leases = fromOmRows(rows, { asOf: '2026-10-01', kind: 'pdf', file: 'pm.pdf' }).leases;
+  assert.equal(leases.find((L) => L.unit === 'B2').periods.length, 0, 'no rent period is made for a blank rent');
+});
+
+test('no column labelled as rent: every rent stays blank, and the broker is told why', () => {
+  const doc = docKind(pmText({ rentHead: 'Monthly Charges' }).map((p) => p.replace('Monthly Charges   Monthly Charges', 'Monthly Charges   Past Due')));
+  const r = pdfRollRecord(doc, { asOf: '2026-10-01', file: 'pm.pdf' });
+  assert.ok(used(r).every((x) => x.annual === null && x.monthly === null));
+  assert.ok(r.qc.checks.some((c) => c.id === 'norent' && /left blank/.test(c.text)));
+});
+
+test('a bare “Rent” beside charges and market rent, with no sentence calling it base rent, is asked; “Base Rent” or the sentence settles it', () => {
+  const bare = record({ rentHead: 'Rent', note: 'Figures are unaudited.' });
+  assert.equal(bare.held, true);
+  assert.ok(bare.qc.checks.some((c) => c.id.startsWith('basis:') && c.level === 'fail' && /base \(contract\) rent/.test(c.text)));
+  assert.equal(fails(record({ rentHead: 'Rent' })).filter((c) => c.id.startsWith('basis:')).length, 0, 'the footnote says contractual rent');
+  assert.equal(fails(record({ rentHead: 'Base Rent' })).length, 0);
+});
+
+test('a report that says it is filtered fails the completeness check, even beside “Unit Filter: All”; the rows can still be reviewed', () => {
+  const r = record({ lines: ['Unit Filter: All   Status Filter: Current'] });
+  assert.equal(r.held, true);
+  assert.equal(r.subset, true);
+  const f = r.qc.checks.find((c) => c.kind === 'subset');
+  assert.equal(f.level, 'fail');
+  assert.equal(f.page, 1);
+  assert.match(f.text, /filtered/);
+  assert.match(f.text, /second confirmation/);
+  assert.equal(r.rows.length, 0, 'held: nothing may be used yet');
+  assert.equal(r.qc.held.length, 6, 'but the rows are there to review');
+  assert.equal(r.qc.applied, false);
+});
+
+test('filter wording: what is a subset and what is not', () => {
+  const hit = (t) => filterNotes([t]).length;
+  assert.equal(hit('Unit Filter: All'), 0);
+  assert.equal(hit('Unit Filter: All   Status Filter: All'), 0);
+  assert.equal(hit('Filters: None'), 0);
+  assert.equal(hit('Status Filter: Current'), 1);
+  assert.equal(hit('Unit Filter: All   Status Filter: Current'), 1);
+  assert.equal(hit('Status Filter: All   Property Filter: Building B'), 1);
+  assert.equal(hit('Status: Current'), 1);
+  assert.equal(hit('Status: All'), 0);
+  assert.equal(hit('This report is filtered by lease status.'), 1);
+  assert.equal(hit('Showing 12 of 48 units'), 1);
+  assert.equal(hit('Occupied units only'), 1);
+  assert.equal(hit('This report is not filtered.'), 0);
+  assert.equal(hit('Unfiltered rent roll of every unit'), 0);
+  assert.equal(hit('Tenant   Status   Rent'), 0, 'a column heading is not a filter');
+  assert.deepEqual(filterNotes(['x', 'a\nStatus Filter: Notice']).map((f) => [f.page, f.line]), [[2, 2]]);
+});
+
+test('an untitled table with no date is only a possible rent roll: unknown, rows kept for the broker to choose', () => {
+  const doc = docKind(pmText({ title: null, asOf: false, rentHead: 'Monthly Base Rent', note: '' }));
+  assert.equal(doc.kind, 'unknown');
+  assert.match(doc.why[0], /nothing on the first two pages says this is one/);
+  assert.equal(doc.roll.rows.length, 6);
+});
+
+test('a rent column that does not say monthly or annual is asked, not guessed; the answer re-reads the rent', () => {
+  const r = record({ note: '' });
+  assert.equal(r.held, true);
+  const q = r.qc.checks.find((c) => c.id.startsWith('period:'));
+  assert.equal(q.level, 'fail');
+  assert.deepEqual(q.choices, ['monthly', 'annual']);
+  assert.equal(q.periodKind, 'rent');
+  assert.match(q.text, /monthly rent or annual rent/);
+  // the guess (monthly) is what the rows hold until the broker chooses
+  assert.equal(r.qc.held.find((x) => x.suite === 'A1').annual, 60000);
+  // answered annual: 5,000.00 is the year, not 60,000
+  const a = record({ note: '' }, { periods: { rent: 'annual' } });
+  assert.equal(a.held, false);
+  const a1 = used(a).find((x) => x.suite === 'A1');
+  assert.equal(a1.annual, 5000);
+  assert.equal(used(a).find((x) => x.suite === 'B3').annual, 1875);
+  assert.ok(a.qc.checks.some((c) => c.id.startsWith('period:') && c.level === 'info' && /You chose annual rent/.test(c.text)));
+  // answered monthly: the same as the guess, now stated
+  const m = record({ note: '' }, { periods: { rent: 'monthly' } });
+  assert.equal(m.held, false);
+  assert.equal(used(m).find((x) => x.suite === 'A1').annual, 60000);
+});
+
+test('a page that states the period in a sentence, or a heading that does, asks nothing', () => {
+  assert.equal(fails(record()).length, 0);
+  assert.equal(fails(record({ rentHead: 'Monthly Base Rent', note: '' })).length, 0);
+  assert.equal(fails(record({ rentHead: 'Annual Rent', note: '' })).filter((c) => c.id.startsWith('period:')).length, 0);
+});
+
+test('a summary page’s table is not units: no duplicate rows, and the broker is told', () => {
+  const r = record();
+  assert.deepEqual(r.doc.summary, [3]);
+  assert.equal(used(r).length, 6);
+  assert.ok(!used(r).some((x) => /^(?:occupied|vacant)$/i.test(x.tenant) && !x.suite), 'no “Occupied” or “Vacant” summary line is a unit');
+  assert.ok(r.qc.checks.some((c) => c.id === 'summary:3' && c.level === 'info' && /summary/.test(c.text)));
+  // a page titled as a summary that does hold units (suites, dates) is a rent roll page, not a summary
+  const titled = docKind([pmText({ summary: false, split: 6 })[0].replace('Rent Roll\n', 'Rent Roll Summary\n')]);
+  assert.deepEqual(titled.summary, []);
+  assert.equal(titled.roll.rows.length, 6);
+});
+
+test('a header repeated on page two joins the table: six units from two pages, none twice', () => {
+  const r = record({ summary: false });
+  assert.deepEqual(used(r).map((x) => x.src.page), [1, 1, 1, 2, 2, 2]);
+  assert.equal(new Set(used(r).map((x) => x.suite)).size, 6);
+});
+
+test('layoutChecks(roll) alone, with no page text, keeps its column rules only', () => {
+  const roll = docKind(pmText({ note: '' })).roll;
+  assert.deepEqual(layoutChecks(roll), []);
+});
+
+test('the fixtures themselves: six rows, one wrapped name, one month-to-month, one vacant', () => {
+  assert.equal(PM_ROWS.length, 6);
+  assert.equal(PM_ROWS.filter((r) => r[1].length === 2).length, 1);
+  assert.equal(PM_ROWS.filter((r) => /month-to-month/i.test(r[7])).length, 1);
+});
