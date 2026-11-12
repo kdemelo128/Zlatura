@@ -1198,8 +1198,10 @@ dialog.sheet:has(.ab-editor) .sheet-card { height: calc(100dvh - 24px); }
 
 /* tasks */
 .task-add { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--s2); padding: 0 var(--s5) var(--s3); }
-.home-task-add { grid-template-columns: minmax(0, 1fr) auto auto auto; }
-@media (max-width: 640px) { .home-task-add { grid-template-columns: minmax(0, 1fr) auto; } .home-task-add #task-title { grid-column: 1 / -1; } }
+/* the title gets its own row: beside the date and deal pickers it was squeezed to two letters in the half-width card */
+.home-task-add { grid-template-columns: auto minmax(0, 1fr) auto; }
+.home-task-add #task-title { grid-column: 1 / -1; }
+@media (max-width: 640px) { .home-task-add { grid-template-columns: minmax(0, 1fr) auto; } }
 .task-add input { border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: inherit; font-size: calc(15px * var(--ts, 100) / 100); padding: 0 10px; min-width: 0; min-height: var(--ctl-h); }
 .task-add input:focus, .task-add select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .task-group { padding: 0 var(--s5) var(--s3); }
