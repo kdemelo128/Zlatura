@@ -24,7 +24,7 @@ test('the product name is written in app/brand.js only (comments aside)', () => 
 });
 
 test('the mark is drawn once, in brand.js', () => {
-  const body = MARK.body.match(/d="([^"]+)"/)[1];
+  const body = MARK.body.match(/<path[^>]* d="([^"]+)"/)[1];
   for (const f of files) assert.ok(!read(new URL(f, APP)).includes(body), `${f} holds a copy of the mark`);
   const html = read(new URL('../index.html', import.meta.url));
   assert.ok(!html.includes(body), 'index.html holds a copy of the mark');
@@ -65,7 +65,7 @@ test('the manifest agrees with brand.js', () => {
 
 test('what must not change on a rename is still the same', () => {
   assert.equal(KEY_PREFIX, 'zlatura.', 'saved settings are read under this prefix; a rename never moves them');
-  assert.equal(MARK.viewBox, '0 0 24 24');
+
 });
 
 // ---- PR 6: the display name is Monal; every storage id is still the old one (changed later, with a migration) ----
@@ -135,4 +135,13 @@ test('no string a person can see still says Zlatura, except the one "formerly" l
     src.split('\n').forEach((l, i) => { if (/zlatura/i.test(l)) bad.push(`${u.pathname.split('/').slice(-2).join('/')}:${i + 1}: ${l.trim().slice(0, 100)}`); });
   }
   assert.deepEqual(bad, []);
+});
+
+// The crest, plumage and feet are readable vector art, shared by all static assets.
+test('the bird artwork is shared by the favicon and both wordmarks', () => {
+  assert.equal(MARK.viewBox, '0 0 128 128');
+  for (const asset of ['icons/favicon.svg', 'docs/brand/logo-light.svg', 'docs/brand/logo-dark.svg']) {
+    const svg = read(new URL(`../${asset}`, import.meta.url));
+    assert.ok(svg.includes(MARK.body), `${asset} must be regenerated from the brand record`);
+  }
 });
