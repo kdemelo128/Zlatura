@@ -115,3 +115,15 @@ Owner approvals recorded the same day (2026-11-12, session chat, "approve all re
 | 4 | Maintain the cleaned copy and stop regenerating (decided by the lead as reversible; owner informed) |
 
 Releases 4 (one reader and adapter) and 5 (per-deal projects and migration) are marked "approved by owner 2026-11-12" in the proposal's build order.
+
+## 2026-11-12: the on-device assistant (`docs/proposals/on-device-assistant.md`)
+
+The owner approved every recommendation in the session chat ("approve all recommended"):
+
+| # | Decision |
+|---|---|
+| 1 | Start with the "front desk" over the app's own data and engine, with no language model (released as 4.7.143) |
+| 2 | Monal the bird is the one assistant everywhere: the Underwrite tool's own "Monal's nest" tips are folded into it (assistant release 3); every nest tip stays reachable |
+| 3 | The optional ~0.4 GB per-device model download is decided after assistant release 3, once release 1's gaps are known; nothing is downloaded until then |
+
+Releases 4 (Chrome built-in model) and 5 (WebLLM download, a new library) still need the owner's yes when they come up.
