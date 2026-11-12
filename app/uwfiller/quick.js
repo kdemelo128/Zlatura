@@ -67,7 +67,10 @@ export function resultLines({ m, run }) {
 export function recordFromText(text) {
   const d = loanDefaults();
   const rec = newScratch({ loan: { minDscr: d.minDscr, minDy: d.minDy, io: d.io } });
-  const values = {}; const refused = {};
+  /** @type {Record<string, number | null>} */
+  const values = {};
+  /** @type {Record<string, boolean>} */
+  const refused = {};
   for (const [id, , kind] of CHECK_FIELDS) {
     const raw = typeof text?.[id] === 'string' ? text[id] : '';
     const [part, key] = QUICK_DEAL_PATHS[id].split('.');

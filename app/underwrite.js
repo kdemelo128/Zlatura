@@ -17,6 +17,7 @@ import { toolCard } from './uwfiller/tool.js';
 import { planIn, applyIn, planOut, changedPaths, fillRecord } from './uwfiller/bridge.js';
 import { read, show, resultLines } from './uwfiller/quick.js';
 import { choose, diffTable, writeChanges } from './uwfiller/quickdeal.js';
+import { installToolBridge } from './uwfiller/toolbridge.js';
 import { newScratch, work, dealFields, loadScratch, saveScratch, deleteScratch, MAX_SCRATCH } from './uwstore.js';
 
 let api = null;
@@ -579,6 +580,8 @@ function escapeLeaves(e, doc) {
 export function initUnderwrite(compsApi) {
   api = compsApi;
   initIntake();
+  // the tool's Model step gets the app's Quick check, calculators and Save as deal (uwfiller/toolbridge.js): given to the page's own frame, each time it loads
+  document.addEventListener('uwtoolload', () => { const f = frameEl(); if (f) installToolBridge(f.contentWindow, { api, frame: f }); });
   const relink = () => { const c = $('uw-calc-card'); if (c) fillCalculators(c); };
   document.addEventListener('workspacechange', relink);
   workspaceReady().then(relink);

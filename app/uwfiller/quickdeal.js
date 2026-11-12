@@ -82,7 +82,7 @@ export function choose(api, { title, sub, body, choices }) {
  * deal open that is not confidential, update it: the sheet shows what happens before anything is written. Undo for both.
  * A confidential deal is never offered for update from the tool (the bridge keeps its figures out of the tool's shared project).
  * @param {any} api the app's sheet helpers
- * @param {{ values: Record<string, number|null>, record: any, flags: { label: string, engine: string, tool: string }[], name: string }} out
+ * @param {{ values: Record<string, number|null>, record: any, flags: object[], name: string }} out
  */
 export async function saveQuickAsDeal(api, out) {
   const { values, record, flags, name } = out;
