@@ -18,6 +18,7 @@ import { BREAK_EVEN_LABEL } from './engine/breakeven.js';
 import { DEAL_INPUTS, sourceOf } from './dealfields.js';
 import { sourceLabel } from './aifacts.js';
 import { QUESTIONS, GLOSSARY } from './assistant.js';
+import { PRODUCT } from './brand.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const LABEL = Object.fromEntries(DEAL_INPUTS.map((f) => [f.key, f.label]));
@@ -294,7 +295,7 @@ function notesAnswer(q, ctx) {
 function glossaryAnswer(q) {
   const g = GLOSSARY.find((x) => x.id === q.term);
   if (!g) return refuse([`I don’t have a definition of “${q.asked || 'that'}” yet. I can explain: ${GLOSSARY.map((x) => x.name).join(', ')}.`], { suggest: GLOSSARY.slice(0, 6).map((x) => `Explain ${x.name}`) });
-  return result('answer', [g.text], { title: g.name, cites: [{ text: 'Monal’s built-in glossary (general definitions, not figures from your deal).', go: null }] });
+  return result('answer', [g.text], { title: g.name, cites: [{ text: `${PRODUCT}’s built-in glossary (general definitions, not figures from your deal).`, go: null }] });
 }
 
 function taskAnswer(q, ctx) {

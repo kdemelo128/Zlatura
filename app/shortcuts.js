@@ -47,6 +47,7 @@ export const SHORTCUTS = [
   { group: 'Home', keys: [['←'], ['→']], does: 'Move between the pinned workspace tabs, once one has the focus (Enter picks it)', src: ['workspaceui.js'], listen: ['ArrowLeft', 'ArrowRight', 'Home', 'End'] },
   { group: 'Underwrite', keys: [['Esc']], does: 'Leave the full-screen underwriting tool (Back to the screen you came from)', src: ['underwrite.js'], listen: ['Escape'] },
   { group: 'Home', keys: [['Esc']], does: 'Close the preview of a section or workspace (New look, desktop)', src: ['preview.js'], listen: ['Escape'] },
+  { group: 'Ask the assistant', keys: [['Tab']], does: 'Move through the panel; it wraps and never leaves it', src: ['assistantui.js'], listen: ['Tab'] },
   { group: 'Settings', keys: [['←'], ['→']], does: 'Choose the theme or the look, once that control has the focus', src: ['theme.js', 'look.js'], listen: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'] },
 ];
 

@@ -8,6 +8,7 @@
  * shown first, waits for a yes and offers Undo, through crm.js, the same path the Home screen uses. */
 
 import { el, openSheet, closeSheet } from './kit.js';
+import { PRODUCT, installBrand } from './brand.js';
 import { understand, suggestions } from './assistant.js';
 import { answer } from './assistantanswer.js';
 import { dealForAssistant, assistantGo } from './dealui.js';
@@ -27,8 +28,8 @@ const btn = (cls, text, fn) => { const b = el('button', `btn ${cls}`.trim(), tex
 async function leaveAndGo(go) {
   const hadEntry = !!(history.state && history.state.sheet);
   closeSheet(dlg);
-  if (hadEntry) await new Promise((resolve) => { const t = setTimeout(resolve, 400); window.addEventListener('popstate', () => { clearTimeout(t); resolve(undefined); }, { once: true }); });
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  if (hadEntry) await new Promise((resolve) => { const t = setTimeout(() => resolve(undefined), 400); window.addEventListener('popstate', () => { clearTimeout(t); resolve(undefined); }, { once: true }); });
+  await new Promise((resolve) => setTimeout(() => resolve(undefined), 0));
   assistantGo(go);
 }
 
@@ -149,13 +150,13 @@ function build() {
   const card = el('div', 'sheet-card');
   const head = el('div', 'sheet-head');
   const hd = el('div');
-  hd.appendChild(el('div', 'eyebrow', 'Monal'));
-  const h = el('h2', null, 'Ask Monal');
+  hd.appendChild(el('div', 'eyebrow', PRODUCT));
+  const h = el('h2', null, `Ask ${PRODUCT}`);
   h.id = 'assist-h';
   hd.appendChild(h);
   hd.appendChild(el('p', 'sub', 'From your deal and the app’s own calculations. Nothing leaves this device.'));
   const close = btn('btn-plain', 'Close', () => closeSheet(dlg));
-  close.setAttribute('aria-label', 'Close Ask Monal');
+  close.setAttribute('aria-label', `Close Ask ${PRODUCT}`);
   head.append(hd, close);
   const body = el('div', 'sheet-body assist-body');
   log = el('div', 'assist-log');
@@ -214,11 +215,12 @@ export function initAssistant() {
   fab = el('button', 'assist-fab');
   fab.type = 'button';
   fab.id = 'assistant-fab';
-  fab.setAttribute('aria-label', 'Ask Monal');
+  fab.setAttribute('aria-label', `Ask ${PRODUCT}`);
   fab.setAttribute('aria-haspopup', 'dialog');
-  fab.insertAdjacentHTML('beforeend', '<svg width="30" height="30" aria-hidden="true"><use href="#brand-mark"/></svg>');
+  fab.setAttribute('data-brand-mark', '');
   fab.addEventListener('click', openAssistant);
   document.body.appendChild(fab);
+  installBrand();   // draws the mark into every [data-brand-mark], this button included
   document.addEventListener('viewchange', (e) => { view = e.detail; if (dlg && dlg.open) drawChips(); });
   return { ask, open: openAssistant };
 }
