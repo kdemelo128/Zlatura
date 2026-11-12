@@ -1,28 +1,7 @@
-# Hold filtered property-manager rent rolls for coverage review
+# Rent-roll coverage checks distinguish report metadata from tenant text
 
-A parsed standalone text-PDF rent roll with a unit/resident/status filter or an
-explicit subset notice now has a failed coverage check in the existing preview.
-Rows stay held until the broker explicitly accepts the check; Replace remains a
-separate choice. All/All metadata is allowed, every filter is checked, and a
-Property Filter alone is not treated as a unit filter. Tenant names, subtotal
-captions and general prose do not establish report scope.
+The PM reader on main already asks about report coverage, rent periods and base rent, and requires a separate confirmation before replacing a roll with a filtered report. This follow-up keeps those paths and fixes the scope detector: wrapped tenant names, subtotal captions and help prose are not report warnings; an empty filter or “All current” is not an unrestricted report.
 
-The guard reuses the current parser and QC/Use/Undo paths. Acceptance belongs to
-one preview; it never pre-accepts another preview of the same document. No schema,
-stored field, engine, financial formula, dependency or service is added. The
-existing history records the accepted-failure count; full coverage-note text is
-not permanently saved per lease. Scans and unparsed layouts are outside this slice.
+Exact anchor/joined body lines come from a transient parser callback. Summary-page headers remain eligible while their parsed table rows stay outside the financial roll. Period re-reads use their own row provenance. No returned or saved row shape, financial formula, schema, dependency or service is added. Existing history and Undo are reused; full coverage-note text is not permanently saved per lease.
 
-Synthetic evidence: 46 reader unit tests, 42 phone/desktop browser checks with
-PDF extraction, independent rent totals, cancellation, explicit acceptance,
-source records, durable history/Undo and reload. Old code fails ten unit tests
-and both new browser guard checks. Seven deliberate guard mutations fail their
-regressions. Quick/type/golden checks pass; 646 displayed figures unchanged.
-Full regression evidence is recorded in the PR. Real brokerage reports, Safari,
-a physical phone and Microsoft Excel are not tested here.
-
-Coverage checks also survive an explicit document-kind override. Parsed wrapped
-tenant cells are excluded from metadata checks; the filtered fixture omits a
-unit, so confirmed replacement and Undo prove an actual row-set change.
-
-The parser supplies exact joined row-line provenance through a transient callback, so tenant continuations above or below the numeric anchor cannot become report-scope notices. Returned and saved row shapes are unchanged.
+Tested with synthetic fixtures only: 47 reader tests plus the existing 19 PM-profile tests, 48 phone/desktop Chromium checks, and seven deliberate scope mutations. The new checks fail on archived main. Full regression evidence and exact old-code failure counts are recorded in the PR. Real reports, Safari, a physical phone and Microsoft Excel are not tested here.

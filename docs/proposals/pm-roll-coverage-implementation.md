@@ -1,41 +1,13 @@
-# Property-manager report coverage: implementation of approved reader rule
+# PM report coverage: follow-up to the approved reader rules
 
-The owner approved the conservative financial rules in #156 and this chat.
-This slice implements rule 4 using the existing standalone PDF rent-roll path.
-It does not add a new financial interpretation, parser family or saved field.
+The owner approved the conservative rules in #156 and this chat. Main 4.7.141 now includes the PM profile, period/basis questions, summary exclusion and separate filtered-report replacement confirmation. This branch preserves that work and narrows its follow-up to report-scope recognition.
 
-Use existing `rrdoc.js`, `omroll.js`, `rentroll.js`, `dataqc.js` and the current
-preview/accept/Use/Undo UI. All are project code; no outside package or copied
-code is needed. The private support code and real PM reports are unavailable
-in this checkout and were not guessed or read.
+Use existing `rrdoc.js`, `omroll.js`, QC, preview, source history and Undo. No outside package, financial engine, saved field or schema change is needed. The private support code and real reports are unavailable in this checkout; they were not read or guessed.
 
-Scope checks inspect unit/tenant/resident/occupancy/status filter metadata before
-the first parsed row on each row-bearing page and preceding cover pages. They
-check every field (All units plus an active Status filter is still held).
-Unclear/blank filters need review; Property Filter alone says nothing about
-which units were included. Explicit report subset/scope notices are also checked
-in footers. Arbitrary tenant cells, subtotal captions and explanatory prose do
-not create a coverage failure. This is parsed text-PDF coverage, not an OCR guard.
+A report filter is metadata before the parsed body, not arbitrary tenant text or help prose. Check every field; blank and unknown values need review. “All current” and “All occupied” remain subsets. Preserve main's named-property-filter policy and existing direct status syntax. Explicit self-identification as a filtered/subset report remains eligible in a cover or footer.
 
-`docKind()` carries transient scope checks; `pdfRollRecord()` adds fresh copies
-to existing `kind: layout`, `level: fail` QC records. Existing hold/acceptance
-logic controls Use. Fresh copies are essential because `resolveCheck()` mutates
-acceptance state. No monetary calculation or column substitution is introduced.
+The parser optionally reports anchor and joined body lines for retained rows through a callback. `readRoll()` keeps a transient Map across candidate, summary and selected-table reads. Candidate summary rows establish that page's header boundary without entering its financial rows. Period re-reads supply their own Map, since their rows are new objects. Parser output and saved row shapes are unchanged.
 
-Existing row provenance keeps PDF/file/page/line. Existing import history stores
-the accepted-failure count. The full coverage reason is not permanently retained
-per lease; adding a stored completeness field would need separate design/review.
+Return existing `kind: subset`, `subset:page:line` checks through `layoutChecks()`; do not add a duplicate layout guard. Preserve individual acceptance, current-preview reapplication by unchanged id/text, fresh acceptance on a new preview and the separate Replace checkbox. Existing history records the accepted-failure count; full reason text is not permanently stored per lease.
 
-Validation uses invented report metadata and the existing PDF fixture writer:
-All/All versus All/Occupied, multi-field and later-page filters, wrapped and footer
-subset notices, negative prose/cell/subtotal cases, preview-specific acceptance,
-actual positioned PDF extraction, explicit monthly base rent versus charges/zero
-market rent, missing base rent, Cancel/Use/Undo and reload. Full regression and
-GitHub CI remain required before calling the PR ready.
-
-Independent review: choosing to treat an OM/statement-labelled table as a roll
-does not accept its coverage; every classification with a parsed roll retains
-the checks. Header boundaries and explicit-notice exclusions use all parsed
-cell provenance, including tenant text above a numeric row anchor.
-
-The existing parser optionally reports each retained row's anchor and joined body lines to a caller callback. `docKind()` keeps these in a transient Map for coverage checks only; parser output, saved rows and money are unchanged. This covers continuations below an anchor that already has a tenant name.
+Validation uses invented positioned PDFs and text: wrapped tenant cells above/below anchors, period re-read provenance, blank/unknown/all-qualified filters, summary-page metadata, negative subtotal/help prose, cover/footer notices, exact row counts and base rents, distinct three-to-two replacement, exact filename, cancellation, durable history/Undo and reload. Full regression and GitHub CI are required before calling the PR ready.

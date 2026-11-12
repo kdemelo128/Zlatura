@@ -828,8 +828,11 @@ function tableScore(t, P) {
  * each page's geometry from layout.js (optional); `periods`: { column kind: reading } the broker chose for a column
  * that does not say monthly or annual. Returns { rows, totals,
  * columns, units, pages, page, segments, confidence, issues }.
+ * onRowLines receives exact anchor/joined body lines without adding saved fields.
+ * @param {string[]} pages
+ * @param {{ layouts?: any, periods?: any, onRowLines?: (row: any, lines: {page: number, line: number}[]) => void }} options
  */
-export function rentRoll(pages, { layouts = null, periods = null } = {}) {
+export function rentRoll(pages, { layouts = null, periods = null, onRowLines = null } = {}) {
   const P = pages.map((p, pi) => pageLines(p, layouts && layouts[pi]));
   const geo = !!(layouts && layouts.some((g) => g && g.lines));
   const tables = [];
@@ -881,6 +884,7 @@ export function rentRoll(pages, { layouts = null, periods = null } = {}) {
       if (row.sf !== null && row.sf < 100 && !row.annual && !row.tenant && !row.suite) continue;
       index.set(r, base + mine.length);
       mine.push(row);
+      if (onRowLines) onRowLines(row, [{ page: r.page, line: r.line }, ...[...r.parts.before, ...r.parts.after].map((x) => ({ page: r.page, line: x.L.i + 1 }))]);
       pageSet.add(r.page);
     }
     if (doubt) {

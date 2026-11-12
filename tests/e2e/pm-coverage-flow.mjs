@@ -11,21 +11,27 @@ for(const[size,opts]of [['phone',{}],['desktop',{viewport:{width:1280,height:900
   await page.getByRole('button',{name:'Enter figures by hand',exact:true}).click();
   await page.click('#tab-rentroll');
   const saved=()=>page.evaluate(async()=>{const m=await import('./app/dealui.js');return (await m.listAllDeals()).find(d=>d.id===m.currentDealId());});
-  const open=async(filtered,kind=null)=>{
+  const open=async(filtered,kind=null,extra={})=>{
    await page.locator('#deal-rentroll button[aria-label="More rent roll actions"]').click();
    const[chooser]=await Promise.all([page.waitForEvent('filechooser'),page.locator('.action-sheet .action-item',{hasText:'Import from PDF'}).click()]);
-   await chooser.setFiles({name:filtered?'invented-filtered-pm.pdf':'invented-complete-pm.pdf',mimeType:'application/pdf',buffer:Buffer.from(pmCoveragePdf(filtered,{kind}))});
+   await chooser.setFiles({name:filtered?'invented-filtered-pm.pdf':'invented-complete-pm.pdf',mimeType:'application/pdf',buffer:Buffer.from(pmCoveragePdf(filtered,{kind,...extra}))});
    await page.waitForSelector('#rrpdf-use');
    if(kind)await page.locator('#rrpdf-read-anyway').waitFor();else await page.locator('.rrpdf-rows tbody tr').first().waitFor();
   };
   await open(false);
-  check(`${size}: All/All report has no failed coverage check`,await page.locator('[data-check="layout:report-scope"]').count()===0);
+  check(`${size}: All/All report has no failed coverage check`,await page.locator('[data-check^="subset:"]').count()===0);
   await page.click('#rrpdf-use');
   await page.locator('.toast',{hasText:'3 units imported from invented-complete-pm.pdf'}).waitFor();
   const original=await saved();
   check(`${size}: the original rent roll has three source-marked leases`,original.rr.leases.length===3&&original.rr.leases.every(l=>l.source.file==='invented-complete-pm.pdf'));
+  await open(false,null,{tenantBelow:'This report lists only a subset of units.'});
+  check(`${size}: wrapped tenant text does not become a report warning`,await page.locator('#rrpdf-qc .qc-item.qc-fail').count()===0);
+  await page.click('#sheet-close');await page.waitForFunction(()=>!history.state?.sheet);
+  await open(false,null,{filterText:'Unit Filter:'});
+  check(`${size}: a blank filter needs coverage review`,await page.locator('#rrpdf-qc .qc-item.qc-fail[data-check^="subset:"]').count()===1&&await page.locator('#rrpdf-use').isDisabled());
+  await page.click('#sheet-close');await page.waitForFunction(()=>!history.state?.sheet);
   await open(true);
-  const failed=page.locator('#rrpdf-qc .qc-item.qc-fail[data-check="layout:report-scope"]');
+  const failed=page.locator('#rrpdf-qc .qc-item.qc-fail[data-check^="subset:"]');
   const found=await failed.count()===1;
   check(`${size}: filtered report has a failed coverage check`,found);
   if(!found){await page.click('#sheet-close');continue;} // archived app still reports the missing guard
@@ -36,15 +42,18 @@ for(const[size,opts]of [['phone',{}],['desktop',{viewport:{width:1280,height:900
   await page.addScriptTag({path:AXE});
   const violations=await page.evaluate(async()=>(await window.axe.run(document.querySelector('#sheet'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map(v=>v.id));
   check(`${size}: held preview has no axe violations`,!violations.length,violations.join(', '));
-  await page.locator('#rrpdf-qc button',{hasText:'Accept the reading as it stands'}).click();
-  check(`${size}: explicit acceptance enables Use`,!await page.locator('#rrpdf-use').isDisabled());
+  await failed.getByRole('button',{name:'Accept as read',exact:true}).click();
+  check(`${size}: acceptance still requires the separate Replace confirmation`,await page.locator('#rrpdf-use').isDisabled());
+  await page.locator('#rrpdf-replace-subset').check();
+  check(`${size}: both confirmations enable Use`,!await page.locator('#rrpdf-use').isDisabled());
   await page.click('#sheet-close');await page.waitForFunction(()=>!history.state?.sheet);
   check(`${size}: cancelling after acceptance still preserves the old leases`,JSON.stringify((await saved()).rr.leases)===JSON.stringify(original.rr.leases));
   await open(true);
   check(`${size}: a new preview requires its own acceptance`,await failed.count()===1);
   await page.locator('input[name="rrpdf-mode"][value="replace"]').check();
   check(`${size}: the new preview is held until accepted again`,await page.locator('#rrpdf-use').isDisabled());
-  await page.locator('#rrpdf-qc button',{hasText:'Accept the reading as it stands'}).click();
+  await failed.getByRole('button',{name:'Accept as read',exact:true}).click();
+  await page.locator('#rrpdf-replace-subset').check();
   await page.click('#rrpdf-use');
   await page.locator('.toast',{hasText:'2 units imported from invented-filtered-pm.pdf'}).waitFor();
   const replacement=await saved();
@@ -66,7 +75,7 @@ for(const[size,opts]of [['phone',{}],['desktop',{viewport:{width:1280,height:900
   await page.click('#tab-rentroll');await open(true,'om');
   check(`${size}: a document-type override is asked separately from coverage`,await page.locator('#rrpdf-qc').count()===0);
   await page.click('#rrpdf-read-anyway');
-  await page.locator('#rrpdf-qc .qc-item.qc-fail[data-check="layout:report-scope"]').waitFor();
+  await page.locator('#rrpdf-qc .qc-item.qc-fail[data-check^="subset:"]').waitFor();
   await page.locator('input[name="rrpdf-mode"][value="replace"]').check();
   check(`${size}: choosing rent roll type does not accept incomplete coverage`,await page.locator('#rrpdf-use').isDisabled());
   await page.click('#sheet-close');

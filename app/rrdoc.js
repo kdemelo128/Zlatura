@@ -37,11 +37,11 @@ export function docKind(pages, layouts = null) {
   const text = pages.join('\n');
   if (text.replace(/\s/g, '').length < 200) return { kind: 'scanned', why: ['The PDF has almost no text: it is a scan or a picture.'], roll: null };
   const head = pages.slice(0, 2).join('\n');
-  const { roll, summary } = readRoll(pages, layouts, null);
+  const { roll, summary, rowLines } = readRoll(pages, layouts, null);
   const om = OM_WORDS.filter((re) => re.test(text)).length >= 2;
   const titled = ROLL_TITLE.test(head) || AS_OF.test(head);
   // `src` lets the preview read the same pages again with the broker's answers (pdfRollRecord's `periods`)
-  const out = (kind, why) => ({ kind, why, roll, summary, src: { pages, layouts } });
+  const out = (kind, why) => ({ kind, why, roll, summary, rowLines, src: { pages, layouts } });
   if (om) return out('om', ['It reads like an offering memorandum (asking price, cap rate or investment summary wording).']);
   if (roll && titled) return out('rentroll', [`A rent roll table of ${roll.rows.length} rows${ROLL_TITLE.test(head) ? ', titled as one' : ', with an “As of” date'}.`]);
   if (T12_TITLE.test(head) || monthLine(pages)) return out('t12', ['It reads like an operating statement (month columns or a statement title).']);
@@ -57,7 +57,8 @@ const SUMMARY_TITLE = /\b(?:summary|recap|statistics|totals?)\b/i;
  * columns mean more of the roll). `summary` lists { page, rows } for each page left out.
  */
 function readRoll(pages, layouts, periods) {
-  const read = (pgs, lay) => { try { return rentRoll(pgs, { layouts: lay, ...(periods ? { periods } : {}) }); } catch { return null; } };
+  const rowLines = new Map();
+  const read = (pgs, lay) => { try { return rentRoll(pgs, { layouts: lay, ...(periods ? { periods } : {}), onRowLines: (row, lines) => rowLines.set(row, lines) }); } catch { return null; } };
   const cand = [];
   pages.forEach((p, i) => {
     const top = String(p).split('\n').filter((l) => l.trim()).slice(0, 4).join('\n');
@@ -65,7 +66,7 @@ function readRoll(pages, layouts, periods) {
     const only = read(pages.map((q, j) => (j === i ? q : '')), layouts && layouts.map((g, j) => (j === i ? g : null)));
     if (only && only.rows.every((r) => !r.suite && !r.start && !r.end)) cand.push({ page: i + 1, rows: only.rows.length, kinds: only.columns.map((c) => c.kind).join() });
   });
-  const full = () => ({ roll: read(pages, layouts), summary: [] });
+  const full = () => ({ roll: read(pages, layouts), summary: [], rowLines });
   if (!cand.length) return full();
   const without = (list) => read(pages.map((q, i) => (list.some((x) => x.page === i + 1) ? '' : q)), layouts && layouts.map((g, i) => (list.some((x) => x.page === i + 1) ? null : g)));
   const rest = without(cand);
@@ -73,8 +74,8 @@ function readRoll(pages, layouts, periods) {
   // a page whose table has the same columns as the rest is more of the roll, not a summary of it
   const restKinds = rest.columns.map((c) => c.kind).join();
   const summary = cand.filter((x) => x.kinds !== restKinds);
-  if (summary.length === cand.length) return { roll: rest, summary };
-  return summary.length ? { roll: without(summary) || read(pages, layouts), summary } : full();
+  if (summary.length === cand.length) return { roll: rest, summary, rowLines };
+  return summary.length ? { roll: without(summary) || read(pages, layouts), summary, rowLines } : full();
 }
 
 const CHARGE_WORD = /\b(?:charges?|fees?|cam|reimb\w*|escrow)\b/i;
@@ -88,7 +89,7 @@ const RENT_WORD = /\b(?:rent|rental|base|contract|in[- ]place|current|lease rate
  * competes with a bare "Rent" column and says nothing of rent itself; a column the reader does not know whose
  * heading looks like money. Until a profile for that report's layout exists, these keep a misread from being used.
  */
-export function layoutChecks(roll, { pages = [], summary = [], periods = {} } = {}) {
+export function layoutChecks(roll, { pages = [], summary = [], periods = {}, rowLines = new Map() } = {}) {
   const out = [];
   const cols = roll.columns || [];
   const text = pages.join('\n');
@@ -138,7 +139,7 @@ export function layoutChecks(roll, { pages = [], summary = [], periods = {} } = 
   // a summary page's table is not units: said, so a missing row is not a surprise
   for (const { page: p, rows: n } of summary) out.push({ kind: 'layout', level: 'warn', id: `summary:${p}`, page: p, line: null, row: null, col: null, colLabel: '', cell: null, lineText: '', amount: 0, text: `Page ${p} is a summary: its table was not read as units, so no row is counted twice. ${n} row${n === 1 ? ' was' : 's were'} left out; if any of them is a unit, check the page.` });
   // a report that says it is filtered is a part of the roll: held until the broker says it may stand
-  for (const f of filterNotes(pages)) out.push({ kind: 'subset', level: 'fail', id: `subset:${f.page}:${f.line}`, page: f.page, line: f.line, row: null, col: null, colLabel: '', cell: { text: f.text }, lineText: f.text, amount: 0,
+  for (const f of filterNotes(pages, roll, rowLines)) out.push({ kind: 'subset', level: 'fail', id: `subset:${f.page}:${f.line}`, page: f.page, line: f.line, row: null, col: null, colLabel: '', cell: { text: f.text }, lineText: f.text, amount: 0,
     text: `Page ${f.page} says this report is filtered (“${f.text}”). It may be only some of the units, so it is not the full rent roll. Review the rows; to use them, confirm this is the roll you mean, and replacing a rent roll you already have needs a second confirmation.` });
   return out;
 }
@@ -148,26 +149,67 @@ const RENT_KIND_COLS = ['annual', 'monthly', 'rent', 'psf', 'mpsf'];
 const PERIOD_STATED = /\b(?:rents?|amounts?|figures?)\s+(?:is|are|shown|stated|reported|listed|quoted)\b[^\n.;]{0,40}\b(monthly|annual(?:ly)?|per month|per year)\b/i;
 const BASE_STATED = /\brents?\s+(?:is|are)\b[^\n.;]{0,30}\b(?:contract\w*|base|in[- ]place)\b/i;
 const BASE_LABEL = /\b(?:base|contract\w*|in[- ]place|scheduled|current|actual|lease rate)\b/i;
-const FILTER_ALL = /^(?:all(?:\s+\w+)?|none|n\/a|any|no filters?|\(all\)|-+|—)$/i;
-const FILTER_WORDS = /\b(?:filtered|subset)\b|\b(?:partial (?:list|report|rent roll)|selected (?:units|tenants) only|not all (?:units|tenants)|(?:current|occupied|vacant|active|expired|notice|future) (?:units|tenants|leases) only|only (?:current|occupied|vacant|active) (?:units|tenants|leases)|showing \d+ of \d+)\b/i;
-/**
- * Lines that say the report is a filtered view: "Status Filter: Current" (every filter line is judged on its own, so a
- * "Unit Filter: All" beside it does not clear it), a bare "Status: Current" header line, or words such as "filtered".
- * @returns {{ page: number, line: number, text: string }[]}
- */
-export function filterNotes(pages) {
+const ALL_UNITS = /^(?:(?:all|any|unfiltered|not applied)(?:\s+(?:units?|tenants?|residents?|statuses))?|none|n\/a|no filters?|\(all\)|-+|—)[.!]?$/i;
+const FILTER_FIELD = /\b(?:(property|unit|tenant|resident|occupancy|status)\s+)?filters?(?:\s+applied)?\s*[:=]/gi;
+const SUBSET = '(?:only\\s+(?:a\\s+)?subset\\s+of\\s+(?:(?:the|selected)\\s+)?(?:units?|tenants?|residents?)|(?:a\\s+)?subset\\s+of\\s+(?:the\\s+)?(?:units?|tenants?|residents?)|selected\\s+(?:units?|tenants?|residents?)\\s+only|(?:occupied|vacant)\\s+units?\\s+only|only\\s+(?:occupied|vacant)\\s+units?|exclud(?:es|ing)\\s+(?:all\\s+)?vacant\\s+units?)';
+const OTHER_NOTICE = /^(?:(?:this report|this rent roll) (?:is|was) filtered(?: by [^\n.!]+)?|showing \d+ of \d+ (?:units?|tenants?|residents?)|(?:occupied|vacant|current|active|expired|notice|future) (?:units?|tenants?|leases?) only)[.!]?$/i;
+const SCOPE_NOTICE = new RegExp(`^[ \\t]*(?:(?:this\\s+report|this\\s+rent\\s+roll)\\s+(?:lists|includes|contains|shows|covers)\\s+|report\\s+(?:scope|coverage)\\s*:\\s*)${SUBSET}[.!]?[ \\t]*(?=\\n|$)`, 'gim');
+
+/** Parsed text rolls only: inspect filter headers and explicit report-scope notices,
+ * never classify arbitrary tenant cells or subtotal prose as coverage metadata.
+ * These checks are transient; pdfRollRecord makes fresh acceptance state per preview. */
+export function filterNotes(pages, roll = null, rowLines = new Map()) {
+  const starts = new Map();
+  const bodies = new Map();
+  // Candidate summary rows were excluded from the roll, but their text still
+  // bounds that page's header. No candidate row is added to the financial rows.
+  for (const r of new Set([...(roll?.rows || []), ...rowLines.keys()])) {
+    const spans = new Map();
+    for (const c of [r.src, ...Object.values(r.src?.cells || {}), ...(rowLines.get(r) || [])]) {
+      const { page, line } = c || {};
+      if (!Number.isInteger(page) || page < 1 || !Number.isInteger(line) || line < 1) continue;
+      const span = spans.get(page) || { from: line, to: line };
+      span.from = Math.min(span.from, line); span.to = Math.max(span.to, line); spans.set(page, span);
+    }
+    for (const [page, span] of spans) {
+      starts.set(page, Math.min(starts.get(page) || Infinity, span.from));
+      if (!bodies.has(page)) bodies.set(page, []);
+      bodies.get(page).push(span);
+    }
+  }
   const out = [];
-  pages.forEach((p, pi) => String(p).split('\n').forEach((raw, li) => {
-    const line = raw.trim();
-    if (!line || line.length > 200) return;
-    let hit = false;
-    const re = /(?:^|\s)([A-Za-z]+(?: [A-Za-z]+)?)?\s*filters?(?:\s+applied)?\s*[:=]\s*(.+?)(?=\s+(?:[A-Za-z]+\s+)?filters?\s*[:=]|$)/gi;
-    for (let m = re.exec(line); m; m = re.exec(line)) if (!FILTER_ALL.test(m[2].trim())) hit = true;
-    const status = /^(?:tenant |lease |unit |occupancy )?status\s*[:=]\s*(.+)$/i.exec(line);
-    if (status && !FILTER_ALL.test(status[1].trim())) hit = true;
-    if (!/filters?\s*[:=]/i.test(line) && !/\b(?:not|un)\s*filtered\b/i.test(line) && FILTER_WORDS.test(line)) hit = true;
-    if (hit) out.push({ page: pi + 1, line: li + 1, text: line.replace(/\s+/g, ' ').slice(0, 120) });
-  }));
+  for (let pi = 0; pi < pages.length; pi += 1) {
+    const lines = String(pages[pi] || '').split('\n');
+    const header = lines.slice(0, starts.has(pi + 1) ? starts.get(pi + 1) - 1 : lines.length);
+    let found = null;
+    for (let li = 0; li < header.length && !found; li += 1) {
+      const text = header[li].trim();
+      const fields = [...text.matchAll(FILTER_FIELD)];
+      const status = /^(?:tenant |lease |unit |occupancy )?status\s*[:=]\s*(.*)$/i.exec(text);
+      if (status && !ALL_UNITS.test(status[1].trim())) { found = { line: li + 1, text }; break; }
+      if (!fields.length || fields[0].index !== 0) continue;
+      for (let fi = 0; fi < fields.length; fi += 1) {
+        const f = fields[fi];
+        const value = text.slice(f.index + f[0].length, fields[fi + 1]?.index ?? text.length).replace(/[;|]+\s*$/, '').trim();
+        if (!ALL_UNITS.test(value)) { found = { line: li + 1, text }; break; }
+      }
+    }
+    if (!found) {
+      // A report may print its explicit scope notice in a footer or on a cover.
+      const text = lines.join('\n');
+      const match = [...text.matchAll(SCOPE_NOTICE)].find((m) => {
+        const from = text.slice(0, m.index).split('\n').length;
+        const to = from + m[0].split('\n').length - 1;
+        return !(bodies.get(pi + 1) || []).some((span) => from <= span.to && to >= span.from);
+      });
+      if (!match) {
+        const li = lines.findIndex((line, i) => OTHER_NOTICE.test(line.trim()) && !(bodies.get(pi + 1) || []).some((span) => i + 1 >= span.from && i + 1 <= span.to));
+        if (li >= 0) found = { line: li + 1, text: lines[li].trim() };
+      }
+      if (match) found = { line: text.slice(0, match.index).split('\n').length, text: match[0].trim() };
+    }
+    if (found) out.push({ page: pi + 1, line: found.line, text: found.text.replace(/\s+/g, ' ').slice(0, 120) });
+  }
   return out;
 }
 
@@ -180,11 +222,12 @@ export function filterNotes(pages) {
  */
 export function pdfRollRecord(doc, { asOf = null, file = '', scanned = [], periods = {} } = {}) {
   // the broker's answers re-read the same pages, so each row's rent follows the period chosen
-  const chosen = Object.keys(periods).length && doc.src ? readRoll(doc.src.pages, doc.src.layouts, periods).roll : null;
+  const reread = Object.keys(periods).length && doc.src ? readRoll(doc.src.pages, doc.src.layouts, periods) : null;
+  const chosen = reread && reread.roll;
   const roll = chosen || doc.roll;
   const { qc, rows } = omRollRecord({ rentRoll: roll, scanned }, { figures: {}, sources: {}, asOf, file });
   if (!roll) return { qc, rows: [], held: false, subset: false };
-  const extra = layoutChecks(roll, { pages: doc.src ? doc.src.pages : [], summary: doc.summary || [], periods: chosen ? periods : {} });
+  const extra = layoutChecks(roll, { pages: doc.src ? doc.src.pages : [], summary: doc.summary || [], periods: chosen ? periods : {}, rowLines: chosen ? reread.rowLines : doc.rowLines });
   // a rent column that is asked about is answered by a choice, not accepted as a guess: its plain accept-as-read fail goes
   for (const q of extra.filter((c) => c.choices)) qc.checks = qc.checks.filter((c) => !(c.kind === 'unit' && c.level === 'fail' && c.col === q.col));
   if (chosen) for (const r of [...rows, ...(qc.held || [])]) r.periodChosen = Object.values(periods)[0];
