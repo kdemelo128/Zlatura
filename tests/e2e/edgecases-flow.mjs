@@ -62,6 +62,7 @@ check('a valid sale cost clears the message and is kept', ((await page.locator('
 
 // the Underwrite tab
 await page.goto(`${BASE}#underwrite`, { waitUntil: 'load' });
+await page.click('#uw-view-quick');   // Quick underwrite is behind the switch now
 await page.waitForSelector('#uw-card');
 await page.fill('#uw-saleCost', '-2');
 check('Underwrite refuses a negative sale cost with a message', /can’t be negative/.test((await page.locator('#uw-err-saleCost').textContent({ timeout: 1000 }).catch(() => '')) || ''));
@@ -85,6 +86,7 @@ await page.evaluate(async () => {
   await st.saveScratch(u);
 });
 await page.reload({ waitUntil: 'load' });
+await page.click('#uw-view-quick');
 await page.waitForSelector('#uw-card');
 await page.waitForTimeout(500);
 const notes = (await page.locator('#uw-notes').innerText()).replace(/\s+/g, ' ');
