@@ -125,7 +125,7 @@ test('a note is added at the end of the notes as written; text of the notes or a
 test('a scenario at a stated price or cap rate: previewed with the engine’s own figures', () => {
   const p = ask('Create a scenario at $4.6M');
   assert.equal(p.kind, 'confirm');
-  assert.deepEqual({ ...p.action, yes: undefined }, { kind: 'scenario', dealId: 'd1', name: 'Price $4,600,000', over: { price: 4600000 }, yes: undefined });
+  assert.deepEqual({ ...p.action, yes: undefined }, { kind: 'scenario', dealId: 'd1', name: 'Price $4,600,000', over: { price: 4600000 }, at: undefined, yes: undefined });
   assert.equal(p.changes.find((c) => c.label === 'Cap rate in it').after, '6.85%');   // 315,000 / 4,600,000 = 6.8478%
   assert.equal(p.changes.find((c) => c.label === 'Cap rate in it').before, '7.00%');
   const c = ask('make a scenario at a 6.5% cap');
@@ -196,4 +196,13 @@ test('questions that contain a figure stay questions, with their release 1 answe
     assert.ok(!['set_figure', 'set_stage', 'next_step', 'add_contact', 'add_note', 'make_scenario', 'start_export'].includes(id(q)), `${q} -> ${id(q)}`);
   }
   assert.equal(ask('occupancy is 92%').kind, 'confirm');     // a bare statement is still an edit
+});
+
+test('"make a note to follow up" is a task as in release 1; a colon makes it a note', () => {
+  assert.equal(A.understand('Make a note to follow up with the lender on Friday', { today: TODAY }).id, 'task');
+  assert.equal(A.understand('Add a note: follow up on the roof was discussed', { today: TODAY }).id, 'add_note');
+});
+test('a cap-rate scenario carries the deal’s updatedAt, so a stale preview can be refused', () => {
+  const c = ctxOf(); c.deal.updatedAt = 12345;
+  assert.equal(ask('create a scenario at a 7% cap', c).action.at, 12345);
 });

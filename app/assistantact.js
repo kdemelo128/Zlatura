@@ -115,6 +115,8 @@ export function understandAction(raw, { today = new Date() } = {}) {
   // a note for the site visit notes: what is written after "note" is the broker's own text, kept as typed
   if ((m = new RegExp(`^${polite}(?:add|append|write|record|log|save|put|make)(?: an?| the)?(?: new)?(?: site[- ]?visit| visit| deal)? notes?\\b(?: to (?:the )?(?:site[- ]?visit )?(?:notes|deal))?\\s*(?:that|:|,|-)?\\s*`, 'i').exec(orig)) || (m = /^note (?:that|:)\s*/i.exec(orig))) {
     const body = orig.slice(m[0].length).trim();
+    // "make a note to follow up with …" is a task, as in release 1 (a colon says it is a note)
+    if (!/:/.test(m[0]) && /follow[- ]?ups?\b/i.test(body)) return null;
     return { id: 'add_note', text: body };
   }
   // the next step, with a date
@@ -255,7 +257,7 @@ function makeScenario(q, ctx) {
   const changes = [{ label: 'New scenario', before: 'none', after: name }, { label: 'Purchase price in it', before: ok(m.price) ? money0(m.price) : 'blank', after: money0(price) },
     { label: 'Cap rate in it', before: ok(m.cap) ? pct(m.cap) : 'blank', after: ok(run.m.cap) ? pct(run.m.cap) : 'blank' }];
   if (ok(run.m.dscr)) changes.push({ label: 'DSCR in it', before: ok(m.dscr) ? times(m.dscr) : 'blank', after: times(run.m.dscr) });
-  return result('confirm', ['I can save this as a scenario on the deal. The deal’s own figures are not changed. ' + SENT], { changes, items: [DEAL_LINE(ctx)], action: { kind: 'scenario', dealId: ctx.deal.id, name, over: { price }, yes: 'Save the scenario' } });
+  return result('confirm', ['I can save this as a scenario on the deal. The deal’s own figures are not changed. ' + SENT], { changes, items: [DEAL_LINE(ctx)], action: { kind: 'scenario', dealId: ctx.deal.id, name, over: { price }, at: ctx.deal.updatedAt, yes: 'Save the scenario' } });
 }
 
 const EXPORTS = {

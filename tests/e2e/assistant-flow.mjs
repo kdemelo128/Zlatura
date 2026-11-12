@@ -61,7 +61,7 @@ async function ask(page, text) {
   await page.waitForFunction((k) => document.querySelectorAll('.assist-answer').length > k, n);
   await page.waitForTimeout(150);
   during = false;
-  return page.locator('.assist-answer').last();
+  return page.locator('.assist-answer').nth(n);   // this answer, not whichever is last later
 }
 const close = async (page) => { await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('dialog.assist[open]')); };
 
@@ -204,6 +204,49 @@ for (const [size, opts] of SIZES) {
       check(`${size}: a page request names the figures that cite it and changes nothing`, /Net operating income|NOI/.test(await rd.textContent()) || (await page.evaluate(() => !!document.querySelector('dialog[open]:not(.assist)'))));
       check(`${size}: opening a page changed nothing`, (await dealJson(page, id)) === base);
       if (!(await page.evaluate(() => !!document.querySelector('dialog.assist[open]')))) { await page.keyboard.press('Escape'); await page.waitForTimeout(300); await open(page); }
+    }
+
+    // Undo never throws away a later edit; a cap scenario is not saved off a stale price
+    {
+      const j = async () => JSON.parse(await dealJson(page, id));
+      const typePrice = async (v) => { await close(page); await page.fill('#fig-price', v); await page.press('#fig-price', 'Tab'); await page.waitForTimeout(500); await open(page); };
+      const undoRefused = async (r) => { await r.locator('button', { hasText: 'Undo' }).click(); await page.waitForTimeout(500); return /This changed since; nothing was undone/.test(await r.textContent()); };
+      // a figure edited by hand after the assistant set it
+      let r = await ask(page, 'Set the asking price to $4.6M'); await yes(page, r, 'Set the asking price');
+      await typePrice('4,700,000');
+      check(`${size}: Undo after a later typed edit is refused and keeps the later edit`, (await undoRefused(r)) && (await j()).figures.price === 4700000);
+      await typePrice('4,500,000');
+      // a scenario saved after the assistant's: undo removes only its own
+      r = await ask(page, 'Create a scenario at $4.6M'); await yes(page, r, 'Save the scenario');
+      const r2 = await ask(page, 'Create a scenario at $4.4M'); await yes(page, r2, 'Save the scenario');
+      await r.locator('button', { hasText: 'Undo' }).click(); await page.waitForTimeout(500);
+      const sc = (await j()).scenarios;
+      check(`${size}: Undo of a scenario removes only its own, not a later one`, sc.length === 1 && sc[0].over.price === 4400000, JSON.stringify(sc.map((x) => x.over)));
+      await r2.locator('button', { hasText: 'Undo' }).click(); await page.waitForTimeout(400);
+      // a note added after the assistant's note
+      const n0 = (await j()).visit.notes;
+      r = await ask(page, 'Add a note: first thing'); await yes(page, r, 'Add the note');
+      const r3 = await ask(page, 'Add a note: second thing'); await yes(page, r3, 'Add the note');
+      check(`${size}: Undo of a note after a later note is refused and keeps both`, (await undoRefused(r)) && (await j()).visit.notes === `${n0}\nfirst thing\nsecond thing`);
+      await r3.locator('button', { hasText: 'Undo' }).click(); await page.waitForTimeout(400);
+      await r.locator('button', { hasText: 'Undo' }).click(); await page.waitForTimeout(400);
+      check(`${size}: undone in reverse order the notes are back as they were`, (await j()).visit.notes === n0);
+      // a stale preview: the cap scenario is not saved at a price worked from an NOI that has since changed
+      r = await ask(page, 'Create a scenario at a 7% cap');
+      await typePrice('4,550,000');
+      const before = (await j()).scenarios.length;
+      await r.locator('button', { hasText: 'Save the scenario' }).click(); await page.waitForTimeout(500);
+      check(`${size}: a preview made before the deal changed is refused (The deal changed; ask again)`, /The deal changed; ask again/.test(await r.textContent()) && (await j()).scenarios.length === before, (await r.textContent()).slice(-120));
+      await typePrice('4,500,000');
+      // the Undo is on the activity line, not silent
+      r = await ask(page, 'Move this deal to LOI'); await yes(page, r, 'Move to Offer');
+      await r.locator('button', { hasText: 'Undo' }).click(); await page.waitForTimeout(500);
+      const act = await page.evaluate(async () => (await import(new URL('app/crm.js', location.href).href)).listActivity());
+      check(`${size}: Undo adds an "Undone" line to the activity log (history kept)`, act.some((x) => /^Undone: /.test(x.text)) && act.some((x) => x.type === 'stage'));
+      // "make a note to follow up" is a task, as in release 1
+      r = await ask(page, 'Make a note to follow up with the lender on Friday');
+      check(`${size}: "make a note to follow up …" offers a task`, /Add the task/.test(await r.textContent()));
+      await r.locator('button', { hasText: 'Cancel' }).click();
     }
 
     // a note is data

@@ -14,7 +14,7 @@ import { PRODUCT, installBrand } from './brand.js';
 import { understand, suggestions } from './assistant.js';
 import { answer } from './assistantanswer.js';
 import { dealForAssistant, assistantGo, assistantApply } from './dealui.js';
-import { addTask, deleteTask, updateTask, saveContact, deleteContact, listTasks } from './crm.js';
+import { addTask, deleteTask, updateTask, saveContact, deleteContact, listTasks, listContacts, log as crmLog } from './crm.js';
 
 let view = 'home';
 let dlg = null;
@@ -99,20 +99,24 @@ function draw(r) {
   return box;
 }
 
+const CHANGED = 'This changed since; nothing was undone';
+
 /** Make one confirmed change and say what it was; `undo` puts back exactly what was there (null when nothing changed). */
 async function perform(a) {
   if (a.kind === 'task') {
     const t = await addTask({ title: a.title, due: a.due, dealId: a.dealId, source: 'assistant' });
-    return { said: `Task added: ${t.title}${t.due ? `, due ${t.due}` : ''}. It is on ${a.dealId ? 'this deal’s Next steps and on Home' : 'Home'}.`, undo: () => deleteTask(t.id), undone: 'Undone: the task was removed.' };
+    return { said: `Task added: ${t.title}${t.due ? `, due ${t.due}` : ''}. It is on ${a.dealId ? 'this deal’s Next steps and on Home' : 'Home'}.`, undo: async () => { const now = (await listTasks()).find((x) => x.id === t.id); if (!now || now.title !== t.title || now.due !== t.due) throw new Error(CHANGED); await deleteTask(t.id); }, undone: 'Undone: the task was removed.' };
   }
   if (a.kind === 'taskdue') {
+    const cur = (await listTasks()).find((x) => x.id === a.taskId);
+    if (cur && (cur.due || null) !== (a.before || null)) throw new Error('that next step changed since I showed it, so nothing was changed. Ask again');
     const t = await updateTask(a.taskId, { due: a.due });
     if (!t) throw new Error('that next step is gone');
-    return { said: `The next step “${t.title}” is now due ${a.due}.`, undo: () => updateTask(a.taskId, { due: a.before }), undone: `Undone: the date is back to ${a.before || 'no date'}.` };
+    return { said: `The next step “${t.title}” is now due ${a.due}.`, undo: async () => { const now = (await listTasks()).find((x) => x.id === a.taskId); if (!now || now.due !== a.due) throw new Error(CHANGED); await updateTask(a.taskId, { due: a.before }); }, undone: `Undone: the date is back to ${a.before || 'no date'}.` };
   }
   if (a.kind === 'contact') {
     const c = await saveContact({ name: a.name, role: a.role, company: a.company, phone: a.phone, email: a.email, dealIds: [a.dealId] });
-    return { said: `Contact added: ${c.name}, linked to this deal. It is on the deal’s contacts.`, undo: () => deleteContact(c.id), undone: 'Undone: the contact was removed.' };
+    return { said: `Contact added: ${c.name}, linked to this deal. It is on the deal’s contacts.`, undo: async () => { const now = (await listContacts()).find((x) => x.id === c.id); if (!now || now.name !== c.name || now.company !== c.company || now.phone !== c.phone || now.email !== c.email) throw new Error(CHANGED); await deleteContact(c.id); }, undone: 'Undone: the contact was removed.' };
   }
   const r = await assistantApply(a);
   const said = { figure: 'Done: the figure is set and marked as typed by you.', stage: 'Done: the stage is changed.', note: 'Done: the note is added to the site visit notes.', scenario: 'Done: the scenario is saved. The deal’s own figures are unchanged.', export: 'Opened. Nothing in the deal changed.' }[a.kind] || 'Done.';
@@ -134,7 +138,7 @@ function confirmRow(action, box) {
       if (done.undo) {
         const undo = btn('btn-sm btn-gray', 'Undo', async () => {
           undo.disabled = true;
-          try { await done.undo(); row.textContent = ''; row.appendChild(el('p', 'assist-done', done.undone)); live.textContent = done.undone; } catch (e) { undo.disabled = false; row.appendChild(el('p', 'warn-text', `That could not be undone: ${e.message || e}`)); }
+          try { await done.undo(); await crmLog('deal', `Undone: ${action.yes}`, action.dealId || null).catch(() => {}); row.textContent = ''; row.appendChild(el('p', 'assist-done', done.undone)); live.textContent = done.undone; } catch (e) { undo.disabled = false; row.appendChild(el('p', 'warn-text', `That could not be undone: ${e.message || e}`)); }
         });
         row.appendChild(undo);
       }
