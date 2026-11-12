@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.7.138: The Excel preview works, and the Underwrite tab no longer flashes a cartoon bird (on the development branch; not merged or deployed)
+
+- **Excel preview.** Hovering "Your Excel workbook" said "End of data reached ... Corrupted zip?". Cause: the cleaned tool carries no firm template, and its workbook builder merged the built workbook into empty template bytes. With no template, the preview and the tool's own export are now the workbook the tool builds itself. If a preview still cannot be built, it says "The preview could not be built yet. Add figures or load your template, then try again." The same empty-bytes failure also hit the tool's Fill/Export path (`filler.js`, `templateBytes.slice()` on nothing) and `exportSnapshot`; both are fixed. Made by three exact-match edits in `tools/uwtool-import.public.json`.
+- **No flash.** Cause: the tool paints in stages, and its first paint shows an old cartoon bird guide ("One step at a time") that its own last scripts then replace. The frame now waits behind a calm neutral skeleton until that is done, then fades in over 180 ms (no fade under reduced motion), on opening the tab and on pressing Underwriting.
+
+Tested with a new browser flow (`uwtool-fixes-flow`): a 25 ms sampler proves the old bird is never visible, at phone and desktop size; the preview and export build many sheets; hover and click show cells. Saved results and the golden figures are unchanged.
+
 ## 4.7.137: The Underwrite tool opens filled in from the open deal, and can hand figures back (on the development branch; not merged or deployed)
 
 With a deal open, the built-in tool opens with the deal's name, price, interest rate, amortization, hold, exit cap and sale cost already in (only fields the tool had blank, never replacing a value you set; a blank stays blank, never 0). The slim bar lists what was **not carried over** and why (address, building area, loan amount, closing costs, interest-only, the rent roll and statement, computed results). **Bring into deal** shows before and after for the figures you set in the tool and writes them only after you confirm, with Undo. **Export with the app** opens your own or your company's template for the deal.

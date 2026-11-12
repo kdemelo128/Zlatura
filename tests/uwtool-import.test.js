@@ -192,7 +192,7 @@ test('the command line writes the output and manifest; refuses with no deny-list
 
 test('the public settings hold no firm term: an allow-list, ceilings and nothing else', () => {
   assert.deepEqual(Object.keys(PUB_FILE).sort(), ['allow', 'allowExt', 'base64Allow', 'base64Ceiling', 'edits', 'licence', 'minTermLength', 'root']);
-  for (const e of PUB_FILE.edits) assert.deepEqual(Object.keys(e).sort(), ['category', 'file', 'find', 'id', 'op', 'replace'], 'a public edit is one exact-match replace');
+  for (const e of PUB_FILE.edits) assert.deepEqual(Object.keys(e).filter((k) => k !== 'count').sort(), ['category', 'file', 'find', 'id', 'op', 'replace'], 'a public edit is one exact-match replace (with an optional count)');
   assert.deepEqual(PUB.allow, ['public/tool/']);
 });
 

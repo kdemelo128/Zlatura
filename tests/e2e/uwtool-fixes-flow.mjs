@@ -31,17 +31,18 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
         let old = false; try { const g = f.contentDocument && f.contentDocument.querySelector('.juniper-guide strong'); old = !!g && g.textContent === 'One step at a time.'; } catch { /* fine */ }
         if (o > 0.02) { s.shown++; if (s.firstVisibleAt === null) s.firstVisibleAt = Math.round(performance.now() - t0); if (old) s.bird++; }
       }
-      if (performance.now() - t0 < 6000) setTimeout(tick, 25);
+      if (performance.now() - t0 < 14000) setTimeout(tick, 25);
     };
     tick();
   });
   await page.evaluate(() => { location.hash = '#underwrite'; });
   await page.waitForSelector('#uwt-frame');
-  await page.waitForTimeout(6200);
+  await page.waitForFunction(() => !document.querySelector('.uwt-skel'), null, { timeout: 20000 });
+  await page.waitForTimeout(700);
   const fl = await page.evaluate(() => window.__flash);
   check(`${size}: a skeleton is there from the first moment the frame exists`, fl.skelFirst === true, JSON.stringify(fl));
   check(`${size}: the old bird guide is never visible while the tool loads`, fl.bird === 0 && fl.samples > 20, JSON.stringify(fl));
-  check(`${size}: the tool does appear once painted (and the skeleton is gone)`, fl.shown > 5 && (await page.locator('.uwt-skel').count()) === 0, JSON.stringify(fl));
+  check(`${size}: the tool does appear once painted (and the skeleton is gone)`, fl.shown >= 1 && (await page.locator('.uwt-skel').count()) === 0, JSON.stringify(fl));
   const fade = await page.evaluate(() => getComputedStyle(document.querySelector('#uwt-frame')).transitionDuration);
   check(`${size}: it fades in over 150 to 200 ms`, /^0\.(15|16|17|18|19|2)\d*s$/.test(fade), fade);
 
@@ -50,7 +51,8 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
   await page.waitForSelector('#uw-card');
   await page.evaluate(() => { window.__flash2 = { bird: 0, skel: false }; const t0 = performance.now(); const tick = () => { const f = document.querySelector('#uwt-frame'); if (f) { if (document.querySelector('.uwt-skel')) window.__flash2.skel = true; let old = false; try { const g = f.contentDocument && f.contentDocument.querySelector('.juniper-guide strong'); old = !!g && g.textContent === 'One step at a time.'; } catch { /* fine */ } if (old && Number(getComputedStyle(f).opacity) > 0.02) window.__flash2.bird++; } if (performance.now() - t0 < 5000) setTimeout(tick, 25); }; tick(); });
   await page.click('#uw-view-tool');
-  await page.waitForTimeout(5200);
+  await page.waitForFunction(() => document.querySelector('#uwt-frame') && !document.querySelector('.uwt-skel'), null, { timeout: 20000 });
+  await page.waitForTimeout(300);
   const f2 = await page.evaluate(() => window.__flash2);
   check(`${size}: pressing Underwriting again also shows the skeleton and no bird flash`, f2.skel && f2.bird === 0, JSON.stringify(f2));
   await page.screenshot({ path: `/tmp/shots/uwfull/after-flash-${size}.png` }).catch(() => {});

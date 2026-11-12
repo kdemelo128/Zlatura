@@ -44,7 +44,7 @@ function whenPainted(f, done) {
       ready = !!d && d.readyState === 'complete' && (!g || g.textContent !== 'One step at a time.');
     } catch { ready = true; }
     if (ready || performance.now() - t0 > 6000) requestAnimationFrame(() => requestAnimationFrame(done));
-    else setTimeout(tick, 50);
+    else setTimeout(() => tick(), 50);
   };
   tick();
 }
