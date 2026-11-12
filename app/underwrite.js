@@ -4,10 +4,11 @@
  * with an Undo. Nothing here edits a deal. */
 
 import { PRODUCT } from './brand.js';
+import { icon } from './icons.js';
 import { $, el, parseNum, parsePct, int, dec, money0, money2, pct, times, short, niceDate, toast } from './kit.js';
 import { quantizeDeal, toCents } from './engine/money.js';
 import { SALE_COST_NEGATIVE } from './deal.js';
-import { createDeal, discardDeal, showDeal, loanDefaults, scnRead, scnRefused, setRefusal } from './dealui.js';
+import { createDeal, discardDeal, showDeal, loanDefaults, scnRead, scnRefused, setRefusal, currentDealName } from './dealui.js';
 import { toolIndex, openToolById } from './toolsui.js';
 import { activeWorkspace, workspaceReady } from './workspaceui.js';
 import { intakeCard, initIntake } from './intakeui.js';
@@ -319,7 +320,51 @@ function drawList() {
   if (hidden) { const p = el('p', 'hint-sm', `${hidden} more ${hidden === 1 ? 'is' : 'are'} kept on this device but not shown here (made by a newer version of ${PRODUCT}, or unreadable).`); p.style.padding = 'var(--s3) var(--s5)'; box.appendChild(p); }
 }
 
-let uwView = 'tool';   // 'tool' | 'quick'
+/* The chosen view is kept over a reload (this tab only; a browser that refuses storage just starts on the tool). */
+const VIEW_KEY = 'uw.view';
+let uwView = (() => { try { return sessionStorage.getItem(VIEW_KEY) === 'quick' ? 'quick' : 'tool'; } catch { return 'tool'; } })();   // 'tool' | 'quick'
+let shown = null;       // the screen on show (from viewchange)
+let moves = 0;          // screen changes so far (leave() waits to see whether one happened)
+let cameFrom = null;    // the screen the broker was on before this tab: where Back goes (none: Home)
+
+/** The tool fills the whole screen (body.uw-full hides the app's own bars): only while this tab is on show with the tool. */
+function syncFull() {
+  const was = document.body.classList.contains('uw-full');
+  const now = shown === 'underwrite' && uwView === 'tool';
+  document.body.classList.toggle('uw-full', now);
+  return { was, now };
+}
+
+/** Back, Escape and the browser's Back do the same: the screen the broker came from, else Home. */
+function leave() {
+  if (cameFrom && cameFrom !== 'underwrite') {
+    const to = cameFrom;
+    try { history.back(); } catch { /* fine */ }
+    // a history that did not move (an entry replaced, a refused change): go there directly
+    const at = moves;
+    setTimeout(() => { if (moves === at && shown === 'underwrite') api.showView(to); }, 350);
+  } else api.showView('home');
+}
+
+/** The slim bar: Back, the deal on screen, and the switch between the two views. */
+function slimBar(sw) {
+  const bar = el('div', 'uw-slim');
+  bar.setAttribute('role', 'group');
+  bar.setAttribute('aria-label', 'Underwriting bar');
+  const back = el('button', 'btn btn-sm uw-back');
+  back.type = 'button'; back.id = 'uw-back';
+  back.setAttribute('aria-label', `Back (${cameFrom && cameFrom !== 'underwrite' ? cameFrom === 'deal' ? 'to the deal' : `to ${cameFrom}` : 'to Home'})`);
+  back.insertAdjacentHTML('beforeend', icon('back', 17));
+  back.appendChild(el('span', 'uw-back-t', 'Back'));
+  back.addEventListener('click', leave);
+  const name = el('span', 'uw-deal');
+  name.id = 'uw-deal-name';
+  const setName = () => { const n = currentDealName(); name.textContent = n || 'No deal open'; name.classList.toggle('uw-none', !n); name.title = n || ''; };
+  setName();
+  document.addEventListener('dealchange', setName);
+  bar.append(back, name, sw);
+  return bar;
+}
 
 function draw(force = false) {
   const root = $('underwrite-root');
@@ -333,10 +378,15 @@ function draw(force = false) {
   for (const [id, key, label] of [['uw-view-tool', 'tool', 'Underwriting'], ['uw-view-quick', 'quick', 'Quick underwrite']]) {
     const b = el('button', 'btn' + (uwView === key ? ' btn-primary' : ''), label);
     b.type = 'button'; b.id = id; b.setAttribute('aria-pressed', String(uwView === key));
-    b.addEventListener('click', () => { uwView = key; draw(true); });
+    b.addEventListener('click', () => {
+      uwView = key;
+      try { sessionStorage.setItem(VIEW_KEY, key); } catch { /* fine */ }
+      syncFull(); draw(true);
+      $(id)?.focus({ preventScroll: true });   // the button that was pressed is gone with the old view
+    });
     sw.appendChild(b);
   }
-  if (uwView === 'tool') { root.append(sw, toolCard()); return; }
+  if (uwView === 'tool') { root.append(slimBar(sw), toolCard()); return; }
   const head = el('div', 'view-head');
   head.appendChild(el('h1', null, 'Quick underwrite'));
   head.appendChild(el('p', null, 'Type a price, NOI and loan terms and see the answer. It is not a deal until you save it as one.'));
@@ -442,6 +492,17 @@ async function saveAsDeal() {
   });
 }
 
+function escapeLeaves(e, doc) {
+  if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing || !document.body.classList.contains('uw-full')) return;
+  if (document.querySelector('dialog[open]')) return;   // the app's own sheet or palette takes the key
+  const t = e.target;
+  if (t && t.nodeType === 1 && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+  if (doc.querySelector('dialog[open], [aria-modal="true"]:not([hidden]), [role="dialog"]:not([hidden]), [role="menu"]:not([hidden]), .monal-tip:not([hidden])')) return;   // (the last is the tool's own tip bubble, which Escape closes)
+  e.preventDefault();
+  leave();
+}
+
+
 export function initUnderwrite(compsApi) {
   api = compsApi;
   initIntake();
@@ -451,7 +512,25 @@ export function initUnderwrite(compsApi) {
   // a phone suspends a page it has hidden: the last edit goes to storage the moment the app leaves the screen
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
   window.addEventListener('pagehide', () => { flush(); });
-  document.addEventListener('viewchange', () => { flush(); });
+  document.addEventListener('viewchange', (e) => {
+    flush();
+    const prev = shown;
+    moves += 1;
+    shown = e.detail;
+    if (shown === 'underwrite' && prev !== 'underwrite') cameFrom = prev;
+    const { was, now } = syncFull();
+    if (now && !was) { draw(); document.getElementById('uwt-frame')?.focus({ preventScroll: true }); }   // in: focus goes into the tool
+    // out (any way: Back, Escape, the browser's Back): focus goes to the tab of the screen now shown
+    if (was && !now && shown !== 'underwrite') document.querySelector(`[data-view="${shown}"]:not([hidden])`)?.focus?.({ preventScroll: true });
+  });
+  // Escape leaves, from the page and from inside the tool's frame (key events do not cross it), unless something there
+  // is using the key: a dialog, a field, a menu
+  document.addEventListener('keydown', (e) => escapeLeaves(e, document));
+  document.addEventListener('uwtoolload', (e) => {
+    const d = e.detail?.document;
+    // capture: this looks before the tool's own handlers have closed anything
+    if (d) d.addEventListener('keydown', (k) => escapeLeaves(k, d), true);
+  });
   loadScratch().then((r) => {
     // anything typed before the list arrived stays on screen, at the top of what was stored
     const mine = items.includes(cur) ? cur : null;

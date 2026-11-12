@@ -137,6 +137,115 @@ await page.screenshot({ path: `${SHOTS}uwtool-desktop.png` });
 await page.screenshot({ path: '/tmp/shots/uwtool-tab-desktop.png' }).catch(() => {});
 await axe('desktop size, open');
 
+/* ---- the tool fills the screen: one slim bar (Back, the deal, the view switch), no page chrome, no double scrollbars */
+const fullState = () => page.evaluate(() => {
+  const vis = (sel) => [...document.querySelectorAll(sel)].some((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(e).display !== 'none'; });
+  const bar = document.querySelector('.uw-slim');
+  const fr = document.querySelector('#uwt-frame').getBoundingClientRect();
+  const b = bar ? bar.getBoundingClientRect() : null;
+  return {
+    full: document.body.classList.contains('uw-full'), chrome: vis('.appbar') || vis('.tabbar') || vis('.sidebar'),
+    bar: b && { h: b.height, bottom: b.bottom }, fr: { x: fr.x, y: fr.y, w: fr.width, h: fr.height },
+    vw: innerWidth, vh: innerHeight, sx: document.documentElement.scrollWidth - innerWidth, sy: document.documentElement.scrollHeight - innerHeight,
+    bodyOverflow: getComputedStyle(document.body).overflow,
+  };
+});
+const SIZES = [['320 phone', 320, 640], ['iPhone', 390, 844], ['tablet', 820, 1100], ['desktop', 1280, 800]];
+for (const [label, w, h] of SIZES) {
+  await page.setViewportSize({ width: w, height: h });
+  await page.goto(`${BASE}#underwrite`, { waitUntil: 'load' });
+  await page.waitForSelector('#uwt-frame');
+  await page.waitForTimeout(300);
+  const st = await fullState();
+  const below = st.vh - (st.bar ? st.bar.bottom : 0);
+  check(`${label}: the tool is full screen (the app's header, tab bar and sidebar are gone)`, st.full && !st.chrome, JSON.stringify(st));
+  check(`${label}: the frame covers at least 95% of the screen below the slim bar, edge to edge`, st.fr.x === 0 && st.fr.w >= st.vw * 0.95 && st.fr.h >= below * 0.95 && st.fr.y + st.fr.h <= st.vh + 1, JSON.stringify(st));
+  check(`${label}: the slim bar is slim (one row at 390 and up)`, st.bar && st.bar.h <= (w >= 390 ? 64 : 120), JSON.stringify(st.bar));
+  check(`${label}: no double scrollbars (the page does not scroll; the tool does)`, st.sx <= 0 && st.sy <= 0 && st.bodyOverflow === 'hidden', JSON.stringify(st));
+}
+// 130% text: the bar wraps rather than clips, and the frame still takes the rest
+await page.setViewportSize({ width: 390, height: 844 });
+await page.evaluate(() => document.documentElement.style.setProperty('--ts', '130'));
+{
+  const st = await fullState();
+  check('130% text at 390 px: no sideways scroll, and the frame still covers the screen below the bar', st.sx <= 0 && st.fr.w >= st.vw * 0.95 && st.fr.h >= (st.vh - st.bar.bottom) * 0.95, JSON.stringify(st));
+}
+await page.evaluate(() => document.documentElement.style.removeProperty('--ts'));
+// both looks, light and dark: the bar's text and controls pass axe
+for (const [theme, look] of [['light', 'classic'], ['dark', 'classic'], ['light', 'new'], ['dark', 'new']]) {
+  await page.evaluate(([t, l]) => { document.documentElement.dataset.theme = t; document.documentElement.dataset.look = l; }, [theme, look]);
+  await page.waitForTimeout(1000);   // the buttons' colour transition finishes first
+  if (!(await page.evaluate(() => !!window.axe))) await page.addScriptTag({ path: AXE });
+  const res = await page.evaluate(async () => (await window.axe.run(document.querySelector('.uw-slim'), { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }, resultTypes: ['violations'] })).violations.map((v) => `${v.id}: ${v.help}`));
+  check(`axe: the slim bar, ${theme} / ${look} look`, res.length === 0, res.join(' | '));
+}
+await page.evaluate(() => { document.documentElement.dataset.theme = 'light'; delete document.documentElement.dataset.look; });
+
+/* ---- Back, Escape and the browser's Back leave cleanly, with the same deal open */
+const made = await page.evaluate(async () => {
+  const m = await import('./app/dealui.js');
+  const d = await m.createDeal({ name: 'Invented Plaza', figures: { price: 1000000 }, sources: { price: { hand: true } }, loan: {}, live: null, targets: {} }, 'test fixture');
+  await m.showDeal(d.id);
+  return d.id;
+});
+const viewsShown = () => page.evaluate(() => [...document.querySelectorAll('section.view')].filter((v) => !v.hidden).map((v) => v.id.slice(5)).join());
+const dealNow = () => page.evaluate(async () => (await import('./app/dealui.js')).currentDealId());
+const toTool = async () => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.evaluate((id) => { location.hash = `#deal/${id}`; }, made);
+  await page.waitForFunction(() => !document.querySelector('#view-deal').hidden);
+  await page.locator('.tab[data-view="underwrite"]:visible').first().click();
+  await page.waitForSelector('#uwt-frame');
+  await page.waitForTimeout(200);
+};
+await toTool();
+check('the slim bar names the deal that is open', (await page.textContent('#uw-deal-name')) === 'Invented Plaza', await page.textContent('#uw-deal-name'));
+check('on opening, focus goes into the tool frame', await page.evaluate(() => document.activeElement === document.querySelector('#uwt-frame')));
+await page.click('#uw-back');
+await page.waitForFunction(() => !document.body.classList.contains('uw-full'));
+check('Back returns to the Deals screen with the same deal open, the page chrome is back', (await viewsShown()) === 'deal' && (await dealNow()) === made && (await page.evaluate(() => location.hash)) === `#deal/${made}`, `${await viewsShown()} ${await dealNow()} ${await page.evaluate(() => location.hash)}`);
+check('after Back, focus is on the Deals tab', await page.evaluate(() => document.activeElement?.dataset?.view === 'deal'));
+await toTool();
+await page.evaluate(() => document.activeElement.blur());
+await page.keyboard.press('Escape');
+await page.waitForFunction(() => !document.body.classList.contains('uw-full'));
+check('Escape (page focused) leaves the same way', (await viewsShown()) === 'deal' && (await dealNow()) === made);
+await toTool();
+await page.locator('#uwt-frame').focus();
+await page.keyboard.press('Escape');
+await page.waitForFunction(() => !document.body.classList.contains('uw-full'), null, { timeout: 4000 }).catch(() => {});
+check('Escape with focus inside the tool leaves too', (await viewsShown()) === 'deal' && (await dealNow()) === made);
+await toTool();
+await page.evaluate(() => history.back());
+await page.waitForFunction(() => !document.body.classList.contains('uw-full'));
+check('the browser\'s Back leaves the same way', (await viewsShown()) === 'deal' && (await dealNow()) === made);
+await page.goto('about:blank');   // a new page load (a hash change alone would keep the one that knows where it came from)
+await page.goto(`${BASE}#underwrite`, { waitUntil: 'load' });
+await page.waitForSelector('#uwt-frame');
+await page.click('#uw-back');
+await page.waitForFunction(() => !document.body.classList.contains('uw-full'));
+check('opened straight on the tool (nothing before it), Back goes Home', (await viewsShown()) === 'home');
+
+/* ---- the chosen view is remembered over a reload */
+await page.goto(`${BASE}#underwrite`, { waitUntil: 'load' });
+await page.waitForSelector('#uw-view-quick');
+await page.click('#uw-view-quick');
+await page.waitForSelector('#uw-card');
+check('Quick underwrite brings the app\'s chrome back', await page.evaluate(() => !document.body.classList.contains('uw-full')) && (await page.locator('.sidebar').isVisible()));
+await page.reload({ waitUntil: 'load' });
+await page.waitForSelector('#uw-card');
+check('after a reload the Quick underwrite view is still the one shown', (await page.locator('#uwt-frame').count()) === 0 && (await page.getAttribute('#uw-view-quick', 'aria-pressed')) === 'true');
+await page.click('#uw-view-tool');
+await page.waitForSelector('#uwt-frame');
+await page.reload({ waitUntil: 'load' });
+await page.waitForSelector('#uwt-frame');
+check('and the tool view is remembered too', (await page.getAttribute('#uw-view-tool', 'aria-pressed')) === 'true' && await page.evaluate(() => document.body.classList.contains('uw-full')));
+if (!(await page.evaluate(() => !!window.axe))) await page.addScriptTag({ path: AXE });
+{
+  const res = await page.evaluate(async () => (await window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }, rules: { 'meta-viewport': { enabled: false } }, exclude: [['#uwt-frame']], resultTypes: ['violations'] })).violations.map((v) => `${v.id}: ${v.help} -> ${v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(' | ')}`));
+  check('axe: the whole page around the full-screen tool', res.length === 0, res.join('\n    '));
+}
+
 /* ---- the whole run */
 check('not one request left this origin (page, frame, workers, full screen, offline run)', outside.length === 0, outside.join(' | '));
 const provoked = errors.filter((e) => /Executing inline event handler violates/.test(e));   // the one violation the flow causes on purpose

@@ -16,6 +16,7 @@ for (const [v, title] of [['deal', 'Deals'], ['underwrite', 'Underwrite'], ['com
   await page.click(`.sidebar .tab[data-view="${v}"]`);
   await page.waitForTimeout(150);
   check(`sidebar: ${title} opens its screen and is marked current`, await page.isVisible(`#view-${v}`) && (await page.getAttribute(`.sidebar .tab[data-view="${v}"]`, 'aria-current')) === 'page' && (await page.title()).startsWith(title));
+  if (v === 'underwrite') await page.click('#uw-back');   // the tool fills the screen (no sidebar): its slim bar's Back returns to the shell
 }
 
 // theme: dark chosen, kept across a reload, applied before scripts run
@@ -109,7 +110,7 @@ await page.keyboard.press('Shift+Slash');
 const keysOpen = await page.waitForSelector('#sheet[open] .keys-sheet', { timeout: 3000 }).then(() => true, () => false);
 check('"?" opens the keyboard shortcuts', keysOpen && (await page.textContent('#sheet-title')) === 'Keyboard shortcuts');
 const groups = await page.$$eval('#sheet-body .keys-group h3', (xs) => xs.map((x) => x.textContent));
-check('by where they work', groups.join(' | ') === 'Anywhere | In the search | In a deal | In the rent roll | In a date field | Home | Settings', groups.join(' | '));
+check('by where they work', groups.join(' | ') === 'Anywhere | In the search | In a deal | In the rent roll | In a date field | Home | Underwrite | Settings', groups.join(' | '));
 const rows = await page.$$eval('#sheet-body .keys-list dt', (xs) => xs.map((x) => `${[...x.querySelectorAll('kbd')].map((k) => k.textContent).join('+')} = ${x.nextElementSibling.textContent}`));
 check('it lists search, undo, redo and the rent roll keys', ['Ctrl+K = Search deals, contacts and tools, and run an action', 'Ctrl+Z = Undo the last change to the deal', 'Shift+Ctrl+Z+Ctrl+Y = Redo it', 'Esc = Put the cell back as it was'].every((r) => rows.includes(r)), rows.join(' / '));
 check('focus is in the sheet', await page.evaluate(() => !!document.activeElement.closest('#sheet')));
@@ -171,6 +172,7 @@ for (const v of ['deal', 'underwrite', 'comps', 'tools', 'home']) {
   await P.page.click(`.tabbar .tab[data-view="${v}"]`);
   await P.page.waitForTimeout(150);
   check(`phone tab bar: ${v}`, await P.page.isVisible(`#view-${v}`) && (await P.page.getAttribute(`.tabbar .tab[data-view="${v}"]`, 'aria-current')) === 'page');
+  if (v === 'underwrite') await P.page.click('#uw-back');   // as above: the tool is full screen, Back returns to the tab bar
 }
 // Settings moved off the phone bar to a gear in the top bar (Underwriting workspace decision 7)
 check('phone: the tab bar no longer holds Settings', (await P.page.locator('.tabbar .tab[data-view="settings"]').count()) === 0);
