@@ -701,8 +701,10 @@ function renderDeal(r) {
   const title = deal.name || f.address || 'Untitled deal';
   const more = button('btn-gray', null, dealMenu, 'more');
   more.setAttribute('aria-label', 'More deal actions');
+  more.id = 'deal-more';
   // a slim bar: the way back to every deal, and the deal's main actions
   const top = el('div', 'view-head ws-top');
+  top.id = 'deal-toolbar';
   const back = button('btn-plain btn-sm ws-back', 'All deals', closeDeal, 'back');
   top.appendChild(back);
   const acts = el('div', 'view-actions');
@@ -712,12 +714,13 @@ function renderDeal(r) {
   const redoB = button('btn-gray', null, () => stepHistory('redo'), 'redo');
   redoB.id = 'deal-redo';
   for (const b of [undoB, redoB]) { b.disabled = true; b.setAttribute('aria-label', b === undoB ? 'Nothing to undo' : 'Nothing to redo'); b.title = b.getAttribute('aria-label'); }
-  acts.append(
-    undoB, redoB,
-    button('btn-primary', 'Excel', exportExcel, 'export'),
-    button('', 'Share', shareSummary, 'share'),
-    more,
-  );
+  const workbook = button('btn-primary', 'Excel', exportExcel, 'export');
+  workbook.id = 'deal-workbook';
+  const share = button('', 'Share', shareSummary, 'share');
+  share.id = 'deal-share';
+  const delivery = el('div', 'deal-delivery');
+  delivery.append(workbook, share);
+  acts.append(undoB, redoB, delivery, more);
   top.appendChild(acts);
   r.appendChild(top);
   const stack = el('div', 'stack');
@@ -752,7 +755,7 @@ function renderDeal(r) {
   name.spellcheck = false;
   name.title = 'Tap to rename';
   const named = deal;
-  name.addEventListener('blur', () => { named.name = name.textContent.trim(); touch(named); });
+  name.addEventListener('blur', () => { named.name = name.textContent.trim(); wsName.textContent = named.name || named.figures.address || 'Untitled deal'; touch(named); });
   name.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); name.blur(); } });
   t.appendChild(name);
   const where = [f.ptype, [f.city, f.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
@@ -798,7 +801,15 @@ function renderDeal(r) {
     p.setAttribute('aria-labelledby', b.id);
     panes[key] = p;
   }
-  stack.appendChild(tabs);
+  const nav = el('div', 'deal-nav');
+  const jump = button('btn-plain deal-jump', null, openDealSections, 'menu');
+  jump.id = 'deal-jump';
+  jump.setAttribute('aria-label', 'Jump to a deal section');
+  jump.setAttribute('aria-haspopup', 'dialog');
+  jump.title = 'Jump to a deal section';
+  jump.appendChild(el('span', 'deal-jump-label', 'Sections'));
+  nav.append(tabs, jump);
+  stack.appendChild(nav);
 
   // the overview: the analysis in a main column, the deal's next steps in a rail beside it
   // (on one column the pipeline and next steps come first, so they are not below the long analysis)
@@ -855,6 +866,7 @@ function renderDeal(r) {
 
   const bottom = el('div', 'view-actions');
   bottom.classList.add('ws-foot');
+  bottom.id = 'deal-outputs';
   bottom.appendChild(button('', 'Use as the comps subject', useAsSubject, 'arrow-right'));
   bottom.appendChild(button('', 'Fill my Excel template', openTemplates, 'file-check'));
   if (!IN_ARTIFACT) bottom.appendChild(button('', 'Deal brief', printBrief, 'print'));
@@ -905,6 +917,40 @@ function docsHost(d) {
 /** A reader has read a file for this deal: it goes in the Documents list (ddui.js recordFileRead), and the card follows. */
 function fileRead(d, file, info) {
   return recordFileRead(d, file, info, (meta) => touch(d, meta)).then((doc) => { if (doc && deal === d) { const box = $('deal-dd'); if (box) renderDocsCard(box, docsHost(d)); } return doc; });
+}
+
+/** Jump within the same deal, using its existing panels and actions. Nothing is copied or applied. */
+async function openDealSections() {
+  const d = deal;
+  const sections = [
+    ['figures', 'Key figures', 'Read, type and check the deal figures', 'overview', 'deal-figures'],
+    ['documents', 'Documents', 'Files and their reading status', 'overview', 'deal-dd'],
+    ['statement', 'Operating statement', 'Review the statement and its checks', 'overview', 'deal-t12'],
+    ['finance', 'Financing', 'Loan terms and the deal’s financing results', 'overview', 'deal-finance'],
+    ['roll', 'Rent roll', 'Units, leases and their projection', 'rentroll', 'deal-rentroll'],
+    ['scenarios', 'Scenarios', 'Try changes in What if before applying them', 'whatif', 'pane-whatif'],
+    ['people', 'Contacts and follow-ups', 'People, tasks and dates for this deal', 'overview', 'deal-crm'],
+    ['visit', 'Site visit', 'Notes, photos and recordings', 'visit', 'pane-visit'],
+    ['export', 'Excel and Share', 'Export this deal’s workbook or share its summary', null, 'deal-toolbar'],
+    ['outputs', 'Templates and deal brief', 'Fill a firm workbook or print this deal’s brief', null, 'deal-outputs'],
+  ];
+  const key = await actionSheet('Jump to a deal section', [
+    { info: d.name || d.figures.address || 'Untitled deal' },
+    ...sections.map(([value, label, sub]) => ({ value, label, sub })),
+  ]);
+  if (!key || deal !== d) return;
+  const section = sections.find(([value]) => value === key);
+  if (!section) return;
+  const [, , , toPane, id] = section;
+  if (toPane) showPane(toPane, { focus: false });
+  const target = $(id);
+  if (!target) return;
+  const focus = (id === 'deal-toolbar' ? $('deal-workbook') : target.querySelector('h2 button, h2, button, input')) || target;
+  if (focus instanceof HTMLElement) {
+    if (!focus.matches('button, input')) focus.tabIndex = -1;
+    focus.focus({ preventScroll: true });
+  }
+  target.scrollIntoView({ block: 'start', behavior: 'instant' });
 }
 
 const PANES = [['overview', 'Overview'], ['rentroll', 'Rent roll'], ['whatif', 'What if'], ['visit', 'Site visit']];
@@ -1168,6 +1214,7 @@ const heldBack = (k) => !!deal.omRead && heldFields(deal.omRead).includes(k) && 
 
 function figuresCard() {
   const c = el('section', 'card');
+  c.id = 'deal-figures';
   let hidden = 0;
   // A deal started without an OM must offer every input before any document is chosen.
   const byHand = !deal.source;
@@ -1387,6 +1434,7 @@ function pick(key, value, from) {
 
 function financeCard() {
   const c = el('section', 'card');
+  c.id = 'deal-finance';
   const h = el('div', 'card-head');
   h.appendChild(el('h2', null, 'Financing'));
   h.appendChild(el('span', 'count', 'your terms are remembered for the next deal'));

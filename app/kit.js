@@ -188,6 +188,7 @@ export function backdropCloses(dlg) {
 export function actionSheet(title, items) {
   return new Promise((resolve) => {
     const dlg = el('dialog', 'sheet action-sheet');
+    if (title) dlg.setAttribute('aria-label', title);
     const box = el('div', 'sheet-card');
     if (title) box.appendChild(el('div', 'action-title', title));
     const list = el('div', 'action-list');
@@ -221,6 +222,9 @@ export function actionSheet(title, items) {
       resolve(v);
     }
     dlg.addEventListener('cancel', (e) => { e.preventDefault(); done(null); });
+    // Back can close the native dialog without choosing an item or pressing Cancel.
+    // Settle that choice and remove its closed node as on the other close paths.
+    dlg.addEventListener('close', () => done(null), { once: true });
     dlg.addEventListener('click', (e) => { if (e.target === dlg) done(null); });
     openSheet(dlg);
   });
