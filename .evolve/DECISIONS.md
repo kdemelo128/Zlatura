@@ -98,3 +98,9 @@ Design note: `docs/proposals/monal-builtin-and-rename.md`.
 | 4 | Document-reading accuracy and the underwriting tool keep being improved | Reader slices (section 3 of the backlog) continue between the Monal slices |
 | 5 | Decided in the note under the blanket approval: firm template **not** shipped; the tool's own workbook export is the built-in template, plus *Use my own template* kept on the device; the firm's template pack (workbook, layout, firm-only fill code) stays private and loads on the owner's device only | Reversible: a later generic invented template can be added |
 | 6 | Decided in the note: keep the site address (`/zlatura/`) for now; a move is an owner action with a redirect page | Hosting change deferred, not taken |
+
+## Underwriting tool maintained here (owner 2026-11-12)
+
+| Date | What | Why | How to reverse |
+|---|---|---|---|
+| 2026-11-12 | `app/uwtool/` is the maintained source; `tools/uwtool-import.mjs` and its json are retired (kept for history); no test requires the folder to equal importer output. The deny-list and base64 guard, the strict content policy checks and a new outside-call scan (`tests/uwtool-outside-calls.test.js`, with a planted-call mutation check) stay | The owner licensed the tool; the importer already needed 60 exact-match edits and every screen improvement would add more (`docs/proposals/one-underwriting-space.md` section A) | Re-run `tools/uwtool-import.mjs` on the private package (it refuses a non-import output folder, so clear `app/uwtool/` first), restore the manifest test from git history, and discard hand edits |
