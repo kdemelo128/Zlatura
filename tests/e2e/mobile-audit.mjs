@@ -14,6 +14,8 @@ for (const width of [320, 375, 390, 430]) {
   await page.setInputFiles('#photo-file', [F + 'photo0.jpg', F + 'photo1.jpg']);
   await page.waitForTimeout(1500);
   for (const v of ['home', 'comps', 'deal', 'underwrite', 'tools', 'settings']) {
+    // the Underwrite tab fills the screen and hides the tab bar: leave it through its Back control, as a person would
+    if (await page.evaluate(() => document.body.classList.contains('uw-full'))) { await page.click('#uw-back'); await page.waitForFunction(() => !document.body.classList.contains('uw-full')); }
     // Settings is the top-bar gear on a phone; the others are tabs
     await page.click(`${v === 'settings' ? '.appbar ' : '.tab'}[data-view="${v}"] >> visible=true`);
     await page.waitForTimeout(300);
