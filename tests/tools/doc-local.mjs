@@ -12,6 +12,12 @@
  *   --ocr                    a PDF with no text layer is read by the app's on-device OCR (app/ocrpdf.js, the same code and
  *                            limits the app runs): the engine runs in Playwright's Chromium (tests/tools/ocr-browser.mjs; it cannot
  *                            run in Node), everything else here. Slow: about a minute a page on a cloud machine. Adds a count line.
+ *   --om                     the OM diagnostic (tests/tools/om-diag.mjs): for every PDF the classifier calls an OM, or that has OM
+ *                            wording (the 'ask:*om*' families too), run the deal page's own OM reading path (readOm, omReadRecord,
+ *                            omRollRecord) and print per file label COUNTS ONLY: pages, text characters per page bucket, pages with
+ *                            no text layer, pages scored as a rent roll (numbers), rows read, with a rent, with SF, with a lease end,
+ *                            total rows dropped, rows on the deal and held back by a check, OCR needed/offered, and reason codes when
+ *                            the roll is not found or only partly read (listed in om-diag.mjs). Works with --reasons.
  *   --allow-outside-private  lets a folder elsewhere be read (the tests use it on invented files)
  *   --reasons                after the family table, WHY each refused, asked or identified file ended where it did:
  *                            a 'reason | files' table and a 'family | reason | files' table, counts only. A reason is
@@ -108,6 +114,20 @@ if (flag('--ocr')) { const { openOcrBrowser } = await import('./ocr-browser.mjs'
 const readPdf = async (bytes) => (ocrBrowser
   ? readPdfOcr(pdfjs, new Uint8Array(bytes), readText, () => ({ signal: { aborted: false }, say() {}, end() {} }), { open: ocrBrowser.open, supported: () => true })
   : readText(bytes));
+
+// --om: the OM diagnostic (om-diag.mjs); a separate block, counts only
+const OM = flag('--om');
+const OM_WORDING = /offering memorandum|confidential offering|investment summary|executive summary|investment highlights|offering summary/i;
+const omRows = []; const omReasons = {};
+async function omDiag(label, v, pages, name) {
+  const isOm = v.reader === 'om' || v.looks === 'om' || (v.ask || []).includes('om') || v.type === 'om' || /(^|[^a-z])om([^a-z]|$)|offering/i.test(name) || OM_WORDING.test(pages.pages.join('\n').slice(0, 20000));
+  if (!isOm) return;
+  const { omDiagnose, omLine } = await import('./om-diag.mjs');
+  let r;
+  try { r = omDiagnose(pages.pages, pages.layouts, { asOf: new Date().toISOString().slice(0, 10), file: 'x.pdf' }); } catch (e) { omRows.push(`${label} | om read failed: ${errClass(e)}`); omReasons[`om-read-failed:${errClass(e)}`] = (omReasons[`om-read-failed:${errClass(e)}`] || 0) + 1; return; }
+  omRows.push(omLine(label, r));
+  for (const x of r.reasons.length ? r.reasons : ['none (roll read cleanly)']) omReasons[x] = (omReasons[x] || 0) + 1;
+}
 
 const same = (a, b) => (typeof a === 'number' || typeof b === 'number') ? Math.abs(Number(a) - Number(b)) <= 0.005 : String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 
@@ -251,6 +271,7 @@ for (const u of units) {
     if (!info.refuse && !readerNote) {
       if (sniffedKind === 'pdf') { try { pages = await readPdf(new Uint8Array(await file.arrayBuffer())); } catch (e) { pdfErr = e; pages = null; } } else if (['xlsx', 'text'].includes(sniffedKind)) { try { grids = await readGrids(file, getXlsx, { maxRows: 1500, getFflate }); } catch (e) { gridErr = e; grids = null; } }
     }
+    if (OM && pages && !info.refuse && !readerNote) await omDiag(label, v, pages, file.name);
     if (ocrBrowser && info.sha256 && ocrOf(info.sha256) && ocrOf(info.sha256).read.length) { const o = ocrOf(info.sha256); ocrStats.files += 1; ocrStats.pages += o.read.length; ocrStats.unsure += o.unsure; ocrStats.accepted += v.type ? 1 : 0; }
     if (info.refuse || readerNote) { outcome = 'refused'; family = sniffedKind || 'unknown'; }
     else if (v.type) { outcome = 'accepted'; family = v.reader; }
@@ -308,6 +329,12 @@ if (REASONS) {
   console.log('');
   console.log('family | reason | files');
   for (const [fm, rs] of Object.entries(reasonByFam).sort()) for (const [r, n] of Object.entries(rs).sort()) console.log(`${fm} | ${r} | ${n}`);
+}
+if (OM) {
+  console.log('');
+  console.log(`om diagnostic: ${omRows.length} OM file(s) read by the deal page's own OM path; counts only`);
+  for (const l of omRows) console.log(l);
+  if (omRows.length) { console.log('om reason | files'); for (const [r, n] of Object.entries(omReasons).sort()) console.log(`${r} | ${n}`); }
 }
 if (flag('--verbose-files')) for (const l of perFile) console.log(l);
 if (ocrBrowser) {

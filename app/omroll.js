@@ -81,7 +81,8 @@ export function pageLines(text, geom = null) {
 
 /* --------------------------------------------------------- the columns */
 
-const norm = (s) => ` ${String(s).toLowerCase().replace(/\s*\/\s*/g, '/').replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim()} `;
+// words run together by a designer's tool ("LeaseEnd", "AnnualRent") are split where a capital follows a lower-case letter, before the match
+const norm = (s) => ` ${String(s).replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().replace(/\s*\/\s*/g, '/').replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim()} `;
 const W = {
   tenant: /\b(tenants?|lessee|occupant|residents?|tenant name|business|tenancy|company)\b/,
   suite: /\b(suites?|ste|unit|unit no|space|apt|apartment|bldg|building|premises|location|floor)\b|#|\bno\.? /,
@@ -307,7 +308,7 @@ const COMPLETES = new Set(['annual', 'monthly', 'rent', 'psf', 'mpsf', 'market',
  * sits under a header cell that is itself a figure, date or share label (no new column, never a name column) and is
  * itself such a word, and the columns score no worse ("Annual" with "Rent" under it alone, the other labels above).
  */
-function headerAt(lines, i) {
+export function headerAt(lines, i) {
   const L0 = lines[i];
   if (!L0 || L0.cells.length < 3 || hasFigure(L0)) return null;
   let best = null;
