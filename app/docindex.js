@@ -41,6 +41,7 @@ const SYN = {
   landlord: ['landlord', 'lessor', 'owner'],
   nnn: ['nnn', 'triple net', 'triple-net', 'net lease'],
 };
+/** @type {[string, RegExp][]} */
 const SYN_RE = Object.entries(SYN).map(([id, ps]) => [id, new RegExp(`(?<![a-z0-9])(?:${ps.slice().sort((a, b) => b.length - a.length).map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+')).join('|')})(?![a-z0-9])`, 'g')]);
 
 /** Words that carry no topic: question words, fillers and the document nouns a question names the source with. */
@@ -84,8 +85,8 @@ export function tokens(raw, { fold = false } = {}) {
   text = text.replace(MONEY_RE, (m) => { const v = money(m); if (v === null || v < 1000) return m; out.push(`#${v}`); return ' '; });
   text = text.replace(PCT_RE, (m) => { const v = parseNum(m); if (v === null) return m; out.push(`%${v}`); return ' '; });
   for (const w of text.match(/[a-z0-9]+(?:[-.][a-z0-9]+)*/g) || []) {
-    const plain = w.replace(/\./g, '');
-    for (const part of plain.split('-')) {
+    const plain = /^\d+(?:\.\d+)+$/.test(w) ? w : w.replace(/\./g, '');
+    for (const part of plain.split('-')) {   // a decimal (4.25) keeps its point; an abbreviation (sq.ft) loses its points
       if (!part || STOP.has(part)) continue;
       if (/^\d+$/.test(part) && part.length === 1) continue;
       out.push(stem(part));

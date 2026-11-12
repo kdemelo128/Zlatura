@@ -21,7 +21,7 @@ const SEP = String.raw`(?:\s*[:=\-–—|.]+\s*|\s+(?:is|of|was|are|at|approxima
 const UNIT_PER = String.raw`(?:\s?(?:per|/)\s?(?:sf|sq\.? ?ft\.?|square foot|rsf)(?:\s?(?:per|/)\s?(?:year|yr|month|mo))?|\s?psf|\s?(?:annually|per year|a year|per annum|monthly|per month|/yr|/mo))?`;
 const NOW = new Date().getFullYear();
 
-/** @typedef {{ kind: 'money' | 'pct' | 'year' | 'date' | 'sf' | 'text' | 'count', label: string, labels: string, before?: RegExp, dealKey?: string, title: string, query: string }} Field */
+/** @typedef {{ perUnit?: boolean, kind: 'money' | 'pct' | 'year' | 'date' | 'sf' | 'text' | 'count', label: string, labels: string, before?: RegExp, dealKey?: string, title: string, query: string }} Field */
 /** @type {Record<string, Field>} */
 export const FIELDS = {
   noi: { kind: 'money', label: 'NOI', labels: String.raw`net operating income|noi`, dealKey: 'noi', title: 'NOI', query: 'net operating income' },
@@ -30,8 +30,8 @@ export const FIELDS = {
   occupancy: { kind: 'pct', label: 'Occupancy', labels: String.raw`(?:physical |current |economic )?occupancy|(?:percent|%) leased|leased`, dealKey: 'occ', title: 'Occupancy', query: 'occupancy' },
   bsf: { kind: 'sf', label: 'Building area', labels: String.raw`building size|building area|net rentable area|rentable area|gross leasable area|gla|nra|rentable square feet|building sf|total sf|rsf`, dealKey: 'bsf', title: 'Building area', query: 'building size rentable area' },
   yearBuilt: { kind: 'year', label: 'Year built', labels: String.raw`year built|built in|constructed in|year constructed|year of construction|date of construction|built|constructed`, title: 'Year built', query: 'year built' },
-  cam: { kind: 'money', label: 'CAM charge', labels: String.raw`cam(?: charges?| expenses?| reimbursements?)?|common area maintenance(?: charges?)?`, title: 'CAM charges', query: 'cam common area maintenance charges' },
-  baseRent: { kind: 'money', label: 'Base rent', labels: String.raw`(?:annual |monthly )?base rent|minimum rent`, title: 'Base rent', query: 'base rent' },
+  cam: { perUnit: true, kind: 'money', label: 'CAM charge', labels: String.raw`cam(?: charges?| expenses?| reimbursements?)?|common area maintenance(?: charges?)?`, title: 'CAM charges', query: 'cam common area maintenance charges' },
+  baseRent: { perUnit: true, kind: 'money', label: 'Base rent', labels: String.raw`(?:annual |monthly )?base rent|minimum rent`, title: 'Base rent', query: 'base rent' },
   expiration: { kind: 'date', label: 'Lease expiration', labels: String.raw`(?:lease )?expiration(?: date)?|expires(?: on)?|expiry(?: date)?|lease (?:end|ends|term ends)(?: date)?|term (?:ends|end date)`, title: 'Lease expiration', query: 'lease expiration' },
   escalation: { kind: 'pct', label: 'Rent escalation', labels: String.raw`escalations?|(?:annual )?(?:rent )?(?:increases?|escalations?|bumps?)|escalators?`, before: /(\d+(?:\.\d+)?\s?%)\s*(?:annual(?:ly)?\s+|fixed\s+|per year\s+)?(?:rent\s+)?(?:increases?|escalations?|bumps?|escalators?)/i, title: 'Rent escalations', query: 'escalations annual increases' },
   deposit: { kind: 'money', label: 'Security deposit', labels: String.raw`security deposit`, title: 'Security deposit', query: 'security deposit' },
@@ -105,7 +105,7 @@ export function sayFigure(x) {
   if (x.field && FIELDS[x.field]) {
     const K = FIELDS[x.field].kind;
     if (K === 'date') return `${x.title}: ${x.printed}${x.printed !== longDay(String(x.value)) ? ` (${longDay(String(x.value))})` : ''}`;
-    if (K === 'money') return `${x.title}: ${x.printed}${x.unit ? ` ${x.unit}` : ' (no unit stated)'}`;
+    if (K === 'money') return `${x.title}: ${x.printed}${x.unit ? ` ${x.unit}` : FIELDS[x.field].perUnit ? ' (no unit stated)' : ''}`;
   }
   return `${x.title}: ${x.printed}`;
 }
@@ -125,6 +125,7 @@ export function compareWithDeal(fieldId, docValue, dealValue) {
 /* ------------------------------------------------------- what a question about documents is */
 
 /** Questions that name a field of a document. `engine` says where the deal's own record answers first. */
+/** @type {[string, RegExp][]} */
 const ASKS = [
   ['yearBuilt', /\b(?:what year|which year|when)\b.*\b(?:built|constructed)\b|\byear (?:built|constructed)\b|\bbuilt in\b|\bconstruction (?:year|date)\b|\bhow old\b/],
   ['renewal', /\b(?:renewal|renew|extension)s? options?\b|\boptions? to (?:renew|extend)\b|\bcan (?:the |a )?tenant (?:renew|extend)\b|\bis there (?:a |an )?(?:renewal|extension)\b|\b(?:any|have) (?:renewal|extension) options?\b/],

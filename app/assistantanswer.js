@@ -371,6 +371,7 @@ function docAnswer(q, ctx) {
   const found = search(ix, query);
   const subject = subjectWords(q);
   const names = ix.docs.map((d) => d.name);
+  if (!found.hits.length && first.length) return result('answer', [...first, 'No passage in the documents I read says more about it.'], { cites: [DOCS_BLANK(ctx, 'The deal’s rent roll; the documents are listed on the Documents card.')].map((b) => ({ text: b.text, go: b.go })) });
   if (!found.hits.length) {
     const lines = [...first, `I searched ${ix.docs.length === 1 ? names[0] : `${ix.docs.length} documents (${names.slice(0, 4).join(', ')}${names.length > 4 ? ', …' : ''})`} for “${query}” and found nothing that answers it. I have not guessed.`];
     if (found.missing.length) lines.push(`None of the documents uses: ${found.missing.slice(0, 5).join(', ')}.`);
@@ -405,7 +406,7 @@ function withDocs(r, q, ctx) {
     const d = ix.docs[h.passage.doc];
     const dealVal = ctx.m[key];
     const cmp = compareWithDeal(fieldId, x.value, dealVal);
-    const say = `${docLabel(d)} says, on page ${h.passage.page}: ${sayFigure(x)} (${NOT_CHECKED}).`;
+    const say = `${cap1(docLabel(d))} says, on page ${h.passage.page}: ${sayFigure(x)} (${NOT_CHECKED}).`;
     r.lines.push(cmp === 'same' ? `${say} That matches the deal’s figure.` : cmp === 'differ' ? `${say} The deal holds ${showDeal(fieldId, dealVal)}, and that is the figure every calculation uses. The two differ; check the page.` : say);
     r.passages = [...(r.passages || []), card];
     r.cites.push({ text: `${docLabel(d)}, page ${h.passage.page}: the passage is quoted below.`, go: null });

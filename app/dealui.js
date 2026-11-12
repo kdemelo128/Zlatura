@@ -45,6 +45,8 @@ import { renderCreditCard } from './creditui.js';
 import { renderDocsCard, recordFileRead } from './ddui.js';
 import { renderAbstractsCard, openAbstractForDoc } from './abstractui.js';
 import { ddOf, addDoc, markRead, setAsOf } from './dd.js';
+import { rememberDoc, indexFor } from './docsession.js';
+import { docxText } from './convert.js';
 import { dropLeaseSessions } from './leasereadui.js';
 import { openLibrary } from './libraryui.js';
 import { getSettings as getAiSettings, isReady } from './ai.js';
@@ -307,6 +309,8 @@ export const intakeDeps = () => ({
   // OCR of a PDF's first page, only when the broker taps "Read it with OCR"; on this device, nothing is sent (ocr.js)
   ocrText: async (bytes, onProgress) => (await readScannedPage(await getPdfjs(), bytes.slice(), 1, { onProgress })).text,
 });
+/** Keep a read document's text for this session's document search (docsession.js): in memory, never stored. */
+const remember = (d, doc, pages) => rememberDoc(d.id, { name: doc.name, pages, role: doc.type || null, key: doc.sha256 || doc.name, id: doc.id || undefined });
 /**
  * "Use": attach staged documents to a deal through the deal's own paths. `dealId` null makes a new deal first (the same
  * path every deal takes). A T-12 goes through the T-12 import (which asks about its sheet and number format when the file
@@ -324,12 +328,14 @@ export async function useDocuments(dealId, items) {
   for (const it of items) {
     if (it.type === 't12') {
       const before = d.t12;
+      if (it.textPages) remember(d, { id: null, name: it.name, sha256: it.sha256, type: 't12' }, it.textPages);
       await importT12File(t12Host(d), it.file);
       if (d.t12 && d.t12 !== before) done.push({ id: it.id, note: 'T-12 read.' });
       continue;
     }
     const r = addDoc(ddOf(d), { name: it.name, kind: it.kind, size: it.size, sha256: it.sha256, pages: it.pages, type: it.type, typeBy: it.typeBy });
     if (r.error) { done.push({ id: it.id, note: r.error, failed: true }); continue; }
+    if (it.textPages) remember(d, r.doc, it.textPages);
     touch(d, { label: `Documents: added ${r.doc.name}${it.type ? ` as ${typeLabel(it.type)}` : ''}` });
     done.push({ id: it.id, note: it.type === 'rentroll' ? 'Added to Documents. Open the rent roll to import it: it asks which column is which.' : 'Added to Documents.' });
   }
@@ -371,6 +377,8 @@ export function dealForAssistant() {
       openQc: openChecks({ checks: qcs }).map((c) => ({ text: c.text, where: whereText(c) })),
     },
     input, m, comps, rrSum: rr ? rentRollSummary(rr, rr.settings.asOf) : null, today: new Date(), hasDeal: true,
+    // the search index over the text of this deal's documents read in this session (null when none: docsession.js)
+    docIndex: indexFor(deal.id),
   };
 }
 
@@ -679,7 +687,8 @@ async function readOmFile(file) {
   const n = Object.keys(figures).length;
   const made = deal;
   // the file it read goes in the Documents list, and the figures read from it point back at it: fingerprinted before the deal's first save, so the read is one history entry
-  await recordFileRead(deal, file, { reader: 'om', target: 'omRead', type: 'om', kind: 'pdf', pages: om.pages, link: true, checks: qcCounts({ checks: [...((/** @type {any} */ (deal).omRead?.checks) || []), ...((/** @type {any} */ (deal).rrQc?.checks) || [])] }) }, () => {}).catch(() => {});
+  const omDoc = await recordFileRead(deal, file, { reader: 'om', target: 'omRead', type: 'om', kind: 'pdf', pages: om.pages, link: true, checks: qcCounts({ checks: [...((/** @type {any} */ (deal).omRead?.checks) || []), ...((/** @type {any} */ (deal).rrQc?.checks) || [])] }) }, () => {}).catch(() => null);
+  remember(made, omDoc || { name: file.name, type: 'om' }, pages);   // the OM's text, for Ask Monal's document search (this session only)
   // `reading` stays set across the fingerprint, so a second OM is refused meanwhile; and the screen is this OM's deal
   reading = null;
   deal = made;
@@ -1044,6 +1053,7 @@ function abstractsHost(d) {
     deal: d, touch: (meta) => touch(d, meta), stillOpen: () => deal === d, getXlsx, docs: () => ddOf(d).docs, sheetOpen: api.sheetOpen, sheetClose: api.sheetClose,
     // the lease reader (leasereadui.js): a read lease is recorded on its Document (never the file), an amendment's effective date is its as-of date, and a different file can be added as a new document
     markRead: (id, { asOf, checks }) => { const dd = ddOf(d); if (checks) markRead(dd, id, { reader: 'lease', target: 'abstracts', checks }); if (asOf) setAsOf(dd, id, asOf); },
+    remember: (doc, pages) => remember(d, doc, pages),
     addDocument: (info) => { const r = addDoc(ddOf(d), info); if (!r.error) touch(d, { label: `Documents: added ${r.doc.name}` }); return r; },
   };
 }
@@ -1058,6 +1068,8 @@ function docsHost(d) {
     problem: (err, file) => pdfProblem(err, file),
     readPdf: async (bytes) => { const layouts = []; const pages = await api.pdfPages(await getPdfjs(), bytes, { layouts }); return { pages, layouts }; },
     ocrText: async (bytes) => (await readScannedPage(await getPdfjs(), bytes.slice(), 1)).text,
+    remember: (doc, pages) => remember(d, doc, pages),
+    docText: async (file) => docxText(new Uint8Array(await file.arrayBuffer()), await getFflate(), file.name),
     // other deals holding a file with this fingerprint, by name: shown on this device only
     otherDeals: async (sha) => (await listAllDeals()).filter((x) => x.id !== d.id && x.dd && Array.isArray(x.dd.docs) && x.dd.docs.some((y) => y && y.sha256 === sha)).map((x) => x.name || (x.figures && x.figures.address) || 'Untitled deal'),
     // the reader's own panel for a type: the rent roll workspace, the T-12 card or the figures and their checks

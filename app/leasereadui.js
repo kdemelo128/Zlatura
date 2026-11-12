@@ -172,6 +172,7 @@ export function leaseReadBlock(ctx) {
           const texts = await pdfPages(pdfjs, opened.bytes.slice(), { layouts, onPage: (i, n) => { if (state.cancelled) throw CANCELLED; say(`Reading page ${i} of ${n}`); } });
           entry = { name: doc.name, texts, layouts, ocr: {}, bytes: opened.bytes };
           sessions.set(opened.sha || key, entry);
+          if (h.remember) h.remember(doc, texts);   // for Ask Monal's document search; in memory only
         }
       } else { clear(); run.append(prog, cancel); }
       const total = entry.texts.length;
