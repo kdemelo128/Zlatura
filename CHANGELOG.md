@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.7.145: Monal: Undo can no longer throw away a later edit, and questions stay questions (on the development branch; not merged or deployed)
+
+Review fixes to assistant release 2.
+
+- **Questions stay questions:** "the price is $5m, what is the cap rate" and "the cap rate is 7%, what price" answer as before; a bare statement such as "occupancy is 92%" is an edit only when nothing but the value follows.
+- **Undo is checked:** it refuses ("This changed since; nothing was undone") when a figure, stage, note, next step or contact was changed after the assistant's change; a scenario Undo removes only its own scenario, a stage Undo only its own history entry. Undo adds an "Undone" line to the activity log.
+- **Stale previews:** a scenario or next-step date preview is refused ("The deal changed; ask again") when the deal changed after it was shown.
+- "Make a note to follow up …" makes a task again, as in release 1.
+- **Tested:** new unit tests and browser-flow checks (each failed before the fix); saved results unchanged.
+
 ## 4.7.144: Monal can now make changes for you, each one shown first and undoable (on the development branch; not merged or deployed)
 
 Release 2 of the on-device assistant. Eight things you can ask in plain words; every change is shown as a before and after list, waits for its own yes, and offers Undo that puts the deal back exactly. No language model, no new library, no network request.
