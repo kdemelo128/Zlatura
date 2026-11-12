@@ -1,17 +1,15 @@
 # Changelog
 
-## 4.7.146: Scans, Word files, macro workbooks, zips and odd workbooks are read in Start from documents (on the development branch; not merged or deployed)
+## 4.7.146: Quick check, calculators and Save as deal now live inside the underwriting tool (on the development branch; not merged or deployed)
 
-The owner's 1,005-file run left 195 scans, 15 Word files, 9 macro workbooks, 11 zips and 7 workbooks unread. This closes those gaps that could be closed without a new reader; the tax bill, utility bill and unit mix readers are not in this change.
+One underwriting space, release 3. The tool's Model step has a calm "Quick check" panel and a "Calculators" entry that reuse the app's own engine, calculators and deal paths. Quick underwrite and its switch stay (the switch goes in release 7).
 
-- **Scans:** a PDF with almost no text layer is read by the on-device OCR by itself (`app/ocrpdf.js`): a progress line with Cancel at the foot of the screen (it takes no focus and does not block typing), at most 12 pages and a 4-minute budget, a 90-second limit on one page. The text and geometry replace the empty page text page for page, so the normal intake and the rent roll and statement readers work on it. The row says "Read by OCR: check figures", names the pages read, and OCR rows stay low-confidence. A figure OCR is unsure of (a word with a digit below 70% confidence) is left out, so its cell is blank and asked, never guessed. A scan already read is not read twice when the document is used. Nothing is sent anywhere. `tests/tools/doc-local.mjs --ocr` runs the same code with the OCR engine in Chromium (it cannot run in Node).
-- **Word (.docx):** each table becomes rows read as a CSV by the existing T-12 and rent roll readers (merged cells kept, nested tables flattened into their cell); the text outside the tables is classified, never read as figures. No library added; tags are not stripped by pattern and entities are decoded once. A Word file has no page numbers, and the row says so.
-- **Macro workbooks (.xlsm and renamed):** the cell values are read; the macro part is never opened, run or kept, and the row says "Macros were not run; values as last saved." A file that is not a real workbook is still refused. The rent roll and comps import screens still refuse a .xlsm by its file name. **This relaxes a deliberate refusal: confirm before release.**
-- **Zips:** a password-protected part, or one compressed in a way this app does not open, is refused alone with a plain reason and the rest of the zip opens (before, the whole zip was refused). Names that are not UTF-8 are opened. The caps (entries, total size, ratio, 200 files) are unchanged.
-- **Sheet reads:** a workbook with overlapping merged ranges loads (the later range is ignored, with a note); one with no shared-strings part is refused plainly instead of showing position numbers as words; a failure carries its step and a fixed reason word in the scoreboard.
-- **Tests:** about 50 new unit tests (`ocrpdf`, `docxread`, `sheet-repair`, macro, zip, doc-local) and five browser flows (`ocrscan-flow`, `docx-flow`, `xlsm-flow`, `zipparts-flow`, `sheetrepair-flow`); each fails on the code before this change, and each new guard was broken once to see a test catch it. Invented files only.
-
-Saved results and displayed figures are unchanged (golden: 646 figures compared, 0 changed).
+- **Quick check:** nine fields (price, first-year NOI, loan to value, rate, amortization, closing costs, hold, exit cap, sale costs) start from the tool's own figures. A blank stays blank, the tool's starting values (30 years, 10-year hold, 2% sale costs, 0 closing) are not carried, and the tool's loan and closing dollars become a percent of price only when the price is a dollar figure. Results are the engine's, row for row the same as Quick underwrite's.
+- **Flag:** if the tool's own loan or equity differs from the engine's by more than a cent, both are shown with a small note; a deal keeps the app's figure.
+- **Save as deal:** a sheet asks first. Create a new deal, or, with a non-confidential deal open, update it with a before and after list; Undo for both. A confidential deal is never offered Update.
+- **Calculators:** every Tools calculator opens in a sheet over the tool; Quick value and Loan sizing start from the check's figures.
+- **How:** the page hands the frame one frozen `window.MonalApp` object (`app/uwfiller/toolbridge.js`), only to its own tool frame; no postMessage, no second copy of the engine. Shared reading, results and deal writing moved to `quick.js` and `quickdeal.js`; "Bring into deal" now uses the same writer.
+- **Tested:** `tests/uwquick.test.js` (hand-worked figures), `tests/e2e/uw-space-r3-flow.mjs` at phone and desktop size (78 checks, axe inside the frame, zero outside requests); fails on the old code. Saved-deal results and displayed figures unchanged.
 
 ## 4.7.145: Monal: Undo can no longer throw away a later edit, and questions stay questions (on the development branch; not merged or deployed)
 

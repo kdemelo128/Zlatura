@@ -68,8 +68,8 @@ check('each of the ten cards opens its own tool (heading names it) and All tools
 await card('Excel templates').click(); check('"All tools" is at least 44 px', (await f.evaluate(() => document.querySelector('#toolLibrary .tool-panel-heading button').offsetHeight)) >= 44); await back();
 
 /* ---- analyst toolkit and advanced scenarios: tabs, hints, former buttons, sizes, figures */
-const figures = { page: await f.evaluate(() => { const out = []; document.querySelectorAll('body *').forEach((e) => { if (e.children.length || e.closest('#toolLibrary, #uwHint')) return; const t = e.textContent.trim(); if (/^[-($]*[\d,.]+[KMB%x)]*$/.test(t) && /[$%x]/.test(t)) out.push(t); }); return out; }) };
-const leaves = (sel) => f.evaluate((sel) => [...document.querySelectorAll(`${sel} *`)].filter((e) => !e.children.length && e.offsetParent).map((e) => e.textContent.trim()).filter((t) => /^[-($]*[\d,.]+[KMB%x)]*$/.test(t) && /[$%x]/.test(t)), sel);
+const figures = { page: await f.evaluate(() => { const out = []; document.querySelectorAll('body *').forEach((e) => { if (e.children.length || e.closest('#toolLibrary, #uwHint, #quickCheck')) return; const t = e.textContent.trim(); if (/^[-($]*[\d,.]+[KMB%x)]*$/.test(t) && /[$%x]/.test(t)) out.push(t); }); return out; }) };
+const leaves = (sel) => f.evaluate((sel) => [...document.querySelectorAll(`${sel} *`)].filter((e) => !e.children.length && e.offsetParent && !e.closest('#quickCheck')).map((e) => e.textContent.trim()).filter((t) => /^[-($]*[\d,.]+[KMB%x)]*$/.test(t) && /[$%x]/.test(t)), sel);
 const FORMER = { 'Capital stack': ['Add debt tranche', 'Calculate capital stack', 'Compare with / without refinancing', 'Compare permitted senior leverage', 'Compare capital structures'], 'Value & debt': ['Add lender quote'] };
 async function area(title, root, attr, tabs) {
   await card(title).click(); await f.waitForSelector(`${root} [${attr}]`);

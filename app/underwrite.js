@@ -5,16 +5,19 @@
 
 import { PRODUCT } from './brand.js';
 import { icon } from './icons.js';
-import { $, el, parseNum, parsePct, int, dec, money0, money2, pct, times, short, niceDate, toast } from './kit.js';
+import { $, el, parsePct, dec, money0, pct, short, niceDate, toast } from './kit.js';
 import { quantizeDeal, toCents } from './engine/money.js';
 import { SALE_COST_NEGATIVE } from './deal.js';
-import { createDeal, discardDeal, showDeal, loanDefaults, scnRead, scnRefused, setRefusal, currentDealName, dealForBridge, updateDeal, openTemplates } from './dealui.js';
+import { createDeal, discardDeal, showDeal, loanDefaults, scnRefused, setRefusal, currentDealName, dealForBridge, openTemplates } from './dealui.js';
 import { toolIndex, openToolById } from './toolsui.js';
 import { activeWorkspace, workspaceReady } from './workspaceui.js';
 import { intakeCard, initIntake } from './intakeui.js';
 import { fillerCard } from './uwfiller/ui.js';
 import { toolCard } from './uwfiller/tool.js';
 import { planIn, applyIn, planOut, changedPaths, fillRecord } from './uwfiller/bridge.js';
+import { read, show, resultLines } from './uwfiller/quick.js';
+import { choose, diffTable, writeChanges } from './uwfiller/quickdeal.js';
+import { installToolBridge } from './uwfiller/toolbridge.js';
 import { newScratch, work, dealFields, loadScratch, saveScratch, deleteScratch, MAX_SCRATCH } from './uwstore.js';
 
 let api = null;
@@ -42,21 +45,6 @@ const LOAN = [
 const HOLD = [
   ['live', 'hold', 'Hold, years', 'hold'], ['live', 'growth', 'NOI growth a year %', 'delta'], ['live', 'exitCap', 'Exit cap rate %', 'pct'], ['live', 'saleCost', 'Sale costs %', 'cost'],
 ];
-
-/** What was typed, as the deal page reads the same kind of field (null when it can't be read: a blank is absent, never 0). */
-function read(kind, raw) {
-  if (kind === 'text') return raw.trim() || null;
-  if (kind === 'hold') return scnRead('int', raw);
-  return kind === 'num' || kind === 'int' || kind === 'money' ? parseNum(raw) : scnRead(kind, raw);
-}
-function show(kind, v) {
-  if (v === null || v === undefined || v === '') return '';
-  if (kind === 'money') return money0(v);
-  if (kind === 'int') return int(v);
-  if (kind === 'text') return String(v);
-  if (kind === 'hold') return String(Math.round(v));
-  return kind === 'num' ? String(v) : dec(v, 2);
-}
 
 /* ---------------------------------------------------------------- storage */
 
@@ -248,28 +236,10 @@ function card() {
 function results() {
   if (!live || !cur) return;
   const w = work(cur);
-  const { m, run, answers } = w;
-  const r = run.returns;
+  const { run, answers } = w;
   const L = live.res;
   L.textContent = '';
-  const mult = r && ok(r.leveredMultiple) ? `${r.leveredMultiple.toFixed(2)}x` : '—';
-  L.append(
-    line('Cap rate', pct(m.capCalc), true),
-    line('Price / SF', money2(m.ppsf)),
-    line('Per unit', money0(m.perUnit)),
-    line('Loan', money0(m.loan)),
-    line('DSCR', times(m.dscr), true),
-    line('Debt yield', pct(m.debtYield)),
-    line('Cash-on-cash, year 1', pct(m.cashOnCash), true),
-    line('Equity, with closing', money0(m.equity)),
-  );
-  if (m.maxLoan) L.appendChild(line('Largest loan it supports', money0(m.maxLoan.loan), true, `limited by ${m.maxLoan.binding}${m.maxLoan.tests.DSCR ? ` · DSCR test ${short(m.maxLoan.tests.DSCR)}` : ''}${m.maxLoan.tests['Debt yield'] ? ` · debt-yield test ${short(m.maxLoan.tests['Debt yield'])}` : ''}`));
-  else L.appendChild(line('Largest loan it supports', '—'));
-  L.append(
-    line('Levered IRR', pct(r && r.leveredIrr), true, r ? `${run.inputs.hold}-year hold, NOI growing ${dec(run.inputs.growth, 2)}% a year, sold at a ${ok(run.inputs.exitCap) ? pct(run.inputs.exitCap) : '—'} cap` : ok(run.inputs.saleCost) && run.inputs.saleCost < 0 ? 'left out: sale costs can’t be negative' : 'needs a price, NOI and an exit cap'),
-    line('Equity multiple', mult),
-    line('Unlevered IRR', pct(r && r.unleveredIrr)),
-  );
+  for (const x of resultLines(w)) L.appendChild(line(x.k, x.v, x.strong, x.why));
   live.notes.textContent = '';
   for (const t of run.notes) live.notes.appendChild(el('p', 'hint-sm warn-text', t));
   // the two answers sit in rows drawn once, so a target field being typed in is never replaced
@@ -381,7 +351,6 @@ function slimBar(sw) {
 
 /* ----- the bridge to the open deal (uwfiller/bridge.js holds the map; this is the frame and the deal) ----- */
 
-const TOOL_TITLE = 'Underwriting tool';
 let bridged = null;          // { id, filled: [text], notCarried: [{label, why}] } for the deal the tool was last opened with
 const filledFor = new Map(); // deal id -> what was filled into the tool in this page's life
 const FILLED_KEY = 'uw.bridge.filled';   // what the bridge put into the tool, per deal: never offered back as the broker's own
@@ -462,49 +431,13 @@ async function bringIntoDeal() {
   try { const model = w.UWEditor.model(); plan = planOut(model, d, { defaults: w.UWFinance.defaults(), changed: changedPaths(model), filled: readFilled() }); } catch { toast('The tool’s figures could not be read.'); return; }
   if (!plan.changes.length) { toast(`Nothing to bring into the deal: ${plan.skipped.length ? 'the tool’s fields are blank, still at their starting values, or the same as the deal’s.' : 'the figures match.'}`); return; }
   const name = d.name || 'this deal';
-  const go = await new Promise((resolve) => {
-    const ok = button('btn btn-primary', 'Bring into deal', () => { api.sheetClose(); resolve(true); });
-    const no = button('btn', 'Cancel', () => { api.sheetClose(); resolve(false); });
-    const body = api.sheetOpen({ eyebrow: 'Underwriting tool', title: `Bring into ${name}?`, sub: `These figures replace the deal’s. Nothing else is changed, and you can undo it.${plan.changes.some((c) => c.id === 'price') ? ' The price is marked as typed, from the tool.' : ''}`, foot: [no, ok] });
-    const tbl = el('div', 'uw-diff');
-    for (const c of plan.changes) { const row = el('div', 'uw-diff-r'); row.append(el('b', null, c.label), el('span', 'uw-diff-b', `Before: ${c.beforeShown}`), el('span', 'uw-diff-a', `After: ${c.afterShown}`)); tbl.appendChild(row); }
-    body.appendChild(tbl);
-    document.getElementById('sheet')?.addEventListener('close', () => resolve(false), { once: true });
+  const go = await choose(api, {
+    title: `Bring into ${name}?`,
+    sub: `These figures replace the deal’s. Nothing else is changed, and you can undo it.${plan.changes.some((c) => c.id === 'price') ? ' The price is marked as typed, from the tool.' : ''}`,
+    body: [diffTable(plan.changes)], choices: [['go', 'Bring into deal', true]],
   });
-  if (!go) return;
-  const set = (x, path, v) => { const [g, k] = path.split('.'); x[g] ||= {}; if (v === null || v === undefined) { if (g === 'live') delete x[g][k]; else x[g][k] = null; } else x[g][k] = v; };
-  const cur = (x, path) => { const [g, k] = path.split('.'); const v = x[g] ? x[g][k] : undefined; return v === undefined || v === '' ? null : v; };
-  const same = (a, b) => (typeof a === 'number' && typeof b === 'number' ? Math.abs(a - b) < 1e-9 : a === b);
-  const before = new Map(); let src; let stale = false;
-  const done = await updateDeal(d.id, (x) => {
-    // the plan was made before the confirm: if the deal moved since, write nothing
-    if (plan.changes.some((c) => !same(cur(x, c.dealPath), c.before))) { stale = true; return false; }
-    src = x.sources?.price ? { ...x.sources.price } : undefined;
-    for (const c of plan.changes) { before.set(c.dealPath, c); set(x, c.dealPath, c.after); }
-    if (before.has('figures.price')) {   // as dealui's applyFromTools does: keep the source's own figure (orig), mark it typed from the tool
-      x.sources ||= {};
-      const s0 = x.sources.price;
-      if (s0) { s0.hand = s0.orig !== x.figures.price; s0.tool = TOOL_TITLE; } else x.sources.price = { hand: true, tool: TOOL_TITLE };
-    }
-    return true;
-  }, { kind: 'tool', label: `From the ${TOOL_TITLE}: ${plan.changes.map((c) => c.label.toLowerCase()).join(', ')}` });
-  if (stale) { toast('The deal changed while you were deciding. Open the tool again.'); return; }
-  if (!done) { toast('The deal could not be changed.'); return; }
-  toast(`${plan.changes.length} figure${plan.changes.length === 1 ? '' : 's'} brought into ${name}.`, {
-    label: 'Undo',
-    run: async () => {
-      let skipped = 0;
-      await updateDeal(d.id, (x) => {
-        for (const [path, c] of before) {
-          if (!same(cur(x, path), c.after)) { skipped += 1; continue; }   // edited since: not put back over the newer value
-          set(x, path, c.before);
-          if (path === 'figures.price') { x.sources ||= {}; if (src) x.sources.price = src; else delete x.sources.price; }
-        }
-        return skipped < before.size;
-      }, { kind: 'tool', label: `Undid: figures brought from the ${TOOL_TITLE}` });
-      toast(skipped ? `Undone, except ${skipped} figure${skipped === 1 ? '' : 's'} you have changed since: those were left as they are.` : 'Undone: the deal has its earlier figures again.');
-    },
-  }, 9000);
+  if (go !== 'go') return;
+  await writeChanges(d, plan.changes, name);
 }
 
 function draw(force = false) {
@@ -647,6 +580,8 @@ function escapeLeaves(e, doc) {
 export function initUnderwrite(compsApi) {
   api = compsApi;
   initIntake();
+  // the tool's Model step gets the app's Quick check, calculators and Save as deal (uwfiller/toolbridge.js): given to the page's own frame, each time it loads
+  document.addEventListener('uwtoolload', () => { const f = frameEl(); if (f) installToolBridge(f.contentWindow, { api, frame: f }); });
   const relink = () => { const c = $('uw-calc-card'); if (c) fillCalculators(c); };
   document.addEventListener('workspacechange', relink);
   workspaceReady().then(relink);

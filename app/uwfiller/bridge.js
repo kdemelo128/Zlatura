@@ -148,3 +148,120 @@ export function fillRecord(rec, dealId, fills) {
   out[dealId] = { ...(out[dealId] || {}), ...Object.fromEntries(fills.map((f) => [f.path, f.value])) };
   return out;
 }
+
+/* ----- the Quick check inside the tool's Model step (release 3 of docs/proposals/one-underwriting-space.md) -----
+ * The panel's inputs start from the tool's own figures, by the same rules as above: a blank stays blank (null), a value
+ * the tool still has at its starting value is not the broker's and is not prefilled, percent numbers are read from the
+ * tool's decimals exactly, money is whole cents. The loan and closing costs are dollars in the tool and percents of price
+ * in the engine: they are converted only when the price is a positive dollar figure (plain division, nothing guessed). */
+
+const QROW = {
+  rate: ROWS.find((r) => r.id === 'rate'), amort: ROWS.find((r) => r.id === 'amort'), hold: ROWS.find((r) => r.id === 'hold'),
+  exitCap: ROWS.find((r) => r.id === 'exitCap'), saleCost: ROWS.find((r) => r.id === 'saleCost'),
+};
+const pctOfPrice = (dollars, price) => roundTo((dollars / price) * 100, 10);
+
+/**
+ * The Quick check's starting figures from the tool. Nothing is changed.
+ * @param {any} model the tool's model (UWEditor.model())
+ * @param {{ noi?: number | null, defaults?: any, changed?: Set<string> }} [opts] noi: the tool's own first forecast year NOI; it is used only when the tool holds a tenant or an account (an empty model's 0 is no one's NOI)
+ * @returns {{ values: { price: number|null, noi: number|null, ltv: number|null, rate: number|null, amort: number|null, closing: number|null, hold: number|null, exitCap: number|null, saleCost: number|null }, blank: { label: string, why: string }[] }}
+ */
+export function quickFromTool(model, { noi = null, defaults = {}, changed = new Set() } = {}) {
+  const f = model?.finance || {};
+  const values = { price: null, noi: null, ltv: null, rate: null, amort: null, closing: null, hold: null, exitCap: null, saleCost: null };
+  const left = [];
+  const hasSource = (Array.isArray(model?.tenants) ? model.tenants.length : 0) + (Array.isArray(model?.accounts) ? model.accounts.length : 0) > 0;
+  const price = ok(+f.price) && !blank(f.price) && +f.price > 0 ? toCents(+f.price) : null;
+  values.price = price;
+  if (price === null) left.push({ label: 'Price', why: 'blank in the tool' });
+  if (hasSource && ok(noi)) values.noi = toCents(noi); else left.push({ label: 'NOI', why: hasSource ? 'the tool has no NOI yet' : 'the tool has no rent roll or statement yet' });
+  const mineRow = (r, key) => !untouched(r, model, defaults, changed) && !blank(f[key]);
+  for (const [id, key] of [['rate', 'rate'], ['amort', 'amortization'], ['hold', 'holdYears'], ['exitCap', 'exitCap'], ['saleCost', 'saleCost']]) {
+    const r = QROW[id];
+    const v = mineRow(r, key) ? r.back(get(model, r.path)) : null;
+    values[id] = v;
+    if (v === null) left.push({ label: r.label, why: blank(f[key]) ? 'blank in the tool' : untouched(r, model, defaults, changed) ? 'still the tool’s starting value, not one you set' : 'not a value the check can take' });
+  }
+  // dollars in the tool, percent of price here
+  const dollars = (key, label, id) => {
+    const raw = f[key];
+    const pseudo = { path: `finance.${key}`, fin: key };
+    if (blank(raw) || !ok(+raw)) { left.push({ label, why: 'blank in the tool' }); return; }
+    if (untouched(pseudo, model, defaults, changed)) { left.push({ label, why: 'still the tool’s starting value, not one you set' }); return; }
+    if (price === null) { left.push({ label, why: 'a dollar amount in the tool, a percent of price here: it needs the price' }); return; }
+    if (+raw < 0) { left.push({ label, why: 'negative in the tool' }); return; }
+    values[id] = pctOfPrice(+raw, price);
+  };
+  dollars('loan', 'Loan to value', 'ltv');
+  dollars('closing', 'Closing costs', 'closing');
+  return { values, blank: left };
+}
+
+/** The tool's own figures for the two measures the engine also gives, in whole cents (null where the tool has none). */
+export function toolMeasures(model, calc) {
+  const f = model?.finance || {};
+  const loan = !blank(f.loan) && ok(+f.loan) && +f.loan > 0 ? toCents(+f.loan) : null;
+  const equity = calc && !(calc.errors && calc.errors.length) && ok(calc.equity) ? toCents(calc.equity) : null;
+  return { loan, equity };
+}
+
+/**
+ * Where the tool's figure and the engine's figure for the same measure differ by more than a cent: both are shown, and
+ * the deal keeps the engine's (owner decision 1, 2026-11-12). Compared in whole cents.
+ * @param {{ loan?: number|null, equity?: number|null }} engine
+ * @param {{ loan?: number|null, equity?: number|null }} tool
+ * @returns {{ id: string, label: string, engine: number, tool: number, diff: number }[]}
+ */
+export function measureFlags(engine, tool) {
+  const out = [];
+  for (const [id, label] of [['loan', 'Loan'], ['equity', 'Equity']]) {
+    const e = engine?.[id]; const t = tool?.[id];
+    if (!ok(e) || !ok(t)) continue;
+    const diff = Math.round(e * 100) - Math.round(t * 100);
+    if (Math.abs(diff) > 1) out.push({ id, label, engine: e, tool: t, diff: diff / 100 });
+  }
+  return out;
+}
+
+/** Quick check figures (the panel's inputs as numbers) as the deal fields they set: { path, value } for each one that has a value. */
+export const QUICK_DEAL_PATHS = {
+  price: 'figures.price', noi: 'figures.noi', ltv: 'loan.ltv', rate: 'loan.rate', amort: 'loan.amort', closing: 'loan.closing',
+  hold: 'live.hold', exitCap: 'live.exitCap', saleCost: 'live.saleCost',
+};
+
+const QSHOW = {
+  price: (v) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, noi: null, ltv: (v) => `${v}%`, rate: (v) => `${v}%`,
+  amort: (v) => `${v} years`, closing: (v) => `${v}%`, hold: (v) => `${v} years`, exitCap: (v) => `${v}%`, saleCost: (v) => `${v}%`,
+};
+QSHOW.noi = QSHOW.price;
+const QLABEL = { price: 'Price', noi: 'NOI', ltv: 'Loan to value', rate: 'Interest rate', amort: 'Amortization, years', closing: 'Closing costs', hold: 'Hold period, years', exitCap: 'Exit cap rate', saleCost: 'Sale costs' };
+const qMoney = (id, v) => (id === 'price' || id === 'noi' ? toCents(v) : v);
+
+/**
+ * What "Save as deal" would change in the open deal, for the before/after confirm: each Quick check figure that has a value
+ * and differs from the deal's. A blank in the check never clears the deal's figure. Money is whole cents. Nothing is changed here.
+ * @param {Record<string, number|null>} values the check's figures (price, noi, ltv, rate, amort, closing, hold, exitCap, saleCost)
+ * @param {{ figures?: any, loan?: any, live?: any }} deal as dealForBridge() gives it
+ * @returns {{ changes: { id: string, label: string, dealPath: string, before: any, after: any, beforeShown: string, afterShown: string }[], same: string[] }}
+ */
+export function planQuickToDeal(values, deal) {
+  const changes = []; const sameLabels = [];
+  for (const [id, dealPath] of Object.entries(QUICK_DEAL_PATHS)) {
+    const raw = values?.[id];
+    if (!ok(raw)) continue;
+    const after = qMoney(id, raw);
+    const before = get(deal, dealPath);
+    const has = ok(before);
+    if (has && same(before, after)) { sameLabels.push(QLABEL[id]); continue; }
+    changes.push({ id, label: QLABEL[id], dealPath, before: has ? before : null, after, beforeShown: has ? QSHOW[id](before) : 'blank', afterShown: QSHOW[id](after) });
+  }
+  return { changes, same: sameLabels };
+}
+
+/** The figures a new deal made from the check starts with, as a list for the confirm: [{ label, shown }] for each that has a value. */
+export function quickFigureList(values) {
+  const out = [];
+  for (const id of Object.keys(QUICK_DEAL_PATHS)) { const v = values?.[id]; if (ok(v)) out.push({ label: QLABEL[id], shown: QSHOW[id](qMoney(id, v)) }); }
+  return out;
+}

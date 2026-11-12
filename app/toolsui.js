@@ -313,11 +313,13 @@ function inputField(t, [id, label, kind, ph, help], mem, onDate) {
 
 /* ------------------------------------------------------------ the sheet */
 
-function open(t) {
+function open(t, seed = null) {
   if (t.rows) { openWalt(t); return; }
   if (t.docs === 'convert') { import('./convertui.js').then((m) => m.openConvert(api)); return; }
   if (t.docs) { import('./pdfpagesui.js').then((m) => m.openPdfPages(api)); return; }
   const mem = (memory[t.id] ||= {});
+  // figures the caller holds (the underwriting tool's Model step): they replace what was remembered, field by field, only where it has one
+  if (seed) for (const [k, v] of Object.entries(seed)) if (ok(v) && t.inputs.some((i) => i[0] === k)) mem[k] = v;
   const d = dealForTools();
   const ctx = { deal: d, sales: api.sales };
   const clear = el('button', 'btn btn-gray', 'Clear');
@@ -718,6 +720,15 @@ export function openToolById(id) {
   if (!t) return;
   api.showView('tools');
   open(t);
+}
+
+/** Open a tool's sheet where the broker is (the underwriting tool's Model step): no screen change. `seed` is { inputId: number } for the
+ * tools that share a figure with the caller; ids the tool has no input for are ignored. Returns false for an id that is not a tool. */
+export function openToolSheet(id, seed = null) {
+  const t = TOOLS.find((x) => x.id === id);
+  if (!t) return false;
+  open(t, seed);
+  return true;
 }
 
 export function initTools(compsApi) {

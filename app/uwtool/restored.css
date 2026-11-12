@@ -170,3 +170,24 @@ html[data-motion="off"] #uwHint{transition:none;transform:none}
 @media(max-width:620px){.tool-card-grid[data-count]{grid-template-columns:1fr}}
 .tab-what{font-weight:600;color:var(--ink,#302c3b)}
 @media(max-width:620px){.tool-search-bar input{flex:1 1 100%;order:2;max-width:none}.tool-search-bar label{order:1;flex:1 1 100%}.tool-search-bar button{order:3}.tool-search-bar>span{order:4}}
+/* Quick check and Calculators, top of the Model step (quick-check.js): the tool's own tokens, 44 px targets, no motion of its own */
+.quick-check{border:1px solid var(--line);border-radius:12px;background:var(--field);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.quick-check h3{margin:0;font-size:16px;font-weight:600}
+.qc-head{display:flex;flex-direction:column;gap:4px}
+.qc-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.quick-check input{min-height:44px;background:var(--card)}
+.quick-check button,.quick-check summary{min-height:46px}
+.quick-check label,.quick-check .small{color:var(--ink)}
+.quick-check summary{display:flex;align-items:center}
+.qc-err{color:var(--bad);min-height:0}.qc-err:empty{display:none}
+.qc-blank:empty{display:none}
+.qc-results{list-style:none;margin:0;padding:0;display:grid;gap:0;border-top:1px solid var(--line)}
+.qc-results li{display:flex;justify-content:space-between;gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.qc-results li.strong b{font-weight:700}.qc-results b{font-weight:500;font-family:var(--mono);text-align:right;white-space:nowrap}
+.qc-why{display:block}
+.qc-notes:empty{display:none}.qc-notes .msg{margin:0 0 6px}
+.qc-flag p{margin:0}.qc-flag p+p{margin-top:4px}
+.qc-acts{gap:10px}
+.qc-calc-list{display:flex;flex-direction:column;gap:12px;margin-top:8px}.qc-group{display:flex;flex-direction:column;gap:6px}
+.qc-calcs{margin-top:0;padding-top:4px}
+@media(max-width:600px){.qc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
