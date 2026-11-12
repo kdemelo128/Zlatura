@@ -79,7 +79,7 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
     // B. a filtered report
     await openPdf('pm-roll-filtered.pdf');
     check(N('B: the filter fails the completeness check, saying where'), (await page.locator('#rrpdf-qc .qc-item[data-check^="subset"].qc-fail').count()) === 1 && /Status Filter: Current/.test(await text('#rrpdf-qc')), (await text('#rrpdf-qc')).slice(0, 300));
-    check(N('B: its rows can be reviewed, held back'), (await page.locator('#sheet-body .rrpdf-rows tbody tr').count()) === 6 && /held back/.test(await text('#sheet-body')));
+    check(N('B: its rows can be reviewed, held back'), (await page.locator('#sheet-body .rrpdf-rows tbody tr').count()) === 6 && /held back/i.test(await text('#sheet-body')), String(await page.locator('#sheet-body .rrpdf-rows tbody tr').count()) + ' ' + (await text('#sheet-body')).slice(-300));
     check(N('B: Use is off'), await useOff());
     await page.locator('#rrpdf-qc button', { hasText: 'Accept the reading as it stands' }).click();
     await page.waitForTimeout(300);
