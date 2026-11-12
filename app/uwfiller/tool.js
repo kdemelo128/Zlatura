@@ -13,8 +13,40 @@ export function toolCard() {
   const c = el('section', 'uwt');
   c.id = 'uw-tool';
   c.setAttribute('aria-label', `${PRODUCT} underwriting`);
-  c.appendChild(frame());
+  const f = frame();
+  const skel = el('div', 'uwt-skel');   // a calm neutral stand-in until the tool has painted its final look
+  skel.setAttribute('aria-hidden', 'true');
+  for (const w of ['38%', '72%', '58%', '90%', '90%']) { const b = el('i'); b.style.width = w; skel.appendChild(b); }
+  c.setAttribute('aria-busy', 'true');
+  f.classList.add('uwt-wait');
+  c.append(f, skel);
+  f.addEventListener('load', () => { if (!f.src) return; whenPainted(f, () => {   // (an empty frame's own about:blank load is not the tool)
+    f.classList.remove('uwt-wait');   // fades in (styles.css)
+    skel.classList.add('uwt-skel-out');
+    c.removeAttribute('aria-busy');
+    setTimeout(() => skel.remove(), 260);
+  }); });
+  // a tool that never reports (blocked, offline without its files) is shown anyway after a while, so the tab is never blank
+  setTimeout(() => { if (f.classList.contains('uwt-wait')) { f.classList.remove('uwt-wait'); skel.remove(); c.removeAttribute('aria-busy'); } }, 12000);
   return c;
+}
+
+/** The tool paints in stages: its first paint still has the old guide bird ("One step at a time"), which its own last
+ * scripts then rewrite. Wait until that is done (and the page has finished loading), then two frames, then call `done`.
+ * No answer in 6 s (or a frame we cannot read): call it anyway. */
+function whenPainted(f, done) {
+  const t0 = performance.now();
+  const tick = () => {
+    let ready = false;
+    try {
+      const d = f.contentDocument;
+      const g = d && d.querySelector('.juniper-guide strong');
+      ready = !!d && d.readyState === 'complete' && (!g || g.textContent !== 'One step at a time.');
+    } catch { ready = true; }
+    if (ready || performance.now() - t0 > 6000) requestAnimationFrame(() => requestAnimationFrame(done));
+    else setTimeout(() => tick(), 50);
+  };
+  tick();
 }
 
 /** The iframe, with no address until it is on screen. */
