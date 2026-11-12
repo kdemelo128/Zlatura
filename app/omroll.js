@@ -49,7 +49,7 @@ import { RENT_KINDS, plausible, median, readings, competing, READING_NAME as REA
 /* ------------------------------------------------------------ the lines */
 
 /** Where a cell's characters sit on the page, from the fragments layout.js recorded. */
-function spanOf(frags, start, end) {
+export function spanOf(frags, start, end) {
   let x0 = Infinity; let x1 = -Infinity;
   for (const f of frags) {
     if (f.e <= start || f.s >= end) continue;

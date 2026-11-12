@@ -96,9 +96,14 @@ export function layoutPage(items, viewportHeight, geom = null) {
       const it = ln.items[i];
       if (i > 0) {
         const gap = it.x - endX;
+        // A word-space follows the neighbouring text's font, not the page's
+        // median font (a dense financial table often uses smaller figures).
+        const previous = ln.items[i - 1];
+        const local = Math.min(previous.w > 0 ? previous.w / previous.s.length : cw, it.w > 0 ? it.w / it.s.length : cw);
+        const space = Math.max(cw, local);
         let n;
-        if (gap < 0.3 * cw) n = 0;
-        else if (gap <= 1.15 * cw) n = 1;
+        if (gap < 0.3 * space) n = 0;
+        else if (gap <= 1.15 * space) n = 1;
         else n = Math.max(2, Math.round(gap / cw));
         text += ' '.repeat(n);
       }
