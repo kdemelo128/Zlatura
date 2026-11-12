@@ -218,6 +218,7 @@ function itemRow(it) {
   const main = el('div', 'dd-open');
   main.append(el('span', 'dd-type', it.type ? typeLabel(it.type) : 'What is this?'), el('span', 'dd-name', it.name), el('span', 'dd-sub', `${it.from ? `From ${it.from}. ` : ''}${it.confidence} · ${it.reason}`));
   line.appendChild(main);
+  if (it.ocrInfo && it.ocrInfo.read && it.ocrInfo.read.length) { const m = el('span', 'dd-chip dd-ocr', 'Read by OCR: check figures'); m.dataset.ocrMark = it.id; line.appendChild(m); }
   if (it.state === 'used') line.appendChild(el('span', 'dd-chip dd-reviewed', 'Used'));
   else if (it.state === 'skipped') line.appendChild(el('span', 'dd-chip', 'Skipped'));
   li.appendChild(line);

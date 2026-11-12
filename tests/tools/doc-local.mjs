@@ -9,6 +9,9 @@
  *
  *   node tests/tools/doc-local.mjs                       # private/docs
  *   node tests/tools/doc-local.mjs private/docs --labels
+ *   --ocr                    a PDF with no text layer is read by the app's on-device OCR (app/ocrpdf.js, the same code and
+ *                            limits the app runs): the engine runs in Playwright's Chromium (tests/tools/ocr-browser.mjs; it cannot
+ *                            run in Node), everything else here. Slow: about a minute a page on a cloud machine. Adds a count line.
  *   --allow-outside-private  lets a folder elsewhere be read (the tests use it on invented files)
  *   --reasons                after the family table, WHY each refused, asked or identified file ended where it did:
  *                            a 'reason | files' table and a 'family | reason | files' table, counts only. A reason is
@@ -38,6 +41,7 @@ import * as pdfjs from '../../vendor/pdf-4.7.76-legacy.min.js';
 import { checkUpload, checkReader } from '../../app/filekind.js';
 import { classify } from '../../app/ddtypes.js';
 import { pdfPages } from '../../app/pdftext.js';
+import { readPdfOcr, ocrOf } from '../../app/ocrpdf.js';
 import { readGrids } from '../../app/sheetread.js';
 import { sheetChoices, pickSheet, layoutOf, numberFormatOf, importStatement, statementTotals } from '../../app/t12.js';
 import { readOm } from '../../app/om.js';
@@ -88,7 +92,12 @@ const fileLike = (f) => {
 };
 const getXlsx = async () => ({ ExcelJS, fflate });
 const getFflate = async () => fflate;
-const readPdf = async (bytes) => { const layouts = []; const pages = await pdfPages(pdfjs, new Uint8Array(bytes), { layouts, verbosity: 0 }); return { pages, layouts }; };
+const readText = async (bytes) => { const layouts = []; const pages = await pdfPages(pdfjs, new Uint8Array(bytes), { layouts, verbosity: 0 }); return { pages, layouts }; };
+let ocrBrowser = null; // --ocr: the engine, in a browser; the app's own ocrpdf.js decides what to read
+if (flag('--ocr')) { const { openOcrBrowser } = await import('./ocr-browser.mjs'); ocrBrowser = await openOcrBrowser(); }
+const readPdf = async (bytes) => (ocrBrowser
+  ? readPdfOcr(pdfjs, new Uint8Array(bytes), readText, () => ({ signal: { aborted: false }, say() {}, end() {} }), { open: ocrBrowser.open, supported: () => true })
+  : readText(bytes));
 
 const same = (a, b) => (typeof a === 'number' || typeof b === 'number') ? Math.abs(Number(a) - Number(b)) <= 0.005 : String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 
@@ -172,6 +181,7 @@ const reasonCount = {}; const reasonByFam = {};
 const fam = {}; // family -> counts
 const bump = (f, k, n = 1) => { (fam[f] ||= { files: 0, accepted: 0, asked: 0, refused: 0, identified: 0, right: 0, wrong: 0, askedFields: 0, missed: 0, answered: 0 })[k] += n; };
 const labels = {};
+const ocrStats = { files: 0, pages: 0, unsure: 0, accepted: 0 };
 const perFile = [];
 
 // A zip is opened in memory by the app's own code (ddintake.js zipMembers) and each file inside it is one unit, read exactly as a
@@ -211,6 +221,7 @@ for (const u of units) {
     if (!info.refuse && !readerNote) {
       if (sniffedKind === 'pdf') { try { pages = await readPdf(new Uint8Array(await file.arrayBuffer())); } catch (e) { pdfErr = e; pages = null; } } else if (['xlsx', 'text'].includes(sniffedKind)) { try { grids = await readGrids(file, getXlsx, { maxRows: 1500, getFflate }); } catch (e) { gridErr = e; grids = null; } }
     }
+    if (ocrBrowser && info.sha256 && ocrOf(info.sha256) && ocrOf(info.sha256).read.length) { const o = ocrOf(info.sha256); ocrStats.files += 1; ocrStats.pages += o.read.length; ocrStats.unsure += o.unsure; ocrStats.accepted += v.type ? 1 : 0; }
     if (info.refuse || readerNote) { outcome = 'refused'; family = sniffedKind || 'unknown'; }
     else if (v.type) { outcome = 'accepted'; family = v.reader; }
     else {
@@ -269,6 +280,11 @@ if (REASONS) {
   for (const [fm, rs] of Object.entries(reasonByFam).sort()) for (const [r, n] of Object.entries(rs).sort()) console.log(`${fm} | ${r} | ${n}`);
 }
 if (flag('--verbose-files')) for (const l of perFile) console.log(l);
+if (ocrBrowser) {
+  console.log(`ocr | files read by OCR | pages read | figures left blank as unsure | files then accepted`);
+  console.log(`ocr | ${ocrStats.files} | ${ocrStats.pages} | ${ocrStats.unsure} | ${ocrStats.accepted}`);
+  await ocrBrowser.close();
+}
 if (flag('--labels')) {
   const out = path.join(path.dirname(folder), 'doc-local-labels.json');
   fs.writeFileSync(out, JSON.stringify(labels, null, 2));

@@ -7,7 +7,7 @@
 import { el, toast, actionSheet, money0, money2, niceDate, getXlsx, getFflate, getPdfjs } from './kit.js';
 import { readGrids, pastedRows } from './sheetread.js';
 import { checkUpload, checkReader, LIMITS } from './filekind.js';
-import { pdfPages } from './pdftext.js';
+import { pdfPagesWithOcr as pdfPages } from './ocrpdf.js'; // a scan already read by OCR gives that text
 import { pdfStatementChoices, statementFromPdfChoice } from './pdfstatement.js';
 import {
   CATEGORIES, CATEGORY, SIDES, statementTotals, annualized, openLines, fileLine, periodText, rematch, sourceText, periodShort, lineNotes,

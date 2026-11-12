@@ -117,7 +117,8 @@ export function openScanReader(pdfjs, bytes) {
     return w;
   })().catch((e) => { starting = null; throw e; }));
   return {
-    async read(pageNo, { onProgress = (/** @type {string} */ _t) => {} } = {}) {
+    /** `blankBelow` (0 to 100): a word with a digit in it that OCR is less sure of than this is left out, so its cell is blank (and asked), never a guessed figure; `unsure` counts them, `low` the other words under that confidence that stay (flagged by their line's confidence). */
+    async read(pageNo, { onProgress = (/** @type {string} */ _t) => {}, blankBelow = 0 } = {}) {
       say = onProgress;
       onProgress('Drawing the page…');
       doc ||= await pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false, useSystemFonts: false }).promise;
@@ -138,10 +139,11 @@ export function openScanReader(pdfjs, bytes) {
         const base0 = l.baseline && Number.isFinite(l.baseline.y0) ? (l.baseline.y0 + l.baseline.y1) / 2 : null;
         for (const t of l.words || []) words.push({ text: t.text, conf: t.confidence, x0: t.bbox.x0, y0: t.bbox.y0, x1: t.bbox.x1, y1: t.bbox.y1, base: base0 });
       }
+      const kept = blankBelow ? words.filter((t) => !(/\d/.test(t.text) && (t.conf || 0) < blankBelow)) : words;
       const geom = {};
-      const text = layoutPage(itemsFromWords(words, canvas.height), canvas.height, geom);
+      const text = layoutPage(itemsFromWords(kept, canvas.height), canvas.height, geom);
       const conf = words.length ? words.reduce((n, t) => n + (t.conf || 0), 0) / words.length : 0;
-      return { text, geom, words: words.length, conf, scale: SCALE };
+      return { text, geom, words: words.length, conf, scale: SCALE, unsure: words.length - kept.length, low: blankBelow ? kept.filter((t) => (t.conf || 0) < blankBelow).length : 0 };
     },
     async restart() { const w = worker; worker = null; starting = null; if (w) await w.terminate().catch(() => {}); },
     async close() { await this.restart(); const d = doc; doc = null; if (d) await d.destroy().catch(() => {}); },

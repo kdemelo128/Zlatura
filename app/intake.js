@@ -13,6 +13,7 @@
 import { lookAt, identify } from './ddintake.js';
 import { typeLabel, isType } from './ddtypes.js';
 import { blocked } from './ai.js';
+import { ocrNote } from './ocrpdf.js';
 
 /** The documents the checklist asks about first. */
 export const CHECKLIST = Object.freeze(['rentroll', 't12', 'lease', 'om']);
@@ -52,16 +53,19 @@ export function stage(plan, info, file, dd = null) {
   const v = info.verdict || {};
   const type = isType(v.type) ? v.type : null;
   const looks = isType(v.looks) ? v.looks : null;
+  const ocrRead = !!(info.ocr && info.ocr.read && info.ocr.read.length);
   const item = {
     id: `f${++plan.seq}`, name: String(info.name ?? ''), file, kind: info.kind || 'other', size: info.size | 0, sha256: info.sha256 || null, pages: info.pages || null,
     type, typeBy: type ? 'reader' : null,
-    confidence: type ? 'Read' : looks ? 'Looks like' : 'Not sure',
+    confidence: type ? (ocrRead ? 'Read by OCR' : 'Read') : looks ? 'Looks like' : 'Not sure',
     reason: type ? (REASONS[v.reader] || 'A reader on this device recognised it.') : looks ? `Its text reads like a ${typeLabel(looks).toLowerCase()}. Confirm it, or choose another type.` : v.scanned ? NO_TEXT : 'Nothing in it says what it is. Choose a type, or skip it.',
     // a PDF with almost no text keeps its bytes in memory so the broker can ask for OCR (readScan); they are never stored
     scanned: !type && !!v.scanned && !!info.bytes, bytes: /** @type {Uint8Array | null} */ (!type && v.scanned && info.bytes ? info.bytes : null), ocr: false,
     ask: type ? [] : [...new Set([...(looks ? [looks] : []), ...(v.ask || []).filter(isType)])],
+    ocrNote: info.ocr ? ocrNote(info.ocr) : '', ocrInfo: /** @type {any} */ (info.ocr || null),
     use: useLabel(type), state: 'staged', from: /** @type {string | null} */ (info.from || null), dup: /** @type {string | null} */ (null), refuse: /** @type {string | null} */ (info.refuse || null),
   };
+  if (item.ocrNote) item.reason = `${item.reason} ${item.ocrNote}`;
   const same = (x) => (item.sha256 ? x.sha256 === item.sha256 : !x.sha256 && x.name === item.name && x.size === item.size);
   const twin = plan.items.find((x) => !x.refuse && !x.dup && same(x));
   const onDeal = !twin && dd && Array.isArray(dd.docs) ? dd.docs.find((x) => (item.sha256 ? x.sha256 === item.sha256 : false)) : null;
@@ -212,7 +216,7 @@ export async function stageFiles(plan, files, deps, dd = null, onStep = () => {}
     }
     // a zip is several files: each part is staged exactly as if it had been dropped itself, naming the zip it came from
     let last = null;
-    for (const s of seen) { last = stage(plan, s.info, s.file, dd); out.push(last); }
+    for (const s of seen) { if (deps.ocrOf && s.info.sha256) s.info.ocr = deps.ocrOf(s.info.sha256); last = stage(plan, s.info, s.file, dd); out.push(last); }
     onStep(file, seen.length && seen.every((s) => s.info.refuse) ? 'failed' : 'done', last || undefined);
   }
   return out;

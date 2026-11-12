@@ -33,6 +33,8 @@ import { omReadRecord, applyOmFix, heldFields, basisText } from './omstatement.j
 import { resolveCheck, blockingChecks, qcCounts, openChecks, whereText } from './dataqc.js';
 import { checkReader } from './filekind.js';
 import { readScannedPage, readPhotoText, ocrSupported } from './ocr.js';
+import { readPdfOcr, ocrOf } from './ocrpdf.js';
+import { startOcrProgress } from './ocrprogress.js';
 import { pending as stepsDue, applyStep } from './migrate.js';
 import { renderRentRollWorkspace } from './rentrollui.js';
 import { redrawKeepingFocus } from './focuskeep.js';
@@ -298,7 +300,9 @@ export async function discardDeal(id) {
 /** What the Start from documents card (intake.js) needs to look at a file: the same readers the Documents card uses. */
 export const intakeDeps = () => ({
   getFflate, getXlsx,
-  readPdf: async (bytes) => { const layouts = []; const pages = await api.pdfPages(await getPdfjs(), bytes, { layouts }); return { pages, layouts }; },
+  // a PDF with no text layer is read by OCR on this device by itself (ocrpdf.js): a progress line with Cancel, a page cap and a time budget
+  readPdf: async (bytes) => { const pdfjs = await getPdfjs(); return readPdfOcr(pdfjs, bytes, async (b) => { const layouts = []; const pages = await api.pdfPages(pdfjs, b.slice(), { layouts }); return { pages, layouts }; }, startOcrProgress); },
+  ocrOf,
   problem: (err, file) => pdfProblem(err, file),
   // OCR of a PDF's first page, only when the broker taps "Read it with OCR"; on this device, nothing is sent (ocr.js)
   ocrText: async (bytes, onProgress) => (await readScannedPage(await getPdfjs(), bytes.slice(), 1, { onProgress })).text,

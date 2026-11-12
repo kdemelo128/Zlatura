@@ -114,17 +114,12 @@ await page.waitForFunction(() => document.querySelectorAll('#uw-intake .uwi-why'
 const bad = await page.$$eval('#uw-intake .uwi-why', (l) => l.map((x) => x.textContent));
 check('a zip bomb and an empty zip are each refused with a reason, and the earlier files are still there', bad.some((w) => /bomb\.zip.*not opened/.test(w)) && bad.some((w) => /empty zip/.test(w)) && (await page.locator('.uwi-item').count()) === 2, bad.join(' | ').slice(0, 300));
 
-/* ---- a PDF with no text layer: OCR only when asked, then classified like any file, never typed by its text */
-const ocrBefore = requests.filter((u) => /vendor\/ocr\//.test(u)).length;
+/* ---- a PDF with no text layer: read by OCR on this device by itself (ocrscan-flow.mjs has the progress line, Cancel and the
+ * limits), marked, and still nothing on a deal; the OCR files come from this site only */
 await page.setInputFiles('#uwi-files', [F + 'rr-scan.pdf']);
-await page.waitForSelector('.uwi-item [data-ocr]');
-const scanRow = await page.locator('.uwi-item', { has: page.locator('[data-ocr]') }).first().textContent();
-check('a scan says "no text layer" and offers OCR on request; no OCR file was fetched yet', /no text layer/.test(scanRow) && !/damaged|unreadable/i.test(scanRow) && ocrBefore === 0 && requests.filter((u) => /vendor\/ocr\//.test(u)).length === 0, scanRow.slice(0, 200));
-await axe('with the scan offer, phone size');
-await page.locator('[data-ocr]').first().click();
 await page.waitForFunction(() => /Read by OCR on this device/.test(document.querySelector('#uw-intake').textContent), null, { timeout: 150000 });
 const scanAfter = await page.locator('.uwi-item', { hasText: 'rr-scan.pdf' }).first().textContent();
-check('after OCR (read on this site only) it is a question, not a typed document: "Read by OCR", no Use button, the broker chooses the type', /Read by OCR on this device/.test(scanAfter) && requests.filter((u) => /vendor\/ocr\//.test(u)).every((u) => u.startsWith(BASE)) && (await page.locator('.uwi-item', { hasText: 'rr-scan.pdf' }).first().locator('[data-use]').count()) === 0 && (await page.locator('.uwi-item', { hasText: 'rr-scan.pdf' }).first().locator('[data-type]').count()) >= 1, scanAfter.slice(0, 300));
+check('a scan is read by OCR by itself, says so and to check every figure, from this site only', /Read by OCR on this device/.test(scanAfter) && /check every figure/.test(scanAfter) && requests.filter((u) => /vendor\/ocr\//.test(u)).length >= 3 && requests.filter((u) => /vendor\/ocr\//.test(u)).every((u) => u.startsWith(BASE)), scanAfter.slice(0, 300));
 check('still nothing on a deal after OCR', (await deals()).length === before);
 await axe('after OCR, phone size');
 

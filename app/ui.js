@@ -21,6 +21,7 @@ import { isPriced } from './engine/comps.js';
 import { toCents } from './engine/money.js';
 import { setConventions } from './engine/conventions.js';
 import { pdfPages } from './pdftext.js';
+import { pdfPagesWithOcr } from './ocrpdf.js';
 import { readText } from './textfile.js';
 import { checkReader } from './filekind.js';
 import { loadComps, ppsf, mdy, MAX_COMPS } from './costar.js';
@@ -1588,7 +1589,7 @@ const compsApi = {
   showView,
   sheetOpen,
   sheetClose,
-  pdfPages,
+  pdfPages: pdfPagesWithOcr, // a scan already read by OCR gives that text (ocrpdf.js)
   // a restore writes straight to storage: any comp edit still pending goes first
   flushComps: flushSession,
 };
