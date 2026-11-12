@@ -12,6 +12,7 @@
  * Deals are saved on the device (IndexedDB) after every change. */
 
 import { readOm } from './om.js';
+import { foldControl } from './fold.js';
 import { waltMethod } from './engine/walt.js';
 import { conv } from './engine/conventions.js';
 import { strictOpen, strictWords } from './review.js';
@@ -811,50 +812,58 @@ function renderDeal(r) {
   nav.append(tabs, jump);
   stack.appendChild(nav);
 
-  // the overview: the analysis in a main column, the deal's next steps in a rail beside it
-  // (on one column the pipeline and next steps come first, so they are not below the long analysis)
-  const grid = el('div', 'ws-grid');
-  const main = el('div', 'ws-main');
-  const rail = el('div', 'ws-rail');
-  const cr = el('section', 'card ws-crm');
-  cr.id = 'deal-crm';
-  grid.append(cr, main, rail);
-  panes.overview.appendChild(grid);
-  const checks = el('section', 'card');
-  checks.id = 'deal-checks';
-  main.appendChild(checks);
-  const comps = el('section', 'card');
-  comps.id = 'deal-comps';
-  main.appendChild(comps);
-  main.appendChild(figuresCard());
-  const docs = el('section', 'card dd-card');
-  docs.id = 'deal-dd';
-  main.appendChild(docs);
-  const abstracts = el('section', 'card ab-card');
-  abstracts.id = 'deal-abstracts';
-  main.appendChild(abstracts);
-  const credit = el('section', 'card credit-card');
-  credit.id = 'deal-credit';
-  main.appendChild(credit);
-  const t12 = el('section', 'card t12-card');
-  t12.id = 'deal-t12';
-  main.appendChild(t12);
-  main.appendChild(financeCard());
-  const ladder = el('section', 'card');
-  ladder.id = 'deal-ladder';
-  main.appendChild(ladder);
-  const fee = el('section', 'card fee-card');
-  fee.id = 'deal-fee';
-  main.appendChild(fee);
-  const rr = el('section', 'card');
-  rr.id = 'deal-rr';
-  rail.appendChild(rr);
-  const rs = el('section', 'card');
-  rs.id = 'deal-rentsched';
-  rail.appendChild(rs);
-  const qs = el('section', 'card');
-  qs.id = 'deal-q';
-  rail.appendChild(qs);
+  // the overview: the deal's sections in a few named groups, each section a fold with a one-line summary
+  // (the first two open, the rest closed until opened; the choice is kept per deal)
+  const main = el('div', 'ws-groups');
+  panes.overview.appendChild(main);
+  secs = [];
+  const gbody = {};
+  const chips = el('nav', 'deal-chips');
+  chips.id = 'deal-chips';
+  chips.setAttribute('aria-label', 'Jump to a group of sections');
+  for (const [gk, gl] of GROUPS) {
+    const g = el('section', 'dgroup');
+    g.id = `dg-${gk}`;
+    const gh = el('h2', 'dgroup-h', gl);
+    gh.id = `dg-${gk}-h`;
+    gh.tabIndex = -1;
+    g.setAttribute('aria-labelledby', gh.id);
+    gbody[gk] = el('div', 'dgroup-body');
+    g.append(gh, gbody[gk]);
+    main.appendChild(g);
+    const chip = el('button', 'deal-chip', gl);
+    chip.type = 'button';
+    chip.addEventListener('click', () => { gh.scrollIntoView({ block: 'start', behavior: 'instant' }); gh.focus({ preventScroll: true }); });
+    chips.appendChild(chip);
+  }
+  nav.appendChild(chips);
+  const card = (id, cls = 'card') => { const c = el('section', cls); c.id = id; return c; };
+  const checks = card('deal-checks');
+  dsec(gbody.overview, 'checks', 'What doesn’t add up', checks, { open: true, summary: (m) => `${plural(m.checks.length, 'thing')} to look at` });
+  dsec(gbody.overview, 'figures', 'Key figures', figuresCard(), { open: true, summary: (m) => [ok(m.price) ? `${short(m.price)} asking` : null, ok(m.cap) ? `${pct(m.cap)} cap` : null, ok(m.noi) ? `${short(m.noi)} NOI` : null].filter(Boolean).join(' · ') || 'Nothing entered yet' });
+  const t12 = card('deal-t12', 't12-card');
+  dsec(gbody.income, 'statement', 'Operating statement', t12, { summary: () => (deal.t12 ? 'Statement imported' : 'Nothing imported yet') });
+  const rs = card('deal-rentsched');
+  dsec(gbody.income, 'rentsched', 'Rent schedule', rs, { summary: () => 'Rent periods by lease' });
+  const comps = card('deal-comps');
+  dsec(gbody.value, 'comps', 'Against your comps', comps, { summary: (m, c) => (c ? `${plural(c.n, 'priced sale comp')}${ok(m.vsWeighted) ? ` · asking ${signed(m.vsWeighted)}` : ''}` : 'No comps loaded') });
+  const ladder = card('deal-ladder');
+  dsec(gbody.value, 'ladder', 'Value across cap rates', ladder, { summary: (m) => (m.ladder.length ? `${short(m.ladder[m.ladder.length - 1].value)} to ${short(m.ladder[0].value)} across ${pct(m.ladder[0].cap)}–${pct(m.ladder[m.ladder.length - 1].cap)}` : 'Needs NOI') });
+  dsec(gbody.financing, 'finance', 'Financing', financeCard(), { summary: (m) => (ok(m.dscr) ? `DSCR ${times(m.dscr)} · loan ${short(m.loan)}` : 'Set loan terms') });
+  const fee = card('deal-fee', 'card fee-card');
+  dsec(gbody.financing, 'fee', 'Fee', fee, { summary: () => (deal.fee ? 'Fee record added' : 'Nothing entered yet') });
+  const rr = card('deal-rr');
+  dsec(gbody.leases, 'rr', 'Rent roll', rr, { summary: (m) => { const n = deal.rr ? deal.rr.leases.length : 0; return n ? `${plural(n, 'unit')}${m.leases && ok(m.leases.occupancy) ? ` · ${pct(m.leases.occupancy, 1)} occupied` : ''}` : 'No rent roll yet'; } });
+  const abstracts = card('deal-abstracts', 'card ab-card');
+  gbody.leases.appendChild(abstracts);
+  const credit = card('deal-credit', 'card credit-card');
+  dsec(gbody.leases, 'credit', 'Tenant credit', credit, { summary: () => (deal.credit ? 'Credit record added' : 'Nothing entered yet') });
+  const docs = card('deal-dd', 'card dd-card');
+  gbody.docs.appendChild(docs);
+  const cr = card('deal-crm', 'card ws-crm');
+  dsec(gbody.activity, 'crm', 'Contacts and follow-ups', cr, { summary: () => `Stage: ${STAGE_LABEL[stageOf(deal)]}` });
+  const qs = card('deal-q');
+  dsec(gbody.activity, 'questions', 'Questions to ask', qs, { summary: (m) => { const n = activeQuestions(m).length; return n ? `${n} open` : 'None open'; } });
   const d0 = deal;
   renderDealCrm(cr, d0, { touch: () => touch(d0), api });
   const rrw = el('section', 'card rr-card');
@@ -909,7 +918,7 @@ function docsHost(d) {
     // the reader's own panel for a type: the rent roll workspace, the T-12 card or the figures and their checks
     openReader: (type) => {
       if (type === 'rentroll') showPane('rentroll');
-      else { showPane('overview', { focus: false }); const t = $(type === 't12' ? 'deal-t12' : 'deal-checks'); if (t) t.scrollIntoView({ block: 'start' }); }
+      else { showPane('overview', { focus: false }); const t = $(type === 't12' ? 'deal-t12' : 'deal-checks'); if (t) { revealSection(t); t.scrollIntoView({ block: 'start' }); } }
     },
     ai: { ready: async () => isReady(await getAiSettings()), pick: chooseForAi },
     openAbstract: (doc) => openAbstractForDoc($('deal-abstracts'), doc),
@@ -921,17 +930,54 @@ function fileRead(d, file, info) {
   return recordFileRead(d, file, info, (meta) => touch(d, meta)).then((doc) => { if (doc && deal === d) { const box = $('deal-dd'); if (box) renderDocsCard(box, docsHost(d)); } return doc; });
 }
 
+const plural = (n, one) => `${n} ${n === 1 ? one : `${one}s`}`;
+const GROUPS = [['overview', 'Overview'], ['income', 'Income and expenses'], ['value', 'Value and returns'], ['financing', 'Financing'], ['leases', 'Leases'], ['docs', 'Documents'], ['activity', 'Activity']];
+/** The folded sections of the open deal: { id, card, wrap, f, summary(m, comps) }. */
+let secs = [];
+let lastM = null;
+/** One section of the Overview: a fold (title button, one-line summary) over its card. The card is redrawn in place and keeps its id. */
+function dsec(group, id, title, card, { open = false, summary }) {
+  const wrap = el('div', 'dsec fold');
+  wrap.id = `dsec-${id}`;
+  const head = el('div', 'fold-head');
+  const h3 = el('h3');
+  const body = el('div', 'dsec-body');
+  body.appendChild(card);
+  const f = foldControl({ scope: `deal.${deal.id}`, id, title, body, open });
+  h3.appendChild(f.btn);
+  head.append(h3, f.sum);
+  wrap.append(head, body);
+  group.appendChild(wrap);
+  f.set(f.isOpen(), false);
+  secs.push({ id, card, wrap, f, summary });
+}
+/** Summaries and visibility follow the deal's figures: a card that hides itself (no checks, no rent periods) hides its fold. */
+function syncSections(m = lastM, comps = null) {
+  if (!m) return;
+  lastM = m;
+  for (const s of secs) {
+    s.wrap.hidden = s.card.hidden;
+    try { s.f.sum.textContent = s.summary(m, comps); } catch { s.f.sum.textContent = ''; }
+  }
+}
+/** Open the fold holding `target`, so a jump or a reader's link lands on something visible. */
+function revealSection(target) {
+  const s = secs.find((x) => x.wrap.contains(target));
+  if (s && !s.f.isOpen()) s.f.set(true);
+  return s;
+}
+
 /** Jump within the same deal, using its existing panels and actions. Nothing is copied or applied. */
 async function openDealSections() {
   const d = deal;
   const sections = [
-    ['figures', 'Key figures', 'Read, type and check the deal figures', 'overview', 'deal-figures'],
+    ['figures', 'Key figures', 'Read, type and check the deal figures', 'overview', 'dsec-figures'],
     ['documents', 'Documents', 'Files and their reading status', 'overview', 'deal-dd'],
-    ['statement', 'Operating statement', 'Review the statement and its checks', 'overview', 'deal-t12'],
-    ['finance', 'Financing', 'Loan terms and the deal’s financing results', 'overview', 'deal-finance'],
+    ['statement', 'Operating statement', 'Review the statement and its checks', 'overview', 'dsec-statement'],
+    ['finance', 'Financing', 'Loan terms and the deal’s financing results', 'overview', 'dsec-finance'],
     ['roll', 'Rent roll', 'Units, leases and their projection', 'rentroll', 'deal-rentroll'],
     ['scenarios', 'Scenarios', 'Try changes in What if before applying them', 'whatif', 'pane-whatif'],
-    ['people', 'Contacts and follow-ups', 'People, tasks and dates for this deal', 'overview', 'deal-crm'],
+    ['people', 'Contacts and follow-ups', 'People, tasks and dates for this deal', 'overview', 'dsec-crm'],
     ['visit', 'Site visit', 'Notes, photos and recordings', 'visit', 'pane-visit'],
     ['export', 'Excel and Share', 'Export this deal’s workbook or share its summary', null, 'deal-toolbar'],
     ['outputs', 'Templates and deal brief', 'Fill a firm workbook or print this deal’s brief', null, 'deal-outputs'],
@@ -952,7 +998,8 @@ async function openDealSections() {
   if (toPane) showPane(toPane, { focus: false });
   const target = $(id);
   if (!target) return;
-  const focus = (id === 'deal-toolbar' ? $('deal-workbook') : id === 'deal-outputs' ? $('deal-template') : target.querySelector('h2 button, h2, button, input')) || target;
+  revealSection(target);
+  const focus = (id === 'deal-toolbar' ? $('deal-workbook') : id === 'deal-outputs' ? $('deal-template') : target.querySelector('.fold-btn, h2 button, h2, button, input')) || target;
   if (focus instanceof HTMLElement) {
     if (!focus.matches('button, input')) focus.tabIndex = -1;
     focus.focus({ preventScroll: true });
@@ -972,6 +1019,7 @@ function showPane(key, { focus = true } = {}) {
     t.setAttribute('aria-selected', String(k === key));
     t.tabIndex = k === key ? 0 : -1;
   }
+  const chips = $('deal-chips'); if (chips) chips.hidden = key !== 'overview';
   if (key === 'rentroll') drawRentRoll();
   if (focus) { const t = $(`tab-${key}`); if (t) t.scrollIntoView({ block: 'nearest' }); }
 }
@@ -1204,6 +1252,7 @@ function renderDerived() {
   renderRentSchedule(m);
   renderQuestions(m);
   renderScenario(m);
+  syncSections(m, comps);
 }
 
 const BREAK_EVEN_WHY = {
