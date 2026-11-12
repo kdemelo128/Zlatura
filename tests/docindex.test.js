@@ -171,3 +171,11 @@ test('session: text is held per deal in memory, replaced by the same file, and f
   assert.ok(S.indexFor('deal11'));
   S.forgetAll();
 });
+
+test('a short heading goes with the block under it, and consecutive headings are not lost', () => {
+  const page = 'PROPERTY\n\nDESCRIPTION\n\nThe roof is new and the lot is paved.\n\nSecond block of text here.\n\nTHE END';
+  const spans = X.passageSpans(page);
+  assert.equal(page.slice(spans[0].start, spans[0].end).trim(), 'PROPERTY\n\nDESCRIPTION\n\nThe roof is new and the lot is paved.');
+  assert.equal(page.slice(spans.at(-1).start, spans.at(-1).end).trim(), 'THE END');
+  assert.equal(spans.map((sp) => page.slice(sp.start, sp.end)).join('').replace(/\s+/g, ''), page.replace(/\s+/g, ''));
+});

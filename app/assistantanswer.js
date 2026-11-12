@@ -394,10 +394,13 @@ function withDocs(r, q, ctx) {
   const fieldId = key && KEY_FIELD[key];
   if (!ix || !fieldId || r.kind !== 'answer') return r;
   const F = FIELDS[fieldId];
-  const { hits } = search(ix, F.query, { limit: 4, scope: null });
+  const { hits } = search(ix, F.query, { limit: 6, scope: null });
+  const seen = new Set();
   for (const h of hits) {
+    if (seen.size >= 2 || seen.has(h.passage.doc)) continue;
     const x = extractField(fieldId, h.text);
     if (!x) continue;
+    seen.add(h.passage.doc);
     const card = passageCard(ix, h, fieldId, []);
     const d = ix.docs[h.passage.doc];
     const dealVal = ctx.m[key];
@@ -406,7 +409,6 @@ function withDocs(r, q, ctx) {
     r.lines.push(cmp === 'same' ? `${say} That matches the deal’s figure.` : cmp === 'differ' ? `${say} The deal holds ${showDeal(fieldId, dealVal)}, and that is the figure every calculation uses. The two differ; check the page.` : say);
     r.passages = [...(r.passages || []), card];
     r.cites.push({ text: `${docLabel(d)}, page ${h.passage.page}: the passage is quoted below.`, go: null });
-    return r;
   }
   return r;
 }
@@ -415,6 +417,12 @@ const showDeal = (fieldId, v) => (FIELDS[fieldId].kind === 'pct' ? pct(v) : mone
 /** Answer one understood question. @param {any} q from understand() @param {any} ctx */
 export function answer(q, ctx) {
   if (q.id === 'empty') return refuse(['Type a question, or pick one below.']);
+  if (q.id === 'unknown' && ctx.hasDeal && ctx.docIndex) {
+    // not one of the fixed questions: the deal's documents may still say something about it
+    const r = docAnswer({ query: q.text, field: null, subject: [], engine: null }, ctx);
+    if (r.kind === 'refuse') r.suggest = QUESTIONS.slice(0, 6).map((x) => x.example);
+    return r;
+  }
   if (q.id === 'unknown') {
     return refuse(['I can’t answer that yet. I only answer a fixed set of questions about your deal, and I don’t guess. Here is what I can do:'], { suggest: QUESTIONS.slice(0, 8).map((x) => x.example) });
   }

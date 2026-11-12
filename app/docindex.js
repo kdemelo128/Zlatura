@@ -105,13 +105,22 @@ export function passageSpans(page) {
   const lines = [];
   for (const m of text.matchAll(/[^\n]*\n?/g)) { if (m[0] === '' && m.index >= text.length) break; lines.push({ s: m.index, e: m.index + m[0].length, blank: !m[0].trim() }); }
   let cur = null;
-  const flush = () => { if (cur) { spans.push(cur); cur = null; } };
+  let carry = -1;   // where a short heading began: it goes with the block under it
+  let nLines = 0;
+  const flush = () => {
+    if (!cur) return;
+    const one = nLines === 1 && cur.end - cur.start <= 60 && !/[.:;,]\s*$/.test(text.slice(cur.start, cur.end));
+    if (one) { if (carry < 0) carry = cur.start; } else { if (carry >= 0 && !one) cur.start = carry; carry = -1; spans.push(cur); }
+    cur = null; nLines = 0;
+  };
   for (const ln of lines) {
     if (ln.blank) { flush(); continue; }
-    if (cur && ln.e - cur.start > PASSAGE_CHARS) flush();
+    if (cur && ln.e - (carry >= 0 ? carry : cur.start) > PASSAGE_CHARS) flush();
     if (!cur) cur = { start: ln.s, end: ln.e }; else cur.end = ln.e;
+    nLines += 1;
   }
   flush();
+  if (carry >= 0) spans.push({ start: carry, end: Math.max(...lines.filter((l) => !l.blank).map((l) => l.e)) });
   // a single very long line (a Word paragraph) is cut at sentence ends or spaces
   const out = [];
   for (const sp of spans) {

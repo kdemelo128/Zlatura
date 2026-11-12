@@ -42,7 +42,7 @@ export const FIELDS = {
 
 /** The value patterns, one per kind: group 1 is the printed value. */
 const VALUE = {
-  money: String.raw`(\$\s?\d[\d,]*(?:\.\d+)?\s?(?:k|mm|m|million|thousand)?\b)`,
+  money: String.raw`(\$\s?\d[\d,]*(?:\.\d+)?(?:\s?(?:k|mm|m|million|thousand)\b)?)`,
   pct: String.raw`(\d+(?:\.\d+)?\s?%)`,
   year: String.raw`((?:18|19|20)\d\d)\b(?![-/]\d)`,
   date: String.raw`(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}/\d{1,2}/\d{2,4}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4})`,
