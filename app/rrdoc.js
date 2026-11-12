@@ -37,10 +37,11 @@ export function docKind(pages, layouts = null) {
   if (text.replace(/\s/g, '').length < 200) return { kind: 'scanned', why: ['The PDF has almost no text: it is a scan or a picture.'], roll: null };
   const head = pages.slice(0, 2).join('\n');
   let roll = null;
-  try { roll = rentRoll(pages, { layouts }); } catch { roll = null; }
+  const rowLines = new Map();
+  try { roll = rentRoll(pages, { layouts, onRowLines: (row, lines) => rowLines.set(row, lines) }); } catch { roll = null; }
   const om = OM_WORDS.filter((re) => re.test(text)).length >= 2;
   const titled = ROLL_TITLE.test(head) || AS_OF.test(head);
-  const scopeChecks = roll ? reportScopeChecks(pages, roll) : [];
+  const scopeChecks = roll ? reportScopeChecks(pages, roll, rowLines) : [];
   if (om) return { kind: 'om', why: ['It reads like an offering memorandum (asking price, cap rate or investment summary wording).'], roll, scopeChecks };
   if (roll && titled) return { kind: 'rentroll', why: [`A rent roll table of ${roll.rows.length} rows${ROLL_TITLE.test(head) ? ', titled as one' : ', with an “As of” date'}.`], roll, scopeChecks };
   if (T12_TITLE.test(head) || monthLine(pages)) return { kind: 't12', why: ['It reads like an operating statement (month columns or a statement title).'], roll, scopeChecks };
@@ -55,12 +56,12 @@ const SCOPE_NOTICE = new RegExp(`^[ \\t]*(?:(?:this\\s+report|this\\s+rent\\s+ro
 /** Parsed text rolls only: inspect filter headers and explicit report-scope notices,
  * never classify arbitrary tenant cells or subtotal prose as coverage metadata.
  * These checks are transient; pdfRollRecord makes fresh acceptance state per preview. */
-function reportScopeChecks(pages, roll) {
+function reportScopeChecks(pages, roll, rowLines) {
   const starts = new Map();
   const bodies = new Map();
   for (const r of roll.rows || []) {
     const spans = new Map();
-    for (const c of [r.src, ...Object.values(r.src?.cells || {})]) {
+    for (const c of [r.src, ...Object.values(r.src?.cells || {}), ...(rowLines.get(r) || [])]) {
       const { page, line } = c || {};
       if (!Number.isInteger(page) || page < 1 || !Number.isInteger(line) || line < 1) continue;
       const span = spans.get(page) || { from: line, to: line };

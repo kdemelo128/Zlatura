@@ -827,8 +827,12 @@ function tableScore(t, P) {
  * The OM's rent roll, or null. `pages`: page text from layout.js; `layouts`:
  * each page's geometry from layout.js (optional). Returns { rows, totals,
  * columns, units, pages, page, segments, confidence, issues }.
+ * onRowLines receives the retained row and every joined body line for transient
+ * document-scope checks; these lines do not change the row or its saved shape.
+ * @param {string[]} pages
+ * @param {{ layouts?: any, onRowLines?: (row: any, lines: {page: number, line: number}[]) => void }} options
  */
-export function rentRoll(pages, { layouts = null } = {}) {
+export function rentRoll(pages, { layouts = null, onRowLines = null } = {}) {
   const P = pages.map((p, pi) => pageLines(p, layouts && layouts[pi]));
   const geo = !!(layouts && layouts.some((g) => g && g.lines));
   const tables = [];
@@ -878,6 +882,7 @@ export function rentRoll(pages, { layouts = null } = {}) {
       if (row.sf !== null && row.sf < 100 && !row.annual && !row.tenant && !row.suite) continue;
       index.set(r, base + mine.length);
       mine.push(row);
+      if (onRowLines) onRowLines(row, [{ page: r.page, line: r.line }, ...[...r.parts.before, ...r.parts.after].map((x) => ({ page: r.page, line: x.L.i + 1 }))]);
       pageSet.add(r.page);
     }
     if (doubt) {

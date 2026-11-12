@@ -1,7 +1,7 @@
 /* Invented property-manager report; reuse the existing public PDF fixture writer. */
 import { PDF_SPECS, pdfOf } from './rr-fixtures.js';
 
-export function pmCoveragePdf(filtered = true, { tenantAbove = null, kind = null } = {}) {
+export function pmCoveragePdf(filtered = true, { tenantAbove = null, tenantBelow = null, kind = null } = {}) {
   const pages = PDF_SPECS['rr-pm']();
   if (filtered) {
     const omitted = pages[0].find((i) => i.s === 'B1');
@@ -10,6 +10,10 @@ export function pmCoveragePdf(filtered = true, { tenantAbove = null, kind = null
   if (tenantAbove) {
     const tenant = pages[0].find((i) => i.s === 'Maple Leaf Bakery');
     tenant.s = tenantAbove; tenant.y += 7; tenant.size = 5;
+  }
+  if (tenantBelow) {
+    const tenant = pages[0].find((i) => i.s === 'Maple Leaf Bakery');
+    pages[0].push({ ...tenant, s: tenantBelow, y: tenant.y - 7, size: 5 });
   }
   if (kind === 'om') {
     pages[0].find((i) => i.y === 750).s = 'Offering Memorandum';

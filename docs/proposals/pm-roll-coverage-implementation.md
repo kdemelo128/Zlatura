@@ -37,3 +37,5 @@ Independent review: choosing to treat an OM/statement-labelled table as a roll
 does not accept its coverage; every classification with a parsed roll retains
 the checks. Header boundaries and explicit-notice exclusions use all parsed
 cell provenance, including tenant text above a numeric row anchor.
+
+The existing parser optionally reports each retained row's anchor and joined body lines to a caller callback. `docKind()` keeps these in a transient Map for coverage checks only; parser output, saved rows and money are unchanged. This covers continuations below an anchor that already has a tenant name.

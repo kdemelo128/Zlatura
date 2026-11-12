@@ -281,6 +281,15 @@ test('a wrapped first-tenant cell above its numeric anchor is body text, not fil
   }
 });
 
+test('a tenant continuation below an occupied anchor is body text, not a subset notice', async () => {
+  const notice = 'This report lists only a subset of units.';
+  const layouts = []; const pages = await pdfPages(pdfjs, pmCoveragePdf(false, { tenantBelow: notice }), { layouts, verbosity: 0 });
+  const doc = docKind(pages, layouts); const record = scopeRecord(doc);
+  assert.equal(doc.roll.rows.length, 3);
+  assert.equal(doc.roll.rows[0].tenant, `Maple Leaf Bakery ${notice}`);
+  assert.equal(record.held, false); assert.equal(coverage(record).length, 0);
+});
+
 test('separate charges and zero market rent never replace missing or explicit monthly base rent', () => {
   const cols = [{ h: 'Unit', w: 6 }, { h: 'Resident', w: 23 }, { h: 'Status', w: 10 }, { h: 'Sqft', w: 7, r: 1 }, { h: 'Market Rent', w: 13, r: 1 }, { h: 'Monthly Base Rent', w: 19, r: 1 }, { h: 'Monthly Charges', w: 17, r: 1 }, { h: 'Lease From', w: 12 }, { h: 'Lease To', w: 12 }, { h: 'Past Due', w: 11, r: 1 }];
   const rows = [['101', 'Invented Household', 'Occupied', '800', '0.00', '1,200.00', '125.00', '01/01/2025', 'MTM', '0.00'], ['102', 'Example Resident', 'Occupied', '900', '0.00', '1,300.00', '150.00', '02/01/2025', '01/31/2027', '15.00']];
