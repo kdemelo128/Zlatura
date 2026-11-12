@@ -127,3 +127,7 @@ The owner approved every recommendation in the session chat ("approve all recomm
 | 3 | The optional ~0.4 GB per-device model download is decided after assistant release 3, once release 1's gaps are known; nothing is downloaded until then |
 
 Releases 4 (Chrome built-in model) and 5 (WebLLM download, a new library) still need the owner's yes when they come up.
+
+## 2026-11-12: macro workbooks read as values (reader gaps 1, 4.7.147)
+
+The owner approved in the session chat ("yes approve all recommendations"): a macro-enabled workbook (.xlsm) is read in Start from documents as its saved cell values only. Macros are never run or kept, and the review shows "macros were not run; values as last saved". Anything that is not a real workbook is still refused. The rent roll and comps screens keep refusing .xlsm by name for now. Reason: 9 of 1,005 owner files were refused only for this, and reading saved values carries no macro risk (the app has no way to run them). To reverse: restore the macro-flag refusal in the reader commit of 4.7.147.
