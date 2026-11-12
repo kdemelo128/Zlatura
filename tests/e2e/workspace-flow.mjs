@@ -141,6 +141,7 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
   // Underwrite links the workspace's calculators
   await page.evaluate(() => import('./app/workspaceui.js').then((m) => m.setActive('lending')));
   await go(page, 'underwrite');
+  await page.click('#uw-view-quick');   // the calculators card is in the Quick underwrite view
   at('Underwrite links the active workspace\'s calculators and keeps the Tools link', await page.locator('#uw-calc-card [data-tool=loan]').count() === 1 && await page.locator('#uw-calculators').count() === 1);
 
   // axe on every Home, Classic and New look
@@ -246,6 +247,7 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
   const t = await toolIds(page);
   check('after a reload Tools lists "For Lending" first', t.heading === 'For Lending' && t.firstGroup === 'For Lending' && t.first.includes('loan'), JSON.stringify([t.heading, t.firstGroup]));
   await go(page, 'underwrite');
+  await page.click('#uw-view-quick');
   await page.waitForSelector('#uw-calc-card [data-tool=loan]', { timeout: 3000 }).catch(() => {});
   check('after a reload Underwrite links the Lending calculators', await page.locator('#uw-calc-card [data-tool=loan]').count() === 1 && await page.locator('#uw-calc-card [data-tool=amort]').count() === 1);
   errs.push(...errors);

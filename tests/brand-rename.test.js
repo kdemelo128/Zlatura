@@ -130,7 +130,8 @@ test('no string a person can see still says Zlatura, except the one "formerly" l
   const bad = [];
   for (const u of targets) {
     let src = read(u);
-    src = u.pathname.endsWith('.html') ? src.replace(/<!--[\s\S]*?-->/g, '') : stripComments(src);
+    if (u.pathname.endsWith('.html')) { let prev; do { prev = src; src = src.replace(/<!--[\s\S]*?-->/g, ''); } while (src !== prev); }   // repeated until nothing is left: one pass can leave a new opener behind
+    else src = stripComments(src);
     for (const re of ALLOWED) src = src.replace(re, '');
     src.split('\n').forEach((l, i) => { if (/zlatura/i.test(l)) bad.push(`${u.pathname.split('/').slice(-2).join('/')}:${i + 1}: ${l.trim().slice(0, 100)}`); });
   }
