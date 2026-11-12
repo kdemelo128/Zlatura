@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.7.140: A property manager's rent roll PDF is checked for completeness, rent basis and period before it is used (on the development branch; not merged or deployed)
+
+The rent roll PDF import already read a property manager's report and held it when a column looked like charges. It now follows the approved reader rules for the other cases that make such a report misleading.
+
+- **Filtered report.** A report that says it is filtered (a "Status Filter: Current" line, even beside "Unit Filter: All", a "Status: Current" header, or words such as "filtered" or "showing 12 of 48") fails a completeness check. Its rows can be reviewed, "Accept the reading as it stands" does not accept it, and replacing a rent roll you already have needs a second, separate confirmation.
+- **Base rent only.** Charges, balances and market rent never fill rent. A bare "Rent" column beside charges or market rent, with no sentence calling it base or contract rent, is asked about; with no rent column at all every rent stays blank and a note says why. A zero market rent does not make a zero contract rent; a missing rent stays blank.
+- **Monthly or annual is asked.** A rent column whose period the page never states (not in its heading, not in a sentence) now asks "Monthly or Annual?" with one button each; the rent is read again with the answer. Before, the reader guessed from the figures.
+- **Summary pages.** A page titled as a summary whose table has no suites or lease dates is no longer read as units (before, its small table could replace the real rent roll), and a note says so.
+- **Untitled table.** Still only offered as a possible rent roll, read after "It is a rent roll: read it" (now covered by a test).
+
+Preview, Use and Undo are unchanged: nothing is stored until "Use this rent roll", each lease keeps its PDF, page and line, and Undo restores the roll. No saved-deal result or data format changed; the reader's `periods` option is off unless the broker answers.
+
+Tested with invented fixtures only (`tests/pmroll-fixtures.js`): 13 unit tests with hand-worked rents (13,375 a month is 160,500 a year; a 5,000 answered annual stays 5,000), and a browser flow (`pmroll-flow`, phone and desktop, 66 checks, axe clean). Eleven mutations of the new guards each fail a test. Real property-manager files, Safari and a physical phone are not tested.
+
 ## 4.7.139: The Excel preview works, and the Underwrite tab no longer flashes a cartoon bird (on the development branch; not merged or deployed)
 
 - **Excel preview.** Hovering "Your Excel workbook" said "End of data reached ... Corrupted zip?". Cause: the cleaned tool carries no firm template, and its workbook builder merged the built workbook into empty template bytes. With no template, the preview and the tool's own export are now the workbook the tool builds itself. If a preview still cannot be built, it says "The preview could not be built yet. Add figures or load your template, then try again." The same empty-bytes failure also hit the tool's Fill/Export path (`filler.js`, `templateBytes.slice()` on nothing) and `exportSnapshot`; both are fixed. Made by three exact-match edits in `tools/uwtool-import.public.json`.
