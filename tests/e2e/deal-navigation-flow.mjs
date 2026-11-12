@@ -29,7 +29,7 @@ for (const [size,opts] of sizes) {
     await page.waitForFunction(async()=>{const m=await import('./app/dealui.js');return (await m.listAllDeals()).some(d=>d.figures.price===4500000);});
     const saved=()=>page.evaluate(async()=>{const m=await import('./app/dealui.js');return {id:m.currentDealId(),deal:(await m.listAllDeals()).find(d=>d.id===m.currentDealId())};});
     const before=await saved();
-    const destinations=[['Key figures','deal-figures','overview'],['Documents','deal-dd','overview'],['Operating statement','deal-t12','overview'],['Financing','deal-finance','overview'],['Rent roll','deal-rentroll','rentroll'],['Scenarios','pane-whatif','whatif'],['Contacts and follow-ups','deal-crm','overview'],['Site visit','pane-visit','visit'],['Excel and Share','deal-toolbar',null,'deal-workbook'],['Templates and deal brief','deal-outputs',null,'deal-template']];
+    const destinations=[['Key figures','dsec-figures','overview'],['Documents','deal-dd','overview'],['Operating statement','dsec-statement','overview'],['Financing','dsec-finance','overview'],['Rent roll','deal-rentroll','rentroll'],['Scenarios','pane-whatif','whatif'],['Contacts and follow-ups','dsec-crm','overview'],['Site visit','pane-visit','visit'],['Excel and Share','deal-toolbar',null,'deal-workbook'],['Templates and deal brief','deal-outputs',null,'deal-template']];
     for (const [name,id,pane,focusId] of destinations) {
       await jump.click();
       await page.getByRole('button',{name,exact:false}).filter({has:page.locator('.action-label')}).click();
