@@ -28,10 +28,36 @@ export const DESCRIPTOR = 'Brokerage workspace';
 /**
  * The mark, drawn once. installBrand() puts it in the page as one <symbol> and every place that shows
  * it (the sidebar, the top bar) is a <use> of that symbol, so a new mark is a change to this record.
- * Strokes are currentColor: the .brand-mark box sets the colour. The same name and mark are what
+ * Original feathered bird artwork, inspired by the owner’s underwriting companion. The same name and mark are what
  * the manifest, the <title> and the home-screen name say (tests/brand.test.js checks they agree).
  */
-export const MARK = { viewBox: '0 0 24 24', stroke: 2.4, body: '<path d="M6.5 6h11l-11 12h11M8.75 12h6.5"/>' };
+export const MARK = { viewBox: '0 0 128 128', stroke: 0, body: `<defs>
+  <linearGradient id="monal-jade" x2="1" y2="1"><stop stop-color="#5ee4b0"/><stop offset=".5" stop-color="#138b70"/><stop offset="1" stop-color="#07565f"/></linearGradient>
+  <linearGradient id="monal-copper" x2="1" y2="1"><stop stop-color="#ffe09a"/><stop offset=".45" stop-color="#ed9847"/><stop offset="1" stop-color="#b64f40"/></linearGradient>
+  <linearGradient id="monal-wing" x2="1" y2="1"><stop stop-color="#47cad1"/><stop offset=".4" stop-color="#3974ce"/><stop offset="1" stop-color="#643da1"/></linearGradient>
+</defs>
+<g stroke="#172d40" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M47 76C31 66 17 71 7 85C20 97 40 100 57 93Z" fill="url(#monal-copper)"/>
+  <path d="M13 85Q30 83 45 91M21 78Q36 77 50 86M23 92L43 94" fill="none" stroke="#ffe0a2"/>
+  <path d="M52 99L50 115M78 97L81 115M43 117L56 117M75 117L89 117" fill="none" stroke="#b3b9bb" stroke-width="2.8"/>
+  <path d="M29 79C29 61 44 52 63 58C74 60 85 69 88 81C90 96 77 106 57 104C43 103 32 94 29 79Z" fill="#202f47"/>
+  <path d="M32 70Q38 63 45 64L45 83L34 86Z" fill="#f3eddb"/>
+  <path d="M64 79C66 62 61 53 69 39C75 29 89 31 95 42C101 56 92 76 85 87Z" fill="url(#monal-copper)"/>
+  <path d="M76 48Q82 53 94 51M73 55Q81 62 92 59M73 64Q80 69 89 68" fill="none" stroke="#ffe1a0"/>
+  <path d="M39 71C46 59 66 60 79 74C78 90 63 99 47 94C39 88 35 80 39 71Z" fill="url(#monal-wing)"/>
+  <path d="M43 74Q57 85 74 77M43 81Q55 91 69 85M48 67Q59 76 75 73M50 90Q58 94 63 90" fill="none" stroke="#9de0e2"/>
+  <path d="M73 30Q65 20 64 11M81 27Q78 14 80 6M88 29Q90 18 96 12" fill="none" stroke="#69caaa" stroke-width="2"/>
+  <ellipse cx="63" cy="10" rx="3" ry="4" fill="#58d6a2"/>
+  <ellipse cx="80" cy="6" rx="3" ry="4" fill="#58d6a2"/>
+  <ellipse cx="97" cy="11" rx="3" ry="4" fill="#58d6a2"/>
+  <path d="M66 39C65 28 75 23 85 25C96 26 102 34 99 44C96 52 85 54 76 50C70 48 67 44 66 39Z" fill="url(#monal-jade)"/>
+  <path d="M98 36L115 43L98 47Z" fill="#e7d8b4"/>
+  <path d="M99 42L109 43" fill="none" stroke="#807a6d"/>
+  <path d="M71 33Q78 27 86 30" fill="none" stroke="#a9efca"/>
+  <ellipse cx="89" cy="37" rx="6" ry="6.5" fill="#58c7d5" stroke="none"/>
+  <circle cx="90" cy="37" r="3.6" fill="#111f2c" stroke="none"/>
+  <circle cx="91" cy="35.5" r="1.2" fill="#fff" stroke="none"/>
+</g>` };
 
 /** Draw the mark once and fill every [data-brand-mark], [data-brand-name] and [data-brand-sub] in the page. */
 export function installBrand(doc = document) {
@@ -45,7 +71,11 @@ export function installBrand(doc = document) {
     sp.innerHTML = `<symbol id="brand-mark" viewBox="${MARK.viewBox}" fill="none" stroke="currentColor" stroke-width="${MARK.stroke}" stroke-linecap="round" stroke-linejoin="round">${MARK.body}</symbol>`;
     doc.body.prepend(sp);
   }
-  for (const m of doc.querySelectorAll('[data-brand-mark]')) m.innerHTML = '<svg width="17" height="17" aria-hidden="true"><use href="#brand-mark"/></svg>';
+  for (const m of doc.querySelectorAll('[data-brand-mark]')) {
+    m.innerHTML = '<svg width="17" height="17" aria-hidden="true"><use href="#brand-mark"/></svg>';
+    m.firstElementChild?.setAttribute('width', '28');
+    m.firstElementChild?.setAttribute('height', '28');
+  }
   for (const n of doc.querySelectorAll('[data-brand-name]')) n.textContent = PRODUCT;
   for (const n of doc.querySelectorAll('[data-brand-sub]')) n.textContent = DESCRIPTOR;
 }
