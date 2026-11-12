@@ -3,6 +3,7 @@
  * report to export or print. Everything here is kept on the device. */
 
 import { PRODUCT } from './brand.js';
+import { icon } from './icons.js';
 import * as crm from './crm.js';
 import { kvGet } from './store.js';
 import { STAGES, STAGE_LABEL, DEFAULT_STAGES, HIDDEN, stageChoices, stageOf, pipelineSummary, taskBuckets, attention, findContacts, upcomingDates, isoDay } from './pipeline.js';
@@ -51,6 +52,8 @@ async function render() {
   await workspaceReady();
   const ws = activeWorkspace();
   const scrollY = window.scrollY;
+  // the New look's entrance plays when Home is first drawn, not on every redraw after an edit
+  root.classList.toggle('home-enter', !root.firstElementChild);
   root.textContent = '';
   const nameOf = Object.fromEntries(deals.map((d) => [d.id, tagged(d, d.name || d.figures.address || 'Untitled deal')]));
   const p = pipelineSummary(deals);
@@ -76,7 +79,16 @@ async function render() {
   const nt = el('button', 'btn', 'New task');
   nt.type = 'button';
   nt.addEventListener('click', () => { const i = $('task-title'); if (i) { i.scrollIntoView({ block: 'center', behavior: 'smooth' }); i.focus({ preventScroll: true }); } });
-  quick.append(om, cp, nt);
+  if (isNew()) {
+    // one primary action (on a phone it floats above the tab bar); the other two sit in a quiet row of text buttons
+    om.classList.add('btn-lg', 'home-primary');
+    om.insertAdjacentHTML('afterbegin', icon('plus', 20));
+    cp.classList.add('btn-plain'); nt.classList.add('btn-plain');
+    const quiet = el('div', 'home-quiet');
+    quiet.append(cp, nt);
+    quick.classList.add('home-quick');
+    quick.append(om, quiet);
+  } else quick.append(om, cp, nt);
   head.appendChild(quick);
   root.appendChild(head);
   root.appendChild(workspaceBar({ dealCount: deals.length }));
