@@ -61,6 +61,7 @@ export function stage(plan, info, file, dd = null) {
     scanned: !type && !!v.scanned && !!info.bytes, bytes: /** @type {Uint8Array | null} */ (!type && v.scanned && info.bytes ? info.bytes : null), ocr: false,
     ask: type ? [] : [...new Set([...(looks ? [looks] : []), ...(v.ask || []).filter(isType)])],
     use: useLabel(type), state: 'staged', from: /** @type {string | null} */ (info.from || null), dup: /** @type {string | null} */ (null), refuse: /** @type {string | null} */ (info.refuse || null),
+    pageProfiles: Array.isArray(v.pageProfiles) ? v.pageProfiles : [],
   };
   const same = (x) => (item.sha256 ? x.sha256 === item.sha256 : !x.sha256 && x.name === item.name && x.size === item.size);
   const twin = plan.items.find((x) => !x.refuse && !x.dup && same(x));

@@ -32,11 +32,13 @@ const READER_TYPES = ['om', 'rentroll', 't12'];
  * @param {{ name?: string, pages?: string[] | null, layouts?: any, grids?: any[] | null }} f
  */
 export function identify({ name = '', pages = null, layouts = null, grids = null }) {
-  const out = { type: /** @type {string | null} */ (null), typeBy: /** @type {'reader'|null} */ (null), reader: /** @type {string | null} */ (null), looks: /** @type {string | null} */ (null), ask: /** @type {string[]} */ ([]), suggest: suggestFromName(name), scanned: false, text: '' };
+  const out = { type: /** @type {string | null} */ (null), typeBy: /** @type {'reader'|null} */ (null), reader: /** @type {string | null} */ (null), looks: /** @type {string | null} */ (null), ask: /** @type {string[]} */ ([]), suggest: suggestFromName(name), scanned: false, text: '', pageProfiles: /** @type {any[]} */ ([]) };
   let omRead = false;
   if (pages) {
     out.text = pages.slice(0, 3).join('\n');
     const dk = docKind(pages, layouts);
+    const pageProfiles = dk.pageProfiles || [];
+    out.pageProfiles = pageProfiles;
     out.scanned = dk.kind === 'scanned';
     if (dk.kind === 'rentroll') return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrpdf' };
     if (dk.kind === 't12' && pdfStatementChoices(pages, { layouts }).some((c) => c.eligible)) return { ...out, type: 't12', typeBy: 'reader', reader: 't12pdf' };
@@ -47,6 +49,10 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
       const other = sc.find((x) => x.id !== 'om');
       // a broker opinion of value has no type of its own and reads like an OM: ask as well
       const bov = /broker'?s?\s+opinion\s+of\s+value|\bBOV\b/i.test(out.text);
+      const appraisal = /^\s*(?:real estate |commercial |restricted |complete )?appraisal\b/im.test(out.text);
+      // A parsed rent-roll section belongs inside an OM; tenant/lease wording
+      // in that section is not a competing document type for the whole file.
+      if (!bov && !appraisal && pageProfiles.some((p) => p.rentRollRows > 0 && !p.modeled)) return { ...out, type: 'om', typeBy: 'reader', reader: 'om' };
       if (!bov && !(other && other.score >= 2 && other.score >= (om ? om.score : 0))) return { ...out, type: 'om', typeBy: 'reader', reader: 'om' };
       omRead = true;
     }

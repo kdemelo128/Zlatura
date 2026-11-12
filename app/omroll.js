@@ -81,7 +81,7 @@ export function pageLines(text, geom = null) {
 
 /* --------------------------------------------------------- the columns */
 
-const norm = (s) => ` ${String(s).toLowerCase().replace(/\s*\/\s*/g, '/').replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim()} `;
+const norm = (s) => ` ${String(s).normalize('NFKC').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().replace(/\s*\/\s*/g, '/').replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim()} `;
 const W = {
   tenant: /\b(tenants?|lessee|occupant|residents?|tenant name|business|tenancy|company)\b/,
   suite: /\b(suites?|ste|unit|unit no|space|apt|apartment|bldg|building|premises|location|floor)\b|#|\bno\.? /,

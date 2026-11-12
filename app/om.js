@@ -30,6 +30,7 @@
  * spaces, so a line splits into the cells a reader sees. */
 
 import { rentRoll } from './omroll.js';
+import { pdfPageProfiles } from './pdfprofile.js';
 import { toCents } from './engine/money.js';
 import { statementTables, inferUnits, pickColumns, tableChecks, columnName, rowSections } from './omstatement.js';
 
@@ -537,7 +538,7 @@ function candidates(pages, { layouts = null, asOfYear = new Date().getFullYear()
       inplace: picks.inplace, pf: picks.pf });
   }
   const all = out.flatMap((c) => (c.slot ? fromTable.get(c.slot) || [] : [c]));
-  return { cands: all, statement: { tables: read, checks } };
+  return { cands: all, statement: { tables: read, checks }, rawTables: tables };
 }
 
 /** The best value for each field, with the runners-up; a figure from a statement keeps its row, column and cell. */
@@ -658,14 +659,16 @@ export { rentRoll, headerColumns, mergeHeader } from './omroll.js';
 export function readOm(pages, { layouts = null, asOf = null } = {}) {
   const text = pages.join('\n');
   const asOfYear = asOf ? new Date(asOf).getUTCFullYear() : new Date().getFullYear();
-  const { cands, statement } = candidates(pages, { layouts, asOfYear });
+  const { cands, statement, rawTables } = candidates(pages, { layouts, asOfYear });
   const fields = /** @type {Record<string, any>} */ ({ ...choose(cands), ...addressOf(pages), ...typeOf(pages) });
   // land and building printed in acres, say, both come back in SF; keep acres for display
   if (fields.lot) fields.lot.acres = Math.round((fields.lot.value / 43560) * 1000) / 1000;
   const unpriced = !fields.price && /\b(unpriced|call for (?:offers|pricing)|price upon request|best and final|bid process|call broker|market bid|subject to offer)\b/i.test(text);
+  const roll = rentRoll(pages, { layouts });
   return {
     fields,
-    rentRoll: rentRoll(pages, { layouts }),
+    rentRoll: roll,
+    pageProfiles: pdfPageProfiles(pages, { layouts, roll, tables: rawTables, asOfYear }),
     statement,
     unpriced,
     pages: pages.length,

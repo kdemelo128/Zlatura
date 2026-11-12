@@ -7,6 +7,7 @@
  * broker approves it. Design: docs/proposals/rentroll-pdf-and-om-fill.md, section (c). */
 
 import { rentRoll } from './omroll.js';
+import { pdfPageProfiles } from './pdfprofile.js';
 import { READING_NAME } from './units.js';
 import { omRollRecord } from './rentroll.js';
 
@@ -35,15 +36,17 @@ function monthLine(pages) {
  */
 export function docKind(pages, layouts = null) {
   const text = pages.join('\n');
-  if (text.replace(/\s/g, '').length < 200) return { kind: 'scanned', why: ['The PDF has almost no text: it is a scan or a picture.'], roll: null };
   const head = pages.slice(0, 2).join('\n');
   const { roll, summary } = readRoll(pages, layouts, null);
+  const pageProfiles = pdfPageProfiles(pages, { layouts, roll });
+  if (!roll && text.replace(/\s/g, '').length < 200) return { kind: 'scanned', why: ['The PDF has almost no text: it is a scan or a picture.'], roll: null, pageProfiles };
   const om = OM_WORDS.filter((re) => re.test(text)).length >= 2;
-  const titled = ROLL_TITLE.test(head) || AS_OF.test(head);
+  const lateTitle = pageProfiles.find((p) => p.rentRollRows > 0 && p.rentRollTitle && !p.modeled);
+  const titled = ROLL_TITLE.test(head) || AS_OF.test(head) || !!lateTitle;
   // `src` lets the preview read the same pages again with the broker's answers (pdfRollRecord's `periods`)
-  const out = (kind, why) => ({ kind, why, roll, summary, src: { pages, layouts } });
+  const out = (kind, why) => ({ kind, why, roll, summary, pageProfiles, src: { pages, layouts } });
   if (om) return out('om', ['It reads like an offering memorandum (asking price, cap rate or investment summary wording).']);
-  if (roll && titled) return out('rentroll', [`A rent roll table of ${roll.rows.length} rows${ROLL_TITLE.test(head) ? ', titled as one' : ', with an “As of” date'}.`]);
+  if (roll && titled) return out('rentroll', [`A rent roll table of ${roll.rows.length} rows${ROLL_TITLE.test(head) ? ', titled as one' : AS_OF.test(head) ? ', with an “As of” date' : `, titled on page ${lateTitle.page}`}.`]);
   if (T12_TITLE.test(head) || monthLine(pages)) return out('t12', ['It reads like an operating statement (month columns or a statement title).']);
   return out('unknown', [roll ? 'There is a table that looks like a rent roll, but nothing on the first two pages says this is one.' : 'No rent roll table was found.']);
 }

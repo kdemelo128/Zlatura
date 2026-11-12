@@ -221,6 +221,14 @@ function itemRow(it) {
   if (it.state === 'used') line.appendChild(el('span', 'dd-chip dd-reviewed', 'Used'));
   else if (it.state === 'skipped') line.appendChild(el('span', 'dd-chip', 'Skipped'));
   li.appendChild(line);
+  const profiles = it.pageProfiles || [];
+  const sections = [['rentroll', 'Rent roll'], ['statement', 'Operating statement'], ['summary', 'Summary']].flatMap(([role, label]) => {
+    const pages = profiles.filter((p) => p.roles.includes(role)).map((p) => p.page);
+    return pages.length ? [`${label}: ${pages.length === 1 ? 'page' : 'pages'} ${pages.join(', ')}`] : [];
+  });
+  const unreadable = profiles.filter((p) => p.needsOcr).map((p) => p.page);
+  if (unreadable.length) sections.push(`Text not readable: ${unreadable.length === 1 ? 'page' : 'pages'} ${unreadable.join(', ')}`);
+  if (sections.length) { const p = el('p', 'hint-sm', sections.join(' · ')); p.dataset.pageProfile = it.id; li.appendChild(p); }
   if (it.state !== 'staged') return li;
   const acts = el('div', 'dd-formbtns uwi-itemacts');
   if (!it.type) {

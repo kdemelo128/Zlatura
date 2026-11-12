@@ -50,6 +50,7 @@ const ASSETS = [
   'app/kit.js',
   'app/numtext.js',
   'app/om.js',
+  'app/pdfprofile.js',
   'app/omroll.js',
   'app/scale.js',
   'app/omstatement.js',
