@@ -190,4 +190,4 @@ html[data-motion="off"] #uwHint{transition:none;transform:none}
 .qc-acts{gap:10px}
 .qc-calc-list{display:flex;flex-direction:column;gap:12px;margin-top:8px}.qc-group{display:flex;flex-direction:column;gap:6px}
 .qc-calcs{margin-top:0;padding-top:4px}
-@media(max-width:600px){.qc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.qc-results li{flex-direction:column;gap:2px}.qc-results b{text-align:left}}
+@media(max-width:600px){.qc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
