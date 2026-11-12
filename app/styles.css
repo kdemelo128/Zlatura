@@ -1909,3 +1909,18 @@ body.uw-full .uwt { flex: 1 1 auto; min-height: 0; padding: 0 env(safe-area-inse
   :root[data-look="new"] .home-primary { position: fixed; z-index: 40; right: var(--gutter); bottom: calc(var(--tab-h) + 16px + env(safe-area-inset-bottom, 0px)); box-shadow: var(--shadow-lg); }
   :root[data-look="new"] .home-sumline { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4) var(--s5); align-items: start; }
 }
+
+/* Underwrite tab, bridge to the open deal: its buttons in the slim bar, the "Not carried over" note, the confirm's before and after */
+.uw-acts { display: flex; flex-wrap: wrap; gap: var(--s2); flex: none; }
+.uw-acts[hidden] { display: none; }
+.uw-acts .btn { min-height: 40px; }
+.uw-note { flex: none; max-height: 40dvh; overflow: auto; padding: var(--s3) calc(var(--s4) + env(safe-area-inset-right, 0px)) var(--s3) calc(var(--s4) + env(safe-area-inset-left, 0px)); background: var(--surface); border-bottom: 1px solid var(--line); font-size: var(--t-13); line-height: 1.5; }
+.uw-note[hidden] { display: none; }
+.uw-note-h { margin: 0 0 var(--s2); color: var(--muted); }
+.uw-note-l { margin: 0; padding-left: 1.2em; display: grid; gap: var(--s1); }
+.uw-diff { display: grid; gap: var(--s3); }
+.uw-diff-r { display: grid; gap: 2px; padding: var(--s3); border: 1px solid var(--line); border-radius: var(--r-sm); }
+.uw-diff-b { color: var(--muted); }
+.uw-diff-a { font-weight: 600; }
+@media (max-width: 479px) { .uw-acts { flex: 1 1 100%; justify-content: space-between; gap: var(--s1); } .uw-acts .btn { min-height: 36px; padding: 0 8px; font-size: var(--t-12); } }
+@media (max-width: 479px) { .uw-slim { gap: var(--s1) var(--s2); padding-top: calc(var(--s1) + env(safe-area-inset-top, 0px)); padding-bottom: var(--s1); } .uw-slim .uw-back, .uw-slim .uw-switch .btn { min-height: 36px; } }

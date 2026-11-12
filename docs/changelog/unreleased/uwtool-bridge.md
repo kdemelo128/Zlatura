@@ -1,0 +1,5 @@
+# The Underwrite tool opens filled in from the open deal, and can hand figures back
+
+With a deal open, the built-in tool opens with the deal's name, price, interest rate, amortization, hold, exit cap and sale cost already in (only fields the tool had blank, never replacing a value you set; a blank stays blank, never 0). The slim bar lists what was **not carried over** and why (address, building area, loan amount, closing costs, interest-only, the rent roll and statement, computed results). **Bring into deal** shows before and after for the figures you set in the tool and writes them only after you confirm, with Undo. **Export with the app** opens your own or your company's template for the deal.
+
+Tested with invented data: 13 unit tests for every mapping in `tests/uwbridge.test.js` and a browser flow (`uwbridge-flow`: prefill, blanks, the note, the confirm, Cancel, Undo, export, axe, phone and desktop). Saved results and the golden figures are unchanged. Not done: reading documents dropped in the tool through the app's own readers (see `docs/proposals/uw-bridge-fieldmap.md` section 8).

@@ -331,6 +331,18 @@ export async function useDocuments(dealId, items) {
   if (deal === d) render();
   return { deal: d, created, done };
 }
+/** What the underwriting tool's bridge (uwfiller/bridge.js) reads from the open deal: copies, never the deal itself. */
+export function dealForBridge() {
+  if (!deal || !hasFigures()) return null;
+  // the rent roll's as-of date only when there is a rent roll: a deal with none carries a default (today's) date that is no one's reading
+  const asOf = deal.rr && deal.rr.leases && deal.rr.leases.length && deal.rr.settings ? deal.rr.settings.asOf : null;
+  return {
+    id: deal.id, name: deal.name || '', asOf: typeof asOf === 'string' ? asOf : null,
+    figures: { ...deal.figures }, loan: { ...deal.loan }, live: { ...(deal.live || {}) },
+    hasRentRoll: !!((deal.rr && deal.rr.leases && deal.rr.leases.length) || (deal.rentRoll && deal.rentRoll.length)), hasStatement: !!deal.t12,
+    confidential: !!deal.confidential,
+  };
+}
 export const currentDealName = () => (deal && hasFigures() ? (deal.name || deal.figures.address || 'Untitled deal') : null);
 const hasFigures = () => deal && Object.values(deal.figures).some((v) => v !== null && v !== undefined && v !== '');
 

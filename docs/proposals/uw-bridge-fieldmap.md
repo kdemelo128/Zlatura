@@ -428,3 +428,30 @@ the strip and the card, and the perf budget for Zlatura's fields.
 - Web Locks and `storage` events inside an iframe on iPhone Safari (not
   run). The e2e covers Chromium; WebKit is hand-tested;
 - how close `localStorage` is to its quota on a broker's device.
+
+## 8. Built-in tool: what was built, and sub-step (b) stopped
+
+**Built (branch `claude/uwtool-fullscreen`, not on main).** The tool is now the built-in copy (`app/uwtool/`), so the
+package swap, IndexedDB parking and Web Locks of sections 3 and 5 were not needed for this step: the bridge
+(`app/uwfiller/bridge.js`, pure; `app/underwrite.js` does the frame and the deal) works on the live model of the one
+project the tool keeps. Rows 1, 3 (only with a rent roll), 5, 7, 8, 11, 12 and 13 go in (blank fields only; a value the
+tool already holds is never replaced; a tool value still at its starting value counts as blank unless the tool's change
+log names it). Rows 5, 7, 8, 11, 12, 13 come back after "Bring into deal" shows before and after and the broker confirms,
+with Undo. Rows 2, 4, 6, 9, 14 and everything else are listed under "Not carried over" with the reason. **Not built:**
+per-deal projects (the tool keeps one project, so a second deal's differing values are listed, not swapped in), the
+per-field "replace" tick (Q5), tenants and statement lines (rows 23 to 40), the shape fingerprint (the tool is the
+version this app ships, not a package).
+
+**(b) Documents through the app's readers: stopped, not a small importer edit.** The tool reads a dropped file in
+`filler.js` `addFiles` (about line 51 of the source), then `P.readFile(ctx, {name, bytes})`, which is
+`Pipeline.readFile` in `parsers.js` (around line 995). That function dispatches by extension to the tool's own
+`PdfText`, `Tabular`, `DocReaders`, `Extract` and `XlPatch` helpers, and returns the tool's shape
+(`{kind: 'rent_roll' | 'statement' | 'costar' | 'unknown', doc: {rr: {units}, st: {months, lines}}, text, layoutText,
+wordPages, notes, hint, src}`). The tool's review screens (`filler.js` `builtInRead`, `reviewDocument`, `ocrDocument`,
+`UWLocalReader.parse`, `document-reader.js`) consume that shape directly. The app's readers (`sheetread.js`,
+`intake.js`, `rentroll.js`, `t12.js`, `pdfstatement.js`, `omstatement.js`) return different shapes (leases with dated rent
+periods and units asked, statement lines in cents with confirmed partial years). Doing it without forking logic means
+replacing, in the tool: `Pipeline.readFile` and `Pipeline.pdfPages` (parsers.js), the `Tabular`/`PdfText` calls inside
+it, `builtInRead` and `ocrDocument` (filler.js), and writing a converter from the app's shapes to `doc.rr.units` and
+`doc.st`, which is a money and unit decision (monthly or annual rent, area basis) for the designer. Nothing of that was
+done.

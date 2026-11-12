@@ -8,12 +8,13 @@ import { icon } from './icons.js';
 import { $, el, parseNum, parsePct, int, dec, money0, money2, pct, times, short, niceDate, toast } from './kit.js';
 import { quantizeDeal, toCents } from './engine/money.js';
 import { SALE_COST_NEGATIVE } from './deal.js';
-import { createDeal, discardDeal, showDeal, loanDefaults, scnRead, scnRefused, setRefusal, currentDealName } from './dealui.js';
+import { createDeal, discardDeal, showDeal, loanDefaults, scnRead, scnRefused, setRefusal, currentDealName, dealForBridge, updateDeal, openTemplates } from './dealui.js';
 import { toolIndex, openToolById } from './toolsui.js';
 import { activeWorkspace, workspaceReady } from './workspaceui.js';
 import { intakeCard, initIntake } from './intakeui.js';
 import { fillerCard } from './uwfiller/ui.js';
 import { toolCard } from './uwfiller/tool.js';
+import { planIn, applyIn, planOut, changedPaths } from './uwfiller/bridge.js';
 import { newScratch, work, dealFields, loadScratch, saveScratch, deleteScratch, MAX_SCRATCH } from './uwstore.js';
 
 let api = null;
@@ -359,11 +360,130 @@ function slimBar(sw) {
   back.addEventListener('click', leave);
   const name = el('span', 'uw-deal');
   name.id = 'uw-deal-name';
-  const setName = () => { const n = currentDealName(); name.textContent = n || 'No deal open'; name.classList.toggle('uw-none', !n); name.title = n || ''; };
+  const setName = () => { refreshBar(); const n = currentDealName(); name.textContent = n || 'No deal open'; name.classList.toggle('uw-none', !n); name.title = n || ''; };
   setName();
   document.addEventListener('dealchange', setName);
-  bar.append(back, name, sw);
+  const acts = el('div', 'uw-acts');
+  acts.id = 'uw-acts';
+  const nc = button('btn btn-sm', 'Not carried over', () => { const open = !$('uw-note') || $('uw-note').hidden; paintNote(open); });
+  nc.id = 'uw-notcarried'; nc.setAttribute('aria-expanded', 'false'); nc.setAttribute('aria-controls', 'uw-note');
+  const bring = button('btn btn-sm', 'Bring into deal', bringIntoDeal); bring.id = 'uw-bring';
+  const exp = button('btn btn-sm', 'Export with the app', () => openTemplates()); exp.id = 'uw-export';
+  exp.title = 'Your own or your company’s template, with this deal’s figures';
+  acts.append(nc, bring, exp);
+  bar.append(back, name, acts, sw);
+  const note = el('div', 'uw-note'); note.id = 'uw-note'; note.hidden = true;
+  note.setAttribute('role', 'region'); note.setAttribute('aria-label', 'Not carried over from the deal');
+  bar.noteEl = note;   // drawn just below the bar (see draw)
+  refreshBar(acts);
   return bar;
+}
+
+/* ----- the bridge to the open deal (uwfiller/bridge.js holds the map; this is the frame and the deal) ----- */
+
+const TOOL_TITLE = 'Underwriting tool';
+let bridged = null;          // { id, filled: [text], notCarried: [{label, why}] } for the deal the tool was last opened with
+const filledFor = new Map(); // deal id -> what was filled into the tool in this page's life
+let justReloaded = false;    // the frame is reloaded once after a fill; its load must not fill again
+let bridging = false;
+
+const frameEl = () => /** @type {HTMLIFrameElement | null} */ ($('uwt-frame'));
+const toolWin = () => { try { const w = /** @type {any} */ (frameEl()?.contentWindow); return w && w.UWEditor && w.UWFinance ? w : null; } catch { return null; } };
+async function toolReady(/** @type {HTMLIFrameElement} */ f, ms = 5000) {
+  for (let t = 0; t < ms; t += 100) {
+    if ($('uwt-frame') !== f) return false;
+    try { const w = /** @type {any} */ (f.contentWindow); if (w && w.UWEditor && w.UWFinance && w.UWEditor.model() && w.document.readyState === 'complete') return true; } catch { /* not yet */ }
+    await new Promise((r) => { setTimeout(() => r(null), 100); });
+  }
+  return false;
+}
+
+/** The deal's figures into the tool, blank fields only, once, when the tool opens. */
+async function bridgeDeal() {
+  const f = frameEl();
+  if (!f || bridging) return;
+  const d = dealForBridge();
+  if (!d) { bridged = null; justReloaded = false; refreshBar(); return; }
+  bridging = true;
+  try {
+    if (!(await toolReady(f))) { bridged = null; return; }
+    const w = /** @type {any} */ (f.contentWindow);
+    const model = w.UWEditor.model();
+    const plan = planIn(d, model, { defaults: w.UWFinance.defaults(), changed: changedPaths(model) });
+    if (plan.fill.length && !justReloaded) {
+      applyIn(model, plan);
+      w.UWEditor.commit();   // the tool saves its own project; it reads it back when it loads
+      filledFor.set(d.id, [...(filledFor.get(d.id) || []), ...plan.fill.map((x) => `${x.label}: ${x.shown}`)]);
+      justReloaded = true;
+      w.location.reload();   // its own load path draws the boxes; the load event comes back here
+      return;
+    }
+    justReloaded = false;
+    bridged = { id: d.id, filled: filledFor.get(d.id) || [], notCarried: plan.notCarried };
+  } catch { bridged = null; } finally { bridging = false; refreshBar(); }
+}
+
+/** Show or hide the bar's deal buttons and the "Not carried over" count; fill the note. */
+function refreshBar(acts = $('uw-acts')) {
+  if (!acts) return;
+  const d = dealForBridge();
+  acts.hidden = !d;
+  const nc = $('uw-notcarried');
+  if (nc) nc.textContent = bridged && bridged.id === d?.id ? `Not carried over (${bridged.notCarried.length})` : 'Not carried over';
+  if (nc) nc.disabled = !(bridged && bridged.id === d?.id);
+  if (!d || !bridged) paintNote(false);
+  else if ($('uw-note') && !$('uw-note').hidden) paintNote(true);
+}
+function paintNote(open) {
+  const note = $('uw-note'); const nc = $('uw-notcarried');
+  if (!note) return;
+  note.hidden = !open || !bridged;
+  if (nc) nc.setAttribute('aria-expanded', String(!note.hidden));
+  if (note.hidden) return;
+  note.textContent = '';
+  note.appendChild(el('p', 'uw-note-h', bridged.filled.length ? `Put into the tool from the deal: ${bridged.filled.join('; ')}.` : 'Nothing was put into the tool from the deal (it was blank, or the tool already had values).'));
+  note.appendChild(el('p', 'uw-note-h', 'Left for you in the tool, and why:'));
+  const ul = el('ul', 'uw-note-l');
+  for (const n of bridged.notCarried) { const li = el('li'); li.append(el('b', null, `${n.label}: `), n.why); ul.appendChild(li); }
+  note.appendChild(ul);
+}
+
+/** Tool -> deal, only the figures the broker set in the tool, only after a confirm that shows before and after; with Undo. */
+async function bringIntoDeal() {
+  const d = dealForBridge(); const w = toolWin();
+  if (!d || !w) { toast('Open the tool with a deal open first.'); return; }
+  let plan;
+  try { const model = w.UWEditor.model(); plan = planOut(model, d, { defaults: w.UWFinance.defaults(), changed: changedPaths(model) }); } catch { toast('The tool’s figures could not be read.'); return; }
+  if (!plan.changes.length) { toast(`Nothing to bring into the deal: ${plan.skipped.length ? 'the tool’s fields are blank, still at their starting values, or the same as the deal’s.' : 'the figures match.'}`); return; }
+  const name = d.name || 'this deal';
+  const go = await new Promise((resolve) => {
+    const ok = button('btn btn-primary', 'Bring into deal', () => { api.sheetClose(); resolve(true); });
+    const no = button('btn', 'Cancel', () => { api.sheetClose(); resolve(false); });
+    const body = api.sheetOpen({ eyebrow: 'Underwriting tool', title: `Bring into ${name}?`, sub: 'These figures replace the deal’s. Nothing else is changed, and you can undo it.', foot: [no, ok] });
+    const tbl = el('div', 'uw-diff');
+    for (const c of plan.changes) { const row = el('div', 'uw-diff-r'); row.append(el('b', null, c.label), el('span', 'uw-diff-b', `Before: ${c.beforeShown}`), el('span', 'uw-diff-a', `After: ${c.afterShown}`)); tbl.appendChild(row); }
+    body.appendChild(tbl);
+    document.getElementById('sheet')?.addEventListener('close', () => resolve(false), { once: true });
+  });
+  if (!go) return;
+  const set = (x, path, v) => { const [g, k] = path.split('.'); x[g] ||= {}; if (v === null || v === undefined) { if (g === 'live') delete x[g][k]; else x[g][k] = null; } else x[g][k] = v; };
+  const before = new Map(); let src;
+  const done = await updateDeal(d.id, (x) => {
+    src = x.sources?.price ? { ...x.sources.price } : undefined;
+    for (const c of plan.changes) { before.set(c.dealPath, c.before); set(x, c.dealPath, c.after); }
+    if (before.has('figures.price')) { x.sources ||= {}; x.sources.price = { hand: true, tool: TOOL_TITLE }; }
+  }, { kind: 'tool', label: `From the ${TOOL_TITLE}: ${plan.changes.map((c) => c.label.toLowerCase()).join(', ')}` });
+  if (!done) { toast('The deal could not be changed.'); return; }
+  toast(`${plan.changes.length} figure${plan.changes.length === 1 ? '' : 's'} brought into ${name}.`, {
+    label: 'Undo',
+    run: async () => {
+      await updateDeal(d.id, (x) => {
+        for (const [path, v] of before) set(x, path, v);
+        if (before.has('figures.price')) { x.sources ||= {}; if (src) x.sources.price = src; else delete x.sources.price; }
+      }, { kind: 'tool', label: `Undid: figures brought from the ${TOOL_TITLE}` });
+      toast('Undone: the deal has its earlier figures again.');
+    },
+  }, 9000);
 }
 
 function draw(force = false) {
@@ -386,7 +506,7 @@ function draw(force = false) {
     });
     sw.appendChild(b);
   }
-  if (uwView === 'tool') { root.append(slimBar(sw), toolCard()); return; }
+  if (uwView === 'tool') { const bar = slimBar(sw); root.append(bar, bar.noteEl, toolCard()); return; }
   const head = el('div', 'view-head');
   head.appendChild(el('h1', null, 'Quick underwrite'));
   head.appendChild(el('p', null, 'Type a price, NOI and loan terms and see the answer. It is not a deal until you save it as one.'));
@@ -519,7 +639,11 @@ export function initUnderwrite(compsApi) {
     shown = e.detail;
     if (shown === 'underwrite' && prev !== 'underwrite') cameFrom = prev;
     const { was, now } = syncFull();
-    if (now && !was) { draw(); document.getElementById('uwt-frame')?.focus({ preventScroll: true }); }   // in: focus goes into the tool
+    if (now && !was) {
+      draw();
+      document.getElementById('uwt-frame')?.focus({ preventScroll: true });
+      if ((dealForBridge()?.id || null) !== (bridged?.id || null)) bridgeDeal();   // another deal (or none) since the tool last opened
+    }   // in: focus goes into the tool
     // out (any way: Back, Escape, the browser's Back): focus goes to the tab of the screen now shown
     if (was && !now && shown !== 'underwrite') document.querySelector(`[data-view="${shown}"]:not([hidden])`)?.focus?.({ preventScroll: true });
   });
@@ -530,6 +654,7 @@ export function initUnderwrite(compsApi) {
     const d = e.detail?.document;
     // capture: this looks before the tool's own handlers have closed anything
     if (d) d.addEventListener('keydown', (k) => escapeLeaves(k, d), true);
+    bridgeDeal();   // the tool has loaded: the open deal's figures go in
   });
   loadScratch().then((r) => {
     // anything typed before the list arrived stays on screen, at the top of what was stored
