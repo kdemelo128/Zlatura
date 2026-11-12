@@ -25,6 +25,7 @@ Last updated: 4.7.133 (annual actual PDF slice, in review); earlier: 4.7.66; two
 
 ## Now
 
+- **4.7.142, in review:** Monal, the on-device assistant, release 1 (`[~]`, synthetic only): a bird button on every screen but the full-screen Underwrite tool and a panel that answers 18 kinds of question from the engine and the open deal, each cited with a button to its source; refuses to invent; a task only after a yes, with Undo. No model, no network, no data-format change; golden outputs identical. Not tried on a real phone, Safari or a screen reader. Releases 2 to 5 (more actions, the Underwrite nest folded in, a built-in browser model, an optional download) are proposed in `docs/proposals/on-device-assistant.md` and not started.
 - **4.7.133, in review:** explicit prior-year annual actual PDF statements reuse the T-12 engine; modeled columns, unclear periods, missing amounts and ambiguous number formatting are held. Tested with synthetic fixtures only. This is the annual text-PDF slice; monthly PDFs, scans and the PM profile remain later slices. Logo #153 and manual deal inputs #154 are merged; all 32 deal figures are available without an upload.
 
 - **Dev tooling (4.7.105, PR opening):** Model Hub local dashboard (`[~]`, stub-tested; no vendor reply through it yet).

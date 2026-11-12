@@ -335,3 +335,12 @@ test('every answer states a year or a month, and SF or units, where it shows a r
   assert.match(ask('What is the price per SF', ctx).lines[0], /per SF/);
   assert.match(ask('what is the noi per sf').lines[0], /per SF per year/);
 });
+
+test('the assistant’s files make no network request and write no HTML', async () => {
+  const fs = await import('node:fs');
+  for (const f of ['assistant.js', 'assistantanswer.js', 'assistantui.js']) {
+    const code = fs.readFileSync(new URL(`../app/${f}`, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    assert.ok(!/\b(fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon|importScripts)\b|\bimport\s*\(/.test(code), `${f} reaches for the network or loads code at run time`);
+    assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\b|new Function/.test(code), `${f} writes HTML or runs text`);
+  }
+});
