@@ -119,9 +119,75 @@ export async function loadXlsx(file, getXlsx, up = null, _opts = {}) { // _opts:
   if (up.kind !== 'xlsx') throw new Error(NOT_XLSX);
   // a workbook with macros is read for its cell values only: the macro part (xl/vbaProject.bin) is never opened, run or kept; ExcelJS has no VBA engine. Callers say so (MACRO_NOTE).
   const buffer = up.guarded ? up.buffer : guardedBuffer(up.buffer || await file.arrayBuffer(), fflate);
+  if (fflate && lacksSharedStrings(buffer, fflate)) throw Object.assign(new Error('That workbook is missing the part that holds its text, so its words cannot be read. Open it in Excel and save a fresh copy.'), { step: 'strings', code: 'missing-shared-strings', causeClass: 'Error' });
   const wb = new ExcelJS.Workbook();
-  try { await wb.xlsx.load(buffer); } catch { throw new Error(NOT_XLSX); }
+  try { await wb.xlsx.load(buffer); } catch (err) {
+    // merged ranges that overlap (some exports write them) stop ExcelJS from loading a workbook whose cells are fine: try once more without the later range.
+    const fixed = fflate ? repairParts(buffer, fflate) : null;
+    if (fixed) {
+      const again = new ExcelJS.Workbook();
+      try { await again.xlsx.load(fixed.buffer); again.repairNote = `This workbook had damaged ${fixed.what} (ignored); the cell values are as saved.`; return again; } catch { /* the first failure is the one to report */ }
+    }
+    throw loadFailed('load', err, NOT_XLSX);
+  }
   return wb;
+}
+
+/** True when a sheet holds shared-string cells (t="s") but the workbook has no xl/sharedStrings.xml: the numbers in those cells are positions in a table that is not there. */
+function lacksSharedStrings(buffer, fflate) {
+  try {
+    let has = false;
+    fflate.unzipSync(new Uint8Array(buffer), { filter: (f) => { if (/^xl\/sharedStrings\.xml$/i.test(f.name)) has = true; return false; } });
+    if (has) return false;
+    const sheets = fflate.unzipSync(new Uint8Array(buffer), { filter: (f) => /^xl\/worksheets\/[^/]+\.xml$/i.test(f.name) && f.originalSize <= 20e6 });
+    return Object.values(sheets).some((raw) => /<c\s[^<>]{0,200}?\bt="s"/.test(new TextDecoder().decode(raw)));
+  } catch { return false; }
+}
+
+/** An Error with what step failed and a fixed code for why (never the message, which may hold a name or a figure): for doc-local's reason codes and the broker's plain sentence. */
+export function loadFailed(step, err, message) {
+  const m = String((err && err.message) || '');
+  const code = /merge/i.test(m) ? 'overlapping-merge' : /undefined|null|not a function|reading '/.test(m) ? 'missing-part-or-value' : /xml|parse|unexpected|entity|tag/i.test(m) ? 'xml' : /zip|central directory|end of data|signature|corrupt|invalid/i.test(m) ? 'zip' : /memory|array buffer|allocation/i.test(m) ? 'memory' : 'other';
+  const c = err && err.constructor && err.constructor.name;
+  return Object.assign(new Error(message || m), { step, code, causeClass: typeof c === 'string' && /^[A-Za-z]{0,24}Error$/.test(c) ? c : 'Error' });
+}
+
+/** A cell range "A1:B2" as [col0, row0, col1, row1], or null. */
+function rectOf(ref) {
+  const m = /^([A-Z]{1,3})(\d{1,7})(?::([A-Z]{1,3})(\d{1,7}))?$/.exec(ref);
+  if (!m) return null;
+  const col = (L) => [...L].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0);
+  return [col(m[1]), Number(m[2]), col(m[3] || m[1]), Number(m[4] || m[2])];
+}
+
+/**
+ * The workbook's bytes with overlapping merged ranges (the later one dropped) removed from its
+ * sheets, or null when there was nothing to change. Only sheet parts up to 20 MB are looked at, by search, not by a pattern
+ * over the whole sheet; cell values are never touched.
+ * @returns {{ buffer: ArrayBuffer, what: string } | null}
+ */
+export function repairParts(buffer, fflate) {
+  let parts;
+  try { parts = fflate.unzipSync(new Uint8Array(buffer), { filter: (f) => /^xl\/worksheets\/[^/]+\.xml$/i.test(f.name) && f.originalSize <= 20e6 }); } catch { return null; }
+  let merges = 0;
+  /** @type {Record<string, Uint8Array>} */ const changed = {};
+  for (const [name, raw] of Object.entries(parts)) {
+    let xml = new TextDecoder().decode(raw);
+    let touched = false;
+    const kept = [];
+    xml = xml.replace(/<mergeCell\s[^<>]{0,100}?ref="([A-Z0-9:]{2,25})"[^<>]{0,100}\/>/g, (all, ref) => {
+      const r = rectOf(ref);
+      if (!r) return all;
+      if (kept.some((k) => r[0] <= k[2] && k[0] <= r[2] && r[1] <= k[3] && k[1] <= r[3])) { merges += 1; touched = true; return ''; }
+      kept.push(r);
+      return all;
+    });
+    if (touched) changed[name] = new TextEncoder().encode(xml);
+  }
+  if (!merges) return null;
+  const all = fflate.unzipSync(new Uint8Array(buffer));
+  const out = fflate.zipSync({ ...all, ...changed }, { level: 0 });
+  return { buffer: out.byteOffset === 0 && out.buffer.byteLength === out.byteLength ? out.buffer : out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength), what: 'merged-cell ranges' };
 }
 
 /**
@@ -149,7 +215,7 @@ export async function readGrids(file, getXlsx, { maxRows = 400, includeHidden = 
   }
   const wb = await loadXlsx(file, getXlsx, up);
   const grids = gridsOf(wb, { maxRows, includeHidden });
-  const note = [badDateNote(grids.reduce((n, g) => n + g.badDates, 0)), up.macros ? MACRO_NOTE : ''].filter(Boolean).join(' ');
+  const note = [badDateNote(grids.reduce((n, g) => n + g.badDates, 0)), up.macros ? MACRO_NOTE : '', wb.repairNote || ''].filter(Boolean).join(' ');
   return grids.map((g) => ({ ...g, macros: !!up.macros, ...(note ? { note } : {}) }));
 }
 

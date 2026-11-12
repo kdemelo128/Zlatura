@@ -16,7 +16,7 @@
  *   --reasons                after the family table, WHY each refused, asked or identified file ended where it did:
  *                            a 'reason | files' table and a 'family | reason | files' table, counts only. A reason is
  *                            a code from the app's own code paths (zip-not-opened, docx-unreadable, macros-values-only,
- *                            sheet-read-failed:<error class>, pdf-read-failed:<error class>, no-text-layer:<chars bucket>,
+ *                            sheet-read-failed:<step>:<why>:<error class>, pdf-read-failed:<error class>, no-text-layer:<chars bucket>,
  *                            no-reader-for-type:<type>, both-readers-accept, text-names-reader-type:<type>,
  *                            om-wording-also-other-type, classifier-broad:<N> candidates, unknown-title, word-narrative)
  *                            plus shape buckets (pages:, sheets:, hidden-sheets:). A file the classifier typed
@@ -79,6 +79,8 @@ const REASONS = flag('--reasons');
 
 /** An error's class name and nothing else (a message could hold document content). */
 const errClass = (e) => { const n = e && e.constructor && e.constructor.name; return typeof n === 'string' && /^[A-Za-z]{0,24}Error$/.test(n) ? n : 'Error'; };
+/** Where and why a sheet read failed, as codes: the step (load, strings, grid), a fixed reason word and the error class, never the message (sheetread.js loadFailed). */
+const readWhy = (e) => (e && e.step ? `${e.step}:${e.code || 'other'}:${e.causeClass || errClass(e)}` : errClass(e));
 /** A count as a coarse bucket, so that no number can single a document out. */
 const bucket = (n, cuts) => { for (const [max, label] of cuts) if (n <= max) return label; return cuts.at(-1)[1]; };
 const PAGE_BUCKETS = [[1, '1'], [5, '2-5'], [20, '6-20'], [60, '21-60'], [Infinity, '61+']];
@@ -153,9 +155,9 @@ async function reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridE
   else if (k === 'ole') out.push('ole-unknown');
   else if (k === 'unknown') out.push('binary-unknown');
   else if (upRes.refuse && /^That file is \d/.test(upRes.refuse)) out.push('too-big');
-  else if (intakeErr) out.push(`${k === 'pdf' ? 'pdf' : 'sheet'}-read-failed:${errClass(intakeErr)}`);
+  else if (intakeErr) out.push(`${k === 'pdf' ? 'pdf' : 'sheet'}-read-failed:${k === 'pdf' ? errClass(intakeErr) : readWhy(intakeErr)}`);
   else if (k === 'pdf' && !pages) out.push(`pdf-read-failed:${errClass(pdfErr)}`);
-  else if ((k === 'xlsx' || k === 'text') && !grids && gridErr) out.push(`sheet-read-failed:${errClass(gridErr)}`);
+  else if ((k === 'xlsx' || k === 'text') && !grids && gridErr) out.push(`sheet-read-failed:${readWhy(gridErr)}`);
   else if (v.scanned) out.push(`no-text-layer:${bucket((pages ? pages.pages.join('') : '').replace(/\s/g, '').length, CHAR_BUCKETS)}`);
   else if (outcome === 'identified') out.push(`no-reader-for-type:${v.looks}`);
   else if (v.ask.length) {
