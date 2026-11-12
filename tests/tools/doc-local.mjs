@@ -76,6 +76,11 @@ const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => (a
 });
 const files = walk(folder);
 const REASONS = flag('--reasons');
+// --where (with --reasons): for sheet-read failures, the app or library file and line that failed, and the message's SHAPE;
+// for an unexplained zip refusal, the message's shape. Quoted text longer than a code name and every digit are blanked,
+// so no name, figure or path from a document is printed.
+const WHERE = REASONS && flag('--where');
+const shape = (m) => String(m || '').replace(/"[^"]*"|'[^']*'|“[^”]*”|‘[^’]*’/g, (q) => (/^.[A-Za-z_$][\w$]{0,30}.$/.test(q) ? q : '"…"')).replace(/\S*[\/\\]\S*|\S+\.[A-Za-z]{2,5}\b/g, '…').replace(/\b[A-Z][\w’'-]*/g, (w) => (/^(That|The|This|It|Its|A|An|No|Not|Cannot|Can|Could|Error|TypeError|RangeError|SyntaxError|Invalid|Unexpected|End|Bad|Zip|ZIP|PDF|XML|File|Sheet|Workbook|Unsupported|Unknown|Missing|Undefined|Null|NaN|N)$/.test(w) ? w : '…')).replace(/\d+/g, 'N').replace(/[|\n\r]/g, ' ').slice(0, 90);
 
 /** An error's class name and nothing else (a message could hold document content). */
 const errClass = (e) => { const n = e && e.constructor && e.constructor.name; return typeof n === 'string' && /^[A-Za-z]{0,24}Error$/.test(n) ? n : 'Error'; };
@@ -148,7 +153,7 @@ async function reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridE
   const k = upRes.kind;
   if (k === 'docx') out.push('docx-later');
   else if (k === 'image') out.push('no-reader-for-type:image');
-  else if (k === 'zip') { const plain = /^That is a zip file/.test(upRes.refuse || ''); out.push(plain ? 'zip-not-workbook' : 'zip-not-opened'); if (!plain) out.push(`zip-cause:${zipCause(upRes.refuse || '')}`); }
+  else if (k === 'zip') { const plain = /^That is a zip file/.test(upRes.refuse || ''); out.push(plain ? 'zip-not-workbook' : 'zip-not-opened'); if (!plain) out.push(`zip-cause:${zipCause(upRes.refuse || '')}`); if (WHERE && !plain && zipCause(upRes.refuse || '') === 'other') out.push(`message-shape:${shape(upRes.refuse)}`); }
   else if (k === 'xls') out.push('old-xls');
   else if (k === 'doc') out.push('old-doc');
   else if (k === 'encrypted') out.push('encrypted');
@@ -157,7 +162,7 @@ async function reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridE
   else if (upRes.refuse && /^That file is \d/.test(upRes.refuse)) out.push('too-big');
   else if (intakeErr) out.push(`${k === 'pdf' ? 'pdf' : 'sheet'}-read-failed:${k === 'pdf' ? errClass(intakeErr) : readWhy(intakeErr)}`);
   else if (k === 'pdf' && !pages) out.push(`pdf-read-failed:${errClass(pdfErr)}`);
-  else if ((k === 'xlsx' || k === 'text') && !grids && gridErr) out.push(`sheet-read-failed:${readWhy(gridErr)}`);
+  else if ((k === 'xlsx' || k === 'text') && !grids && gridErr) out.push(`sheet-read-failed:${readWhy(gridErr)}`, ...(WHERE ? [`where:${gridErr.at || 'unknown'}`, `message-shape:${shape(gridErr.message)}`] : []));
   else if (v.scanned) out.push(`no-text-layer:${bucket((pages ? pages.pages.join('') : '').replace(/\s/g, '').length, CHAR_BUCKETS)}`);
   else if (outcome === 'identified') out.push(`no-reader-for-type:${v.looks}`);
   else if (v.ask.length) {
@@ -203,7 +208,7 @@ for (const f of files) {
   if (z && !z.refuse) {
     zipOpened.push(z.members.length);
     for (const m of z.members) units.push({ f: null, rel: `${path.relative(folder, f)}#${m.name}`, file: m.file, partRefuse: m.refuse });
-  } else units.push({ f, rel: path.relative(folder, f), file, zipRefuse: z ? (/empty zip/.test(z.refuse) ? 'zip-empty' : 'zip-not-opened') : null, zipCause: z && !/empty zip/.test(z.refuse) ? zipCause(z.refuse) : null });
+  } else units.push({ f, rel: path.relative(folder, f), file, zipRefuse: z ? (/empty zip/.test(z.refuse) ? 'zip-empty' : 'zip-not-opened') : null, zipCause: z && !/empty zip/.test(z.refuse) ? zipCause(z.refuse) : null, zipMsg: z ? z.refuse : '' });
 }
 // a Word file is its tables (each read as a CSV, as in the app: docxread.js) and/or its text (classified; no reader takes prose)
 for (let i = units.length - 1; i >= 0; i--) {
@@ -228,7 +233,7 @@ for (const u of units) {
   let why = [];
   try {
     const file = u.file;
-    if (u.zipRefuse || u.partRefuse) { family = u.zipRefuse ? 'zip' : 'zip-part'; outcome = 'refused'; if (REASONS) why = u.zipRefuse ? [u.zipRefuse, ...(u.zipCause ? [`zip-cause:${u.zipCause}`] : [])] : [zipPartWhy(u.partRefuse)]; throw new Done(); }
+    if (u.zipRefuse || u.partRefuse) { family = u.zipRefuse ? 'zip' : 'zip-part'; outcome = 'refused'; if (REASONS) why = u.zipRefuse ? [u.zipRefuse, ...(u.zipCause ? [`zip-cause:${u.zipCause}`] : []), ...(WHERE && u.zipCause === 'other' ? [`message-shape:${shape(u.zipMsg)}`] : [])] : [zipPartWhy(u.partRefuse)]; throw new Done(); }
     if (u.docxText) { // Word text outside any table: nothing reads prose as figures, so it is identified or asked, never read
       const v = u.docxText.verdict;
       family = 'docx-text'; outcome = v.type ? 'accepted' : v.looks ? 'identified' : v.ask.length ? 'asked' : 'refused';

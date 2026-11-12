@@ -149,7 +149,9 @@ export function loadFailed(step, err, message) {
   const m = String((err && err.message) || '');
   const code = /merge/i.test(m) ? 'overlapping-merge' : /undefined|null|not a function|reading '/.test(m) ? 'missing-part-or-value' : /xml|parse|unexpected|entity|tag/i.test(m) ? 'xml' : /zip|central directory|end of data|signature|corrupt|invalid/i.test(m) ? 'zip' : /memory|array buffer|allocation/i.test(m) ? 'memory' : 'other';
   const c = err && err.constructor && err.constructor.name;
-  return Object.assign(new Error(message || m), { step, code, causeClass: typeof c === 'string' && /^[A-Za-z]{0,24}Error$/.test(c) ? c : 'Error' });
+  // where in the app's or a vendored library's code it failed (a file and line only, never data): for doc-local --where
+  const at = (/\/((?:app|vendor)\/[\w./-]{1,80}\.m?js):(\d{1,6})/.exec(String((err && err.stack) || '')) || []).slice(1, 3).join(':');
+  return Object.assign(new Error(message || m), { step, code, at, causeClass: typeof c === 'string' && /^[A-Za-z]{0,24}Error$/.test(c) ? c : 'Error' });
 }
 
 /** A cell range "A1:B2" as [col0, row0, col1, row1], or null. */
