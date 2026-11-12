@@ -1825,7 +1825,7 @@ input.ci44, select.ci44 { height: 44px; }
 
 /* the hero: eyebrow, title, one sentence, one action */
 :root[data-look="new"] .home-head { display: block; padding: var(--s10) 0 var(--s4); }
-:root[data-look="new"] .home-head .date { font: 500 var(--fs-cap)/1.2 var(--ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 var(--s3); }
+:root[data-look="new"] .home-head .date { font: 500 var(--t-14)/1.2 var(--ui); letter-spacing: 0; text-transform: none; color: var(--muted); margin: 0 0 var(--s3); }
 :root[data-look="new"] .home-head h1 { font-size: clamp(2.125rem, 1.5rem + 2.6vw, 3rem); line-height: 1.08; letter-spacing: -.035em; font-weight: 600; }
 :root[data-look="new"] .home-head .lede { font-size: 1.0625rem; line-height: 1.55; margin-top: var(--s3); max-width: 46ch; }
 :root[data-look="new"] .home-head .view-actions { margin: var(--s6) 0 0; gap: var(--s2) var(--s5); }
