@@ -1,5 +1,25 @@
 # Changelog
 
+## 4.7.145: Monal: Undo can no longer throw away a later edit, and questions stay questions (on the development branch; not merged or deployed)
+
+Review fixes to assistant release 2.
+
+- **Questions stay questions:** "the price is $5m, what is the cap rate" and "the cap rate is 7%, what price" answer as before; a bare statement such as "occupancy is 92%" is an edit only when nothing but the value follows.
+- **Undo is checked:** it refuses ("This changed since; nothing was undone") when a figure, stage, note, next step or contact was changed after the assistant's change; a scenario Undo removes only its own scenario, a stage Undo only its own history entry. Undo adds an "Undone" line to the activity log.
+- **Stale previews:** a scenario or next-step date preview is refused ("The deal changed; ask again") when the deal changed after it was shown.
+- "Make a note to follow up …" makes a task again, as in release 1.
+- **Tested:** new unit tests and browser-flow checks (each failed before the fix); saved results unchanged.
+
+## 4.7.144: Monal can now make changes for you, each one shown first and undoable (on the development branch; not merged or deployed)
+
+Release 2 of the on-device assistant. Eight things you can ask in plain words; every change is shown as a before and after list, waits for its own yes, and offers Undo that puts the deal back exactly. No language model, no new library, no network request.
+
+- **Set a figure** ("set the asking price to $4.6M", "occupancy is 92%"): money needs a k, m, $ or commas and a percent needs a % sign, otherwise Monal asks; points are refused. It goes through the deal screen's own figure path and is marked as typed by you. A figure you typed earlier is shown first as the old value.
+- **Move the stage**, **set or move the next step** (a task with a date on the deal), **add a contact linked to the deal**, **add to the site visit notes**, **save a scenario at a price or cap rate** (the existing scenario save), **start an export** (Excel, share or your template: only opens the existing dialog; a share is refused for a confidential deal), **open a document or the page a figure cites** (the file itself is not kept, so the page is shown through the figures that cite it).
+- Refused with a reason: no deal open, a bare number, an unknown stage, a confidential deal's share. Text in notes or documents is never read as an instruction.
+- **Tested:** 13 new unit tests with hand-worked figures; the assistant browser flow extended at phone and desktop (before/after, Cancel, yes, Undo compared as the full deal JSON, axe, no outside request, 150 ms budget).
+- **Saved results:** unchanged (the engine is only read; golden outputs identical).
+
 ## 4.7.143: Monal, an assistant on your device: ask about the deal and see where each answer came from (on the development branch; not merged or deployed)
 
 A bird button now sits on every screen (not inside the full-screen Underwrite tool). It opens a panel (a bottom sheet on a phone) where a broker types a question and gets an answer worked out on the device from the open deal and the app's own engine. No language model, no new library, no network request, no change to the data format or to any saved result.

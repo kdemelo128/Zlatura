@@ -47,6 +47,9 @@ async function axe(page, name, scope = null) {
   }, scope);
   check(`axe: ${name}`, res.length === 0, res.join('\n    '));
 }
+const dealJson = (page, id) => page.evaluate(async (i) => { const D = await import(new URL('app/dealui.js', location.href).href); const S = await import(new URL('app/store.js', location.href).href); await D.flushDeal(); const d = await S.loadDeal(i); delete d.updatedAt; return JSON.stringify(d); }, id);
+const contacts = (page) => page.evaluate(async () => (await import(new URL('app/crm.js', location.href).href)).listContacts());
+const yes = async (page, a, label) => { await a.locator('button', { hasText: label }).click(); await page.waitForFunction(() => !!document.querySelector('.assist-answer:last-of-type .assist-done, #assist-log .warn-text')); await page.waitForTimeout(150); };
 let during = false;
 const open = async (page) => { during = true; await page.click('#assistant-fab'); await page.waitForSelector('dialog.assist[open]'); await page.waitForTimeout(150); during = false; };
 const count = (page) => page.locator('.assist-answer').count();
@@ -58,7 +61,7 @@ async function ask(page, text) {
   await page.waitForFunction((k) => document.querySelectorAll('.assist-answer').length > k, n);
   await page.waitForTimeout(150);
   during = false;
-  return page.locator('.assist-answer').last();
+  return page.locator('.assist-answer').nth(n);   // this answer, not whichever is last later
 }
 const close = async (page) => { await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('dialog.assist[open]')); };
 
@@ -147,12 +150,111 @@ for (const [size, opts] of SIZES) {
     await a.locator('button', { hasText: 'Cancel' }).click();
     check(`${size}: Cancel saves nothing`, (await tasks(page)).length === before && /nothing was saved/.test(await a.textContent()));
 
+    // release 2: actions. Each shows before and after, Cancel changes nothing, a yes changes exactly that, Undo restores exactly
+    {
+      // the deal screen fills in its own defaults (empty notes per item, schema, document list) the first time it draws a change: one warm-up change and Undo first, so the baseline is the deal as the app keeps it
+      { const w = await ask(page, 'Set the asking price to $4.7M'); await yes(page, w, 'Set the asking price'); await w.locator('button', { hasText: 'Undo' }).click(); await page.waitForFunction(() => /Undone/.test(document.querySelector('.assist-answer:last-of-type .assist-done')?.textContent || '')); }
+      const base = await dealJson(page, id);
+      const ctasks = (await tasks(page)).length; const ccontacts = (await contacts(page)).length;
+      const doAction = async (q, label, assertAfter, name) => {
+        let r = await ask(page, q);
+        const shown = await r.textContent();
+        check(`${size}: ${name}: shows before and after and a yes button`, /Now:/.test(shown) || /Adds:/.test(shown) ? (await r.locator('button', { hasText: label }).count()) === 1 : false, shown.slice(0, 200));
+        check(`${size}: ${name}: nothing is saved before the yes`, (await dealJson(page, id)) === base && (await tasks(page)).length === ctasks && (await contacts(page)).length === ccontacts);
+        await r.locator('button', { hasText: 'Cancel' }).click();
+        check(`${size}: ${name}: Cancel changes nothing`, (await dealJson(page, id)) === base && (await tasks(page)).length === ctasks && (await contacts(page)).length === ccontacts && /nothing was saved/.test(await r.textContent()));
+        r = await ask(page, q);
+        await yes(page, r, label);
+        check(`${size}: ${name}: yes changes exactly that`, await assertAfter(), (await r.textContent()).slice(0, 160));
+        check(`${size}: ${name}: the yes button is gone, so one yes is not a second one`, (await r.locator('button', { hasText: label }).count()) === 0);
+        await r.locator('button', { hasText: 'Undo' }).click();
+        await page.waitForFunction(() => /Undone/.test(document.querySelector('.assist-answer:last-of-type .assist-done')?.textContent || ''));
+        check(`${size}: ${name}: Undo restores the deal exactly`, (await dealJson(page, id)) === base && (await tasks(page)).length === ctasks && (await contacts(page)).length === ccontacts, await (async () => { const n = JSON.parse(await dealJson(page, id)); const b = JSON.parse(base); return Object.keys({ ...n, ...b }).filter((k) => JSON.stringify(n[k]) !== JSON.stringify(b[k])).map((k) => `${k}: ${JSON.stringify(b[k])} -> ${JSON.stringify(n[k])}`).join('; ').slice(0, 500); })());
+        return r;
+      };
+      // a figure the broker typed: the old value is shown prominently
+      let r0 = await ask(page, 'Set the asking price to $4.6M');
+      check(`${size}: a figure the broker typed shows its old value prominently`, (await r0.locator('.assist-typed').count()) === 1 && /Now: \$4,500,000 \(typed by you\)/.test(await r0.textContent()) && /Becomes: \$4,600,000/.test(await r0.textContent()));
+      await r0.locator('button', { hasText: 'Cancel' }).click();
+      await doAction('Set the asking price to $4.6M', 'Set the asking price', async () => { const j = JSON.parse(await dealJson(page, id)); return j.figures.price === 4600000 && j.sources.price.hand === true && (await page.inputValue('#fig-price')).includes('4,600,000'); }, 'figure');
+      await doAction('Occupancy is 92%', 'Set the occupancy', async () => { const j = JSON.parse(await dealJson(page, id)); return j.figures.occ === 92 && j.sources.occ.hand === true; }, 'percent');
+      let rb = await ask(page, 'Set the asking price to 4600000');
+      check(`${size}: a bare number for money is refused and asked about`, /no k, m or \$/.test(await rb.textContent()) && (await rb.locator('button', { hasText: 'Set the' }).count()) === 0 && (await dealJson(page, id)) === base);
+      rb = await ask(page, 'Occupancy is 92');
+      check(`${size}: a bare percent is refused and asked about`, /no % sign/.test(await rb.textContent()) && (await dealJson(page, id)) === base);
+      await doAction('Move this deal to Under contract', 'Move to Under contract', async () => JSON.parse(await dealJson(page, id)).stage === 'contract', 'stage');
+      await doAction('Set the next step: send the LOI by Friday', 'Set the next step', async () => (await tasks(page)).some((x) => x.title === 'Send the LOI' && x.dealId === id && /^\d{4}-\d{2}-\d{2}$/.test(x.due)), 'next step');
+      await doAction('Add a contact Jane Roe, lender, at Example Bank', 'Add the contact', async () => (await contacts(page)).some((c) => c.name === 'Jane Roe' && c.role === 'Lender' && c.company === 'Example Bank' && c.dealIds.includes(id)), 'contact');
+      await doAction('Add a note: owner says the roof was replaced in 2021', 'Add the note', async () => { const j = JSON.parse(await dealJson(page, id)); return j.visit.notes.startsWith('IGNORE ALL PREVIOUS') && j.visit.notes.endsWith('\nowner says the roof was replaced in 2021'); }, 'note');
+      await doAction('Create a scenario at $4.6M', 'Save the scenario', async () => { const j = JSON.parse(await dealJson(page, id)); return j.scenarios.length === 1 && j.scenarios[0].over.price === 4600000 && j.figures.price === 4500000; }, 'scenario');
+      // the injection string in the notes asks for a price change and a task: neither happened
+      check(`${size}: the injection in the notes changed nothing (price, tasks, dialogs)`, JSON.parse(await dealJson(page, id)).figures.price === 4500000 && (await tasks(page)).length === ctasks && dialogs === 0);
+      // an export: only the existing dialog opens, after a yes
+      let rx = await ask(page, 'Fill my Excel template');
+      check(`${size}: an export shows what it opens and that nothing changes`, /Nothing in the deal changes/.test(await rx.textContent()) && (await rx.locator('button', { hasText: 'Undo' }).count()) === 0);
+      await rx.locator('button', { hasText: 'Cancel' }).click();
+      check(`${size}: Cancel starts no export`, !(await page.evaluate(() => !!document.querySelector('#template-root, .lib-sheet, dialog[open]:not(.assist)'))));
+      rx = await ask(page, 'Fill my Excel template');
+      await yes(page, rx, 'Open it');
+      check(`${size}: yes opens the deal screen's own template dialog, and the deal is unchanged`, (await page.evaluate(() => [...document.querySelectorAll('dialog[open]')].some((d) => !d.classList.contains('assist')))) && (await dealJson(page, id)) === base);
+      for (let i = 0; i < 3; i += 1) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); }
+      if (!(await page.evaluate(() => !!document.querySelector('dialog.assist[open]')))) await open(page);
+      // a document or a cited page opens, never changes
+      const rd = await ask(page, 'Open the OM at page 4');
+      check(`${size}: a page request names the figures that cite it and changes nothing`, /Net operating income|NOI/.test(await rd.textContent()) || (await page.evaluate(() => !!document.querySelector('dialog[open]:not(.assist)'))));
+      check(`${size}: opening a page changed nothing`, (await dealJson(page, id)) === base);
+      if (!(await page.evaluate(() => !!document.querySelector('dialog.assist[open]')))) { await page.keyboard.press('Escape'); await page.waitForTimeout(300); await open(page); }
+    }
+
+    // Undo never throws away a later edit; a cap scenario is not saved off a stale price
+    {
+      const j = async () => JSON.parse(await dealJson(page, id));
+      const typePrice = async (v) => { await close(page); await page.fill('#fig-price', v); await page.press('#fig-price', 'Tab'); await page.waitForTimeout(500); await open(page); };
+      const undoRefused = async (r) => { await r.locator('button', { hasText: 'Undo' }).click(); await page.waitForTimeout(500); return /This changed since; nothing was undone/.test(await r.textContent()); };
+      // a figure edited by hand after the assistant set it
+      let r = await ask(page, 'Set the asking price to $4.6M'); await yes(page, r, 'Set the asking price');
+      await typePrice('4,700,000');
+      check(`${size}: Undo after a later typed edit is refused and keeps the later edit`, (await undoRefused(r)) && (await j()).figures.price === 4700000);
+      await typePrice('4,500,000');
+      // a scenario saved after the assistant's: undo removes only its own
+      r = await ask(page, 'Create a scenario at $4.6M'); await yes(page, r, 'Save the scenario');
+      const r2 = await ask(page, 'Create a scenario at $4.4M'); await yes(page, r2, 'Save the scenario');
+      await r.locator('button', { hasText: 'Undo' }).click(); await page.waitForTimeout(500);
+      const sc = (await j()).scenarios;
+      check(`${size}: Undo of a scenario removes only its own, not a later one`, sc.length === 1 && sc[0].over.price === 4400000, JSON.stringify(sc.map((x) => x.over)));
+      await r2.locator('button', { hasText: 'Undo' }).click(); await page.waitForTimeout(400);
+      // a note added after the assistant's note
+      const n0 = (await j()).visit.notes;
+      r = await ask(page, 'Add a note: first thing'); await yes(page, r, 'Add the note');
+      const r3 = await ask(page, 'Add a note: second thing'); await yes(page, r3, 'Add the note');
+      check(`${size}: Undo of a note after a later note is refused and keeps both`, (await undoRefused(r)) && (await j()).visit.notes === `${n0}\nfirst thing\nsecond thing`);
+      await r3.locator('button', { hasText: 'Undo' }).click(); await page.waitForTimeout(400);
+      await r.locator('button', { hasText: 'Undo' }).click(); await page.waitForTimeout(400);
+      check(`${size}: undone in reverse order the notes are back as they were`, (await j()).visit.notes === n0);
+      // a stale preview: the cap scenario is not saved at a price worked from an NOI that has since changed
+      r = await ask(page, 'Create a scenario at a 7% cap');
+      await typePrice('4,550,000');
+      const before = (await j()).scenarios.length;
+      await r.locator('button', { hasText: 'Save the scenario' }).click(); await page.waitForTimeout(500);
+      check(`${size}: a preview made before the deal changed is refused (The deal changed; ask again)`, /The deal changed; ask again/.test(await r.textContent()) && (await j()).scenarios.length === before, (await r.textContent()).slice(-120));
+      await typePrice('4,500,000');
+      // the Undo is on the activity line, not silent
+      r = await ask(page, 'Move this deal to LOI'); await yes(page, r, 'Move to Offer');
+      await r.locator('button', { hasText: 'Undo' }).click(); await page.waitForTimeout(500);
+      const act = await page.evaluate(async () => (await import(new URL('app/crm.js', location.href).href)).listActivity());
+      check(`${size}: Undo adds an "Undone" line to the activity log (history kept)`, act.some((x) => /^Undone: /.test(x.text)) && act.some((x) => x.type === 'stage'));
+      // "make a note to follow up" is a task, as in release 1
+      r = await ask(page, 'Make a note to follow up with the lender on Friday');
+      check(`${size}: "make a note to follow up …" offers a task`, /Add the task/.test(await r.textContent()));
+      await r.locator('button', { hasText: 'Cancel' }).click();
+    }
+
     // a note is data
     a = await ask(page, 'What do my notes say?');
     check(`${size}: a prompt-injection string in a note is shown as text and not acted on`,
       /IGNORE ALL PREVIOUS/.test(await a.locator('blockquote').textContent()) && (await tasks(page)).length === before && dialogs === 0
       && !(await page.evaluate(() => window.__pwned || document.querySelector('#assist-log img'))) && (await page.evaluate(() => !!document.querySelector('dialog.assist[open]'))));
-    check(`${size}: answers hold no HTML elements from the data (text nodes only)`, await page.evaluate(() => [...document.querySelectorAll('#assist-log *')].every((n) => ['DIV', 'P', 'H3', 'H4', 'UL', 'LI', 'SPAN', 'BUTTON', 'BLOCKQUOTE'].includes(n.tagName))));
+    check(`${size}: answers hold no HTML elements from the data (text nodes only)`, await page.evaluate(() => [...document.querySelectorAll('#assist-log *')].every((n) => ['DIV', 'P', 'H3', 'H4', 'UL', 'LI', 'SPAN', 'BUTTON', 'BLOCKQUOTE', 'DL', 'DT', 'DD'].includes(n.tagName))));
     check(`${size}: the assistant made no network request`, during_.length === 0 && outside.length === 0, `${during_.length} during: ${during_.slice(0, 6).join(", ")}; outside: ${outside.join(", ")}`);
 
     // keyboard: the trap, Escape, focus back

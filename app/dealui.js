@@ -364,6 +364,9 @@ export function dealForAssistant() {
     deal: {
       id: deal.id, name: deal.name || '', source: deal.source || '', figures: { ...deal.figures }, sources: deal.sources || {}, loan: { ...deal.loan }, fee: deal.fee || null,
       hasStatement: !!deal.t12, notes: String((deal.visit && deal.visit.notes) || ''),
+      // for the assistant's actions (assistantact.js): the stage, whether it is confidential, and the documents recorded on the deal
+      stage: stageOf(deal), confidential: !!deal.confidential, updatedAt: deal.updatedAt,
+      docs: (ddOf(deal).docs || []).map((x) => ({ id: x.id, name: x.name, type: x.type || null })),
       rollAsOf: rr && rr.settings && typeof rr.settings.asOf === 'string' ? rr.settings.asOf : '', rollSource: pages ? `${deal.source ? `“${deal.source}”` : 'the OM'}, ${pages}` : '',
       openQc: openChecks({ checks: qcs }).map((c) => ({ text: c.text, where: whereText(c) })),
     },
@@ -372,9 +375,75 @@ export function dealForAssistant() {
 }
 
 /**
+ * The assistant's changes (assistantact.js previews them; assistantui.js asks for the yes), made through the
+ * deal screen's own paths: a figure through setFigure (marked as typed), the stage the way Home sets it
+ * (updateDeal), a note into the visit notes, a scenario through the What if card's own save. Each only if the
+ * deal is still the one shown and the figure still what was shown. Resolves { undo }, whose call puts back exactly
+ * what was there (updateDeal, so it works even after the deal screen was left). Throws a plain reason when refused.
+ * @param {any} a an action of assistantact.js
+ */
+export async function assistantApply(a) {
+  if (!deal || deal.id !== a.dealId) throw new Error('that deal is no longer the one open, so nothing was changed');
+  if (a.at !== undefined && a.at !== deal.updatedAt) throw new Error('The deal changed; ask again');
+  const d = deal;
+  const keep = (v) => (v === undefined ? undefined : structuredClone(v));
+  const put = (o, k, v) => { if (v === undefined) delete o[k]; else o[k] = v; };
+  // Undo checks that what it would remove is still what the assistant wrote; a later edit is never thrown away
+  const CHANGED = 'This changed since; nothing was undone';
+  const back = (label, fn) => async () => { await updateDeal(d.id, (x) => { if (fn(x) === false) throw new Error(CHANGED); }, { label }); };
+  if (a.kind === 'figure') {
+    if ((d.figures[a.key] ?? null) !== (a.before ?? null)) throw new Error('that figure has changed since I showed it, so nothing was changed. Ask again');
+    const fig = keep(d.figures[a.key]); const src = keep(d.sources[a.key]);
+    setFigure(a.key, a.value);
+    render();   // the figure's own box is drawn from the deal, not by the edit
+    return { undo: back(`Undo: ${LABEL[a.key] || a.key} set by the assistant`, (x) => { if (x.figures[a.key] !== a.value) return false; put(x.figures, a.key, fig); put(x.sources, a.key, src); return true; }) };
+  }
+  if (a.kind === 'stage') {
+    if (stageOf(d) !== a.from) throw new Error('the stage has changed since I showed it, so nothing was changed. Ask again');
+    const stage = keep(d.stage); const hadHist = d.stageHistory !== undefined;
+    const ent = { at: Date.now(), from: a.from, to: a.to };
+    const same = (e) => e.at === ent.at && e.from === ent.from && e.to === ent.to;
+    await updateDeal(d.id, (x) => { x.stage = a.to; (x.stageHistory ||= []).push(ent); }, { label: `Stage set by the assistant: ${STAGE_LABEL[a.to]}` });
+    crm.log('stage', `${d.name || 'Untitled deal'}: ${STAGE_LABEL[a.from]} → ${STAGE_LABEL[a.to]}`, d.id);
+    return { undo: back('Undo: stage set by the assistant', (x) => {
+      if (stageOf(x) !== a.to || !(x.stageHistory || []).some(same)) return false;
+      put(x, 'stage', stage);
+      x.stageHistory = x.stageHistory.filter((e) => !same(e));   // only our own entry; later ones stay
+      if (!hadHist && !x.stageHistory.length) delete x.stageHistory;
+      return true;
+    }) };
+  }
+  if (a.kind === 'note') {
+    const notes = d.visit.notes;
+    const added = `${notes.trim() ? '\n' : ''}${a.text}`;
+    d.visit.notes = `${notes.trim() ? notes.replace(/\s+$/, '') : ''}${added}`;
+    const wrote = d.visit.notes;
+    touch(d, { label: 'Site visit note added by the assistant' });
+    render();
+    return { undo: back('Undo: site visit note added by the assistant', (x) => { if (x.visit.notes !== wrote) return false; x.visit.notes = notes; return true; }) };
+  }
+  if (a.kind === 'scenario') {
+    const hadList = d.scenarios !== undefined;
+    const sc = pushScenario(a.name, a.over);
+    return { undo: back('Undo: scenario saved by the assistant', (x) => {
+      if (!(x.scenarios || []).some((y) => y.id === sc.id)) return false;
+      x.scenarios = x.scenarios.filter((y) => y.id !== sc.id);   // only its own; later scenarios stay
+      if (!hadList && !x.scenarios.length) delete x.scenarios;
+      return true;
+    }) };
+  }
+  if (a.kind === 'export') {
+    if (a.which === 'share' && d.confidential) throw new Error('this deal is confidential, so its summary is not shared');
+    if (a.which === 'excel') await exportExcel(); else if (a.which === 'share') await shareSummary(); else openTemplates();
+    return { undo: null };
+  }
+  throw new Error('I don’t know how to do that');
+}
+
+/**
  * Take the person to a place the assistant cited: a screen, a pane or section of the open deal, a figure's
  * field, or the page a figure was read from. Never changes anything. Returns whether it got there.
- * @param {{ view?: string, pane?: string, section?: string, field?: string, source?: string }} go
+ * @param {{ view?: string, pane?: string, section?: string, field?: string, source?: string, doc?: string }} go
  */
 export function assistantGo(go) {
   if (!go) return false;
@@ -384,6 +453,18 @@ export function assistantGo(go) {
   if (go.source && deal.sources[go.source] && (deal.sources[go.source].ai || deal.sources[go.source].page)) {
     showPane('overview', { focus: false });
     setTimeout(() => showSource(go.source), 60);
+    return true;
+  }
+  if (go.doc) {
+    // a document recorded on the deal: its row on the Documents card (the card is opened if it is closed), then the row's own button
+    showPane('overview', { focus: false });
+    const card = $('deal-dd');
+    if (!card) return true;
+    revealSection(card);
+    card.scrollIntoView({ block: 'start', behavior: 'instant' });
+    const tg = $('dd-toggle');
+    if (tg && tg.getAttribute('aria-expanded') === 'false') tg.click();
+    setTimeout(() => { const row = card.querySelector(`[data-id="${String(go.doc).replace(/["\\]/g, '')}"] .dd-open`); if (row instanceof HTMLElement) { row.scrollIntoView({ block: 'center', behavior: 'instant' }); row.click(); } }, 80);
     return true;
   }
   if (go.pane) { showPane(go.pane, { focus: false }); const t = $(`pane-${go.pane}`) || $('deal-rentroll'); if (t) t.scrollIntoView({ block: 'start', behavior: 'instant' }); return true; }
@@ -1932,10 +2013,17 @@ function saveScenario() {
   const n = deal.scenarios.length + 1;
   const name = (window.prompt('Name this scenario', `Scenario ${n}`) || '').trim();
   if (!name) return;
-  deal.scenarios.push({ id: `s${Date.now().toString(36)}`, name, at: Date.now(), over: { ...deal.live } });
+  pushScenario(name, { ...deal.live });
+  toast(`Saved “${name}”. The deal’s own figures are unchanged.`);
+}
+/** Keep a scenario on the open deal (the What if card's Save, and the assistant's). Returns it. */
+function pushScenario(name, over) {
+  deal.scenarios ||= [];
+  const sc = { id: `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, name, at: Date.now(), over: { ...over } };
+  deal.scenarios.push(sc);
   touch();
   renderDerived();
-  toast(`Saved “${name}”. The deal’s own figures are unchanged.`);
+  return sc;
 }
 
 /* The one way a scenario reaches the deal: asked for, confirmed, and marked as typed. */
