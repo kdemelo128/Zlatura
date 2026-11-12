@@ -62,6 +62,7 @@ const ASSETS = [
   'app/ocr.js',
   'app/deal.js',
   'app/dealui.js',
+  'app/fold.js',
   'app/uwstore.js',
   'app/uwfiller/bridge.js',
   'app/uwfiller/hashes.js',

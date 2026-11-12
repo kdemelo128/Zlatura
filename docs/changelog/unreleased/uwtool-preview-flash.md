@@ -1,0 +1,6 @@
+# The Excel preview works, and the Underwrite tab no longer flashes a cartoon bird
+
+- **Excel preview.** Hovering "Your Excel workbook" said "End of data reached ... Corrupted zip?". Cause: the cleaned tool carries no firm template, and its workbook builder merged the built workbook into empty template bytes. With no template, the preview and the tool's own export are now the workbook the tool builds itself. If a preview still cannot be built, it says "The preview could not be built yet. Add figures or load your template, then try again." The same empty-bytes failure also hit the tool's Fill/Export path (`filler.js`, `templateBytes.slice()` on nothing) and `exportSnapshot`; both are fixed. Made by three exact-match edits in `tools/uwtool-import.public.json`.
+- **No flash.** Cause: the tool paints in stages, and its first paint shows an old cartoon bird guide ("One step at a time") that its own last scripts then replace. The frame now waits behind a calm neutral skeleton until that is done, then fades in over 180 ms (no fade under reduced motion), on opening the tab and on pressing Underwriting.
+
+Tested with a new browser flow (`uwtool-fixes-flow`): a 25 ms sampler proves the old bird is never visible, at phone and desktop size; the preview and export build many sheets; hover and click show cells. Saved results and the golden figures are unchanged.

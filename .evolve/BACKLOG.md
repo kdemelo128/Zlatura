@@ -84,3 +84,13 @@ leaves golden outputs identical unless logged in `DECISIONS.md`.
 | Phases 1-8 and pillars | `docs/PLAN_STATUS.md`, master plan Part 22 (read-only) |
 | UW evolve P3-P12, T1-T4 | `underwriting-evolve.md` |
 | Seed-repo dev skills (security audit first) | `.evolve/RESEARCH.md` |
+
+## 6. Owner asks of 2026-11-12
+
+| Id | The user gets | Status | Source |
+|---|---|---|---|
+| O1 | Property lookup: blanks such as zoning filled from public sources, several cited sources and a sanity check per figure; needs a design note first because a static site cannot search the web by itself (options: the user's own AI key with web search, public county/GIS endpoints that allow it, a small server: hosting and cost are owner decisions); never scrape CoStar, LoopNet, Crexi or Zillow | not started | owner, 2026-11-12 |
+| O2 | Document drafting from a deal: offering memorandum, letter of intent, broker opinion of value, lease abstract summary, development case study, investor update, loan request package; research each role's daily documents first | not started | owner, 2026-11-12 |
+| O3 | Capped competitor research per role (brokers, developers, lenders, investors, asset and property managers, appraisers): what to match and what to beat | not started | owner, 2026-11-12 |
+| O4 | Logo: research what makes a mark memorable, then a distinctive simplified Monal bird mark that works at 16 px and in one colour | not started | owner, 2026-11-12 |
+| O5 | More small tools in the spirit of PDF merge and convert (decided after the research in O2 and O3) | not started | owner, 2026-11-12 |

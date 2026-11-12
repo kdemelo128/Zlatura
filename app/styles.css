@@ -1910,6 +1910,90 @@ body.uw-full .uwt { flex: 1 1 auto; min-height: 0; padding: 0 env(safe-area-inse
   :root[data-look="new"] .home-sumline { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4) var(--s5); align-items: start; }
 }
 
+/* Deal navigation: the existing tabs and section jump share one quiet sticky bar.
+ * Classic keeps its original tab layout. */
+.deal-nav, .deal-delivery { display: contents; }
+.deal-jump { display: none; }
+:root[data-look="new"] .deal-nav {
+  display: flex; align-items: stretch; gap: var(--s3); position: sticky;
+  top: calc(var(--bar-h) + env(safe-area-inset-top, 0px)); z-index: 6;
+  background: var(--bg); border-bottom: 1px solid var(--line); margin-top: var(--s2);
+}
+:root[data-look="new"] .deal-nav > .seg {
+  flex: 1 1 auto; min-width: 0; position: static; margin-top: 0;
+  border-bottom: 0; gap: clamp(12px, 2vw, 24px);
+}
+:root[data-look="new"] .deal-jump {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  gap: 6px; min-width: 44px; min-height: 44px; padding: 0 10px;
+  border: 0; border-left: 1px solid var(--line); border-radius: 0;
+  background: transparent; color: var(--accent); cursor: pointer;
+  font: 600 var(--t-14)/1.2 var(--ui);
+}
+/* Full-width task/date labels stay readable beside the date and Add controls,
+ * including on a phone with enlarged text. */
+:root[data-look="new"] .ws-crm .task-add { grid-template-columns: minmax(0, 1fr) auto; }
+:root[data-look="new"] .ws-crm .task-add > :first-child { grid-column: 1 / -1; }
+@media (any-pointer: coarse) {
+  :root[data-look="new"] .ws-crm :is(select, input:not([type="checkbox"]), button) { min-height: 44px; }
+}
+:root[data-look="new"] :is(.ws-main > section, .ws-crm, .ws-foot, .pane, #deal-rentroll, #deal-toolbar) {
+  scroll-margin-block-start: calc(var(--bar-h) + 64px);
+}
+@media (min-width: 960px) {
+  :root[data-look="new"] .deal-nav { top: 0; }
+}
+@media (max-width: 600px) {
+  :root[data-look="new"] .deal-jump-label { display: none; }
+  :root[data-look="new"] .ws-top {
+    display: grid; grid-template-columns: minmax(0, 1fr) repeat(2, 44px); gap: 8px;
+  }
+  :root[data-look="new"] .ws-top .view-actions { display: contents; }
+  :root[data-look="new"] .ws-top .ws-back { grid-row: 1; grid-column: 1; justify-self: start; }
+  :root[data-look="new"] #deal-undo { grid-row: 1; grid-column: 2; }
+  :root[data-look="new"] #deal-redo { grid-row: 1; grid-column: 3; }
+  :root[data-look="new"] #deal-more { grid-row: 2; grid-column: 3; }
+  :root[data-look="new"] .deal-delivery { display: flex; grid-row: 2; grid-column: 1 / 3; gap: 8px; }
+  :root[data-look="new"] .deal-delivery > button { flex: 1 1 0; min-width: 0; }
+  :root[data-look="new"] .ws-top :is(#deal-undo, #deal-redo, #deal-more) { padding: 0; min-width: 44px; min-height: 44px; }
+}
+
+/* Folds (fold.js): a title that is a button over a body, with a one-line summary while closed. */
+.fold-btn { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; letter-spacing: inherit; text-align: left; cursor: pointer; border-radius: 8px; }
+.fold-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fold-chev { flex: none; width: 8px; height: 8px; margin-top: -3px; border-right: 2px solid var(--faint); border-bottom: 2px solid var(--faint); transform: rotate(45deg); transition: transform .15s; }
+.fold-btn[aria-expanded="true"] .fold-chev { transform: rotate(225deg); margin-top: 3px; }
+.fold-sum { flex: 1 1 12rem; min-width: 0; color: var(--muted); font-size: var(--t-13); overflow-wrap: anywhere; }
+.fold.folded > .card-head { padding-bottom: var(--s3); }
+.fold.folded .fold-hide-closed { display: none; }
+.fold-body[hidden], .fold-sum[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .fold-chev { transition: none; } }
+
+/* The Deal's Overview: named groups of folded sections (dealui.js dsec). The section's own card keeps its
+ * content and id; its title is the fold button above it, so the card's own heading is not repeated. */
+.ws-groups { display: flex; flex-direction: column; gap: var(--s6); min-width: 0; }
+.dgroup-h { margin: 0 0 var(--s2); font: 650 var(--t-14)/1.3 var(--ui); color: var(--muted); scroll-margin-block-start: calc(var(--bar-h) + 120px); }
+.dgroup-h:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dgroup-body { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+.dgroup, .dsec { min-width: 0; }
+.dsec { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); scroll-margin-block-start: calc(var(--bar-h) + 120px); }
+.dsec[hidden] { display: none; }
+.dsec > .fold-head { display: flex; align-items: center; flex-wrap: wrap; gap: 2px var(--s3); padding: 2px var(--s4); }
+.dsec > .fold-head h3 { margin: 0; font: 650 var(--t-15)/1.25 var(--ui); }
+.dsec > .fold-head .fold-btn { min-width: 44px; }
+.dsec-body > .card { border: 0; box-shadow: none; background: transparent; margin: 0; }
+.dsec-body > .card > .card-head h2 { display: none; }
+.dsec-body > .card > .card-head:not(:has(.count, button, input, select)) { display: none; }
+.dsec-body[hidden] { display: none; }
+.deal-chips { display: none; }
+:root[data-look="new"] .deal-nav { flex-wrap: wrap; }
+:root[data-look="new"] .deal-chips { display: flex; flex: 0 0 100%; gap: var(--s2); overflow-x: auto; padding: var(--s2) 0; scrollbar-width: none; border-top: 1px solid var(--line); }
+:root[data-look="new"] .deal-chips[hidden] { display: none; }
+.deal-chip { flex: none; min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--ink, inherit); font: 600 var(--t-13)/1 var(--ui); cursor: pointer; white-space: nowrap; }
+.deal-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:root[data-look="new"] :is(.ws-main > section, .ws-crm, .ws-foot, .pane, #deal-rentroll, #deal-toolbar, .dsec) { scroll-margin-block-start: calc(var(--bar-h) + 120px); }
+#deal-checks > .card-head { display: none; }
+
 /* Underwrite tab, bridge to the open deal: its buttons in the slim bar, the "Not carried over" note, the confirm's before and after */
 .uw-acts { display: flex; flex-wrap: wrap; gap: var(--s2); flex: none; }
 .uw-acts[hidden] { display: none; }
