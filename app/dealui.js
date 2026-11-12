@@ -388,6 +388,7 @@ export async function assistantApply(a) {
     if ((d.figures[a.key] ?? null) !== (a.before ?? null)) throw new Error('that figure has changed since I showed it, so nothing was changed. Ask again');
     const fig = keep(d.figures[a.key]); const src = keep(d.sources[a.key]);
     setFigure(a.key, a.value);
+    render();   // the figure's own box is drawn from the deal, not by the edit
     return { undo: back(`Undo: ${LABEL[a.key] || a.key} set by the assistant`, (x) => { put(x.figures, a.key, fig); put(x.sources, a.key, src); }) };
   }
   if (a.kind === 'stage') {
