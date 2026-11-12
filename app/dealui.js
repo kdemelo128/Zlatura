@@ -30,7 +30,7 @@ import { projectionNow, projectionLater, projectionSync, projectionError } from 
 import { legacyRows, omRollRecord, applyHeldRows, addOcrRows, ocrReading, rollOffers, withoutRollFigures, ROLL_TOOL } from './rentroll.js';
 import { qcPanel } from './dataqcui.js';
 import { omReadRecord, applyOmFix, heldFields, basisText } from './omstatement.js';
-import { resolveCheck, blockingChecks, qcCounts } from './dataqc.js';
+import { resolveCheck, blockingChecks, qcCounts, openChecks, whereText } from './dataqc.js';
 import { checkReader } from './filekind.js';
 import { readScannedPage, readPhotoText, ocrSupported } from './ocr.js';
 import { pending as stepsDue, applyStep } from './migrate.js';
@@ -343,6 +343,54 @@ export function dealForBridge() {
     hasRentRoll: !!((deal.rr && deal.rr.leases && deal.rr.leases.length) || (deal.rentRoll && deal.rentRoll.length)), hasStatement: !!deal.t12,
     confidential: !!deal.confidential,
   };
+}
+/**
+ * The open deal for the assistant (assistantanswer.js): its stored values, the analysis and rent roll
+ * summary worked out by the engine, and where the rent roll was read from. Read only: nothing is changed.
+ */
+export function dealForAssistant() {
+  if (!deal || !hasFigures()) return null;
+  const comps = api.count() ? api.basis() : null;
+  const input = figuresFor(deal);
+  const m = analyze(input, comps);
+  const rr = hasRentRoll(deal) ? deal.rr : null;
+  const qcs = [...((deal.rrQc && deal.rrQc.checks) || []), ...((deal.omRead && deal.omRead.checks) || [])];
+  const pages = deal.rrQc && deal.rrQc.applied && deal.rrQc.pages && deal.rrQc.pages.length ? pagesText(deal.rrQc.pages) : deal.rentRollPage ? `page ${deal.rentRollPage}` : '';
+  return {
+    deal: {
+      id: deal.id, name: deal.name || '', source: deal.source || '', figures: { ...deal.figures }, sources: deal.sources || {}, loan: { ...deal.loan }, fee: deal.fee || null,
+      hasStatement: !!deal.t12, notes: String((deal.visit && deal.visit.notes) || ''),
+      rollAsOf: rr && rr.settings && typeof rr.settings.asOf === 'string' ? rr.settings.asOf : '', rollSource: pages ? `${deal.source ? `“${deal.source}”` : 'the OM'}, ${pages}` : '',
+      openQc: openChecks({ checks: qcs }).map((c) => ({ text: c.text, where: whereText(c) })),
+    },
+    input, m, comps, rrSum: rr ? rentRollSummary(rr, rr.settings.asOf) : null, today: new Date(), hasDeal: true,
+  };
+}
+
+/**
+ * Take the person to a place the assistant cited: a screen, a pane or section of the open deal, a figure's
+ * field, or the page a figure was read from. Never changes anything. Returns whether it got there.
+ * @param {{ view?: string, pane?: string, section?: string, field?: string, source?: string }} go
+ */
+export function assistantGo(go) {
+  if (!go) return false;
+  if (go.view) { api.showView(go.view); return true; }
+  if (!deal) return false;
+  api.showView('deal');
+  if (go.source && deal.sources[go.source] && (deal.sources[go.source].ai || deal.sources[go.source].page)) {
+    showPane('overview', { focus: false });
+    setTimeout(() => showSource(go.source), 60);
+    return true;
+  }
+  if (go.pane) { showPane(go.pane, { focus: false }); const t = $(`pane-${go.pane}`) || $('deal-rentroll'); if (t) t.scrollIntoView({ block: 'start', behavior: 'instant' }); return true; }
+  showPane('overview', { focus: false });
+  const target = go.field ? $(`fig-${go.field}`) : $(go.section);
+  if (!target) return true;
+  revealSection(target);
+  target.scrollIntoView({ block: 'center', behavior: 'instant' });
+  const focus = target.matches('input, button, textarea, select') ? target : target.querySelector('.fold-btn, h2 button, input, button') || target;
+  if (focus instanceof HTMLElement) { if (!focus.matches('input, button, textarea, select')) focus.tabIndex = -1; focus.focus({ preventScroll: true }); }
+  return true;
 }
 export const currentDealName = () => (deal && hasFigures() ? (deal.name || deal.figures.address || 'Untitled deal') : null);
 const hasFigures = () => deal && Object.values(deal.figures).some((v) => v !== null && v !== undefined && v !== '');
