@@ -844,7 +844,7 @@ function renderDeal(r) {
   const t12 = card('deal-t12', 't12-card');
   dsec(gbody.income, 'statement', 'Operating statement', t12, { summary: () => (deal.t12 ? 'Statement imported' : 'Nothing imported yet') });
   const rs = card('deal-rentsched');
-  dsec(gbody.income, 'rentsched', 'Rent schedule', rs, { summary: () => 'Rent periods by lease' });
+  dsec(gbody.income, 'rentsched', 'Rent schedule', rs, { summary: () => { const n = ((deal.rr && deal.rr.leases) || []).filter((L) => !L.vacant && (L.periods || []).length).length; return `${plural(n, 'lease')} with rent periods`; } });
   const comps = card('deal-comps');
   dsec(gbody.value, 'comps', 'Against your comps', comps, { summary: (m, c) => (c ? `${plural(c.n, 'priced sale comp')}${ok(m.vsWeighted) ? ` · asking ${signed(m.vsWeighted)}` : ''}` : 'No comps loaded') });
   const ladder = card('deal-ladder');
