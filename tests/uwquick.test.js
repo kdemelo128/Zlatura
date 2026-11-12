@@ -72,3 +72,21 @@ test('measureFlags: more than one cent apart is flagged with both figures; a cen
 test('every Quick check figure has one deal path', () => {
   assert.deepEqual(Object.keys(QUICK_DEAL_PATHS).sort(), ['amort', 'closing', 'exitCap', 'hold', 'ltv', 'noi', 'price', 'rate', 'saleCost']);
 });
+
+import { planQuickToDeal, quickFigureList } from '../app/uwfiller/bridge.js';
+
+test('planQuickToDeal: only differing figures, before and after shown, a blank never clears the deal', () => {
+  const deal = { figures: { price: 2000000, noi: null }, loan: { ltv: 65, rate: 6.5 }, live: { hold: 7 } };
+  const p = planQuickToDeal({ price: 2000000.004, noi: 140000, ltv: 60, rate: null, amort: 25, hold: 7 }, deal);
+  assert.deepEqual(p.changes.map((c) => [c.id, c.dealPath, c.before, c.after, c.beforeShown, c.afterShown]), [
+    ['noi', 'figures.noi', null, 140000, 'blank', '$140,000.00'],
+    ['ltv', 'loan.ltv', 65, 60, '65%', '60%'],
+    ['amort', 'loan.amort', null, 25, 'blank', '25 years'],
+  ]);
+  assert.deepEqual(p.same, ['Price', 'Hold period, years']);
+  assert.deepEqual(planQuickToDeal({}, deal), { changes: [], same: [] });
+});
+
+test('quickFigureList: the figures that have a value, money to the cent', () => {
+  assert.deepEqual(quickFigureList({ price: 1500000.5, noi: null, ltv: 65 }), [{ label: 'Price', shown: '$1,500,000.50' }, { label: 'Loan to value', shown: '65%' }]);
+});

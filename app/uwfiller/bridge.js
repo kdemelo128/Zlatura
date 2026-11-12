@@ -229,3 +229,39 @@ export const QUICK_DEAL_PATHS = {
   price: 'figures.price', noi: 'figures.noi', ltv: 'loan.ltv', rate: 'loan.rate', amort: 'loan.amort', closing: 'loan.closing',
   hold: 'live.hold', exitCap: 'live.exitCap', saleCost: 'live.saleCost',
 };
+
+const QSHOW = {
+  price: (v) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, noi: null, ltv: (v) => `${v}%`, rate: (v) => `${v}%`,
+  amort: (v) => `${v} years`, closing: (v) => `${v}%`, hold: (v) => `${v} years`, exitCap: (v) => `${v}%`, saleCost: (v) => `${v}%`,
+};
+QSHOW.noi = QSHOW.price;
+const QLABEL = { price: 'Price', noi: 'NOI', ltv: 'Loan to value', rate: 'Interest rate', amort: 'Amortization, years', closing: 'Closing costs', hold: 'Hold period, years', exitCap: 'Exit cap rate', saleCost: 'Sale costs' };
+const qMoney = (id, v) => (id === 'price' || id === 'noi' ? toCents(v) : v);
+
+/**
+ * What "Save as deal" would change in the open deal, for the before/after confirm: each Quick check figure that has a value
+ * and differs from the deal's. A blank in the check never clears the deal's figure. Money is whole cents. Nothing is changed here.
+ * @param {Record<string, number|null>} values the check's figures (price, noi, ltv, rate, amort, closing, hold, exitCap, saleCost)
+ * @param {{ figures?: any, loan?: any, live?: any }} deal as dealForBridge() gives it
+ * @returns {{ changes: { id: string, label: string, dealPath: string, before: any, after: any, beforeShown: string, afterShown: string }[], same: string[] }}
+ */
+export function planQuickToDeal(values, deal) {
+  const changes = []; const sameLabels = [];
+  for (const [id, dealPath] of Object.entries(QUICK_DEAL_PATHS)) {
+    const raw = values?.[id];
+    if (!ok(raw)) continue;
+    const after = qMoney(id, raw);
+    const before = get(deal, dealPath);
+    const has = ok(before);
+    if (has && same(before, after)) { sameLabels.push(QLABEL[id]); continue; }
+    changes.push({ id, label: QLABEL[id], dealPath, before: has ? before : null, after, beforeShown: has ? QSHOW[id](before) : 'blank', afterShown: QSHOW[id](after) });
+  }
+  return { changes, same: sameLabels };
+}
+
+/** The figures a new deal made from the check starts with, as a list for the confirm: [{ label, shown }] for each that has a value. */
+export function quickFigureList(values) {
+  const out = [];
+  for (const id of Object.keys(QUICK_DEAL_PATHS)) { const v = values?.[id]; if (ok(v)) out.push({ label: QLABEL[id], shown: QSHOW[id](qMoney(id, v)) }); }
+  return out;
+}
