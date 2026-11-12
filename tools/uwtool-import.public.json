@@ -14,6 +14,31 @@
       "file": "parsers.js",
       "find": "const xml = await f.async('string'), text = xml.replace(/<\\/w:p>/g, '\\n').replace(/<w:tab\\/>/g, '\\t').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '\"').replace(/&apos;/g, \"'\");",
       "replace": "const xml = await f.async('string'), text = ((s) => { for (let p; p !== s;) { p = s; s = s.replace(/<[^>]+>/g, ''); } const E = { amp: '&', lt: '<', gt: '>', quot: '\"', apos: \"'\" }; return s.replace(/&(amp|lt|gt|quot|apos);/g, (m, k) => E[k]); })(xml.replace(/<\\/w:p>/g, '\\n').replace(/<w:tab\\/>/g, '\\t'));"
+    },
+    {
+      "id": "preview-no-template-merge",
+      "category": "template",
+      "op": "replace",
+      "file": "editor.js",
+      "find": "let output=await UWMerge(custom||template,XLSX.write(wb,{type:'array',bookType:'xlsx',compression:true}),bridge);if(custom)",
+      "replace": "const built=XLSX.write(wb,{type:'array',bookType:'xlsx',compression:true});if(!custom&&!(template&&template.length))return new Uint8Array(built);let output=await UWMerge(custom||template,built,bridge);if(custom)"
+    },
+    {
+      "id": "preview-plain-sentence",
+      "category": "template",
+      "op": "replace",
+      "file": "workbook-preview.js",
+      "count": 2,
+      "find": "'Preview unavailable: '+e.message",
+      "replace": "'The preview could not be built yet. Add figures or load your template, then try again.'"
+    },
+    {
+      "id": "fill-no-template-bytes",
+      "category": "template",
+      "op": "replace",
+      "file": "filler.js",
+      "find": "let res={bytes:templateBytes.slice(),importer",
+      "replace": "let res={bytes:(templateBytes||new Uint8Array(0)).slice(),importer"
     }
   ]
 }
