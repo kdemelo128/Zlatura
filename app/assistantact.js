@@ -125,7 +125,7 @@ export function understandAction(raw, { today = new Date() } = {}) {
     return { id: 'next_step', title: title ? title.charAt(0).toUpperCase() + title.slice(1) : '', due: due ? due.iso : null, dueWords: due ? due.words : null };
   }
   // a stage
-  if ((m = new RegExp(`^${polite}(?:(move|advance|push|promote|mark|set|change|put|update)\\b)(?: this| the| my)?(?: deal)?(?: stage| status)?\\s*(?:of the deal)?\\s*(?:to|into|as|=)\\s+(.+)$`).exec(t))
+  if ((m = new RegExp(`^${polite}(?:(move|advance|push|promote|mark|set|change|put|update)\\b)(?: this| the| my| it)?(?: deal)?(?: stage| status)?\\s*(?:of the deal)?\\s*(?:to|into|as|=)\\s+(.+)$`).exec(t))
     && (/^(move|advance|push|promote)$/.test(m[1]) || /\b(stage|status)\b/.test(t.slice(0, t.length - m[2].length)) || (m[1] === 'mark' && /\bdeal\b/.test(t)))) {
     return { id: 'set_stage', phrase: m[2], key: stageKey(m[2]) };
   }
