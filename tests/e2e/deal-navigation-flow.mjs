@@ -29,12 +29,23 @@ for (const [size,opts] of sizes) {
     await page.waitForFunction(async()=>{const m=await import('./app/dealui.js');return (await m.listAllDeals()).some(d=>d.figures.price===4500000);});
     const saved=()=>page.evaluate(async()=>{const m=await import('./app/dealui.js');return {id:m.currentDealId(),deal:(await m.listAllDeals()).find(d=>d.id===m.currentDealId())};});
     const before=await saved();
-    const destinations=[['Key figures','deal-figures','overview'],['Documents','deal-dd','overview'],['Operating statement','deal-t12','overview'],['Financing','deal-finance','overview'],['Rent roll','deal-rentroll','rentroll'],['Scenarios','pane-whatif','whatif'],['Contacts and follow-ups','deal-crm','overview'],['Site visit','pane-visit','visit'],['Excel and Share','deal-toolbar',null],['Templates and deal brief','deal-outputs',null]];
-    for (const [name,id,pane] of destinations) {
+    const destinations=[['Key figures','deal-figures','overview'],['Documents','deal-dd','overview'],['Operating statement','deal-t12','overview'],['Financing','deal-finance','overview'],['Rent roll','deal-rentroll','rentroll'],['Scenarios','pane-whatif','whatif'],['Contacts and follow-ups','deal-crm','overview'],['Site visit','pane-visit','visit'],['Excel and Share','deal-toolbar',null,'deal-workbook'],['Templates and deal brief','deal-outputs',null,'deal-template']];
+    for (const [name,id,pane,focusId] of destinations) {
       await jump.click();
       await page.getByRole('button',{name,exact:false}).filter({has:page.locator('.action-label')}).click();
       await page.waitForFunction(id=>{const e=document.getElementById(id);return e&&e.contains(document.activeElement);},id);
-      check(`${size}: ${name} opens and receives keyboard focus`,await page.locator('#'+id).isVisible()&&(!pane||await page.locator('#tab-'+pane).getAttribute('aria-selected')==='true'));
+      check(`${size}: ${name} opens and receives keyboard focus`,await page.locator('#'+id).isVisible()&&(!pane||await page.locator('#tab-'+pane).getAttribute('aria-selected')==='true')&&(!focusId||await page.evaluate(()=>document.activeElement.id)===focusId));
+      await page.evaluate(()=>new Promise(requestAnimationFrame));
+      const visible=await page.evaluate(()=>{
+        const rect=document.activeElement.getBoundingClientRect();let top=0,bottom=innerHeight;
+        for(const e of document.querySelectorAll('.appbar,.deal-nav')){
+          const r=e.getBoundingClientRect(),s=getComputedStyle(e),p=parseFloat(s.top);
+          if(r.width&&r.height&&['fixed','sticky'].includes(s.position)&&Math.abs(r.top-(Number.isFinite(p)?p:0))<1)top=Math.max(top,r.bottom);
+        }
+        const bar=document.querySelector('.tabbar');if(bar){const r=bar.getBoundingClientRect();if(r.width&&r.height&&getComputedStyle(bar).position==='fixed')bottom=Math.min(bottom,r.top);}
+        return {focusTop:rect.top,focusBottom:rect.bottom,top,bottom};
+      });
+      check(`${size}: ${name} focus is unobscured by the bars`,visible.focusTop>=visible.top-0.5&&visible.focusBottom<=visible.bottom+0.5,JSON.stringify(visible));
       const after=await saved();
       check(`${size}: ${name} preserves the deal and its figures`,after.id===before.id&&JSON.stringify(after.deal.figures)===JSON.stringify(before.deal.figures));
     }
@@ -84,11 +95,17 @@ for (const [size,opts] of sizes) {
     }
     if (size==='phone'||size==='compact-phone') {
       const layout=await page.evaluate(()=>{const box=id=>{const r=document.getElementById(id).getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height};};return {undo:box('deal-undo'),redo:box('deal-redo'),more:box('deal-more'),excel:box('deal-workbook'),share:box('deal-share'),jump:box('deal-jump')};});
-      check(`${size}: Undo, Redo and More share a row`,Math.abs(layout.undo.y-layout.more.y)<1&&Math.abs(layout.redo.y-layout.more.y)<1,JSON.stringify(layout));
-      check(`${size}: Excel and Share share their own row`,Math.abs(layout.excel.y-layout.share.y)<1&&layout.excel.y>=layout.more.y+layout.more.h,JSON.stringify(layout));
+      check(`${size}: Undo and Redo share the first row`,Math.abs(layout.undo.y-layout.redo.y)<1&&layout.redo.y+layout.redo.h<=layout.excel.y,JSON.stringify(layout));
+      check(`${size}: Excel, Share and More follow in the next row`,Math.abs(layout.excel.y-layout.share.y)<1&&Math.abs(layout.excel.y-layout.more.y)<1&&layout.more.x>=layout.share.x+layout.share.w-1,JSON.stringify(layout));
       check(`${size}: every new or repositioned control has a 44 px target`,Object.values(layout).every(r=>r.w>=43.5&&r.h>=43.5),JSON.stringify(layout));
     }
     await page.evaluate(async()=>{(await import('./app/look.js')).setTextSize(100);});
+    const order=await page.evaluate(()=>{
+      const dom=[...document.querySelectorAll('#deal-toolbar button')].filter(e=>!e.disabled);
+      const visual=[...dom].sort((a,b)=>{const x=a.getBoundingClientRect(),y=b.getBoundingClientRect();return x.top<y.bottom&&y.top<x.bottom?x.left-y.left:x.top-y.top;});
+      return dom.every((e,i)=>e===visual[i]);
+    });
+    check(`${size}: toolbar keyboard order follows its visual order`,order);
     await page.emulateMedia({colorScheme:'light'});
     await page.evaluate(()=>scrollTo(0,0));
     await page.screenshot({path:SHOTS+`deal-navigation-${size}.png`});

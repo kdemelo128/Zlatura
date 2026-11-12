@@ -17,11 +17,13 @@ No Underwrite/native-filler implementation, reader logic, engine, saved shape,
 provider connection, dependency or hosting change. Shared styles and dialog
 helpers may overlap another branch: preserve both changes and rerun checks.
 
-Evidence so far: 182 invented-data browser checks at 320/390/820/1280 px,
+Evidence so far: 226 invented-data browser checks at 320/390/820/1280 px,
 light/dark, 130% text, keyboard, Back/Escape, typed tasks/dates, same-figure
 preservation and reload. Archived main fails all four new-route checks; two
 UI guard mutations each fail four assertions. Quick/type/golden checks pass.
-The full combined gate is to run after the Underwrite release is synced.
-Choose the next version after that release; no version is reserved here.
+Independent review added unobscured-focus checks for all ten destinations, ordered phone actions and explicit template focus. A preliminary full run passed all Node/time-zone/server/type/golden steps, then was stopped to fix the review finding; it is not a completed full-gate pass. The full combined gate is to run after the Underwrite release is synced.
+Claude is releasing 4.7.134; sync that release and use 4.7.135 before the UI PR. The draft 4.7.134 bookkeeping was removed before this branch was pushed.
+
+Owner-confirmed split: Codex owns document readers (PM rolls next), deal navigation/phone controls and manual entry. Claude owns Underwrite, its tool files, the wider screen redesign and the on-device assistant. Stay out of `app/underwrite.js`, `app/uwtool/` and `app/uwfiller/`.
 
 The owner merges. Never push this change to main or publish the cloud environment.

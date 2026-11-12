@@ -868,7 +868,9 @@ function renderDeal(r) {
   bottom.classList.add('ws-foot');
   bottom.id = 'deal-outputs';
   bottom.appendChild(button('', 'Use as the comps subject', useAsSubject, 'arrow-right'));
-  bottom.appendChild(button('', 'Fill my Excel template', openTemplates, 'file-check'));
+  const template = button('', 'Fill my Excel template', openTemplates, 'file-check');
+  template.id = 'deal-template';
+  bottom.appendChild(template);
   if (!IN_ARTIFACT) bottom.appendChild(button('', 'Deal brief', printBrief, 'print'));
   bottom.appendChild(button('btn-gray', 'All deals', closeDeal, 'back'));
   stack.appendChild(bottom);
@@ -938,14 +940,19 @@ async function openDealSections() {
     { info: d.name || d.figures.address || 'Untitled deal' },
     ...sections.map(([value, label, sub]) => ({ value, label, sub })),
   ]);
-  if (!key || deal !== d) return;
+  if (!key) return;
+  // A sheet returns its history entry asynchronously. Let that traversal and
+  // its scroll restoration finish before moving to the selected destination.
+  if (history.state?.sheet) await new Promise((resolve) => window.addEventListener('popstate', resolve, { once: true }));
+  await new Promise((resolve) => setTimeout(() => resolve(undefined), 0));
+  if (deal !== d || document.querySelector('dialog[open]')) return;
   const section = sections.find(([value]) => value === key);
   if (!section) return;
   const [, , , toPane, id] = section;
   if (toPane) showPane(toPane, { focus: false });
   const target = $(id);
   if (!target) return;
-  const focus = (id === 'deal-toolbar' ? $('deal-workbook') : target.querySelector('h2 button, h2, button, input')) || target;
+  const focus = (id === 'deal-toolbar' ? $('deal-workbook') : id === 'deal-outputs' ? $('deal-template') : target.querySelector('h2 button, h2, button, input')) || target;
   if (focus instanceof HTMLElement) {
     if (!focus.matches('button, input')) focus.tabIndex = -1;
     focus.focus({ preventScroll: true });
