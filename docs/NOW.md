@@ -9,7 +9,8 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.132 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.133 (development branch; GitHub Pages deploys from main).
+- **Current branch:** `codex/pdf-operating-statements`: explicit prior-year annual actual PDFs enter the existing annual T-12 basis after column/number-format choices; separate Use confirmation, provenance, Undo. Tested with synthetic fixtures only (16 unit tests, 34 browser checks); full gate passes: 1,509 unit tests in each of three time zones, 59 server tests, 82 browser flows (3,042 assertions), type/golden checks and LibreOffice recalculation. Real brokerage PDFs, Safari, a physical phone and Microsoft Excel remain untested. Logo #153, manual deal fields #154 and fixture fix #155 and Workspace wait #157 are merged. Reader rules approved in chat and #156. Next: the deal UI and workflow connections; PM rent-roll completeness/profile checks remain queued. No schema change; existing golden figures unchanged.
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
