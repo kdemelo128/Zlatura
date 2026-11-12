@@ -1924,3 +1924,13 @@ body.uw-full .uwt { flex: 1 1 auto; min-height: 0; padding: 0 env(safe-area-inse
 .uw-diff-a { font-weight: 600; }
 @media (max-width: 479px) { .uw-acts { flex: 1 1 100%; justify-content: space-between; gap: var(--s1); } .uw-acts .btn { min-height: 36px; padding: 0 8px; font-size: var(--t-12); } }
 @media (max-width: 479px) { .uw-slim { gap: var(--s1) var(--s2); padding-top: calc(var(--s1) + env(safe-area-inset-top, 0px)); padding-bottom: var(--s1); } .uw-slim .uw-back, .uw-slim .uw-switch .btn { min-height: 36px; } }
+
+/* Underwrite tab: the tool's frame waits behind a neutral skeleton until it has painted, then fades in (nothing under reduced motion) */
+.uwt { position: relative; }
+.uwt-frame { transition: opacity 180ms ease-out; }
+.uwt-frame.uwt-wait { opacity: 0; }
+.uwt-skel { position: absolute; inset: 0; display: grid; align-content: start; gap: var(--s4); padding: var(--s6) var(--s5); background: var(--bg); pointer-events: none; opacity: 1; transition: opacity 180ms ease-out; }
+.uwt-skel i { display: block; height: 18px; max-width: 760px; border-radius: 9px; background: var(--fill); }
+.uwt-skel i:first-child { height: 34px; }
+.uwt-skel-out { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .uwt-frame, .uwt-skel { transition: none; } }

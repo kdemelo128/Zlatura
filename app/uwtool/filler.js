@@ -266,7 +266,7 @@ $('build').addEventListener('click',async()=>{
     if(bad.length)throw new Error('Check these inputs: '+bad.join(', ')+'.');
     cfg.reimb=$('f_reimb').value;cfg.fees=$('f_fees').value;
     if(!rrd){cfg.asof=asof||run||new Date().toISOString().slice(0,10);}
-    let res={bytes:templateBytes.slice(),importer:{items:[]},shell:!rrd||!std};
+    let res={bytes:(templateBytes||new Uint8Array(0)).slice(),importer:{items:[]},shell:!rrd||!std};
     // The connected UW model fills the supplied Summary; legacy inputs remain reference only.
     if(!rrd)res.importer.items.push({sev:'Warning',rec:'No source rent roll',reason:'Tenant assumptions are manual or lease-derived and require review.'});if(!std)res.importer.items.push({sev:'Warning',rec:'No source operating statement',reason:'Expenses require assumptions or manual entry and source review.'});
     res.importer.items=res.importer.items.concat(UW.checks(UWEditor.model()).filter(c=>!c.ok).map(c=>({sev:'Warning',rec:c.label,reason:c.detail})).concat(S.files.filter(e=>['lease','drawing'].includes(e.kind)||['unknown','error'].includes(e.kind)).map(e=>({sev:'Warning',rec:e.name,reason:e.kind==='unknown'||e.kind==='error'?'Document needs review. No values from it have been inferred.':'Verify the extracted values and any approved changes against the source.'}))));

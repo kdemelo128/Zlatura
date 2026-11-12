@@ -149,8 +149,8 @@
   },
   "editor.js": {
    "in": "c0d42812fbf2aa7bf2ec228ca9da34ea4dc6487a425e558c60721148850d0834",
-   "out": "170e2b5f3a00aa3f7a69526b2af68ef9176513ce6183899a3a2d9f5a885d7af8",
-   "bytes": 41974
+   "out": "ec59c525ee2b0cbd60376040bb84b5e8e1ac632b7a8feef1f8e978e278962a2b",
+   "bytes": 42062
   },
   "example.json": {
    "in": "85a852d953fa84066323cd852e313e06d6a9bafb48cc448e779023022f42c505",
@@ -164,8 +164,8 @@
   },
   "filler.js": {
    "in": "783acacc199ee2d663ffe538163bb8b053551c73c2d911bf746984fe41d91b9d",
-   "out": "6b3cc16ead80bd328a45c95cc890ec3c1e023af8a25e8f8edee7e072a7abd438",
-   "bytes": 70769
+   "out": "e88319c625a7b640a1184c5154123c39fe7464f01e809ad1da4e6046175791a2",
+   "bytes": 70790
   },
   "finance.js": {
    "in": "a5ebb9f48f4b7193c6aec3a208186a4f1750dab122cfccfc9fa63da79c3968a2",
@@ -394,8 +394,8 @@
   },
   "workbook-preview.js": {
    "in": "d7bd2b891ea7daa916bc6eed4f79d571f3164db72729b2c77d20044f25c54d89",
-   "out": "1a92328f65a44180fcb8ef9bb6440183f4a59a322ddce19d2394a8cd344ca52c",
-   "bytes": 12973
+   "out": "1bbb0bc9797f63baa041d5ddb7b7c96a60e377e505e5e0f38105a88a478262e1",
+   "bytes": 13083
   },
   "workspace-comforts.js": {
    "in": "acc15a6d6f11a0dc6c6121b257bb75c5a4e1b84ad90b31442b1b73b0c37cc7f0",
@@ -814,6 +814,27 @@
   {
    "id": "docx-text-sanitize",
    "category": "security",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "preview-no-template-merge",
+   "category": "template",
+   "op": "replace",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "preview-plain-sentence",
+   "category": "template",
+   "op": "replace",
+   "applied": 2,
+   "lines": 0
+  },
+  {
+   "id": "fill-no-template-bytes",
+   "category": "template",
    "op": "replace",
    "applied": 1,
    "lines": 0
