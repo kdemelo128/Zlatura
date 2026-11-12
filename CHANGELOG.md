@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.7.140: The underwriting tool is now maintained in this repository (on the development branch; not merged or deployed)
+
+`app/uwtool/` is the maintained copy of the tool (the owner's licence, `app/uwtool/LICENSE`, is untouched). The importer (`tools/uwtool-import.mjs`) and its manifest stay as history; no test requires the folder to equal importer output any more. Kept: the deny-list and base64 guard over every file in the folder, and the strict content policy checks. New: `tests/uwtool-outside-calls.test.js` fails if any file in the folder calls an outside address (fetch, XHR, WebSocket, EventSource, import, script, link, CSS `url()`), uses `sendBeacon`, or re-enables an AI or OCR endpoint; same-origin paths, `data:` and `blob:` are allowed. Each kind was planted in a temporary copy to prove the test fails. The one-underwriting-space proposal is added to `docs/proposals/`. No saved result, figure or screen changes.
+
 ## 4.7.139: The Excel preview works, and the Underwrite tab no longer flashes a cartoon bird (on the development branch; not merged or deployed)
 
 - **Excel preview.** Hovering "Your Excel workbook" said "End of data reached ... Corrupted zip?". Cause: the cleaned tool carries no firm template, and its workbook builder merged the built workbook into empty template bytes. With no template, the preview and the tool's own export are now the workbook the tool builds itself. If a preview still cannot be built, it says "The preview could not be built yet. Add figures or load your template, then try again." The same empty-bytes failure also hit the tool's Fill/Export path (`filler.js`, `templateBytes.slice()` on nothing) and `exportSnapshot`; both are fixed. Made by three exact-match edits in `tools/uwtool-import.public.json`.

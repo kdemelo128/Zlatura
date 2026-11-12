@@ -104,3 +104,14 @@ Design note: `docs/proposals/monal-builtin-and-rename.md`.
 | Date | What | Why | How to reverse |
 |---|---|---|---|
 | 2026-11-12 | `app/uwtool/` is the maintained source; `tools/uwtool-import.mjs` and its json are retired (kept for history); no test requires the folder to equal importer output. The deny-list and base64 guard, the strict content policy checks and a new outside-call scan (`tests/uwtool-outside-calls.test.js`, with a planted-call mutation check) stay | The owner licensed the tool; the importer already needed 60 exact-match edits and every screen improvement would add more (`docs/proposals/one-underwriting-space.md` section A) | Re-run `tools/uwtool-import.mjs` on the private package (it refuses a non-import output folder, so clear `app/uwtool/` first), restore the manifest test from git history, and discard hand edits |
+
+Owner approvals recorded the same day (2026-11-12, session chat, "approve all recommendations"; passed on by the coordinator), for `docs/proposals/one-underwriting-space.md` section G:
+
+| # | Decision |
+|---|---|
+| 1 | When the tool and the engine disagree, the deal keeps the engine's figure; the tool's figure is shown beside it with a flag. The tool keeps its own calculator for now, so saved results do not change |
+| 2 | The current tool project and saved quick underwritings become unfiled projects; nothing is deleted |
+| 3 | Confidential deals keep their tool projects on the device and in backups, marked confidential, never sent to AI |
+| 4 | Maintain the cleaned copy and stop regenerating (decided by the lead as reversible; owner informed) |
+
+Releases 4 (one reader and adapter) and 5 (per-deal projects and migration) are marked "approved by owner 2026-11-12" in the proposal's build order.

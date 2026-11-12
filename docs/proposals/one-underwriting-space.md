@@ -70,8 +70,8 @@ Document figures reach Excel only after review, with their source file and page.
 | 1 | Tool becomes the maintained copy; new outside-call test | No | Planting an outside call or a deny-listed stand-in term makes the guard fail |
 | 2 | Clearer Choose your next move, analyst toolkit and advanced scenarios (grouped, larger buttons, plain headings) | No | axe, phone-size tap targets, golden unchanged |
 | 3 | Quick check, calculators and Save as deal inside the Model step | No | The old Quick underwrite flow done end to end in the new place |
-| 4 | One reader and the adapter | **Yes, financial meaning (units)** | Invented rent rolls: monthly vs annual, blank cells, unconfirmed basis; each fails on the old code |
-| 5 | Per-deal projects and migration | **Yes, saved data** | Old-backup fixture restores into unfiled projects with nothing lost |
+| 4 | One reader and the adapter (approved by owner 2026-11-12) | **Yes, financial meaning (units)** | Invented rent rolls: monthly vs annual, blank cells, unconfirmed basis; each fails on the old code |
+| 5 | Per-deal projects and migration (approved by owner 2026-11-12) | **Yes, saved data** | Old-backup fixture restores into unfiled projects with nothing lost |
 | 6 | Export step with three choices; cross-check panel | No | Invented deal gives all three files; a planted $2 gap shows the flag |
 | 7 | Switch removed | No | Every table B row reached in the browser suite |
 
