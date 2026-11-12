@@ -33,8 +33,9 @@ import { omReadRecord, applyOmFix, heldFields, basisText } from './omstatement.j
 import { resolveCheck, blockingChecks, qcCounts, openChecks, whereText } from './dataqc.js';
 import { checkReader } from './filekind.js';
 import { readScannedPage, readPhotoText, ocrSupported } from './ocr.js';
-import { readPdfOcr, ocrOf } from './ocrpdf.js';
+import { readPdfOcr, ocrOf, ocrNote } from './ocrpdf.js';
 import { startOcrProgress } from './ocrprogress.js';
+import { pdfPages as pdfPagesText } from './pdftext.js';
 import { pending as stepsDue, applyStep } from './migrate.js';
 import { renderRentRollWorkspace } from './rentrollui.js';
 import { redrawKeepingFocus } from './focuskeep.js';
@@ -297,11 +298,13 @@ export async function discardDeal(id) {
   if (deal && deal.id === id) { deal = null; closeDeal(); }
   return done;
 }
+/** A PDF's text, then OCR on this device when it has none (ocrpdf.js): the readPdf of Start from documents and of the Documents card. */
+const readPdfWithOcr = async (bytes) => { const pdfjs = await getPdfjs(); return readPdfOcr(pdfjs, bytes, async (b) => { const layouts = []; const pages = await pdfPagesText(pdfjs, b.slice(), { layouts }); return { pages, layouts }; }, startOcrProgress); };
 /** What the Start from documents card (intake.js) needs to look at a file: the same readers the Documents card uses. */
 export const intakeDeps = () => ({
   getFflate, getXlsx,
   // a PDF with no text layer is read by OCR on this device by itself (ocrpdf.js): a progress line with Cancel, a page cap and a time budget
-  readPdf: async (bytes) => { const pdfjs = await getPdfjs(); return readPdfOcr(pdfjs, bytes, async (b) => { const layouts = []; const pages = await api.pdfPages(pdfjs, b.slice(), { layouts }); return { pages, layouts }; }, startOcrProgress); },
+  readPdf: readPdfWithOcr,
   ocrOf,
   problem: (err, file) => pdfProblem(err, file),
   // OCR of a PDF's first page, only when the broker taps "Read it with OCR"; on this device, nothing is sent (ocr.js)
@@ -627,11 +630,13 @@ async function readOmFile(file) {
   reading = { name: file.name, done: 0, total: 0 };
   render();
   let pages;
+  let ocrDone = null;
   const layouts = [];
   try {
     const pdfjs = await getPdfjs();
+    // a scanned page is read by OCR on this device before the OM reader runs, so a scanned rent roll page is not missed (ocrpdf.js)
     pages = await api.pdfPages(pdfjs, new Uint8Array(await file.arrayBuffer()), {
-      onPage: (k, n) => { reading.done = k; reading.total = n; progress(); }, layouts,
+      onPage: (k, n) => { reading.done = k; reading.total = n; progress(); }, layouts, ocr: { mixed: true, onOcr: (o) => { ocrDone = o; } },
     });
   } catch (err) {
     reading = null;
@@ -647,7 +652,7 @@ async function readOmFile(file) {
     deal = newDeal({ name: file.name.replace(/\.pdf$/i, ''), source: file.name, readAt: Date.now(), pages: om.pages, rrQc: qc });
     omFiles.set(deal.id, file);
     render();
-    toast('This OM is scanned images with no text in it, so its numbers can’t be read. Enter the key figures by hand; the analysis works the same.', null, 9000);
+    toast(`This OM is scanned images with no text in it, so its numbers can’t be read.${ocrDone ? ` ${ocrNote(ocrDone)}` : ''} Enter the key figures by hand; the analysis works the same.`, null, 9000);
     touch();
     return;
   }
@@ -688,7 +693,7 @@ async function readOmFile(file) {
   store.askToPersist();
   const held = qc && qc.held ? qc.held.length : 0;
   const stHeld = stmt.omRead ? heldFields(stmt.omRead).length : 0;
-  toast(`Read ${om.pages} page${om.pages === 1 ? '' : 's'}: ${n} figure${n === 1 ? '' : 's'} found${om.rentRoll ? ` and a rent roll of ${om.rentRoll.rows.length}` : ''}.${stHeld ? ' The operating statement doesn’t add up, so NOI, EGI and expenses are held back: see Data QC.' : ''}${held ? ' A rent roll check failed, so the rent roll is held back: see Data QC.' : ''}${om.scanned.length ? ` ${om.scanned.length} page${om.scanned.length === 1 ? ' has' : 's have'} no text.` : ''} Tap a page tag to see where each came from.`, null, 7000);
+  toast(`Read ${om.pages} page${om.pages === 1 ? '' : 's'}: ${n} figure${n === 1 ? '' : 's'} found${om.rentRoll ? ` and a rent roll of ${om.rentRoll.rows.length}` : ''}.${stHeld ? ' The operating statement doesn’t add up, so NOI, EGI and expenses are held back: see Data QC.' : ''}${held ? ' A rent roll check failed, so the rent roll is held back: see Data QC.' : ''}${ocrDone ? ` ${ocrNote(ocrDone)}` : ''}${om.scanned.length ? ` ${om.scanned.length} page${om.scanned.length === 1 ? ' has' : 's have'} no text.` : ''} Tap a page tag to see where each came from.`, null, ocrDone ? 12000 : 7000);
   idle(() => getXlsx().catch(() => {}));
 }
 
@@ -1056,7 +1061,8 @@ function docsHost(d) {
     stillOpen: () => deal === d,
     getFflate, getXlsx,
     problem: (err, file) => pdfProblem(err, file),
-    readPdf: async (bytes) => { const layouts = []; const pages = await api.pdfPages(await getPdfjs(), bytes, { layouts }); return { pages, layouts }; },
+    readPdf: readPdfWithOcr, // a scan is read by OCR on this device, with the same progress line, Cancel and caps
+    ocrOf,
     ocrText: async (bytes) => (await readScannedPage(await getPdfjs(), bytes.slice(), 1)).text,
     // other deals holding a file with this fingerprint, by name: shown on this device only
     otherDeals: async (sha) => (await listAllDeals()).filter((x) => x.id !== d.id && x.dd && Array.isArray(x.dd.docs) && x.dd.docs.some((y) => y && y.sha256 === sha)).map((x) => x.name || (x.figures && x.figures.address) || 'Untitled deal'),

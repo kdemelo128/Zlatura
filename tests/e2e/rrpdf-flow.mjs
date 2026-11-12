@@ -123,16 +123,20 @@ await openPdf('stmt-doc.pdf');
 check('an operating statement is named as one, not read', /operating statement/.test(await text('#sheet-body')) && (await page.locator('#rrpdf-qc').count()) === 0 && (await page.locator('#rrpdf-use').isDisabled()), (await text('#sheet-body')).slice(0, 200));
 await closeSheet();
 
-// D. a scanned rent roll: OCR only when asked
+// D. a scanned rent roll: read by OCR on this device by itself (the progress line), its rows marked low confidence to be checked
 const ocrBefore = requests.filter((u) => /vendor\/ocr\//.test(u)).length;
-await openPdf('rr-scan.pdf');
-check('a scan says it has no text layer, and OCR files were not requested', /A page can be read with OCR, on request/.test(await text('#sheet-body')) && /no text layer/.test(await text('#rrpdf-qc')) && ocrBefore === 0 && requests.filter((u) => /vendor\/ocr\//.test(u)).length === 0, (await text('#rrpdf-qc')).slice(0, 160));
-await page.locator('#rrpdf-qc button.qc-ocr').first().click();
-await page.waitForSelector('#rrpdf-qc .qc-item[data-check="ocr:1"]', { timeout: 150000 });
-check('OCR read after the tap, from this site only; its rows wait behind a failed check', /read by OCR/.test(await text('#rrpdf-qc .qc-item[data-check="ocr:1"]')) && requests.filter((u) => /vendor\/ocr\//.test(u)).every((u) => u.startsWith(BASE)) && await page.locator('#rrpdf-use').isDisabled());
-await page.locator('#rrpdf-qc .qc-item[data-check="ocr:1"] button', { hasText: 'Accept as read' }).click();
-await page.waitForTimeout(400);
-check('accepted OCR rows appear in the preview', (await page.locator('#sheet-body .rrpdf-rows tbody tr').count()) >= 5, String(await page.locator('#sheet-body .rrpdf-rows tbody tr').count()));
+check('the OCR files were not loaded before a scan was chosen', ocrBefore === 0);
+await page.locator('#deal-rentroll button[aria-label="More rent roll actions"]').click();
+const [scanChooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('.action-sheet .action-item', { hasText: 'Import from PDF' }).click()]);
+await scanChooser.setFiles(F + 'rr-scan.pdf');
+await page.waitForSelector('.ocr-progress', { timeout: 20000 });
+check('a progress line with Cancel shows while the scan is read', (await page.locator('.ocr-progress button', { hasText: 'Cancel' }).count()) === 1);
+await page.waitForFunction(() => !document.querySelector('.ocr-progress'), null, { timeout: 240000 });
+await page.locator('#sheet-body button', { hasText: 'It is a rent roll' }).click();
+await page.waitForSelector('#sheet-body .rrpdf-rows tbody tr', { timeout: 20000 });
+const scanQc = await text('#rrpdf-qc');
+check('its rows are read from the OCR text, marked low confidence, to be checked against the page', (await page.locator('#sheet-body .rrpdf-rows tbody tr').count()) >= 5 && /confidence low/.test(scanQc) && /low confidence: check them/.test(scanQc), scanQc.slice(0, 300));
+check('the OCR files came from this site, after the file was chosen', requests.filter((u) => /vendor\/ocr\//.test(u)).length >= 3 && requests.filter((u) => /vendor\/ocr\//.test(u)).every((u) => u.startsWith(BASE)));
 await page.locator('input[name="rrpdf-mode"][value="add"]').check();
 await page.click('#rrpdf-use');
 await page.waitForTimeout(900);

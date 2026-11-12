@@ -13,6 +13,7 @@ import { lookAt } from './ddintake.js';
 import { classify, TYPES, TYPE_BY_ID, typeLabel, PRESETS, PRESET_IDS } from './ddtypes.js';
 import { ddOf, checklist, addDoc, removeDoc, restoreDoc, retype, markReviewed, setAsOf, setNa, clearNa, recordRead, MAX_REASON } from './dd.js';
 import { sha256Hex } from './filehash.js';
+import { ocrNote } from './ocrpdf.js';
 import { LIMITS } from './filekind.js';
 
 const OPEN_KEY = 'zl.dd.open';
@@ -256,7 +257,7 @@ export function renderDocsCard(box, h) {
       say(`Looking at ${dropped.name}…`);
       /** @type {{ file: any, info: any }[]} */ let seen;
       // a zip is opened in memory and each file in it is added as if it had been dropped itself (ddintake.js lookAt)
-      try { seen = await lookAt(dropped, { getFflate: h.getFflate, getXlsx: h.getXlsx, readPdf: h.readPdf, problem: h.problem }); } catch (err) { warn(`${dropped.name} couldn’t be looked at: ${(err && err.message) || err}`); continue; }
+      try { seen = await lookAt(dropped, { getFflate: h.getFflate, getXlsx: h.getXlsx, readPdf: h.readPdf, problem: h.problem }); for (const s of seen) if (h.ocrOf && s.info.sha256) s.info.ocr = h.ocrOf(s.info.sha256); } catch (err) { warn(`${dropped.name} couldn’t be looked at: ${(err && err.message) || err}`); continue; }
       if (!h.stillOpen()) return;
       const refusals = [];
       for (const { file, info } of seen) {
@@ -274,9 +275,11 @@ export function renderDocsCard(box, h) {
         if (r.error) { if (seen.length > 1) refusals.push(`${info.name}: ${r.error}`); else warn(r.error); say(''); continue; }
         const where = info.sha256 ? await h.otherDeals(info.sha256).catch(() => []) : [];
         h.touch({ label: `Documents: added ${r.doc.name}${type ? ` as ${typeLabel(type)}` : ''}` });
-        say(`Added ${r.doc.name}${from}${type ? ` as ${typeLabel(type)}` : ' with no type'}.${where.length ? ` It is also in ${where.slice(0, 3).join(', ')}.` : ''}${info.sha256 ? '' : file.size > LIMITS.pdf ? ' It is too large to fingerprint, so adding it again will not be spotted.' : ' This browser cannot fingerprint files here, so adding it again will not be spotted.'}`);
+        say(`Added ${r.doc.name}${from}${type ? ` as ${typeLabel(type)}` : ' with no type'}.${info.ocr ? ` ${ocrNote(info.ocr)}` : ''}${where.length ? ` It is also in ${where.slice(0, 3).join(', ')}.` : ''}${info.sha256 ? '' : file.size > LIMITS.pdf ? ' It is too large to fingerprint, so adding it again will not be spotted.' : ' This browser cannot fingerprint files here, so adding it again will not be spotted.'}`);
         draw();
-        if (info.from) toast(`Added ${r.doc.name}${type ? ` as ${typeLabel(type)}` : ' with no type'}, from ${info.from}.`); // the redraw replaces the status line, so a file from a zip is also said here
+        // the redraw replaces the status line, so a file from a zip, and what OCR did to a scan, are also said here
+        if (info.from) toast(`Added ${r.doc.name}${type ? ` as ${typeLabel(type)}` : ' with no type'}, from ${info.from}.${info.ocr ? ` ${ocrNote(info.ocr)}` : ''}`, null, info.ocr ? 9000 : undefined);
+        else if (info.ocr) toast(ocrNote(info.ocr), null, 9000); // the redraw replaces the status line, so a file from a zip is also said here
       }
       if (refusals.length) warn(refusals.join(' '));
     }
