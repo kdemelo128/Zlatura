@@ -235,6 +235,9 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
   await page.waitForSelector('#sheet:not([open])', { state: 'attached' });
   await page.waitForFunction(() => document.activeElement && document.activeElement.id === 'ws-switch');
   check('after pinning in the sheet the focus returns to the switch button', true);
+  // Closing the sheet releases its history entry with history.back(), which is asynchronous.
+  // Reload only after that navigation has settled, rather than racing it.
+  await page.waitForFunction(() => !history.state?.sheet);
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('#ws-switch');
   check('after a reload Home is the Lending Home', (await wsName(page)).includes('Lending') && await page.locator('#home-ws-tools').count() === 1);

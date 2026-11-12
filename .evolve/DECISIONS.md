@@ -5,6 +5,14 @@ answers were approved unless noted. Add a row when a decision is made; for a
 change to saved figures or the data format, add a before/after table below
 the log (none logged yet under the 2026-11-10 working mode).
 
+## PDF reader rules (owner approved in this chat; proposal #156)
+
+- Import only explicit full-year actual totals into annual basis; do not invent monthly values. Keep annualized, stabilized, pro-forma, budget, per-unit, per-SF and percent columns out of actual totals. Ambiguous periods or number formats require a choice.
+- For the next PM roll slice, do not substitute charges or market rent for base rent; a filtered/subset report is incomplete and must not silently replace the full roll.
+- Codex uses separate branches and pull requests; the owner controls merging. This is the owner's later instruction for this chat, not a rewrite of Claude's working mode below.
+- The first implementation accepts completed prior-year periods only; current-year fiscal periods remain held until their dates can be confirmed explicitly. This is a conservative implementation limit, not a claim that every annual PDF is supported.
+- The PDF statement slice keeps the existing v2 annual statement and source fields. Current and archived pre-reader backup readers preserve it. No existing saved result changes; the 646-figure comparison remains unchanged.
+
 ## Working mode and licences
 
 | Date | Decision | Source |

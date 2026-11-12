@@ -1169,6 +1169,8 @@ const heldBack = (k) => !!deal.omRead && heldFields(deal.omRead).includes(k) && 
 function figuresCard() {
   const c = el('section', 'card');
   let hidden = 0;
+  // A deal started without an OM must offer every input before any document is chosen.
+  const byHand = !deal.source;
   const h = el('div', 'card-head');
   h.appendChild(el('h2', null, 'Key figures'));
   h.appendChild(el('span', 'count', deal.source ? 'tap a tag to see its page' : 'type as you would say them: 4.5m, 850k, 6.25%'));
@@ -1177,13 +1179,13 @@ function figuresCard() {
   if (deal.omRead && deal.omRead.checks && deal.omRead.checks.length) c.appendChild(omQcPanel(deal));
   for (const [title, rows] of SECTIONS) {
     // the lease rows only when the OM has a lease to speak of
-    if (title === 'Lease' && !rows.some(([k]) => deal.figures[k]) && !deal.showLease) {
+    if (title === 'Lease' && !byHand && !rows.some(([k]) => deal.figures[k]) && !deal.showLease) {
       const b = button('btn-plain btn-sm', '+ Single-tenant lease terms', () => { deal.showLease = true; render(); });
       b.style.margin = '0 10px 10px';
       c.appendChild(b);
       continue;
     }
-    const show = rows.filter(([k]) => title === 'Lease' || CORE.has(k) || present(k) || heldBack(k) || deal.showAll);
+    const show = rows.filter(([k]) => byHand || title === 'Lease' || CORE.has(k) || present(k) || heldBack(k) || deal.showAll);
     hidden += rows.length - show.length;
     if (!show.length) continue;
     c.appendChild(el('div', 'sec-label', title)).style.margin = '12px 16px 4px';
