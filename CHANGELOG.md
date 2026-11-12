@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.7.137: The Underwrite tool opens filled in from the open deal, and can hand figures back (on the development branch; not merged or deployed)
+
+With a deal open, the built-in tool opens with the deal's name, price, interest rate, amortization, hold, exit cap and sale cost already in (only fields the tool had blank, never replacing a value you set; a blank stays blank, never 0). The slim bar lists what was **not carried over** and why (address, building area, loan amount, closing costs, interest-only, the rent roll and statement, computed results). **Bring into deal** shows before and after for the figures you set in the tool and writes them only after you confirm, with Undo. **Export with the app** opens your own or your company's template for the deal.
+
+A figure the bridge itself put into the tool is never offered back (so deal A's price cannot reach deal B), a deal that changed while the confirm was open is not overwritten, Undo leaves figures you edited since, a hold or amortization the tool cannot take is listed with its reason, and a confidential deal is not put into the tool's shared project.
+
+Tested with invented data: 13 unit tests for every mapping in `tests/uwbridge.test.js` and a browser flow (`uwbridge-flow`: prefill, blanks, the note, the confirm, Cancel, Undo, export, axe, phone and desktop). Saved results and the golden figures are unchanged. Not done: reading documents dropped in the tool through the app's own readers (see `docs/proposals/uw-bridge-fieldmap.md` section 8).
+
+## 4.7.136: The Underwrite tab shows the built-in tool full screen, with one slim bar (on the development branch; not merged or deployed)
+
+The tool looked compressed: it sat in a padded column under the app's own header, tab bar and a switch row.
+
+- **Full screen.** While the Underwrite tab shows the tool, the app's header, tab bar and sidebar are hidden and the tool takes the whole viewport (dvh, safe-area insets), with no page padding and no second scrollbar. One slim bar holds Back, the open deal's name (or "No deal open") and the Underwriting | Quick underwrite switch. Quick underwrite brings the app's normal screens back.
+- **Back.** The Back button, Escape (from the page or from inside the tool, unless the tool is using the key for a field, dialog or tip) and the browser's Back all return to the screen you came from, with the same deal open, else Home; focus goes to that screen's tab.
+- **Remembered.** The chosen view is kept over a reload (this tab only).
+- **Word files.** The built-in tool's .docx text reader strips tags until none are left and decodes entities in one pass (`&amp;lt;` stays `&lt;`), clearing two CodeQL alerts. The fix is a public exact-match edit in `tools/uwtool-import.public.json`, applied by the importer.
+
+Tested: new browser checks in `uwtool-flow` (frame covers at least 95% of the screen below the bar at 320, 390, 820 and 1280 px, 130% text, both looks light and dark, Back, Escape, browser Back, remembered view, axe) and a unit test for the .docx reader, with invented data only. Saved results and the golden figures are unchanged.
+
 ## 4.7.135: New look: a calmer Home in the built-in underwriting tool's style (on the development branch; not merged or deployed)
 
 In the New look, Home now has a clean hero: a large greeting, one sentence, and one primary action (Read an OM). Add comps and New task sit beside it as quiet text buttons; nothing was removed. On a phone the primary action floats above the tab bar, 44 px or larger, and the page leaves room so it never covers the last card. Cards are softer (larger radius, faint shadow), a deal row or pipeline card lifts 2 px on hover, and the page rises in gently the first time it is drawn. Motion is transform and opacity only, 150 to 250 ms, and stops with reduced motion or the Motion switch. The accent is the one you chose. Classic is unchanged.

@@ -289,8 +289,8 @@
   },
   "parsers.js": {
    "in": "6e86ae2455749cad75e2a220ea8def02a9acfa04ca1a39ef10beb92dbbb9972c",
-   "out": "528a6a0dd0a0ba6349220a449d20ebbbb492fe996b2dcc334f8cb4e53fb72f34",
-   "bytes": 101935
+   "out": "f1215b4f09a1f8d675aa0af0607e1a87505755b8885da4e00216d839601d9387",
+   "bytes": 102000
   },
   "pdf.js": {
    "in": "5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946",
@@ -808,6 +808,13 @@
    "id": "docs-readme",
    "category": "docs",
    "op": "addFile",
+   "applied": 1,
+   "lines": 0
+  },
+  {
+   "id": "docx-text-sanitize",
+   "category": "security",
+   "op": "replace",
    "applied": 1,
    "lines": 0
   }

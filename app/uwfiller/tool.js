@@ -26,6 +26,8 @@ function frame() {
   f.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads');
   f.setAttribute('allow', 'clipboard-write');
   f.setAttribute('referrerpolicy', 'no-referrer');
+  // the page is told when the tool has loaded, so Escape inside it can leave the full screen (underwrite.js)
+  f.addEventListener('load', () => { try { if (f.contentWindow?.document) document.dispatchEvent(new CustomEvent('uwtoolload', { detail: { document: f.contentWindow.document } })); } catch { /* not reachable */ } });
   // loaded only when the tab is on screen (the view is built at start-up, hidden): the 3 MB is not fetched until it is wanted
   const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); f.src = TOOL_SRC(); } });
   io.observe(f);

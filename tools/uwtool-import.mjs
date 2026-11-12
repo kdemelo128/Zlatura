@@ -87,7 +87,8 @@ export function buildImport({ pkg, pub, rules, terms, extra = {} }) {
   const edit = (e) => { edits.push(e); byCategory[e.category] = (byCategory[e.category] || 0) + e.applied; };
   const missing = []; let removedToPack = 0;
 
-  for (const r of rules.edits || []) {
+  // the private rules first, then the public edits (tools/uwtool-import.public.json "edits": fixes that name nothing private)
+  for (const r of [...(rules.edits || []), ...(pub.edits || [])]) {
     const base = { id: r.id, category: r.category || 'uncategorised', op: r.op, file: r.file };
     const fail = (why) => { errors.push(`edit ${r.id}: ${why}`); missing.push(r.id); };
     if (!r.id || !r.op) { errors.push(`an edit has no id or no op`); continue; }

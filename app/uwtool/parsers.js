@@ -1031,7 +1031,7 @@
       if (['tif', 'tiff', 'heic', 'bmp'].includes(ext)) return { kind: 'unknown', name, notes: ['.' + ext + ' pictures cannot be opened in a browser. Save the file as JPG or PNG (or PDF) and add it again.'], src };
       if (ext === 'docx') {
         const z = await ctx.JSZip.loadAsync(bytes), f = z.file('word/document.xml'); if (!f) return { kind: 'unknown', name, notes: ['This Word file has no readable text.'], src };
-        const xml = await f.async('string'), text = xml.replace(/<\/w:p>/g, '\n').replace(/<w:tab\/>/g, '\t').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+        const xml = await f.async('string'), text = ((s) => { for (let p; p !== s;) { p = s; s = s.replace(/<[^>]+>/g, ''); } const E = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" }; return s.replace(/&(amp|lt|gt|quot|apos);/g, (m, k) => E[k]); })(xml.replace(/<\/w:p>/g, '\n').replace(/<w:tab\/>/g, '\t'));
         return { kind: 'unknown', name, text, notes: ['Word document: read with Claude (choose the document type below).'], src, hint: hintKind(text, false, name) };
       }
       return { kind: 'unknown', name, notes: ['unsupported file type .' + ext + ' (PDF, Word, Excel, CSV, pictures and pasted text are supported)'], src };

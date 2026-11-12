@@ -1708,7 +1708,7 @@ input.ci44, select.ci44 { height: 44px; }
 .uwf-body[hidden] { display: none; }
 .uw-switch { display: flex; gap: var(--s2); padding: var(--s3) 0; }
 .uw-switch .btn { min-height: 44px; }
-.uwt-frame { display: block; width: 100%; height: calc(100dvh - 190px); min-height: 480px; border: 0; background: #fff; }
+.uwt-frame { display: block; width: 100%; height: 100%; min-height: 0; border: 0; background: #fff; }
 .uwf-frame { width: 100%; height: 78vh; min-height: 480px; border: 1px solid var(--line-strong); border-radius: 0; background: #fff; }
 .uwi-body { padding: 0 var(--s5) var(--s4); display: grid; gap: var(--s3); }
 .uwi-step { display: grid; gap: var(--s2); min-width: 0; }
@@ -1813,6 +1813,28 @@ input.ci44, select.ci44 { height: 44px; }
   :root[data-look="new"] .home-task-add { grid-template-columns: minmax(0, 1fr); }
   :root[data-look="new"] .home-task-add > * { min-width: 0; }
 }
+
+/* ===================== Underwrite tab: the built-in tool fills the screen (body.uw-full, set by underwrite.js) =====================
+ * The app's own bars go; one slim bar (Back, the deal, the view switch) sits over the frame, which takes all the rest. */
+body.uw-full { overflow: hidden; }
+body.uw-full .sidebar, body.uw-full .appbar, body.uw-full .tabbar { display: none; }
+body.uw-full .shell { display: block; height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
+body.uw-full main { max-width: none; margin: 0; padding: 0; }
+body.uw-full #view-underwrite { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; background: var(--bg); animation: none; }
+body.uw-full #view-underwrite[hidden] { display: none; }
+body.uw-full #underwrite-root { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.uw-slim {
+  flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s3); min-height: 52px;
+  padding: calc(var(--s2) + env(safe-area-inset-top, 0px)) calc(var(--s3) + env(safe-area-inset-right, 0px)) var(--s2) calc(var(--s3) + env(safe-area-inset-left, 0px));
+  background: var(--bar); border-bottom: 1px solid var(--line);
+}
+.uw-slim .uw-back { min-height: 40px; min-width: 44px; flex: none; }
+.uw-deal { flex: 1 1 4rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 var(--t-14)/1.2 var(--ui); color: var(--ink); }
+.uw-deal.uw-none { font-weight: 500; color: var(--muted); }
+.uw-slim .uw-switch { padding: 0; flex: none; }
+.uw-slim .uw-switch .btn { min-height: 40px; padding: 0 10px; font-size: var(--t-13); }
+@media (max-width: 479px) { .uw-slim { gap: var(--s2); padding-left: calc(var(--s2) + env(safe-area-inset-left, 0px)); padding-right: calc(var(--s2) + env(safe-area-inset-right, 0px)); } .uw-deal { flex-basis: 2.5rem; } .uw-back-t { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } .uw-slim .uw-switch .btn { padding: 0 8px; } }
+body.uw-full .uwt { flex: 1 1 auto; min-height: 0; padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); background: #fff; }
 
 /* ======================================================= New look: Home in the built-in tool's style
  * Traits taken from the tool's own screens, restated in this app's tokens: a large, tightly tracked title over a quiet
@@ -1971,3 +1993,18 @@ input.ci44, select.ci44 { height: 44px; }
 .deal-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 :root[data-look="new"] :is(.ws-main > section, .ws-crm, .ws-foot, .pane, #deal-rentroll, #deal-toolbar, .dsec) { scroll-margin-block-start: calc(var(--bar-h) + 120px); }
 #deal-checks > .card-head { display: none; }
+
+/* Underwrite tab, bridge to the open deal: its buttons in the slim bar, the "Not carried over" note, the confirm's before and after */
+.uw-acts { display: flex; flex-wrap: wrap; gap: var(--s2); flex: none; }
+.uw-acts[hidden] { display: none; }
+.uw-acts .btn { min-height: 40px; }
+.uw-note { flex: none; max-height: 40dvh; overflow: auto; padding: var(--s3) calc(var(--s4) + env(safe-area-inset-right, 0px)) var(--s3) calc(var(--s4) + env(safe-area-inset-left, 0px)); background: var(--surface); border-bottom: 1px solid var(--line); font-size: var(--t-13); line-height: 1.5; }
+.uw-note[hidden] { display: none; }
+.uw-note-h { margin: 0 0 var(--s2); color: var(--muted); }
+.uw-note-l { margin: 0; padding-left: 1.2em; display: grid; gap: var(--s1); }
+.uw-diff { display: grid; gap: var(--s3); }
+.uw-diff-r { display: grid; gap: 2px; padding: var(--s3); border: 1px solid var(--line); border-radius: var(--r-sm); }
+.uw-diff-b { color: var(--muted); }
+.uw-diff-a { font-weight: 600; }
+@media (max-width: 479px) { .uw-acts { flex: 1 1 100%; justify-content: space-between; gap: var(--s1); } .uw-acts .btn { min-height: 36px; padding: 0 8px; font-size: var(--t-12); } }
+@media (max-width: 479px) { .uw-slim { gap: var(--s1) var(--s2); padding-top: calc(var(--s1) + env(safe-area-inset-top, 0px)); padding-bottom: var(--s1); } .uw-slim .uw-back, .uw-slim .uw-switch .btn { min-height: 36px; } }
