@@ -18,7 +18,7 @@ tile. Storage, calculations, the underwriting embed and reader code are unchange
 
 - Node 22.23.5 (CI uses Node 22); Node 24 produced floating-point differences in
   the saved golden fixtures, which disappear with Node 22.
-- `npm run check:quick`: passed; 646 displayed figures, zero changed.
+- `npm run check:quick`: passed (49 tests and the type check); 646 displayed figures, zero changed.
 - Existing `ui-d2-flow`: 48 passed, zero failed, no browser errors, including
   axe checks in light/dark and phone/desktop layouts.
 - Eight additional rendered combinations (phone/desktop, Classic/New look,
@@ -27,9 +27,9 @@ tile. Storage, calculations, the underwriting embed and reader code are unchange
   one failed for the old artwork. The new artwork passes it.
 - Chromium used the installed system version 156 through a local Playwright
   launch adapter. Playwright's pinned browser download is denied by network policy.
-- Full gate attempted; not passed. LibreOffice/uno are unavailable. A Box CLI
+- Full gate attempted; not passed and stopped before completion once missing prerequisites were confirmed. Seven browser flows completed; later flows and recalculation did not complete. LibreOffice/uno are unavailable. A Box CLI
   unit test refuses the temporary destination because `/tmp/.git` exists as a
-  platform placeholder. Do not delete platform metadata to work around it.
+  platform placeholder; the same download-test failure reproduces on the archived base. Do not delete platform metadata to work around it.
 - An early full-gate pass also reported the reviewed fixed SVG string had
   changed dimensions. The final code retains that reviewed literal and sets the
   dimensions through DOM attributes; the unchanged sink guard and quick gate pass.
