@@ -14,6 +14,7 @@ import { lookAt, identify } from './ddintake.js';
 import { typeLabel, isType } from './ddtypes.js';
 import { blocked } from './ai.js';
 import { ocrNote } from './ocrpdf.js';
+import { expandDocx } from './docxread.js';
 
 /** The documents the checklist asks about first. */
 export const CHECKLIST = Object.freeze(['rentroll', 't12', 'lease', 'om']);
@@ -65,6 +66,7 @@ export function stage(plan, info, file, dd = null) {
     ocrNote: info.ocr ? ocrNote(info.ocr) : '', ocrInfo: /** @type {any} */ (info.ocr || null),
     use: useLabel(type), state: 'staged', from: /** @type {string | null} */ (info.from || null), dup: /** @type {string | null} */ (null), refuse: /** @type {string | null} */ (info.refuse || null),
   };
+  if (info.note) item.reason = `${item.reason} ${info.note}`;
   if (item.ocrNote) item.reason = `${item.reason} ${item.ocrNote}`;
   const same = (x) => (item.sha256 ? x.sha256 === item.sha256 : !x.sha256 && x.name === item.name && x.size === item.size);
   const twin = plan.items.find((x) => !x.refuse && !x.dup && same(x));
@@ -214,6 +216,7 @@ export async function stageFiles(plan, files, deps, dd = null, onStep = () => {}
     try { seen = await lookAt(file, deps); } catch (err) {
       seen = [{ file, info: { name: file.name, kind: 'other', size: file.size, sha256: null, pages: null, verdict: {}, refuse: `${file.name} couldn’t be looked at: ${(err && /** @type {any} */ (err).message) || err}` } }];
     }
+    seen = await expandDocx(seen, deps); // a Word file is its tables (read as CSV rows) or its text
     // a zip is several files: each part is staged exactly as if it had been dropped itself, naming the zip it came from
     let last = null;
     for (const s of seen) { if (deps.ocrOf && s.info.sha256) s.info.ocr = deps.ocrOf(s.info.sha256); last = stage(plan, s.info, s.file, dd); out.push(last); }

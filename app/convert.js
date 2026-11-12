@@ -288,7 +288,7 @@ export function textPdfProblem(name, text) {
   return `${name} has ${bad.length} kind${bad.length === 1 ? '' : 's'} of character a standard PDF font can’t draw: ${bad.slice(0, 5).join(', ')}${bad.length > 5 ? ' and more' : ''}. Nothing was converted. Remove or replace them, or print the file to PDF from the program that made it.`;
 }
 
-const entity = (s) => s.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (m, e) => {
+export const entity = (s) => s.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (m, e) => {
   const x = e.toLowerCase();
   if (x[0] !== '#') return { amp: '&', lt: '<', gt: '>', quot: '"', apos: '\'' }[x];
   const n = x[1] === 'x' ? parseInt(x.slice(2), 16) : Number(x.slice(1));
@@ -310,11 +310,11 @@ function dropFallback(xml) {
 }
 
 /**
- * The body text of a Word (.docx) file: paragraphs on lines, table cells separated by tabs. Only word/document.xml is
- * unpacked, and only if its declared size is within DOCX_BYTES. Throws a sentence for a file that isn't readable.
+ * word/document.xml of a Word file, text boxes counted once (the fallback copy is dropped). Only that part is unpacked, and only
+ * if its declared size is within DOCX_BYTES. Throws a sentence for a file that isn't readable.
  * @param {Uint8Array} bytes @param {any} fflate
  */
-export function docxText(bytes, fflate, name = 'That document') {
+export function docxBodyXml(bytes, fflate, name = 'That document') {
   let tooBig = false;
   let files;
   try {
@@ -324,7 +324,18 @@ export function docxText(bytes, fflate, name = 'That document') {
   const raw = files['word/document.xml'];
   if (!raw) throw new Error(`${name} has no body text to read.`);
   // text boxes appear twice (the modern form and a fallback): the fallback is dropped so nothing is counted twice
-  const xml = dropFallback(new TextDecoder().decode(raw));
+  return dropFallback(new TextDecoder().decode(raw));
+}
+
+/**
+ * The body text of a Word (.docx) file: paragraphs on lines, table cells separated by tabs. Only word/document.xml is
+ * unpacked, and only if its declared size is within DOCX_BYTES. Throws a sentence for a file that isn't readable.
+ * @param {Uint8Array} bytes @param {any} fflate
+ */
+export function docxText(bytes, fflate, name = 'That document') { return docxXmlText(docxBodyXml(bytes, fflate, name), name); }
+
+/** The text of a Word body (word/document.xml, docxBodyXml's output): as docxText. @param {string} xml */
+export function docxXmlText(xml, name = 'That document') {
   // one pass, no backtracking over the whole body: a text run is what lies between <w:t> and the next '<'
   const parts = [];
   for (const m of xml.matchAll(/<w:t(?:[ \t\r\n][^<>]{0,300})?>([^<]*)<\/w:t>|<w:tab\s{0,5}\/>|<w:br(?:\s[^<>]{0,200})?\/>|<w:cr\s{0,5}\/>|<\/w:p>|<\/w:tc>|<\/w:tr>/g)) {

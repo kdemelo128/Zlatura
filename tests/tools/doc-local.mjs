@@ -47,9 +47,12 @@ import { sheetChoices, pickSheet, layoutOf, numberFormatOf, importStatement, sta
 import { readOm } from '../../app/om.js';
 import { readLease, pageModel, docType } from '../../app/leaseread.js';
 
+// pdf.js says "cannot polyfill DOMMatrix" in Node (no canvas); that is not this tool's output
+const log0 = console.log; console.log = (...a) => { if (!/^Warning: Cannot polyfill/.test(String(a[0]))) log0(...a); };
 globalThis.window = globalThis.window || {};
 globalThis.document = globalThis.document || { addEventListener() {}, dispatchEvent() {} };
 const { intake, zipMembers } = await import('../../app/ddintake.js');
+const { expandDocx } = await import('../../app/docxread.js');
 const { headerAndRows, guessField, rowsToLeases } = await import('../../app/rentrollui.js');
 const { emptyRentRoll } = await import('../../app/rentroll.js');
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('../../vendor/pdf-4.7.76-legacy.worker.min.js', import.meta.url).href;
@@ -198,6 +201,18 @@ for (const f of files) {
     for (const m of z.members) units.push({ f: null, rel: `${path.relative(folder, f)}#${m.name}`, file: m.file, partRefuse: m.refuse });
   } else units.push({ f, rel: path.relative(folder, f), file, zipRefuse: z ? (/empty zip/.test(z.refuse) ? 'zip-empty' : 'zip-not-opened') : null });
 }
+// a Word file is its tables (each read as a CSV, as in the app: docxread.js) and/or its text (classified; no reader takes prose)
+for (let i = units.length - 1; i >= 0; i--) {
+  const u = units[i];
+  if (u.zipRefuse || u.partRefuse || !u.file) continue;
+  let up = null;
+  try { up = await checkUpload(u.file, { getFflate }); } catch { up = null; }
+  if (!up || up.kind !== 'docx') continue;
+  let seen = null;
+  try { seen = await expandDocx([{ file: u.file, info: await intake(u.file, { getFflate, getXlsx, readPdf: async () => ({ pages: [], layouts: [] }) }) }], { getFflate, getXlsx }); } catch { seen = null; }
+  if (!seen) continue;
+  units.splice(i, 1, ...seen.map((x) => (x.file === u.file ? { ...u, docxText: x.info } : { f: null, rel: `${u.rel}#${x.info.name}`, file: x.file })));
+}
 
 let n = 0;
 for (const u of units) {
@@ -210,6 +225,12 @@ for (const u of units) {
   try {
     const file = u.file;
     if (u.zipRefuse || u.partRefuse) { family = u.zipRefuse ? 'zip' : 'zip-part'; outcome = 'refused'; if (REASONS) why = [u.zipRefuse || zipPartWhy(u.partRefuse)]; throw new Done(); }
+    if (u.docxText) { // Word text outside any table: nothing reads prose as figures, so it is identified or asked, never read
+      const v = u.docxText.verdict;
+      family = 'docx-text'; outcome = v.type ? 'accepted' : v.looks ? 'identified' : v.ask.length ? 'asked' : 'refused';
+      if (REASONS && outcome !== 'accepted') why = [u.docxText.note && /no text in its body|could not|damaged/.test(u.docxText.note) ? 'docx-unreadable' : v.looks ? `no-reader-for-type:${v.looks}` : v.ask.length ? `classifier-broad:${v.ask.length} candidates` : 'docx-text-unknown-title'];
+      throw new Done();
+    }
     const upRes = await checkUpload(file, { getFflate });
     const sniffedKind = upRes.kind;
     let intakeErr = null; let gridErr = null; let pdfErr = null;

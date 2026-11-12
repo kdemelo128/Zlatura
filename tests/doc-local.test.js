@@ -140,14 +140,14 @@ test('doc-local --reasons: a reason code per refused, asked or identified invent
   // a plain zip is opened in memory and its one text file is read like a dropped file (it is not a file in the table itself)
   assert.match(per(4), /^file-04: unclassified, refused; reasons unknown-title$/);
   assert.match(per(5), /^file-05: unclassified, refused; reasons unknown-title, sheets:2-3, hidden-sheets:1$/);
-  assert.match(per(6), /^file-06: unclassified, refused; reasons docx-later$/);
+  assert.match(per(6), /^file-06: docx-text, refused; reasons docx-unreadable$/);
   // a workbook with an unreadable date cell is read now (the cell is blank, sheetread.js), so it ends as an untitled sheet, not a failed read
   assert.match(per(7), /^file-07: unclassified, refused; reasons unknown-title, sheets:1, hidden-sheets:0$/);
   assert.match(per(8), /^file-08: xlsx, refused; reasons macro-flag$/);
   assert.ok(/^file-09: rrsheet, accepted$/.test(per(9)), 'an accepted file carries no reason');
   // the counts tables
   assert.ok(lines.includes('reason | files (refused, asked and identified files only; a file can have several: its main reason, then its shape)'), r.stdout);
-  for (const row of ['no-reader-for-type:budget | 1', 'no-text-layer:none | 1', 'zip-not-opened | 1', 'zip-opened:1 files | 1', 'unknown-title | 3', 'docx-later | 1', 'macro-flag | 1', 'sheets:2-3 | 1', 'hidden-sheets:1 | 1', 'pages:1 | 2']) assert.ok(lines.includes(row), `${row}\n${r.stdout}`);
+  for (const row of ['no-reader-for-type:budget | 1', 'no-text-layer:none | 1', 'zip-not-opened | 1', 'zip-opened:1 files | 1', 'unknown-title | 3', 'docx-unreadable | 1', 'macro-flag | 1', 'sheets:2-3 | 1', 'hidden-sheets:1 | 1', 'pages:1 | 2']) assert.ok(lines.includes(row), `${row}\n${r.stdout}`);
   assert.ok(lines.includes('family | reason | files'));
   assert.ok(lines.includes('unclassified | unknown-title | 3'), r.stdout);
   assert.ok(!r.stdout.includes('zip-not-workbook'), 'a plain zip is opened now');
@@ -256,4 +256,17 @@ test('doc-local --reasons: a zip is opened and counted by the files inside it; a
   for (const row of ['zip-opened:2-5 files | 1', 'zip-part-unsafe-path | 1', 'zip-empty | 1', 'zip-not-opened | 1']) assert.ok(lines.includes(row), `${row}\n${r.stdout}`);
   const out = r.stdout + r.stderr;
   for (const s of [CANARY_NAME, CANARY_FIGURE, 'a-bundle', 'rr.csv', 'blob.bin', 'up.csv', path.dirname(d)]) assert.ok(!out.includes(s), `the output must not hold "${s}"`);
+});
+
+test('doc-local: a Word file is read by its table (a rent roll, as a CSV) and its text is classified; neither is "docx-later"', async () => {
+  const { docx, P, TABLE, rollRows } = await import('./tools/docxfiles.mjs');
+  const d = path.join(tmp(), 'docs');
+  fs.mkdirSync(d);
+  fs.writeFileSync(path.join(d, 'a.docx'), docx(P('Rent roll') + TABLE(rollRows)));
+  fs.writeFileSync(path.join(d, 'b.docx'), docx(P('Notes from the site visit.')));
+  const r = run(DOC, [d, '--allow-outside-private', '--reasons']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /^rrsheet \| 1 \| 1 \| 0 \| 0 /m, 'the table is a rent roll the sheet reader accepted');
+  assert.match(r.stdout, /^docx-text \| 1 \| 0 \| 0 \| 1 /m);
+  assert.ok(!/docx-later/.test(r.stdout));
 });
