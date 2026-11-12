@@ -1,26 +1,9 @@
-# Reach a deal’s sections and use its phone controls comfortably
+# A cleaner Deal page, and a Home that shows what matters first
 
-The New look has a Sections menu beside the existing deal tabs. It identifies
-the current deal and opens its real figures, documents, operating statement,
-financing, rent roll, scenarios, follow-ups, site visit, exports or templates.
-Focus moves to the destination; no figure or scenario is copied or applied.
-The four tabs and their arrow-key navigation remain available.
+The Deal's Overview was one long stack of cards. It is now seven named groups (Overview, Income and expenses, Value and returns, Financing, Leases, Documents, Activity). Each section is a fold: a title button with a one-line summary while closed (for example "$4.50M asking · 6.67% cap · $300K NOI", "DSCR 1.28x · loan $3.15M", or "Nothing entered yet"). The Overview's two sections are open by default, the rest closed, and the choice is kept per deal on this device. In the New look a sticky bar of group chips (scrolling sideways on a phone) jumps to each group. Every control is still there, at most two taps away: open the section, then use it. The Sections menu opens a closed section before it moves there.
 
-On phones, All deals, Undo and Redo share one row; Excel, Share and More follow
-on the next row in the same order as keyboard focus. Task and date labels get a full row so they remain
-readable at 130% text. The deal’s CRM buttons, selectors and text/date entry fields have 44 px touch targets.
-The sticky deal name now follows a rename. Action dialogs have an accessible
-name and are removed after Back, as after Cancel or a selection. Classic keeps
-its existing layout.
+Home: Recent activity is closed by default with a summary (how many items and the latest). Tasks and Contacts with nothing in them shrink to one quiet row with their add action. The choice is kept on this device. Both looks get the fold; Classic's own styling is unchanged.
 
-Section jumps wait for the sheet's history traversal and scroll restoration,
-then put the focused destination below the sticky bars. The template destination
-focuses the template action, while the workbook destination focuses Excel.
+Kept from the Codex deal-workspace branch, merged as it was: the Sections menu, the phone toolbar order, 44 px CRM targets, the sticky deal name following a rename, action dialogs with an accessible name that close cleanly on Back, and its navigation flow (updated for the new section ids). Its version bump was dropped.
 
-The invented-data navigation flow covers 320/390 px phones, an 820 px tablet
-and a 1280 px desktop, light/dark, 130% text, keyboard/focus, Back/Escape,
-character-by-character task/date entry, unchanged deal figures and reload.
-The old app fails the new-route checks; two deliberately broken UI guards are
-caught. Full regression evidence is recorded in the PR. No library, stored
-field, schema, financial rule or service is added. Safari, a physical device
-and a screen reader have not been tested here.
+Tested with invented data: new `home-fold-flow` and `deal-groups-flow` (320 px, phone and desktop; light and dark axe, 130% text with no sideways scroll, character-by-character typing, an edit under 150 ms with everything open, the same deal figures before and after folding, reload memory), both of which fail on the old app. No figure, saved shape or calculation changed.
