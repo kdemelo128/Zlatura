@@ -2028,7 +2028,7 @@ body.uw-full .uwt { flex: 1 1 auto; min-height: 0; padding: 0 env(safe-area-inse
   width: 48px; height: 48px; padding: 0; border-radius: 50%; cursor: pointer; display: grid; place-items: center;
   background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); box-shadow: var(--shadow-lg);
 }
-.assist-fab:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+:root .assist-fab:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 50%; }
 body.uw-full .assist-fab { display: none; }
 @media (min-width: 760px) { .assist-fab { left: auto; right: 24px; bottom: 24px; } }
 @media print { .assist-fab, dialog.assist { display: none !important; } }
@@ -2054,7 +2054,9 @@ dialog.assist .sheet-card { height: min(640px, calc(100dvh - 24px)); }
 .assist-blank { color: var(--ink); }
 .assist-refuse { border-style: dashed; }
 .assist-chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
-.assist-body > .assist-chips { padding-top: var(--s1); }
+.assist-tray { padding: var(--s2) var(--s5) 0; overflow-x: auto; border-top: 1px solid var(--line); }
+.assist-tray .assist-chips { flex-wrap: nowrap; width: max-content; }
+.assist-tray .assist-chip { white-space: nowrap; }
 .assist-go, .assist-chip, .assist-confirm .btn, .assist-foot .btn, dialog.assist .sheet-head .btn { min-height: 44px; min-width: 44px; }
 .assist-chip { white-space: normal; text-align: left; height: auto; padding-block: 8px; }
 .assist-confirm { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }

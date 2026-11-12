@@ -40,7 +40,7 @@ function whereFrom(deal, key, m) {
   let text = s && s.ai ? sourceLabel(s) : sourceOf(deal, key, m) || 'entered in the deal';
   if (s && s.page && !s.hand && !s.ai && !s.t12 && !derived) text = `${deal.source ? `“${deal.source}”` : 'the OM'}, page ${s.page}`;
   const opens = !derived && s && (s.ai || (s.page && !s.t12));
-  return { text: `${cap1(nameOf(key))}: ${text}`, go: opens ? { source: key } : { field: key } };
+  return { text: `${LABEL[key] || cap1(nameOf(key))}: ${text}`, go: opens ? { source: key } : { field: key } };
 }
 
 /** What each figure reads, for naming the blank input when it can't be worked out. */

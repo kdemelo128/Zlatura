@@ -189,7 +189,7 @@ test('where a figure came from: the source in words, with the page, and a place 
   const sources = { noi: { page: 4, line: 'Net operating income 315,000', confidence: 'high' }, price: { hand: true } };
   const r = ask('Where did the NOI come from?', ctxOf({ sources }));
   assert.match(r.lines[0], /NOI: \$315,000 a year/);
-  assert.match(r.cites[0].text, /“example-om\.pdf”, page 4/);
+  assert.match(r.cites[0].text, /^NOI, in place: “example-om\.pdf”, page 4/);
   assert.deepEqual(r.cites[0].go, { source: 'noi' });
   assert.deepEqual(ask('Where did the price come from?', ctxOf({ sources })).cites[0].go, { field: 'price' });
 });

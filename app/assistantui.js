@@ -139,6 +139,7 @@ function drawChips() {
   if (!chips) return;
   const snap = (() => { try { return dealForAssistant(); } catch { return null; } })();
   chips.textContent = '';
+  if (chips.parentElement) chips.parentElement.scrollLeft = 0;
   for (const s of suggestions(view, { hasDeal: !!snap, hasRentRoll: !!(snap && snap.rrSum), today: new Date() })) chips.appendChild(btn('btn-sm assist-chip', s, () => ask(s)));
 }
 
@@ -152,7 +153,7 @@ function build() {
   const h = el('h2', null, 'Ask Monal');
   h.id = 'assist-h';
   hd.appendChild(h);
-  hd.appendChild(el('p', 'sub', 'Answers come from your deal and the app’s own calculations, on this device. Nothing is sent anywhere.'));
+  hd.appendChild(el('p', 'sub', 'From your deal and the app’s own calculations. Nothing leaves this device.'));
   const close = btn('btn-plain', 'Close', () => closeSheet(dlg));
   close.setAttribute('aria-label', 'Close Ask Monal');
   head.append(hd, close);
@@ -168,7 +169,9 @@ function build() {
   chips = el('div', 'assist-chips');
   chips.setAttribute('aria-label', 'Suggested questions');
   chips.setAttribute('role', 'group');
-  body.append(log, chips, live);
+  body.append(log, live);
+  const tray = el('div', 'assist-tray');
+  tray.appendChild(chips);
   const foot = el('form', 'sheet-foot assist-foot');
   foot.setAttribute('autocomplete', 'off');
   const lab = el('label', 'assist-sr', 'Ask a question');
@@ -184,9 +187,18 @@ function build() {
   go.type = 'submit';
   foot.append(lab, input, go);
   foot.addEventListener('submit', (e) => { e.preventDefault(); ask(input.value); input.focus(); });
-  card.append(head, body, foot);
+  card.append(head, body, tray, foot);
   dlg.appendChild(card);
   dlg.addEventListener('click', (e) => { if (e.target === dlg) closeSheet(dlg); });
+  // a trap of our own: the browser lets a modal dialog's Tab walk out to its own toolbar; here Tab wraps inside the panel
+  dlg.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const f = [...dlg.querySelectorAll('button:not([disabled]), input:not([disabled])')].filter((n) => n.getClientRects().length);
+    if (!f.length) return;
+    const first = f[0]; const last = f[f.length - 1];
+    if (e.shiftKey && (document.activeElement === first || !dlg.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && (document.activeElement === last || !dlg.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
+  });
   document.body.appendChild(dlg);
   say(draw({ kind: 'answer', lines: ['Hello. Ask me about the deal on screen, or pick a question below. I answer from your figures and show where each came from; I never guess.'], items: [], cites: [], blanks: [], suggest: [] }));
 }
