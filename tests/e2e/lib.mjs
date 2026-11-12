@@ -28,7 +28,17 @@ export async function phone(opts = {}) {
   // About), so each Settings group is opened as it is drawn; ui-fixes-flow and settings-groups-flow set window.__keepGroups
   // to see the real, collapsed page.
   await ctx.addInitScript(() => {
-    new MutationObserver(() => { if (window.__keepGroups) return; document.querySelectorAll('details.set-group:not([open]):not([data-user])').forEach((d) => { d.open = true; }); }).observe(document, { childList: true, subtree: true });
+    new MutationObserver(() => {
+      if (window.__keepGroups) return;
+      document.querySelectorAll('details.set-group:not([open]):not([data-user])').forEach((d) => { d.open = true; });
+      // Home and Deal folds (fold.js) are opened the same way, without being remembered; flows that test the folds set __keepGroups
+      document.querySelectorAll('.fold-btn[aria-expanded="false"]:not([data-user])').forEach((b) => {
+        b.setAttribute('aria-expanded', 'true');
+        const body = document.getElementById(b.getAttribute('aria-controls')); if (body) body.hidden = false;
+        const sum = b.closest('.fold-head, .card-head')?.querySelector('.fold-sum'); if (sum) sum.hidden = true;
+        b.closest('.fold')?.classList.remove('folded');
+      });
+    }).observe(document, { childList: true, subtree: true });
   });
   const page = await ctx.newPage();
   const errors = [];
