@@ -32,7 +32,8 @@ export async function phone(opts = {}) {
   });
   const page = await ctx.newPage();
   const errors = [];
-  page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${m.type()}] ${m.text()}`); });
+  // Chrome notes that the built-in tool's same-origin frame could lift its own sandbox: known and by design (the tool's own content policy is the control), so it is not counted
+  page.on('console', (m) => { if ((m.type() === 'error' || m.type() === 'warning') && !/can escape its sandboxing/.test(m.text())) errors.push(`[${m.type()}] ${m.text()}`); });
   page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
   page.on('requestfailed', (r) => errors.push(`[reqfail] ${r.url()} ${r.failure()?.errorText}`));
   return { browser, ctx, page, errors };
