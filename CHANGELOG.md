@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.7.166: Start and edit comps more clearly in the New look (on the development branch; not merged or deployed)
+
+Visible search, sort and date-window labels, quiet tables and a two-column phone editor make the Comps workspace easier to scan. Add sale by hand and Add listing by hand are available before an upload and after the first comp is added. Include and calendar controls have larger native touch targets; existing actions and Classic remain reachable.
+
+The shortcuts reuse existing handlers and keep the original Add selectors intact. No reader, financial calculation, saved format or export changes. Tested with synthetic fixtures only: 266 Chromium browser checks pass at 320, 390, 768 and 1280 px, light/dark and 130% text; strict saved-record equality, CSV, native hit targets and keyboard checks pass. Edit paints stayed below 28 ms against 150 ms. Thirty quick-gate tests, the type check and 646 unchanged displayed figures pass. Archived main fails the four new manual-start checks; three rendered UI guard mutations are detected. Full regression is pending. Safari and a physical phone were not tested; nothing is merged or deployed.
+
 ## 4.7.165: Speed budgets: screen switches, opening a deal and typing are measured and held (on the development branch; not merged or deployed)
 
 Measured with 30 saved deals in Chromium: every screen switch takes under 60 ms and opening a deal 63 ms on a normal CPU; with the CPU slowed 4x (a mid-range phone) switches take 40 to 150 ms (the first Underwrite open about 350 ms), opening a deal about 210 ms and a keystroke under 20 ms. Home draws about 100 ms after a reload (about 450 ms at 4x), and most of that is the browser reading and compiling the app's 149 files, not data work. A new browser flow, speed-flow, holds budgets so a slowdown fails the run: a switch under 100 ms (median of three), a deal opening under 150 ms, a keystroke under 50 ms, and looser limits at 4x. No app code changed in this release.
