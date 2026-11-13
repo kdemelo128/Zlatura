@@ -11,7 +11,7 @@ import { checkUpload, LIMITS, unpackBundle } from './filekind.js';
 import { readGrids } from './sheetread.js';
 import { docKind } from './rrdoc.js';
 import { pdfStatementChoices } from './pdfstatement.js';
-import { layoutOf, sheetChoices, pickSheet } from './t12.js';
+import { layoutOf, sheetChoices } from './t12.js';
 import { headerAndRows } from './rentrollui.js';
 import { classify, scoreText, suggestFromName } from './ddtypes.js';
 import { kindOf } from './dd.js';
@@ -69,17 +69,34 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
       omRead = true;
     }
   } else if (grids) {
-    // the T-12 import's own test: a sheet it would read as an actual statement (not a budget or projection), with month columns
-    const picked = pickSheet(sheetChoices(grids, { file: name }));
-    // the month columns must be on the sheet the import would read, not on some other sheet of the workbook
-    const candidates = picked.refuse ? [] : (picked.choice ? [picked.choice] : picked.ask.filter((c) => !c.projection));
-    const accepted = candidates.some((c) => accepts(() => layoutOf(grids[c.i].rows, { sheet: grids[c.i].sheet }).monthCols.length >= 3));
-    const roll = grids.some((g) => accepts(() => headerAndRows(g.rows.map((r) => r.cells), g.sheet)));
+    // the T-12 import's own test, sheet by sheet: a sheet it would read as an actual statement (not a budget or projection), with month columns
+    const choices = sheetChoices(grids, { file: name });
+    const t12 = choices.filter((c) => !c.error && !c.projection).flatMap((c) => { try { const n = layoutOf(grids[c.i].rows, { sheet: grids[c.i].sheet }).monthCols.length; return n >= 3 ? [{ i: c.i, sheet: c.sheet, hidden: c.hidden, score: n }] : []; } catch { return []; } });
+    // the rent roll import's own test, sheet by sheet: a row of three or more recognised headings (its score is how many)
+    const roll = grids.flatMap((g, i) => { try { const t = headerAndRows(g.rows.map((r) => r.cells), g.sheet); return t ? [{ i, sheet: g.sheet, hidden: !!g.hidden, score: Math.floor(t.score / 100) }] : []; } catch { return []; } });
+    // a sheet both readers accept goes to the one with the higher score (month columns, or recognised rent roll headings); the other is offered. A tie keeps both uses.
+    const offered = [];
+    for (const a of [...t12]) {
+      const b = roll.find((x) => x.i === a.i);
+      if (!b || a.score === b.score) continue;
+      const lose = a.score > b.score ? b : a;
+      (lose === b ? roll : t12).splice((lose === b ? roll : t12).indexOf(lose), 1);
+      offered.push({ type: lose === b ? 'rentroll' : 't12', sheet: a.sheet, win: a.score > b.score ? 't12' : 'rentroll', scores: [a.score, b.score] });
+    }
+    // hidden sheets count only when no visible sheet reads as that kind, and the part says so
+    const part = (type, reader, list) => {
+      const seen = list.filter((x) => !x.hidden);
+      const use = seen.length ? seen : list;
+      return { type, reader, sheets: use.map((x) => x.sheet), hiddenOnly: !seen.length, ...(offered.some((o) => o.win === type) ? { alsoReads: offered.filter((o) => o.win === type).map((o) => o.type) } : {}) };
+    };
+    const parts = [...(t12.length ? [part('t12', 't12', t12)] : []), ...(roll.length ? [part('rentroll', 'rrsheet', roll)] : [])];
+    const accepted = t12.length > 0;
+    const offers = offered.map((o) => ({ type: o.type, sheet: o.sheet }));
     // both readers accept it (one workbook holding a rent roll sheet and a statement sheet): no reader is chosen, so
-    // `readers` names both and the screen offers a Use for each; each import then picks its own sheet by its own tests
-    if (accepted && roll) return { ...out, ask: ['t12', 'rentroll'], readers: ['t12', 'rrsheet'] };
-    if (accepted) return { ...out, type: 't12', typeBy: 'reader', reader: 't12' };
-    if (roll) return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrsheet' };
+    // `readers` names both and the screen offers a Use for each, each on its own sheet; each import then picks its own sheet by its own tests
+    if (accepted && roll.length) return { ...out, ask: ['t12', 'rentroll'], readers: ['t12', 'rrsheet'], parts };
+    if (accepted) return { ...out, type: 't12', typeBy: 'reader', reader: 't12', parts, ...(offers.length ? { offered: offers } : {}) };
+    if (roll.length) return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrsheet', parts, ...(offers.length ? { offered: offers } : {}) };
     out.text = cellText(grids);
   }
   const c = classify(out.text, name);

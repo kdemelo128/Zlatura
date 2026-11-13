@@ -278,6 +278,7 @@ for (const u of units) {
     if (ocrBrowser && info.sha256 && ocrOf(info.sha256) && ocrOf(info.sha256).read.length) { const o = ocrOf(info.sha256); ocrStats.files += 1; ocrStats.pages += o.read.length; ocrStats.unsure += o.unsure; ocrStats.accepted += v.type ? 1 : 0; }
     if (info.refuse || readerNote) { outcome = 'refused'; family = sniffedKind || 'unknown'; }
     else if (v.type) { outcome = 'accepted'; family = v.reader; }
+    else if (v.readers && v.parts && v.parts.length >= 2) { outcome = 'accepted'; family = 'both-readers'; } // a rent roll sheet and a statement sheet, each staged for its own reader
     else {
       // a PDF no reader typed may still be a lease: the lease reader's own type test says so
       let lease = false;

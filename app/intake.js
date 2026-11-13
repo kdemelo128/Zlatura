@@ -82,16 +82,36 @@ export function stage(plan, info, file, dd = null) {
     item.state = 'skipped'; item.use = null;
   }
   plan.items.push(item);
-  // one workbook that both the rent roll and the T-12 readers accept: two uses of the one file, neither chosen for the broker.
-  // Each goes through its own import (which asks which sheet); the second is not "the same file twice".
+  if (item.refuse || item.dup) return item;
+  const parts = Array.isArray(v.parts) ? v.parts : [];
+  /** One more item of the same file: a second use of it, with its own sheet or pages. Never "the same file twice". */
+  const another = (over) => { item.pair = item.id; const x = { ...item, id: `f${++plan.seq}`, ask: [], factAnswers: {}, pair: item.id, ...over }; plan.items.push(x); return x; };
   const rs = Array.isArray(v.readers) ? v.readers : [];
-  if (!item.refuse && !item.dup && !type && rs.includes('t12') && rs.includes('rrsheet')) {
+  // one workbook that both the rent roll and the T-12 readers accept: two uses of the one file, each on its own sheet, neither chosen
+  // for the broker. Each goes through its own import (which asks which sheet); the second is not "the same file twice".
+  if (!type && rs.includes('t12') && rs.includes('rrsheet')) {
     const both = 'This workbook has a rent roll and an operating statement. Each Use goes through its own import, which asks which sheet.';
-    const mate = { ...item, id: `f${++plan.seq}` };
-    for (const [it, t] of [[item, 'rentroll'], [mate, 't12']]) Object.assign(it, { type: t, typeBy: 'reader', confidence: 'Read', reason: both, ask: [], use: useLabel(t), pair: item.id });
-    plan.items.push(mate);
+    const mate = another({});
+    for (const [it, t] of [[item, 'rentroll'], [mate, 't12']]) {
+      const p = parts.find((x) => x.type === t);
+      Object.assign(it, { type: t, typeBy: 'reader', confidence: 'Read', reason: `${both}${p ? ` ${sheetText(p, t)}` : ''}`, ask: [], use: useLabel(t), pair: item.id, ...(p ? { sheets: p.sheets } : {}) });
+    }
+    return item;
   }
+  // one use, with the sheet it came from (and a hidden sheet said to be hidden)
+  const own = type ? parts.find((x) => x.type === type && x.sheets) : null;
+  if (own) { item.reason = `${item.reason} ${sheetText(own, type)}`; item.sheets = own.sheets; }
+  // a sheet both readers accept went to the higher score: the other use is offered as a question, one tap
+  for (const o of Array.isArray(v.offered) ? v.offered : []) if (isType(o.type)) another({ type: null, typeBy: null, confidence: 'Not sure', reason: `Sheet “${o.sheet}” reads as ${typeLabel(o.type).toLowerCase()} too, but it went to the better match above. Tap if it is a ${typeLabel(o.type).toLowerCase()}.`, ask: [o.type], use: null, sheets: [o.sheet] });
   return item;
+}
+
+/** Where on a workbook a use comes from, in words: its sheet(s), and that a hidden sheet was used only because no visible one reads as that kind. */
+function sheetText(p, type) {
+  const names = p.sheets.map((x) => `“${x}”`).join(', ');
+  const kind = type === 'rentroll' ? 'a rent roll' : 'an operating statement';
+  const also = Array.isArray(p.alsoReads) && p.alsoReads.length ? ` It also reads as ${p.alsoReads.map((t) => typeLabel(t).toLowerCase()).join(' and ')}: that use is offered below.` : '';
+  return p.hiddenOnly ? `Read from the hidden sheet${p.sheets.length === 1 ? '' : 's'} ${names}: no visible sheet reads as ${kind}.${also}` : `Sheet${p.sheets.length === 1 ? '' : 's'} ${names}.${also}`;
 }
 
 const NO_TEXT = 'It has no text layer (a scan, or text drawn as a picture), so nothing could be read from it. Read it on this device with OCR, choose a type, or skip it.';

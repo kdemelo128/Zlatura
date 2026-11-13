@@ -75,3 +75,64 @@ test('a Word file whose text holds a rent roll is read by the same rules as a PD
   assert.equal(text.info.verdict.reader, 'rrpdf');
 });
 
+/* ---- a workbook with a rent roll on one sheet and a statement on another (case 2) */
+
+const M = ['Jan 2025', 'Feb 2025', 'Mar 2025', 'Apr 2025', 'May 2025', 'Jun 2025'];
+const addRoll = (wb, name, state) => { const ws = wb.addWorksheet(name, { state }); ws.addRow(['Unit', 'Tenant', 'SF', 'Monthly Rent', 'Lease End']); ws.addRow(['101', 'Invented Co', 1000, 2400, '2028-01-31']); ws.addRow(['102', 'Sample LLC', 1200, 2900, '2027-06-30']); ws.addRow(['103', 'Vacant', 900, 0, '']); };
+const addT12 = (wb, name, state) => { const ws = wb.addWorksheet(name, { state }); ws.addRow(['Operating Statement']); ws.addRow(['Line', ...M, 'Total']); ws.addRow(['Rental income', ...M.map(() => 10000), 60000]); ws.addRow(['Other income', ...M.map(() => 500), 3000]); ws.addRow(['Real estate taxes', ...M.map(() => 1500), 9000]); ws.addRow(['Insurance', ...M.map(() => 400), 2400]); ws.addRow(['Net operating income', ...M.map(() => 8600), 51600]); };
+const addJunk = (wb, name, state) => { const ws = wb.addWorksheet(name, { state }); ws.addRow(['Note']); ws.addRow(['Invented text']); };
+const book = async (build) => { const wb = new ExcelJS.Workbook(); build(wb); return Buffer.from(await wb.xlsx.writeBuffer()); };
+
+test('two visible sheets: each use is staged on its own sheet, with the sheet named', async () => {
+  const p = await stageOf(await book((wb) => { addJunk(wb, 'Cover'); addRoll(wb, 'Rent Roll'); addT12(wb, 'T-12'); for (let i = 0; i < 8; i++) addJunk(wb, `Misc ${i}`, 'hidden'); }), 'a.xlsx');
+  assert.deepEqual(p.items.map((x) => x.type).sort(), ['rentroll', 't12']);
+  const roll = p.items.find((x) => x.type === 'rentroll'); const t12 = p.items.find((x) => x.type === 't12');
+  assert.deepEqual(roll.sheets, ['Rent Roll']); assert.deepEqual(t12.sheets, ['T-12']);
+  assert.match(roll.reason, /Sheet “Rent Roll”/); assert.match(t12.reason, /Sheet “T-12”/);
+  assert.ok(!/hidden/.test(roll.reason + t12.reason));
+  assert.equal(I.readyItems(p, null).length, 2);
+});
+
+test('a hidden sheet is read only when no visible sheet reads as that kind, and the item says so', async () => {
+  const hiddenOnly = await stageOf(await book((wb) => { addJunk(wb, 'Cover'); addT12(wb, 'T-12'); addRoll(wb, 'RR old', 'hidden'); }), 'a.xlsx');
+  const roll = hiddenOnly.items.find((x) => x.type === 'rentroll');
+  assert.deepEqual(roll.sheets, ['RR old']);
+  assert.match(roll.reason, /hidden sheet “RR old”: no visible sheet reads as a rent roll/);
+  assert.ok(!/hidden/.test(hiddenOnly.items.find((x) => x.type === 't12').reason));
+  const both = await stageOf(await book((wb) => { addT12(wb, 'T-12'); addRoll(wb, 'Rent Roll'); addRoll(wb, 'RR old', 'hidden'); }), 'a.xlsx');
+  const r2 = both.items.find((x) => x.type === 'rentroll');
+  assert.deepEqual(r2.sheets, ['Rent Roll'], 'the visible sheet is used and the hidden one is left');
+  assert.ok(!/hidden/.test(r2.reason));
+});
+
+test('a sheet both readers accept goes to the higher score; the other use is offered as a question', async () => {
+  // six rent roll headings and three month columns: the rent roll reader scores higher
+  const mixed = await book((wb) => { const ws = wb.addWorksheet('Roll'); ws.addRow(['Unit', 'Tenant', 'SF', 'Lease Start', 'Lease End', 'Monthly Rent', 'Jan 2025', 'Feb 2025', 'Mar 2025']); ws.addRow(['101', 'Invented Co', 1000, '2022-01-01', '2028-01-31', 2400, 2400, 2400, 2400]); ws.addRow(['102', 'Sample LLC', 1200, '2021-01-01', '2027-06-30', 2900, 2900, 2900, 2900]); ws.addRow(['103', 'Example Shop', 900, '2023-01-01', '2029-06-30', 2100, 2100, 2100, 2100]); });
+  const v = await verdictOf(mixed, 'a.xlsx');
+  assert.equal(v.type, 'rentroll'); assert.equal(v.reader, 'rrsheet');
+  assert.deepEqual(v.offered, [{ type: 't12', sheet: 'Roll' }]);
+  const p = await stageOf(mixed, 'a.xlsx');
+  assert.equal(p.items.length, 2);
+  const ask = p.items.find((x) => !x.type);
+  assert.deepEqual(ask.ask, ['t12']);
+  assert.match(ask.reason, /“Roll”.*operating statement too/);
+  assert.equal(I.readyItems(p, null).length, 1, 'only the better match can be used until the broker answers');
+  assert.ok(I.answer(p, ask.id, 't12'));
+});
+
+test('a sheet both readers accept with equal scores keeps both uses, each offered, neither chosen', async () => {
+  const tie = await book((wb) => { const ws = wb.addWorksheet('Both'); ws.addRow(['Unit', 'Tenant', 'SF', 'Jan 2025', 'Feb 2025', 'Mar 2025']); ws.addRow(['101', 'Invented Co', 1000, 2400, 2400, 2400]); ws.addRow(['102', 'Sample LLC', 1200, 2900, 2900, 2900]); ws.addRow(['103', 'Example Shop', 900, 2100, 2100, 2100]); });
+  const v = await verdictOf(tie, 'a.xlsx');
+  assert.equal(v.type, null);
+  assert.deepEqual(v.readers, ['t12', 'rrsheet']);
+  assert.equal(v.offered, undefined);
+});
+
+test('a rent roll workbook and a T-12 workbook alone are typed as before, with their sheet named', async () => {
+  const r = await verdictOf(await book((wb) => addRoll(wb, 'Rent Roll')), 'a.xlsx');
+  assert.equal(r.reader, 'rrsheet'); assert.equal(r.readers, undefined); assert.equal(r.offered, undefined);
+  assert.deepEqual(r.parts, [{ type: 'rentroll', reader: 'rrsheet', sheets: ['Rent Roll'], hiddenOnly: false }]);
+  const p = await stageOf(await book((wb) => addT12(wb, 'T-12')), 'a.xlsx');
+  assert.equal(p.items.length, 1);
+  assert.match(p.items[0].reason, /Sheet “T-12”/);
+});
