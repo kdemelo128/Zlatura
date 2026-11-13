@@ -43,6 +43,8 @@ async function type(page, locator, value, name) {
   }
   check(`${name}: every character and focus is kept`, lost.length === 0, lost.join(' | '));
   await page.keyboard.press('Tab');
+  // Finish the measured edit frame before the runner starts another action.
+  await page.evaluate(() => new Promise(requestAnimationFrame));
 }
 async function axe(page, label) {
   if (!await page.evaluate(() => !!window.axe)) await page.addScriptTag({ path: AXE });
@@ -187,6 +189,8 @@ for (const [size, options] of sizes) {
       await page.evaluate(async () => (await import('./app/look.js')).setTextSize(130));
       await page.evaluate(() => document.fonts.ready);
       check(`${size}, ${theme}: enlarged text does not push the page sideways`, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      // axe performs its own long DOM analysis; do not let it delay a pending measured edit frame.
+      await page.evaluate(() => new Promise(requestAnimationFrame));
       await axe(page, `${size}, ${theme}, 130% text`);
       if (options.isMobile !== false) { const targets = await small(page); check(`${size}, ${theme}: touch targets are at least 44 px`, targets.length === 0, targets.join('\n')); }
       const still = await page.$$eval('#view-comps .ctable tbody td, #view-comps .btn', (nodes) => nodes.every((n) => getComputedStyle(n).transitionDuration.split(',').every((v) => parseFloat(v) === 0) && getComputedStyle(n).animationName === 'none'));
@@ -203,7 +207,7 @@ for (const [size, options] of sizes) {
     const times = await page.evaluate(() => ({ input: window.__compsUIInputMs, commit: window.__compsUICommitMs }));
     check(`${size}: typing paints within the 150 ms budget`, times.input.length > 20 && Math.max(...times.input) < 150, `${Math.max(...times.input).toFixed(1)} ms; ${JSON.stringify(await page.evaluate(() => ({ slow: window.__compsUISlow, longTasks: window.__compsUILongTasks })))}`);
     check(`${size}: committed edits paint within the 150 ms budget`, times.commit.length >= 10 && Math.max(...times.commit) < 150, `${Math.max(...times.commit).toFixed(1)} ms; ${JSON.stringify(await page.evaluate(() => ({ slow: window.__compsUISlow, longTasks: window.__compsUILongTasks })))}`);
-    await page.reload({ waitUntil: 'load' });
+    await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelectorAll('#sales-table tbody tr[data-key]').length === 2 && document.querySelectorAll('#market-table tbody tr[data-key]').length === 1);
     await page.evaluate(() => document.fonts.ready);
     await page.locator('#sale-sort').selectOption('price');
