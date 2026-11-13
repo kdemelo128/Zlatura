@@ -169,12 +169,20 @@ const normal = (r) => (Array.isArray(r) ? { lines: r, tables: [], warnings: [] }
 /* ------------------------------------------------------------- the list */
 
 let query = '';
+let category = '';
+let lookObserver = null;
 function render() {
   const root = $('tools-root');
+  const modern = document.documentElement.dataset.look === 'new';
+  // Settings can switch looks without reloading the app; only the list redraws.
+  if (!lookObserver) {
+    lookObserver = new MutationObserver(render);
+    lookObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-look'] });
+  }
   root.textContent = '';
   const head = el('div', 'view-head');
   head.appendChild(el('h1', null, 'Tools'));
-  head.appendChild(el('p', null, `${TOOLS.length} tools: calculators for valuation, debt, returns, leasing and development, and PDF page tools under Documents. Figures you type are remembered on this device; tools marked “deal” load the open deal’s figures.`));
+  head.appendChild(el('p', null, modern ? 'Find a calculator or document tool. Inputs stay on this device; tools marked “from deal” can use the deal you have open.' : `${TOOLS.length} tools: calculators for valuation, debt, returns, leasing and development, and PDF page tools under Documents. Figures you type are remembered on this device; tools marked “deal” load the open deal’s figures.`));
   root.appendChild(head);
   const search = el('input', 'tool-search');
   search.type = 'search';
@@ -183,13 +191,41 @@ function render() {
   search.setAttribute('aria-label', 'Search tools');
   search.autocomplete = 'off';
   search.value = query;
-  root.appendChild(search);
+  let groups = null;
+  let result = null;
+  let clear = null;
+  if (modern) {
+    const bar = el('div', 'tools-browser');
+    const controls = el('div', 'tools-filters');
+    const field = (label, input) => {
+      const wrap = el('div', 'tools-filter');
+      const text = el('label', null, label); text.htmlFor = input.id;
+      wrap.append(text, input); return wrap;
+    };
+    controls.appendChild(field('Search tools', search));
+    groups = el('select', 'input'); groups.id = 'tool-category';
+    for (const group of ['', ...GROUPS]) {
+      const option = el('option', null, group || 'All categories'); option.value = group;
+      groups.appendChild(option);
+    }
+    groups.value = category;
+    controls.appendChild(field('Category', groups));
+    bar.appendChild(controls);
+    const summary = el('div', 'tools-summary');
+    result = el('p', 'tools-results'); result.id = 'tool-results';
+    result.setAttribute('role', 'status'); result.setAttribute('aria-live', 'polite'); result.setAttribute('aria-atomic', 'true');
+    clear = el('button', 'btn btn-plain btn-sm', 'Clear filters'); clear.type = 'button'; clear.id = 'tool-clear';
+    clear.addEventListener('click', () => { query = ''; category = ''; search.value = ''; groups.value = ''; draw(); search.focus(); });
+    summary.append(result, clear); bar.appendChild(summary); root.appendChild(bar);
+    groups.addEventListener('change', () => { category = groups.value; draw(); });
+  } else root.appendChild(search);
   const list = el('div');
+  if (modern) { list.id = 'tool-list'; search.setAttribute('aria-controls', list.id); groups.setAttribute('aria-controls', list.id); }
   root.appendChild(list);
   const draw = () => {
     list.textContent = '';
     const q = query.trim().toLowerCase();
-    const match = (t) => !q || `${t.title} ${t.desc} ${t.group}`.toLowerCase().includes(q);
+    const match = (t) => (!modern || !category || t.group === category) && (!q || `${t.title} ${t.desc} ${t.group}`.toLowerCase().includes(q));
     let shown = 0;
     // the active workspace's tools come first as one more group; the groups below still hold every tool
     const ws = activeWorkspace();
@@ -211,7 +247,15 @@ function render() {
       for (const t of ts) grid.appendChild(card(t));
       list.appendChild(grid);
     }
-    if (!shown) list.appendChild(el('p', 'hint-sm', `No tool matches “${query}”.`));
+    if (modern) {
+      result.textContent = `Showing ${shown} of ${TOOLS.length} tools.`;
+      clear.hidden = !query && !category;
+      if (!shown) {
+        const empty = el('div', 'tools-empty');
+        empty.append(el('h2', null, 'No matching tools'), el('p', 'hint', 'Try another name or category, or clear your filters.'));
+        list.appendChild(empty);
+      }
+    } else if (!shown) list.appendChild(el('p', 'hint-sm', `No tool matches “${query}”.`));
   };
   search.addEventListener('input', () => { query = search.value; draw(); });
   draw();
@@ -228,7 +272,7 @@ function card(t) {
   b.appendChild(ic);
   const tx = el('span');
   const h = el('h3', null, t.title);
-  if (t.fromDeal) h.appendChild(el('span', 'tool-tag', 'deal'));
+  if (t.fromDeal) h.appendChild(el('span', 'tool-tag', document.documentElement.dataset.look === 'new' ? 'from deal' : 'deal'));
   tx.appendChild(h);
   tx.appendChild(el('p', null, t.desc));
   b.appendChild(tx);
