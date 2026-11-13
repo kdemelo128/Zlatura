@@ -66,10 +66,10 @@ export function longRoll({ pages = 6, mode = 'repeat', total = true } = {}) {
 
 /* ---- tables that are not a rent roll and must stay unread ---- */
 /** A unit mix: types, not units: no lease dates, no status. */
-export const unitMix = () => [summary(), grid({ title: 'Unit Mix', cols: [['Unit Type', 40, 0], ['Units', 150, 1], ['Avg SF', 230, 1], ['Market Rent', 330, 1], ['Rent PSF', 430, 1]],
+export const unitMix = () => [summary(), prose(), grid({ title: 'Unit Mix', cols: [['Unit Type', 40, 0], ['Units', 150, 1], ['Avg SF', 230, 1], ['Market Rent', 330, 1], ['Rent PSF', 430, 1]],
   rows: [['A1 1 Bed / 1 Bath', '24', '650', '$1,250', '$1.92'], ['B2 2 Bed / 2 Bath', '30', '910', '$1,650', '$1.81'], ['C3 3 Bed / 2 Bath', '12', '1,150', '$2,050', '$1.78']] })];
 /** Comparable properties: a "Unit" column and rents, no lease dates. */
-export const compsTable = () => [summary(), grid({ title: 'Rent Comparables', cols: [['Unit', 40, 0], ['Beds', 120, 0], ['SF', 200, 1], ['Rent', 280, 1], ['Rent/SF', 360, 1]],
+export const compsTable = () => [summary(), prose(), grid({ title: 'Rent Comparables', cols: [['Unit', 40, 0], ['Beds', 120, 0], ['SF', 200, 1], ['Rent', 280, 1], ['Rent/SF', 360, 1]],
   rows: [['Oak Terrace 1', '1', '640', '$1,300', '$2.03'], ['Oak Terrace 2', '2', '900', '$1,700', '$1.89'], ['Pine Row 3', '2', '925', '$1,725', '$1.86']] })];
 
 /* ---- a roll whose later pages are a different size, and a label over figures aligned far from it ---- */

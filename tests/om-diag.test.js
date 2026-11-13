@@ -39,6 +39,17 @@ test('om-diag: every fixture is covered, and every reason code of the tool appea
   for (const c of src.match(/reasons\.push\(['`]([a-z-]+)/g).map((x) => x.replace(/reasons\.push\(['`]/, ''))) assert.ok(used.has(c) || ['no-rent-figures', 'no-sf-figures', 'header-found-no-rows', 'roll-partly-on-scanned-page'].includes(c), `a fixture for ${c}`);
 });
 
+test('om-diag: a header the reader refused reports which column kinds it found, from the fixed vocabulary only', async () => {
+  const { COLUMN_VOCAB, columnKinds } = await import('./tools/om-diag.mjs');
+  const r = await diag('noTenant');
+  assert.deepEqual(r.headerKinds, ['lease-end', 'lease-start', 'rent', 'sf']);
+  assert.ok(r.headerKinds.every((k) => COLUMN_VOCAB.includes(k)));
+  assert.match(omLine('file-01', r), /header columns found lease-end,lease-start,rent,sf/);
+  // a multifamily header with the words a unit roll uses: every kind named from the vocabulary, no header text
+  assert.deepEqual(columnKinds(['Unit', 'Unit Type', 'Beds/Baths', 'SF', 'Market Rent', 'Current Rent', 'Rent PSF', 'Lease Start', 'Lease End', 'Term', 'Status', 'Security Deposit', 'Monthly Charges', 'Zebra']), ['baths', 'beds', 'charges', 'deposit', 'lease-end', 'lease-start', 'market-rent', 'other', 'rent', 'rent-psf', 'sf', 'status', 'term', 'type', 'unit']);
+  assert.ok(!JSON.stringify(r).includes('Annual'), 'no header text in the result');
+  assert.deepEqual((await diag('plain')).headerKinds, [], 'a roll that was read reports none');
+});
 test('om-diag: the plain roll counts: rows, rent, SF, lease end, the total dropped, pages', async () => {
   const r = await diag('plain');
   assert.deepEqual([r.pages, r.rows, r.rowsRent, r.rowsSf, r.rowsEnd, r.totalsDropped, r.rowsOnDeal, r.rowsHeld], [2, 4, 4, 4, 4, 1, 4, 0]);
