@@ -1,6 +1,5 @@
 # Changelog
 
-
 ## 4.7.158: An OM's rent roll is read when it has no tenant column, runs over many pages, or is typeset tightly (on the development branch; not merged or deployed)
 
 An OM's rent roll reader (`app/omroll.js`) refused or cut short rolls of several kinds, found by the OM diagnostic on a set of 41 real OMs (counts only). Each now reads, with every earlier guard kept: only a labelled rent fills the rent (a market rent never does), a blank is never zero, monthly or annual is never guessed (a column that does not say is flagged and asked), SF and units are not mixed, and a summary or Total row is never a unit.
