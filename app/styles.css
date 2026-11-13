@@ -772,6 +772,7 @@ td.act .chips { justify-content: flex-end; margin-right: 4px; }
 :root[data-look="new"] #view-comps .ctable td input.tog { width: 24px; min-width: 24px; height: 24px; margin: 0; }
 :root[data-look="new"] #view-comps .ctable .di-pick { min-width: 44px; width: 44px; min-height: 44px; right: 0; }
 :root[data-look="new"] #view-comps .ctable .di-text { padding-right: 46px; }
+:root[data-look="new"] #view-comps .ctable button { min-width: 44px; min-height: 44px; }
 :root[data-look="new"] #view-comps .ctable .name-cell .sub { color: var(--muted); font-size: .8125rem; }
 :root[data-look="new"] #view-comps .ctable tfoot td { background: var(--surface-2); }
 @media (max-width: 1100px) {

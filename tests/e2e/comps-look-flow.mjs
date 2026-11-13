@@ -19,12 +19,20 @@ const field = (row, label) => row.getByRole('textbox', { name: label, exact: tru
 const look = (page, value) => page.evaluate(async (v) => (await import('./app/look.js')).setLook(v), value);
 const source = (page) => page.evaluate(async () => {
   const s = await (await import('./app/store.js')).loadSession();
-  return { docs: (s?.docs || []).length, manual: (s?.manual || []).map((c) => Object.fromEntries(['name', 'kind', 'price', 'bsf', 'date', 'cap', 'occ', 'zoning', 'lot_sf', 'dom', 'exclude', 'origin', 'source'].map((k) => [k, c[k] ?? null]))).sort((a, b) => a.name.localeCompare(b.name)) };
+  return { docs: (s?.docs || []).length, manual: (s?.manual || []).map((c) => Object.fromEntries(['key', 'name', 'kind', 'price', 'bsf', 'date', 'cap', 'occ', 'zoning', 'lot_sf', 'dom', 'exclude', 'origin', 'source'].map((k) => [k, c[k] ?? null]))).sort((a, b) => a.name.localeCompare(b.name)) };
 });
-const waitSaved = (page, name) => page.waitForFunction(async (n) => {
-  const s = await (await import('./app/store.js')).loadSession();
-  return s?.manual?.some((c) => c.name === n);
-}, name);
+// Await the store read before deciding whether to poll again. A Promise itself
+// is truthy in waitForFunction and cannot establish that IndexedDB has settled.
+async function waitSource(page, predicate, reason) {
+  const until = Date.now() + 15000;
+  let actual;
+  do {
+    actual = await source(page);
+    if (predicate(actual)) return actual;
+    await page.waitForTimeout(30);
+  } while (Date.now() < until);
+  throw new Error(`${reason}: saved source did not settle: ${JSON.stringify(actual)}`);
+}
 const controlIds = (page) => page.$$eval('#view-comps [id]', (nodes) => nodes.filter((n) => /^(INPUT|SELECT|BUTTON|DETAILS)$/.test(n.tagName)).map((n) => n.id).sort());
 async function type(page, locator, value, name) {
   await locator.fill(''); await locator.focus();
@@ -124,9 +132,12 @@ for (const [size, options] of sizes) {
     await page.locator('#sale-sort').selectOption('name');
     check(`${size}: name ordering still works`, await field(saleRows(page).first(), 'Property name').inputValue() === 'Fictional Birch Sale');
     await page.locator('#sale-sort').selectOption('price');
-    await waitSaved(page, 'Fictional Birch Sale');
-    await page.waitForFunction(async () => (await (await import('./app/store.js')).loadSession())?.manual?.find((c) => c.name === 'Fictional Birch Sale')?.bsf === 1000);
-    const before = await source(page);
+    const matches = (record, expected) => record && Object.entries(expected).every(([key, value]) => isDeepStrictEqual(record[key], value));
+    const before = await waitSource(page, (saved) => saved.docs === 0 && saved.manual.length === 3
+      && matches(saved.manual.find((c) => c.name === 'Fictional Cedar Court'), { kind: 'sale', price: 3300000, bsf: 6000, cap: 6.25, occ: 95, zoning: 'TEST', lot_sf: 0 })
+      && saved.manual.find((c) => c.name === 'Fictional Cedar Court')?.date?.startsWith('2024-02-29')
+      && matches(saved.manual.find((c) => c.name === 'Fictional Willow Listing'), { kind: 'market', price: 2400000, bsf: 4000, dom: 0, cap: 0 })
+      && matches(saved.manual.find((c) => c.name === 'Fictional Birch Sale'), { kind: 'sale', price: 1100000, bsf: 1000, cap: null }), 'Typed manual records');
     await look(page, 'classic');
     check(`${size}: the original first Add controls stay visible in Classic`, await page.locator('#view-comps [data-add="sale"]').first().isVisible() && await page.locator('#view-comps [data-add="market"]').first().isVisible());
     await look(page, 'new');
@@ -134,6 +145,7 @@ for (const [size, options] of sizes) {
     check(`${size}: saved blanks and zero values remain distinct`, before.manual.find((c) => c.name === 'Fictional Cedar Court').lot_sf === 0 && before.manual.find((c) => c.name === 'Fictional Willow Listing').cap === 0 && before.manual.find((c) => c.name === 'Fictional Birch Sale').cap === null);
 
     await type(page, page.locator('#sale-search'), 'Cedar', `${size}: search`);
+    await page.waitForFunction(() => document.querySelectorAll('#sales-table tbody tr[data-key]').length === 1 && document.querySelector('#sales-table input[aria-label="Property name"]')?.value === 'Fictional Cedar Court');
     check(`${size}: search keeps the matching comp`, await saleRows(page).count() === 1 && await field(saleRows(page).first(), 'Property name').inputValue() === 'Fictional Cedar Court');
     await page.locator('#sale-search').fill('');
     await page.waitForFunction(() => document.querySelectorAll('#sales-table tbody tr[data-key]').length === 2);
@@ -165,7 +177,7 @@ for (const [size, options] of sizes) {
     const [download] = await Promise.all([page.waitForEvent('download'), page.locator('.action-sheet .action-item', { hasText: 'CSV' }).first().click()]);
     const csv = fs.readFileSync(await download.path(), 'utf8');
     check(`${size}: CSV still contains every manual sale and listing`, ['Fictional Cedar Court', 'Fictional Birch Sale', 'Fictional Willow Listing'].every((name) => csv.includes(name)));
-    await page.waitForFunction(async () => (await (await import('./app/store.js')).loadSession())?.manual?.length === 3);
+    await waitSource(page, (saved) => isDeepStrictEqual(saved, before), 'Undo and view controls');
     check(`${size}: searching, sorting and Undo preserve saved source values`, isDeepStrictEqual(await source(page), before));
 
     for (const theme of ['light', 'dark']) {
