@@ -1,7 +1,6 @@
 /* assistantui.js -- Monal, the on-device assistant: the bird button and the panel.
  *
- * One bird button on every screen (hidden inside the full-screen Underwrite tool, whose own tips are
- * separate for now), opening a calm dialog: a bottom sheet on a phone, a panel in the corner on a desk.
+ * One bird button on every screen (hidden inside the full-screen Underwrite tool, whose own bird opens it with the tool's step and its nest tips as suggested questions), opening a calm dialog: a bottom sheet on a phone, a panel in the corner on a desk.
  * A question is understood (assistant.js) and answered (assistantanswer.js) on this device; this file only
  * draws the result. Everything is drawn as text nodes: no HTML from a question, a deal or a document ever
  * reaches the page. The assistant makes no network request. Anything that changes something (a task) is
@@ -15,6 +14,7 @@ import { understand, suggestions } from './assistant.js';
 import { answer } from './assistantanswer.js';
 import { dealForAssistant, assistantGo, assistantApply } from './dealui.js';
 import { pageText } from './docsession.js';
+import { splitTips } from './assistanttips.js';
 import { addTask, deleteTask, updateTask, saveContact, deleteContact, listTasks, listContacts, log as crmLog } from './crm.js';
 
 let view = 'home';
@@ -24,6 +24,8 @@ let log = null;
 let input = null;
 let chips = null;
 let live = null;
+/** The Underwrite tool's step and nest tips while the tool's bird has the panel open: { step, tips, run } (assistanttips.js); null otherwise. */
+let toolCtx = null;
 
 const btn = (cls, text, fn) => { const b = el('button', `btn ${cls}`.trim(), text); b.type = 'button'; if (fn) b.addEventListener('click', fn); return b; };
 
@@ -256,11 +258,30 @@ export async function ask(text) {
   return r;
 }
 
+/** The nest's tips as suggested questions: this step's first, then a chip that adds every other tip. */
+function drawTipChips(all) {
+  const { mine, more } = splitTips(toolCtx.tips, toolCtx.step);
+  chips.textContent = '';
+  for (const t of all ? [...mine, ...more] : mine) chips.appendChild(btn('btn-sm assist-chip assist-tip', t.title, () => askTip(t)));
+  if (!all && more.length) { const m = btn('btn-sm assist-chip assist-more', 'More tips from the nest', () => { drawTipChips(true); chips.querySelector('.assist-tip')?.focus(); }); chips.appendChild(m); }
+}
+
+/** A nest tip as a question and its answer: the tip's own text and a button that runs its route in the tool. */
+function askTip(t) {
+  say(el('div', 'assist-msg assist-me', t.title));
+  const ctx = toolCtx;
+  const box = draw({ kind: 'answer', title: t.title, lines: [t.text], items: [], cites: [], blanks: [], suggest: [] });
+  box.appendChild(btn('btn-sm btn-gray assist-go', t.label, () => { closeSheet(dlg); if (ctx) ctx.run(t.id); }));
+  say(box);
+  live.textContent = t.text;
+}
+
 function drawChips() {
   if (!chips) return;
   const snap = (() => { try { return dealForAssistant(); } catch { return null; } })();
   chips.textContent = '';
   if (chips.parentElement) chips.parentElement.scrollLeft = 0;
+  if (toolCtx) { drawTipChips(false); return; }
   for (const s of suggestions(view, { hasDeal: !!snap, hasRentRoll: !!(snap && snap.rrSum), hasDocs: !!(snap && snap.docIndex), today: new Date() })) chips.appendChild(btn('btn-sm assist-chip', s, () => ask(s)));
 }
 
@@ -311,6 +332,7 @@ function build() {
   card.append(head, body, tray, foot);
   dlg.appendChild(card);
   dlg.addEventListener('click', (e) => { if (e.target === dlg) closeSheet(dlg); });
+  dlg.addEventListener('close', () => { toolCtx = null; });
   // a trap of our own: the browser lets a modal dialog's Tab walk out to its own toolbar; here Tab wraps inside the panel
   dlg.addEventListener('keydown', (e) => {
     if (e.key !== 'Tab') return;
@@ -324,8 +346,12 @@ function build() {
   say(draw({ kind: 'answer', lines: ['Hello. Ask me about the deal on screen, or pick a question below. I answer from your figures and show where each came from; I never guess.'], items: [], cites: [], blanks: [], suggest: [] }));
 }
 
-export function openAssistant() {
+/** @param {{ tool?: { step: string, tips: any[], run: (id: string) => void } | null }} [opts] `tool`: opened by the Underwrite tool's bird */
+export function openAssistant(opts) {
   if (!dlg) build();
+  toolCtx = opts && opts.tool && opts.tool.tips.length ? opts.tool : null;
+  input.placeholder = toolCtx ? 'Ask about this step…' : 'Ask about this deal…';
+  if (toolCtx) say(draw({ kind: 'answer', lines: [`You are on the ${toolCtx.step === 'files' ? 'Files' : toolCtx.step === 'review' ? 'Read & review' : toolCtx.step === 'model' ? 'Model' : 'Export'} step. Pick a tip from the nest below, or ask a question.`], items: [], cites: [], blanks: [], suggest: [] }));
   drawChips();
   openSheet(dlg);
   input.focus();
@@ -338,9 +364,9 @@ export function initAssistant() {
   fab.setAttribute('aria-label', `Ask ${PRODUCT}`);
   fab.setAttribute('aria-haspopup', 'dialog');
   fab.setAttribute('data-brand-mark', '');
-  fab.addEventListener('click', openAssistant);
+  fab.addEventListener('click', () => openAssistant());
   document.body.appendChild(fab);
   installBrand();   // draws the mark into every [data-brand-mark], this button included
   document.addEventListener('viewchange', (e) => { view = e.detail; if (dlg && dlg.open) drawChips(); });
-  return { ask, open: openAssistant };
+  return { ask, open: () => openAssistant() };
 }

@@ -15,6 +15,7 @@ import { toolIndex, openToolSheet } from '../toolsui.js';
 import { quickFromTool, toolMeasures, measureFlags, changedPaths } from './bridge.js';
 import { CHECK_FIELDS, plain, runText } from './quick.js';
 import { saveQuickAsDeal } from './quickdeal.js';
+import { cleanTips } from '../assistanttips.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const IDS = CHECK_FIELDS.map((f) => f[0]);
@@ -62,6 +63,19 @@ export function installToolBridge(win, { api, frame }) {
       const out = runText(textOf(text));
       const flags = measureFlags(out.measures, measuresOf(tool));
       return saveQuickAsDeal(api, { values: out.values, record: out.record, flags, name: typeof name === 'string' && name !== 'Untitled property' ? name.slice(0, 200) : '' });
+    },
+    /** The tool's bird opens Ask Monal over the tool, with the step and the nest's tips as suggested questions. Plain text in; a tip runs back in the frame by id. */
+    askMonal(input) {
+      const { step, tips } = cleanTips(plainJson(input));
+      if (!tips.length) return false;
+      const run = (id) => {
+        try {
+          if (!tips.some((t) => t.id === id) || frame.contentWindow !== win || win.location.origin !== location.origin || !TOOL_PAGE.test(win.location.pathname)) return;
+          win.UWMonalGuide.run(id);
+        } catch { /* the frame went away */ }
+      };
+      import('../assistantui.js').then((m) => m.openAssistant({ tool: { step, tips, run } })).catch(() => {});
+      return true;
     },
     calculators() { return toolIndex().map((t) => ({ id: t.id, title: t.title, desc: t.desc, group: t.group })); },
     /** A calculator's sheet over the tool, with the check's figures where it shares one (blank stays blank). */

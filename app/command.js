@@ -95,6 +95,7 @@ const ASKS_IMPACT = /\b(affects?|impacts?|depends?|what does)\b/i;
 
 export async function openCommand() {
   if (dlg && dlg.open) { dlg.querySelector('input').focus(); return; }
+  document.querySelectorAll('dialog.cmdk:not([open])').forEach((d) => d.remove()); // a closed palette never lingers to swallow keys
   // the dialog opens at once so nothing typed is lost while the deals load
   let items = [];
   let loaded = false;
@@ -175,8 +176,11 @@ export async function openCommand() {
     else if (e.key === 'ArrowUp') { e.preventDefault(); select(sel - 1); }
     else if (e.key === 'Enter') { e.preventDefault(); ready.then(() => { if (shown[sel]) shown[sel].run(); }); }
   });
-  dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
-  dlg.addEventListener('close', () => dlg.remove());
+  // each palette closes and removes ITSELF: `dlg` may already name a newer palette by the time this one's close event
+  // runs (two opens in quick succession), and removing that one left this closed palette, focus and all, in the page
+  const me = dlg;
+  me.addEventListener('click', (e) => { if (e.target === me) me.close(); });
+  me.addEventListener('close', () => { me.remove(); if (dlg === me) dlg = null; });
   const ready = sources().then((x) => { items = x; }, () => {}).then(() => { loaded = true; if (dlg && dlg.open) draw(); });
   draw();
   openSheet(dlg);

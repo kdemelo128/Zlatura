@@ -132,9 +132,12 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
   await page.waitForTimeout(250);
   at('the search offers "Workspace: Lending"', /Workspace: Lending/.test(await page.textContent('dialog[open]')));
   await page.keyboard.press('Escape');
+  // let the palette finish closing before opening it again (pressing Ctrl+K inside the close raced)
+  await page.waitForFunction(() => !document.querySelector('dialog[open]'));
   await page.keyboard.press('Control+k');
+  await page.waitForSelector('dialog[open] input');
   await page.keyboard.type('Pdf pages');
-  await page.waitForTimeout(250);
+  await page.waitForFunction(() => /PDF pages/i.test(document.querySelector('dialog[open]')?.textContent || ''), null, { timeout: 5000 }).catch(() => {});
   at('and still finds every tool (PDF pages, which Development does not list)', /PDF pages/i.test(await page.textContent('dialog[open]')));
   await page.keyboard.press('Escape');
 

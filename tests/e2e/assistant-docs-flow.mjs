@@ -59,6 +59,8 @@ async function addDocs(page, files) {
 const idb = (page) => page.evaluate(() => new Promise((res) => { const r = indexedDB.open('zlatura'); r.onsuccess = () => { const g = r.result.transaction('deals').objectStore('deals').getAll(); g.onsuccess = () => res(JSON.stringify(g.result)); }; }));
 const tasks = (page) => page.evaluate(async () => (await import(new URL('app/crm.js', location.href).href)).listTasks());
 let during = false;
+/** The Underwrite tool preloads its own files when the browser is idle (uwfiller/tool.js): same-origin static files, not an answer reaching out. */
+const PRELOAD = /\/(app\/uwtool|app\/monal|fonts)\//;
 const open = async (page) => { await page.click('#assistant-fab'); await page.waitForSelector('dialog.assist[open]'); await page.waitForTimeout(150); };
 const close = async (page) => { await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('dialog.assist[open]')); };
 async function ask(page, text) {
@@ -77,7 +79,7 @@ for (const [size, opts] of SIZES) {
   const { browser, ctx, page, errors } = await phone(opts);
   page.setDefaultTimeout(30000);
   const outside = []; const duringReq = [];
-  page.on('request', (r) => { if (!r.url().startsWith(BASE) && !/^(data|blob):/.test(r.url())) outside.push(r.url()); if (during) duringReq.push(r.url()); });
+  page.on('request', (r) => { if (!r.url().startsWith(BASE) && !/^(data|blob):/.test(r.url())) outside.push(r.url()); if (during && !PRELOAD.test(r.url())) duringReq.push(r.url()); });
   page.on('dialog', (d) => d.dismiss());
   try {
     await page.goto(BASE + '#home', { waitUntil: 'load' });
