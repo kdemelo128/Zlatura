@@ -88,9 +88,11 @@ for (const [size, options] of sizes) {
     check(`${size}: file and example starting actions remain`, await page.locator('#drop label[for="file"]').isVisible() && await page.locator('#example').isVisible());
 
     await page.evaluate(() => {
-      window.__compsUIInputMs = []; window.__compsUICommitMs = [];
-      for (const [event, store] of [['input', '__compsUIInputMs'], ['change', '__compsUICommitMs']]) document.getElementById('view-comps').addEventListener(event, () => {
-        const started = performance.now(); requestAnimationFrame(() => window[store].push(performance.now() - started));
+      window.__compsUIInputMs = []; window.__compsUICommitMs = []; window.__compsUISlow = []; window.__compsUILongTasks = [];
+      new PerformanceObserver((entries) => window.__compsUILongTasks.push(...entries.getEntries().map((e) => ({ start: e.startTime, duration: e.duration })))).observe({ type: 'longtask', buffered: true });
+      for (const [event, store] of [['input', '__compsUIInputMs'], ['change', '__compsUICommitMs']]) document.getElementById('view-comps').addEventListener(event, (ev) => {
+        const started = performance.now(); const target = ev.target.getAttribute('aria-label') || ev.target.id || ev.target.tagName;
+        requestAnimationFrame(() => { const duration = performance.now() - started; window[store].push(duration); if (duration >= 100) window.__compsUISlow.push({ event, target, duration, start: started }); });
       }, { capture: true });
     });
     await shortcut.focus(); await page.keyboard.press('Enter');
@@ -196,10 +198,11 @@ for (const [size, options] of sizes) {
     await page.evaluate(async () => (await import('./app/look.js')).setMotion(false));
     const paused = await page.$$eval('#view-comps .ctable tbody td, #view-comps .btn', (nodes) => nodes.every((n) => getComputedStyle(n).transitionDuration.split(',').every((v) => parseFloat(v) === 0) && getComputedStyle(n).animationName === 'none'));
     check(`${size}: the in-app motion switch also stops transitions`, paused);
+    if (size === 'phone' || size === 'desktop') await page.locator('#sales-sec').scrollIntoViewIfNeeded();
     if (size === 'phone' || size === 'desktop') await page.screenshot({ path: `${SHOTS}comps-look-${size}.png` });
     const times = await page.evaluate(() => ({ input: window.__compsUIInputMs, commit: window.__compsUICommitMs }));
-    check(`${size}: typing paints within the 150 ms budget`, times.input.length > 20 && Math.max(...times.input) < 150, `${Math.max(...times.input).toFixed(1)} ms`);
-    check(`${size}: committed edits paint within the 150 ms budget`, times.commit.length >= 10 && Math.max(...times.commit) < 150, `${Math.max(...times.commit).toFixed(1)} ms`);
+    check(`${size}: typing paints within the 150 ms budget`, times.input.length > 20 && Math.max(...times.input) < 150, `${Math.max(...times.input).toFixed(1)} ms; ${JSON.stringify(await page.evaluate(() => ({ slow: window.__compsUISlow, longTasks: window.__compsUILongTasks })))}`);
+    check(`${size}: committed edits paint within the 150 ms budget`, times.commit.length >= 10 && Math.max(...times.commit) < 150, `${Math.max(...times.commit).toFixed(1)} ms; ${JSON.stringify(await page.evaluate(() => ({ slow: window.__compsUISlow, longTasks: window.__compsUILongTasks })))}`);
     await page.reload({ waitUntil: 'load' });
     await page.waitForFunction(() => document.querySelectorAll('#sales-table tbody tr[data-key]').length === 2 && document.querySelectorAll('#market-table tbody tr[data-key]').length === 1);
     await page.evaluate(() => document.fonts.ready);
