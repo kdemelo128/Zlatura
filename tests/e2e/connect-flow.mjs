@@ -43,7 +43,7 @@ for (const size of ['phone', 'desktop']) {
   const heads = await page.$$eval('#connect-list h2', (h) => h.map((x) => x.textContent));
   check(`${size}: nine categories, each a heading`, heads.length === 9 && heads[0] === 'Assistants' && heads[8] === 'API', heads.join('|'));
   check(`${size}: each category is a list of rows, with a banner above`, (await page.$$eval('#connect-list ul.conn-grid', (u) => u.every((x) => x.querySelectorAll(':scope > li').length > 0))) && await page.isVisible('.conn-banner'));
-  const states = await page.$$eval('.conn-btn', (b) => [...new Set(b.map((x) => x.dataset.state))].sort());
+  const states = await page.$$eval('.conn-row .conn-btn', (b) => [...new Set(b.map((x) => x.dataset.state))].sort());
   check(`${size}: only the four allowed states appear`, JSON.stringify(states) === JSON.stringify(['Built in', 'Coming soon', 'Import file', 'Needs your approval']), states.join('|'));
   check(`${size}: no row has an image`, (await page.$$eval('#view-connect img, #view-connect svg image, #view-connect [style*="background-image"]', (x) => x.length)) === 0);
   const cols = await page.$eval('.conn-grid', (g) => getComputedStyle(g).gridTemplateColumns.split(' ').length);

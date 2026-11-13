@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.7.154: Connect page (K1) (on the development branch; not merged or deployed)
+
+A new Connect page, in the navigation (sidebar on a desktop, the top bar on a phone) and the command palette. It lists, from one static list (`app/connectors.js`), what Monal takes in or sends out, in nine categories: assistants, CRM and contacts, deal management, property management, market and property data, public data, files and productivity, automation and API. Each row has a plain-text name, a one-line description, a neutral initials tile (no logos) and one of four states: Built in, Import file, Coming soon, Needs your approval. Built in and Import file open the real feature (the assistant, the comps importer, the OM reader, the rent roll and T-12 cards); the other two say what they wait for. A search box filters rows. The page makes no network request. Tabs: Connectors and My data (the latter filled in the next release). Tested by `tests/connectors.test.js` and `tests/e2e/connect-flow.mjs`.
+
 ## 4.7.153: OCR on every PDF upload, tax bill, utility bill and unit mix readers, and three Model-step fixes (on the development branch; not merged or deployed)
 
 - **OCR wherever a PDF is uploaded:** the deal page's OM reader, the rent roll's Import from PDF, the T-12's PDF import and the Documents card now read a PDF with no text layer by the on-device OCR, with the same progress line and Cancel, the 12-page cap and the time budget, and unsure figures left blank and asked. An OM with text and some pages with none has just those pages read before the OM reader runs, so a scanned rent roll page is no longer missed (the OM reader's logic is unchanged; it is handed the text). A scan already read is not read twice. The toast, and the Documents card, say which pages were read by OCR and to check every figure. `omrr-flow` and `rrpdf-flow` changed: a scanned page is now read at the upload, not on a tap.
