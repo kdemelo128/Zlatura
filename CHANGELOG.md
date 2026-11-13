@@ -1,12 +1,8 @@
 # Changelog
 
-## 4.7.154: The Underwrite tab opens at once, never flashes the old bird, and its look is fixed (on the development branch; not merged or deployed)
+## 4.7.154: Connect page (K1) (on the development branch; not merged or deployed)
 
-- Opening the Underwrite tab is a reveal, not a load: the tool loads on its own once the app is idle and stays in the page (hidden) when you leave it or switch to Quick underwrite, so reopening and closing take a fraction of a second.
-- The old cartoon bird no longer flashes for half a second when a deal is open: the tool's reload after it is filled from the deal is now covered like the first load.
-- The small glass design element in the tool's top-right corner is back (a script hid it), and it stands still under reduced motion.
-- The "A little help, right here" panel is easy to read: its text, its Ask Monal button and its close button pass 4.5:1 in light and dark.
-- The tool's Display & feel has accent swatches that recolour the tool's controls at once and are kept; the tool follows the app's accent until you pick its own ("Same as the app" goes back). The tool's dark theme is now the app's near-black New look palette.
+A new Connect page, in the navigation (sidebar on a desktop, the top bar on a phone) and the command palette. It lists, from one static list (`app/connectors.js`), what Monal takes in or sends out, in nine categories: assistants, CRM and contacts, deal management, property management, market and property data, public data, files and productivity, automation and API. Each row has a plain-text name, a one-line description, a neutral initials tile (no logos) and one of four states: Built in, Import file, Coming soon, Needs your approval. Built in and Import file open the real feature (the assistant, the comps importer, the OM reader, the rent roll and T-12 cards); the other two say what they wait for. A search box filters rows. The page makes no network request. Tabs: Connectors and My data (the latter filled in the next release). Tested by `tests/connectors.test.js` and `tests/e2e/connect-flow.mjs`.
 
 ## 4.7.153: OCR on every PDF upload, tax bill, utility bill and unit mix readers, and three Model-step fixes (on the development branch; not merged or deployed)
 
