@@ -132,7 +132,9 @@ await scanChooser.setFiles(F + 'rr-scan.pdf');
 await page.waitForSelector('.ocr-progress', { timeout: 20000 });
 check('a progress line with Cancel shows while the scan is read', (await page.locator('.ocr-progress button', { hasText: 'Cancel' }).count()) === 1);
 await page.waitForFunction(() => !document.querySelector('.ocr-progress'), null, { timeout: 240000 });
-await page.locator('#sheet-body button', { hasText: 'It is a rent roll' }).click();
+// the reader may ask once whether it is a rent roll (nothing in the OCR text names it); when it does not, the rows are already there
+await page.waitForFunction(() => document.querySelector('#sheet-body .rrpdf-rows tbody tr') || [...document.querySelectorAll('#sheet-body button')].some((b) => /It is a rent roll/.test(b.textContent)), null, { timeout: 20000 });
+if (await page.locator('#sheet-body button', { hasText: 'It is a rent roll' }).count()) await page.locator('#sheet-body button', { hasText: 'It is a rent roll' }).click();
 await page.waitForSelector('#sheet-body .rrpdf-rows tbody tr', { timeout: 20000 });
 const scanQc = await text('#rrpdf-qc');
 check('its rows are read from the OCR text, marked low confidence, to be checked against the page', (await page.locator('#sheet-body .rrpdf-rows tbody tr').count()) >= 5 && /confidence low/.test(scanQc) && /low confidence: check them/.test(scanQc), scanQc.slice(0, 300));
