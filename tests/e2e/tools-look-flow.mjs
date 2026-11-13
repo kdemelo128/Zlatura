@@ -62,7 +62,7 @@ for (const [size, options] of SIZES) {
     const valuation = source.tools.filter((t) => t.group === 'Valuation').map((t) => t.id).sort();
     check(`${size}: category uses the actual existing tool families`, JSON.stringify(await ids(page)) === JSON.stringify(valuation));
     const search = page.locator('#tool-search');
-    await page.evaluate(() => { window.__toolSearchFrames = []; document.getElementById('tool-search').addEventListener('input', () => { const started = performance.now(); requestAnimationFrame(() => window.__toolSearchFrames.push(performance.now() - started)); }); });
+    await page.evaluate(() => { window.__toolSearchFrames = []; document.getElementById('tool-search').addEventListener('input', () => { const started = performance.now(); requestAnimationFrame(() => window.__toolSearchFrames.push(performance.now() - started)); }, { capture: true }); });
     await search.focus(); let prefix = ''; const lost = [];
     for (const ch of 'waterfall') { await page.keyboard.type(ch); prefix += ch; if (await search.inputValue() !== prefix || !await search.evaluate((e) => e.isConnected && e === document.activeElement)) lost.push(prefix); }
     await page.evaluate(() => new Promise(requestAnimationFrame));
@@ -109,9 +109,8 @@ for (const [size, options] of SIZES) {
       await go(page, 'settings');
       navigation.push(await page.evaluate(() => new Promise((resolve) => {
         const target = [...document.querySelectorAll('button.tab[data-view="tools"]')].find((b) => b.getBoundingClientRect().width);
-        let started;
-        target.addEventListener('click', () => { started = performance.now(); }, { once: true });
-        const changed = (event) => { if (event.detail !== 'tools') return; document.removeEventListener('viewchange', changed); requestAnimationFrame(() => resolve(performance.now() - started)); };
+        const started = performance.now();
+        const changed = (event) => { if (event.detail !== 'tools') return; document.removeEventListener('viewchange', changed); requestAnimationFrame(() => requestAnimationFrame(() => resolve(performance.now() - started))); };
         document.addEventListener('viewchange', changed); target.click();
       })));
     }
