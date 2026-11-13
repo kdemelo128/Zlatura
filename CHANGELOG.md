@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.7.165: Speed budgets: screen switches, opening a deal and typing are measured and held (on the development branch; not merged or deployed)
+
+Measured with 30 saved deals in Chromium: every screen switch takes under 60 ms and opening a deal 63 ms on a normal CPU; with the CPU slowed 4x (a mid-range phone) switches take 40 to 150 ms (the first Underwrite open about 350 ms), opening a deal about 210 ms and a keystroke under 20 ms. Home draws about 100 ms after a reload (about 450 ms at 4x), and most of that is the browser reading and compiling the app's 149 files, not data work. A new browser flow, speed-flow, holds budgets so a slowdown fails the run: a switch under 100 ms (median of three), a deal opening under 150 ms, a keystroke under 50 ms, and looser limits at 4x. No app code changed in this release.
+
 ## 4.7.164: CRM, deal and property-management exports in and out, and calendar and email files, through To file (on the development branch; not merged or deployed)
 
 ### Drop a calendar or email file and it becomes activity, tasks and people to file
