@@ -9,7 +9,8 @@ console.log('controlled after first load:', ctrl1);
 let ctrl = ctrl1;
 if (!ctrl1) { await page.reload({ waitUntil: 'load' }); ctrl = await page.evaluate(() => !!navigator.serviceWorker.controller); console.log('controlled after reload:', ctrl); }
 check('the service worker controls the page', ctrl);
-const keys = await page.evaluate(async () => { const k = await caches.keys(); const c = await caches.open(k[0]); return [k, (await c.keys()).length]; });
+// the app's own cache (zlatura-<version>), not whichever cache the browser lists first (the underwriting tool and OCR keep their own)
+const keys = await page.evaluate(async () => { const k = (await caches.keys()).filter((n) => /^zlatura-\d/.test(n)); const c = k[0] ? await caches.open(k[0]) : null; return [k, c ? (await c.keys()).length : 0]; });
 console.log('caches', JSON.stringify(keys));
 check('the app cache is named for this version and filled', /^zlatura-\d/.test(keys[0][0] || '') && keys[1] > 0, JSON.stringify(keys));
 console.log('toast on first visit', await page.locator('.toast').allTextContents());
