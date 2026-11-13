@@ -39,7 +39,7 @@ for (const size of ['phone', 'desktop']) {
 
   // structure: tabs, banner, categories with headings, lists, rows
   const tabs = await page.$$eval('[role=tab]', (t) => t.map((x) => [x.textContent, x.getAttribute('aria-selected')]));
-  check(`${size}: two tabs, Connectors selected`, JSON.stringify(tabs) === JSON.stringify([['Connectors', 'true'], ['My data', 'false']]), JSON.stringify(tabs));
+  check(`${size}: three tabs, Connectors selected`, JSON.stringify(tabs) === JSON.stringify([['Connectors', 'true'], ['To file', 'false'], ['My data', 'false']]), JSON.stringify(tabs));
   const heads = await page.$$eval('#connect-list h2', (h) => h.map((x) => x.textContent));
   check(`${size}: nine categories, each a heading`, heads.length === 9 && heads[0] === 'Assistants' && heads[8] === 'API', heads.join('|'));
   check(`${size}: each category is a list of rows, with a banner above`, (await page.$$eval('#connect-list ul.conn-grid', (u) => u.every((x) => x.querySelectorAll(':scope > li').length > 0))) && await page.isVisible('.conn-banner'));
@@ -84,6 +84,7 @@ for (const size of ['phone', 'desktop']) {
 
   // tabs by keyboard
   await page.focus('#connect-tab-connectors');
+  await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowRight');
   check(`${size}: arrow keys move between the tabs`, (await page.getAttribute('#connect-tab-mydata', 'aria-selected')) === 'true' && await page.evaluate(() => document.activeElement.id) === 'connect-tab-mydata');
   await page.click('#connect-tab-connectors');
