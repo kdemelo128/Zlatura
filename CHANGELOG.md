@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.7.169: The Ask Monal bird steps aside while another sheet is open (on the development branch; not merged or deployed)
+
+- On a phone the bird button sat over the bottom-left controls of any open sheet; it covered the comps import's "remember this mapping" checkbox, which `comps-import-flow` reported as an accessibility failure on main. The bird now hides while another sheet or dialog is open and comes back when it closes (Ask Monal's own panel keeps it, so focus returns to it).
+- That checkbox is a 24 px target.
+- `comps-import-flow` waits for each import sheet to close before loading the next file; it read the previous file's status line and failed about one run in three.
+
 ## 4.7.168: Start and edit comps more clearly in the New look (on the development branch; not merged or deployed)
 
 Visible search, sort and date-window labels, quiet tables and a two-column phone editor make the Comps workspace easier to scan. Add sale by hand and Add listing by hand are available before an upload and after the first comp is added. Include and calendar controls have larger native touch targets; existing actions and Classic remain reachable.
