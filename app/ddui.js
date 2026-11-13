@@ -18,6 +18,7 @@ import { factsOf } from './factsfile.js';
 import { factsLine } from './factsread.js';
 import { LIMITS } from './filekind.js';
 import { docTextLine } from './mydata.js';
+import { PRODUCT } from './brand.js';
 
 const OPEN_KEY = 'zl.dd.open';
 const isOpen = () => { try { return localStorage.getItem(OPEN_KEY) === '1'; } catch { return false; } };
@@ -127,9 +128,9 @@ export function renderDocsCard(box, h) {
     body.appendChild(mem);
     h.textInfo().then((t) => {
       if (!mem.isConnected || !t.docs) return;
-      mem.appendChild(el('p', 'hint-sm', `Ask Monal can search the text of ${t.docs} ${t.docs === 1 ? 'document' : 'documents'} of this deal later, because that text is kept on this device (${docTextLine(t)}). The files themselves are never kept, and a backup does not carry the text.`));
+      mem.appendChild(el('p', 'hint-sm', `Ask ${PRODUCT} can search the text of ${t.docs} ${t.docs === 1 ? 'document' : 'documents'} of this deal later, because that text is kept on this device (${docTextLine(t)}). The files themselves are never kept, and a backup does not carry the text.`));
       const b = btn('btn-gray btn-sm', 'Forget this deal’s document text', async () => {
-        const v = await actionSheet('Forget this deal’s document text?', [{ label: 'Forget it', sub: 'Monal will no longer find anything in these documents until you add the files again. This cannot be undone.', value: 'yes', danger: true }]);
+        const v = await actionSheet('Forget this deal’s document text?', [{ label: 'Forget it', sub: `${PRODUCT} will no longer find anything in these documents until you add the files again. This cannot be undone.`, value: 'yes', danger: true }]);
         if (v !== 'yes') return;
         const ok = await h.forgetText(null);
         toast(ok ? 'This deal’s document text was forgotten.' : 'The document text could not be forgotten. Try again.');

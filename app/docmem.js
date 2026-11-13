@@ -20,7 +20,7 @@ export const useBackend = (b) => { backend = b; };
 
 /** Deals whose texts are being unpacked now, so a second ask waits for the same work. */
 const warming = new Map();
-const tick = () => new Promise((r) => setTimeout(r, 0));
+const tick = () => new Promise((r) => setTimeout(() => r(undefined), 0));
 
 /**
  * Keep a document's text. Resolves { ok: true }, or { ok: false, reason } where reason is 'nofingerprint' (no SHA-256, so

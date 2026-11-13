@@ -189,7 +189,7 @@ function docTextBox(deals) {
   box.setAttribute('aria-labelledby', 'md-doctext-h');
   const h = el('b', null, 'Document text');
   h.id = 'md-doctext-h';
-  const note = el('p', 'conn-desc', 'The text of documents added to a deal, kept on this device so Ask Monal can search it next time. The files themselves are never kept, and a backup does not carry this text.');
+  const note = el('p', 'conn-desc', `The text of documents added to a deal, kept on this device so Ask ${PRODUCT} can search it next time. The files themselves are never kept, and a backup does not carry this text.`);
   const list = el('ul', 'md-doctext-list');
   box.append(h, note, list);
   const names = new Map((deals || []).map((d) => [d.id, d.name || (d.figures && d.figures.address) || 'Untitled deal']));
@@ -209,7 +209,7 @@ function docTextBox(deals) {
       b.type = 'button';
       b.setAttribute('aria-label', `Forget document text of ${name || 'this deal'}`);
       b.addEventListener('click', async () => {
-        const v = await actionSheet(`Forget the document text of ${name || 'this deal'}?`, [{ label: 'Forget it', sub: 'Ask Monal will not find anything in these documents until you add the files again. This cannot be undone.', value: 'yes', danger: true }]);
+        const v = await actionSheet(`Forget the document text of ${name || 'this deal'}?`, [{ label: 'Forget it', sub: `Ask ${PRODUCT} will not find anything in these documents until you add the files again. This cannot be undone.`, value: 'yes', danger: true }]);
         if (v !== 'yes') return;
         toast(await forgetDealText(id) ? 'Document text forgotten.' : 'It could not be forgotten. Try again.');
         draw();
@@ -221,7 +221,7 @@ function docTextBox(deals) {
       const all = el('button', 'btn btn-sm conn-btn btn-gray', 'Forget all document text');
       all.type = 'button'; all.id = 'md-forget-all';
       all.addEventListener('click', async () => {
-        const v = await actionSheet('Forget all document text on this device?', [{ label: 'Forget all of it', sub: 'Ask Monal will not find anything in any deal’s documents until you add the files again. Your deals and their document lists stay. This cannot be undone.', value: 'yes', danger: true }]);
+        const v = await actionSheet('Forget all document text on this device?', [{ label: 'Forget all of it', sub: `Ask ${PRODUCT} will not find anything in any deal’s documents until you add the files again. Your deals and their document lists stay. This cannot be undone.`, value: 'yes', danger: true }]);
         if (v !== 'yes') return;
         toast(await forgetAllText() ? 'All document text was forgotten.' : 'It could not be forgotten. Try again.');
         draw();
