@@ -9,7 +9,7 @@
 
 import { checkUpload, LIMITS, unpackBundle } from './filekind.js';
 import { readGrids } from './sheetread.js';
-import { docKind } from './rrdoc.js';
+import { docKind, ROLL_TITLE, T12_TITLE } from './rrdoc.js';
 import { pdfStatementChoices } from './pdfstatement.js';
 import { layoutOf, sheetChoices } from './t12.js';
 import { headerAndRows } from './rentrollui.js';
@@ -22,6 +22,9 @@ const cellText = (grids) => grids.flatMap((g) => g.rows.slice(0, 60).map((r) => 
 
 /** Types only a reader may set: the text can look like one, but then the broker is asked. */
 const READER_TYPES = ['om', 'rentroll', 't12'];
+
+/** The first lines of a page: where a title sits. */
+const topOf = (page) => String(page).split('\n').filter((l) => l.trim()).slice(0, 8).join('\n');
 
 /**
  * Does the reader of `type` accept this PDF's own content? Only a rent roll's table or an operating statement's
@@ -41,6 +44,42 @@ function readerAccepts(type, dk, pages, layouts) {
 }
 
 /**
+ * The page runs of a PDF that a specific reader accepts on their own: [{ type, reader, pages: [from, to] }] (1-based).
+ * A rent roll run starts on a page titled as one whose own pages read as a rent roll (docKind, with no OM wording
+ * there) and runs on while the next page makes the table longer; a statement is one page titled as one that the T-12
+ * PDF import would offer. A run overlapping another is dropped. Pages no reader accepts are not listed (loan or tax pages have no reader).
+ * @param {string[]} pages @param {any[] | null} layouts @param {string[]} kinds the types to look for
+ */
+function pageParts(pages, layouts, kinds) {
+  const out = [];
+  const sub = (a, b) => ({ pages: pages.slice(a, b), layouts: layouts ? layouts.slice(a, b) : null });
+  for (let i = 0; i < pages.length; i++) {
+    if (out.length && out[out.length - 1].pages[1] > i) continue;
+    const top = topOf(pages[i]);
+    if (kinds.includes('rentroll') && ROLL_TITLE.test(top)) {
+      const one = sub(i, i + 1);
+      let dk; try { dk = docKind(one.pages, one.layouts); } catch { dk = null; }
+      if (dk && dk.kind === 'rentroll' && dk.roll) {
+        let end = i + 1; let rows = dk.roll.rows.length;
+        while (end < pages.length && !ROLL_TITLE.test(topOf(pages[end])) && !T12_TITLE.test(topOf(pages[end]))) {
+          const more = sub(i, end + 1);
+          let d2; try { d2 = docKind(more.pages, more.layouts); } catch { d2 = null; }
+          if (!d2 || d2.kind !== 'rentroll' || !d2.roll || d2.roll.rows.length <= rows) break;
+          rows = d2.roll.rows.length; end += 1;
+        }
+        out.push({ type: 'rentroll', reader: 'rrpdf', pages: [i + 1, end] });
+        continue;
+      }
+    }
+    if (kinds.includes('t12') && T12_TITLE.test(top)) {
+      const one = sub(i, i + 1);
+      if (accepts(() => pdfStatementChoices(one.pages, { layouts: one.layouts }).some((c) => c.eligible))) out.push({ type: 't12', reader: 't12pdf', pages: [i + 1, i + 1] });
+    }
+  }
+  return out;
+}
+
+/**
  * What a file is, from what was read of it. Input: { name, pages (a PDF's text per page), layouts, grids (a workbook's
  * or CSV's sheets: [{ sheet, rows: [{ r, cells }] }]) }. Output: { type, typeBy ('reader'|null), reader, looks (a type
  * the text clearly reads as, to be confirmed with a tap: never set by itself), readers (only when two readers both accept a workbook: ['t12', 'rrsheet']), ask (the types to offer, best first),
@@ -57,7 +96,11 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
     dk = docKind(pages, layouts);
     out.scanned = dk.kind === 'scanned';
     if (dk.kind === 'rentroll') return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrpdf' };
-    if (dk.kind === 't12' && pdfStatementChoices(pages, { layouts }).some((c) => c.eligible)) return { ...out, type: 't12', typeBy: 'reader', reader: 't12pdf' };
+    if (dk.kind === 't12' && pdfStatementChoices(pages, { layouts }).some((c) => c.eligible)) {
+      // a title that says operating statement keeps the statement route; a rent roll on another page is offered by its pages, never read in its place
+      const parts = pageParts(pages, layouts, ['rentroll']);
+      return { ...out, type: 't12', typeBy: 'reader', reader: 't12pdf', ...(parts.length ? { parts } : {}) };
+    }
     // "any two OM words" also reads an appraisal or a broker opinion of value: when the text says another type at least as loudly, ask
     if (dk.kind === 'om') {
       const sc = scoreText(out.text);
@@ -67,6 +110,16 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
       const bov = /broker'?s?\s+opinion\s+of\s+value|\bBOV\b/i.test(out.text);
       if (!bov && !(other && other.score >= 2 && other.score >= (om ? om.score : 0))) return { ...out, type: 'om', typeBy: 'reader', reader: 'om' };
       omRead = true;
+      // an OM that also holds rent roll or statement pages: the OM, and apart from it the pages a specific reader accepts. Not for a broker
+      // opinion of value or an appraisal (they stay asked), and a statement title on the document keeps the statement route.
+      if (!bov && other.id !== 'appraisal') {
+        if (T12_TITLE.test(pages.slice(0, 2).join('\n'))) {
+          if (accepts(() => pdfStatementChoices(pages, { layouts }).some((c) => c.eligible))) return { ...out, type: 't12', typeBy: 'reader', reader: 't12pdf', parts: pageParts(pages, layouts, ['rentroll']) };
+        } else {
+          const parts = pageParts(pages, layouts, ['rentroll', 't12']);
+          if (parts.length) return { ...out, type: 'om', typeBy: 'reader', reader: 'om', parts };
+        }
+      }
     }
   } else if (grids) {
     // the T-12 import's own test, sheet by sheet: a sheet it would read as an actual statement (not a budget or projection), with month columns

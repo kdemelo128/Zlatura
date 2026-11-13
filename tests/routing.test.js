@@ -75,6 +75,80 @@ test('a Word file whose text holds a rent roll is read by the same rules as a PD
   assert.equal(text.info.verdict.reader, 'rrpdf');
 });
 
+/* ---- an OM that also holds other pages, and a statement title (case 3) */
+
+const WEAK_OM = () => narrative('Offering Memorandum', 'Cap Rate 6.5%');
+
+test('an OM with a titled rent roll page is staged as the OM, with those pages offered apart by page', async () => {
+  const bytes = pdfOf([WEAK_OM(), rollPage(), narrative('Market notes')]);
+  const v = await verdictOf(bytes, 'a.pdf');
+  assert.equal(v.type, 'om'); assert.equal(v.reader, 'om');
+  assert.deepEqual(v.parts, [{ type: 'rentroll', reader: 'rrpdf', pages: [2, 2] }]);
+  const p = await stageOf(bytes, 'a.pdf');
+  assert.equal(p.items.length, 2);
+  assert.deepEqual(p.items.map((x) => x.type), ['om', 'rentroll']);
+  assert.deepEqual(p.items[1].span, [2, 2]);
+  assert.match(p.items[1].reason, /Page 2 read as rent roll/);
+  assert.equal(p.items[0].file, p.items[1].file);
+  assert.ok(p.items[0].pair && p.items[0].pair === p.items[1].pair, 'both uses of one file are marked, so the second is not "the same file twice"');
+  assert.equal(p.items.filter((x) => x.dup).length, 0);
+  assert.equal(I.readyItems(p, null).length, 2);
+});
+
+test('an OM wording with a rent roll page is not read as a rent roll as a whole, and a plain OM gets no extra item', async () => {
+  const v = await verdictOf(pdfOf([omPage(), narrative('Location')]), 'a.pdf');
+  assert.equal(v.type, 'om');
+  assert.equal(v.parts, undefined);
+});
+
+test('a broker opinion of value with a rent roll page is still asked', async () => {
+  const v = await verdictOf(pdfOf([narrative('Offering Memorandum', 'Cap Rate 6.5%', 'Broker Opinion of Value'), rollPage(), narrative('x')]), 'a.pdf');
+  assert.equal(v.type, null);
+  assert.equal(v.parts, undefined);
+});
+
+test('an Operating Statement with a rent roll on page 3 keeps the T-12 route; the rent roll pages are offered', async () => {
+  const bytes = pdfOf([statementPage('Operating Statement - Actuals 2025'), narrative('Notes'), rollPage()]);
+  const v = await verdictOf(bytes, 'a.pdf');
+  assert.equal(v.type, 't12'); assert.equal(v.reader, 't12pdf');
+  assert.deepEqual(v.parts, [{ type: 'rentroll', reader: 'rrpdf', pages: [3, 3] }]);
+  const p = await stageOf(bytes, 'a.pdf');
+  assert.deepEqual(p.items.map((x) => x.type), ['t12', 'rentroll']);
+  assert.match(p.items[1].reason, /Page 3/);
+});
+
+test('an appraisal with OM wording and a rent roll page is still asked, and its rent roll page is not split off', async () => {
+  const v = await verdictOf(pdfOf([narrative('Offering Memorandum', 'Cap Rate 6.5%', 'Appraisal Report of the invented plaza', 'USPAP', 'market value', 'highest and best use', 'sales comparison approach'), narrative('b'), narrative('c'), rollPage()]), 'a.pdf');
+  assert.equal(v.type, null);
+  assert.ok(v.ask.includes('appraisal'));
+  assert.equal(v.parts, undefined);
+});
+
+test('a statement title the T-12 import will not take (a budget) is never sent to the rent roll reader because a rent roll is in the file', async () => {
+  const v = await verdictOf(pdfOf([statementPage('Operating Statement - Budget 2026'), narrative('x'), rollPage()]), 'a.pdf');
+  assert.notEqual(v.type, 'rentroll');
+  assert.equal(v.reader, null);
+});
+
+test('an Operating Statement title on page 1 with a rent roll on page 3 is not sent to the rent roll reader, even when the text reads more like a rent roll', async () => {
+  const v = await verdictOf(pdfOf([narrative('Operating Statement', 'Prepared for review'), narrative('Notes'), rollPage()]), 'a.pdf');
+  assert.equal(v.type, null);
+  assert.equal(v.reader, null);
+});
+
+test('OM wording, but an operating statement titled on its first page: the statement route is kept and the rent roll pages are offered', async () => {
+  const v = await verdictOf(pdfOf([statementPage('Operating Statement - Actuals 2025'), narrative('Offering Memorandum', 'Cap Rate 6.5%'), rollPage()]), 'a.pdf');
+  assert.equal(v.type, 't12'); assert.equal(v.reader, 't12pdf');
+  assert.deepEqual(v.parts, [{ type: 'rentroll', reader: 'rrpdf', pages: [3, 3] }]);
+});
+
+test('a table with a suite, tenant and area but no rent column is not accepted as a rent roll: it stays asked', async () => {
+  const cut = rollPage({ title: false, plain: true }).filter((it) => it.x < 260);
+  const v = await verdictOf(pdfOf([cut, narrative('Property notes')]), 'a.pdf');
+  assert.equal(v.type, null);
+  assert.deepEqual(v.ask, ['rentroll']);
+});
+
 /* ---- a workbook with a rent roll on one sheet and a statement on another (case 2) */
 
 const M = ['Jan 2025', 'Feb 2025', 'Mar 2025', 'Apr 2025', 'May 2025', 'Jun 2025'];

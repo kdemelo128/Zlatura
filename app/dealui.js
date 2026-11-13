@@ -338,6 +338,8 @@ export async function useDocuments(dealId, items) {
       continue;
     }
     const r = addDoc(ddOf(d), { name: it.name, kind: it.kind, size: it.size, sha256: it.sha256, pages: it.pages, type: it.type, typeBy: it.typeBy });
+    // another use of one file (a workbook's other sheet, an OM's rent roll pages): the file is recorded once; this use is said, and its import is opened from the card
+    if (r.error && r.dup && it.pair) { done.push({ id: it.id, note: `${it.name} is already in Documents as ${typeLabel(r.dup.type) || 'a file'}${it.span ? ` (pages ${it.span[0]}-${it.span[1]} read as ${typeLabel(it.type).toLowerCase()})` : ''}. Open the ${typeLabel(it.type).toLowerCase()} import to read that part.` }); continue; }
     if (r.error) { done.push({ id: it.id, note: r.error, failed: true }); continue; }
     if (it.textPages) remember(d, r.doc, it.textPages);
     touch(d, { label: `Documents: added ${r.doc.name}${it.type ? ` as ${typeLabel(it.type)}` : ''}` });

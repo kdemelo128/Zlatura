@@ -103,6 +103,11 @@ export function stage(plan, info, file, dd = null) {
   if (own) { item.reason = `${item.reason} ${sheetText(own, type)}`; item.sheets = own.sheets; }
   // a sheet both readers accept went to the higher score: the other use is offered as a question, one tap
   for (const o of Array.isArray(v.offered) ? v.offered : []) if (isType(o.type)) another({ type: null, typeBy: null, confidence: 'Not sure', reason: `Sheet “${o.sheet}” reads as ${typeLabel(o.type).toLowerCase()} too, but it went to the better match above. Tap if it is a ${typeLabel(o.type).toLowerCase()}.`, ask: [o.type], use: null, sheets: [o.sheet] });
+  // pages a specific reader accepts apart from the file's own route: offered by page range, never read in the file's place
+  for (const pg of parts.filter((x) => x.pages && isType(x.type) && x.type !== type)) {
+    const range = pg.pages[0] === pg.pages[1] ? `Page ${pg.pages[0]}` : `Pages ${pg.pages[0]}-${pg.pages[1]}`;
+    another({ type: pg.type, typeBy: 'reader', confidence: 'Read', reason: `${range} read as ${typeLabel(pg.type).toLowerCase()}, apart from the rest of the file (${typeLabel(type).toLowerCase()}). Only those pages are offered under this type; use this or the file's own reading of them, not both.`, use: useLabel(pg.type), span: pg.pages });
+  }
   return item;
 }
 
