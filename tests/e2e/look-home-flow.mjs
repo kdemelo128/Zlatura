@@ -138,6 +138,8 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
     check('desktop: Escape closes the preview', (await page.locator('#preview-bubble').count()) === 0);
     await page.mouse.move(700, 500); await page.waitForTimeout(100);
     // keyboard focus
+    // Tab scrolls to the first control, and a scroll closes the preview by design: start from the top so Home's taller page does not scroll under the test
+    await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(150);
     await page.keyboard.press('Tab');
     await page.evaluate(() => document.querySelector('.sidebar .tab[data-view="comps"]').focus());
     await page.waitForSelector('#preview-bubble', { timeout: 2500 });

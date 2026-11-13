@@ -1,0 +1,34 @@
+/* monal-vector.css -- the vector monal (monal-vector.js): which view shows, the idle motion, the blink, the items. Motion is
+ * transform and opacity only, and none of it runs under prefers-reduced-motion or the tool's Pause motion. */
+.monal-art { display: block; overflow: visible; width: 100%; height: 100%; }
+.monal-art [data-item] { display: none; }
+.monal-art .mn-top { display: none; }
+.is-flying > .monal-art .mn-side, [data-pose="flying"] > .monal-art .mn-side { display: none; }
+.is-flying > .monal-art .mn-top, [data-pose="flying"] > .monal-art .mn-top { display: inline; }
+.monal-art .mn-wing-scale { transform-box: fill-box; }
+.monal-art .mn-wing-l .mn-wing-scale { transform-origin: 100% 55%; }
+.monal-art .mn-wing-r .mn-wing-scale { transform-origin: 0% 55%; }
+.monal-art.large-wings .mn-side .mn-wing-scale { transform-origin: 85% 15%; scale: 1.18; }
+.monal-art.large-wings .mn-top .mn-wing-scale { scale: 1.12; }
+.monal-art .mn-lid { transform-box: fill-box; transform-origin: 50% 0%; transform: scaleY(0); }
+.monal-art .monal-happy-eye { opacity: 0; }
+.monal-art .mn-crest, .monal-art .mn-crest-top { transform-box: fill-box; transform-origin: 50% 100%; }
+.monal-art.has-hat .mn-crest { display: none; }
+.monal-art .monal-head { transform-box: fill-box; transform-origin: 50% 90%; }
+.monal-art .monal-tail { transform-box: fill-box; transform-origin: 95% 50%; }
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-motion="off"]) .monal-art .mn-lid { animation: mn-blink 6.4s ease-in-out infinite; }
+  html:not([data-motion="off"]) .monal-art .monal-head { animation: mn-look 9s ease-in-out infinite; }
+  html:not([data-motion="off"]) .is-flying > .monal-art .mn-wing-l .mn-wing-scale { animation: mn-flap-l .46s ease-in-out infinite alternate; }
+  html:not([data-motion="off"]) .is-flying > .monal-art .mn-wing-r .mn-wing-scale { animation: mn-flap-r .46s ease-in-out infinite alternate; }
+  html:not([data-motion="off"]) [data-pose="flying"] > .monal-art .mn-wing-l .mn-wing-scale { animation: mn-flap-l .46s ease-in-out infinite alternate; }
+  html:not([data-motion="off"]) [data-pose="flying"] > .monal-art .mn-wing-r .mn-wing-scale { animation: mn-flap-r .46s ease-in-out infinite alternate; }
+}
+/* resting in the nest: the bird dozes, its eye mostly shut and its head low */
+.roaming-juniper[data-flight-phase="resting"] .monal-art .mn-lid { transform: scaleY(.8); animation: none; }
+.roaming-juniper[data-flight-phase="resting"] .monal-art .monal-head { transform: rotate(7deg); animation: none; }
+@keyframes mn-blink { 0%, 93%, 100% { transform: scaleY(0); } 95.5% { transform: scaleY(1); } }
+@keyframes mn-look { 0%, 55%, 100% { transform: rotate(0); } 62% { transform: rotate(-3deg); } 80% { transform: rotate(2deg); } }
+@keyframes mn-flap-l { from { transform: scaleX(1); } to { transform: scaleX(.62); } }
+@keyframes mn-flap-r { from { transform: scaleX(1); } to { transform: scaleX(.62); } }
+
