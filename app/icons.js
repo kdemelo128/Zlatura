@@ -21,6 +21,7 @@ export const ICONS = {
   tools: '<path d="M4.5 15.5l11-11 4 4-11 11z"/><path d="M8 12l2 2M11 9l2 2M14 6l1.5 1.5"/>',
   review: '<path d="M4 13l2.5-8h11L20 13v6.5H4z"/><path d="M4 13h4.5l1 2h5l1-2H20"/>',
   settings: '<path d="M4 7h9.5M18.5 7H20M4 17h3.5M12.5 17H20"/><circle cx="16" cy="7" r="2.3"/><circle cx="10" cy="17" r="2.3"/>',
+  connect: '<path d="M9 4v5M15 4v5"/><path d="M6.5 9h11v3.5a5.5 5.5 0 0 1-11 0z"/><path d="M12 18v2.5"/>',
   layers: '<path d="M12 4l8.5 4.5L12 13 3.5 8.5z"/><path d="M3.5 12.5L12 17l8.5-4.5"/><path d="M3.5 16.5L12 21l8.5-4.5"/>',
   contacts: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.2-3.6 4-5.5 7-5.5s5.8 1.9 7 5.5"/>',
   // actions

@@ -2151,3 +2151,48 @@ dialog.assist-page .sheet-card { height: min(640px, calc(100dvh - 24px)); }
   padding: 10px 14px; border-radius: var(--r-md); font-size: var(--t-14); line-height: 1.45;
   display: flex; gap: 12px; align-items: center; box-shadow: var(--shadow-lg);
 }
+
+/* ---- Connect (connectui.js): a page title, two tabs, a soft banner, then categories of two-column rows (one column on a phone).
+ * The tint tokens (--tone-N, --wash-N) are the New look's; Classic falls back to the accent. No logos: a row's tile is its initials. */
+.appbar-connect { display: grid; }
+@media (min-width: 960px) { .appbar-connect { display: none; } }
+.conn-tabs { display: flex; gap: var(--s2); border-bottom: 1px solid var(--line); margin: var(--s2) 0 var(--s5); }
+.conn-tab { min-height: 44px; padding: 0 var(--s4); border: 0; background: none; color: var(--muted); font: 600 var(--t-15)/1.2 var(--ui); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.conn-tab:hover { color: var(--ink); }
+.conn-tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.conn-tab:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; border-radius: var(--r-xs); }
+.conn-banner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3) var(--s5); padding: var(--s5) var(--s6); border-radius: var(--r); background: var(--wash-1, var(--accent-soft)); border: 1px solid var(--line); }
+.conn-banner-text { flex: 1 1 280px; display: grid; gap: 2px; min-width: 0; }
+.conn-banner-text b { font: 650 var(--t-17)/1.3 var(--display); }
+.conn-banner-text span { color: var(--muted); font-size: var(--t-14); line-height: 1.5; max-width: 62ch; }
+.conn-search { display: flex; align-items: center; gap: var(--s2); margin: var(--s5) 0 var(--s2); padding: 0 var(--s3); border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--surface); max-width: 460px; color: var(--faint); }
+.conn-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.conn-search .input, :root[data-look="new"] .conn-search input.input, :root[data-look="new"] .conn-search input.input:focus { flex: 1; min-width: 0; min-height: 44px; border: 0; background: none; box-shadow: none; font-size: 16px; padding: 0; outline: none; }
+.conn-status { min-height: 1.3em; margin: 0 0 var(--s2); }
+.conn-cat { margin-top: var(--s6); }
+.conn-cat h2 { font: 650 var(--t-20)/1.2 var(--display); letter-spacing: -.01em; }
+.conn-sub { color: var(--muted); font-size: var(--t-14); margin: 2px 0 var(--s3); }
+.conn-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 720px) { .conn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.conn-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); min-width: 0; }
+.conn-mono { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border-radius: var(--r-md); font: 700 var(--t-15)/1 var(--ui); letter-spacing: .02em; background: var(--w); color: var(--t); transition: border-radius var(--d2) var(--ease); }
+.conn-mono[data-tone="1"] { --t: var(--tone-1, var(--accent)); --w: var(--wash-1, var(--accent-soft)); }
+.conn-mono[data-tone="2"] { --t: var(--tone-2, var(--teal)); --w: var(--wash-2, var(--teal-soft)); }
+.conn-mono[data-tone="3"] { --t: var(--tone-3, var(--brass)); --w: var(--wash-3, var(--brass-soft)); }
+.conn-mono[data-tone="4"] { --t: var(--tone-4, var(--muted)); --w: var(--wash-4, var(--fill)); }
+.conn-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.conn-name { font: 600 var(--t-15)/1.3 var(--ui); overflow-wrap: anywhere; }
+.conn-desc { color: var(--muted); font-size: var(--t-13); line-height: 1.45; }
+.conn-btn { flex: none; min-height: 44px; min-width: 44px; white-space: nowrap; }
+@media (max-width: 420px) { .conn-row { flex-wrap: wrap; } .conn-text { flex-basis: calc(100% - 44px - var(--s3)); } .conn-btn { margin-left: calc(44px + var(--s3)); } }
+.conn-lede { max-width: 62ch; color: var(--muted); font-size: var(--t-15); line-height: 1.55; margin: 0 0 var(--s4); }
+/* rows rise in, once, a few at a time; a hover lifts a row and rounds its tile into a circle. Transform and opacity only. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="off"]) .conn-row { animation: conn-rise 320ms var(--ease) both; animation-delay: calc(var(--i, 0) * 28ms); }
+  @keyframes conn-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="off"]) .conn-row { transition: transform 200ms var(--ease), box-shadow 200ms var(--ease), border-color var(--d1); }
+  :root:not([data-motion="off"]) .conn-row:hover { transform: translateY(-2px); border-color: var(--line-strong); box-shadow: var(--shadow-lift, var(--shadow-md)); }
+  :root:not([data-motion="off"]) .conn-row:hover .conn-mono { border-radius: 50%; }
+}
