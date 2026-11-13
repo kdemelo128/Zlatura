@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.7.152: Find and reopen saved deals in the New look (on the development branch; not merged or deployed)
+
+Deals has a searchable saved-deal library, stage filters, name/recent ordering and access to every saved deal instead of the first thirty only. Stored price, cap rate and area stay together with the property and stage; missing figures remain blank. Phone rows keep full property names, confidentiality labels and large controls. New deal and Choose OM remain within reach above the list. Classic keeps its existing layout and actions.
+
+No reading, OCR, assistant, underwriting-tool, financial calculation or saved-data format changes. New look loads the existing saved stage labels before displaying its filters. Tested with synthetic fixtures only: 94 Chromium browser checks at 320, 390 and 1280 px, light/dark and 130% text, including axe, 44 px controls, offline reload and unchanged saved records; typing max 22.7 ms against 150 ms. Four focused tests and three deliberate mutations pass. Quick/type/golden pass with 646 displayed figures unchanged. The new flow fails on archived main for the missing library. Full gate is running; not merged or deployed. Safari and a physical phone were not tested.
+
 ## 4.7.151: A tenant name wrapped over two lines is no longer read as a report filter (on the development branch; not merged or deployed)
 
 A property manager's rent roll PDF whose first tenant's name wraps onto a line above its figures could have that line read as a report filter ("Unit Filter: Occupied", "This report lists only a subset of units"), which held the whole roll as a partial report.
