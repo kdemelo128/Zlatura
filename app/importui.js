@@ -215,5 +215,5 @@ export async function openExport(api) {
     make(`Deals (${deals.length})`, 'exp-deals', () => dealsCsv(deals, layout, (k) => STAGE_LABEL[k] || STAGE_LABEL.underwriting), 'deals'),
     make(`Tasks (${tasks.length})`, 'exp-tasks', () => tasksCsv(tasks, deals, contacts, layout), 'tasks'),
   );
-  body.append(acts, el('p', 'hint-sm', 'Dates are written 2027-03-04. Each file also carries a Monal ID column: leave it in, and loading the file back here finds the same records instead of adding them twice.'.replace('Monal', PRODUCT)));
+  body.append(acts, el('p', 'hint-sm', `Dates are written 2027-03-04. Each file also carries a ${PRODUCT} ID column: leave it in, and loading the file back here finds the same records instead of adding them twice.`));
 }

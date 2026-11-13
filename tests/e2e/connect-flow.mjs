@@ -63,9 +63,9 @@ for (const size of ['phone', 'desktop']) {
   check(`${size}: clearing the search brings every row back`, (await page.$$('.conn-row')).length > 25);
 
   // state buttons
-  await page.click('.conn-row[data-id="salesforce"] .conn-btn');
+  await page.click('.conn-row[data-id="cloud-folder"] .conn-btn');
   await page.waitForSelector('#sheet[open]');
-  check(`${size}: Coming soon opens a sheet that says what it waits for`, /Planned/.test(await page.textContent('#sheet-body')) && (await page.textContent('#sheet-title')) === 'Salesforce');
+  check(`${size}: Coming soon opens a sheet that says what it waits for`, /Planned/.test(await page.textContent('#sheet-body')) && (await page.textContent('#sheet-title')) === 'Google Drive, OneDrive and Dropbox');
   await page.click('#sheet-close');
   await page.click('.conn-row[data-id="zapier"] .conn-btn');
   await page.waitForSelector('#sheet[open]');

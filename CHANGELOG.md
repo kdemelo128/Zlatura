@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.7.161: Bring in your CRM, deal and tenant exports, and send your contacts, deals and tasks back out (on the development branch; not merged or deployed)
+
+Connect now has working rows for the files brokers already have: a contacts or companies export from a CRM (Salesforce, HubSpot, Dynamics, Zoho, Pipedrive, Apto, Buildout and the like), a pipeline export, and a tenant list from a property-management system. They are matched by the common column names, not by any vendor's layout.
+
+- **Every row goes through To file.** A preview shows the columns, how each stage is read and the first records. Rows are proposed with "Imported from <file>, row N"; nothing is filed until you tap. A typed value is never overwritten: a conflict asks, the loser is kept under other values.
+- **Re-importing updates, never duplicates.** A stable id column (or this app's own id) finds the same person or deal again; otherwise the inbox's match rules apply. A row that changes nothing is counted and left out. A changed row replaces its older waiting copy.
+- **One tap for the safe part.** "File N new records from files" and "Apply N updates that only fill blanks" (with Undo all); anything with a conflict, or flagged as text that reads like an instruction, waits for a choice.
+- **Deals:** a new deal gets its stage (you answer any stage the words do not settle), closing date and the file's id; the amount stays in the notes as written and is never the price. An existing deal gains only the file's id and a missing closing date; its stage and figures are never changed.
+- **Tenant lists** become Tenant contacts with suite and lease end in the note. The layout you chose is remembered per source.
+- **Export** contacts, deals and tasks as CSV in this app's column names or the common CRM ones, each with an ID column so loading the file back finds the same records. Confidential deals, their tasks and their contacts are left out.
+- Names with accents are now treated as names (they were never auto-filed before).
+
+Tested with invented files only: 17 new unit tests (columns, dates not guessed, injection kept as text, re-import, batch undo, confidential, round trip of each export) with 13 mutation checks, and a phone and desktop browser flow with axe. Saved deal results and displayed figures are unchanged.
+
 ## 4.7.160: Start from documents reads more files instead of asking, and offers the parts of one file separately (on the development branch; not merged or deployed)
 
 A file whose text names one type that has a reader is now read and shown as a preview when that reader accepts the content, and a workbook or an OM that holds more than one kind of document is staged once per kind, with where it came from. Nothing changes a deal before Use, and a type is never set from words alone.
