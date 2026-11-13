@@ -16,6 +16,8 @@ import { blocked } from './ai.js';
 import { ocrNote } from './ocrpdf.js';
 import { expandDocx } from './docxread.js';
 import { checkUpload, MACRO_NOTE } from './filekind.js';
+import { factsOf } from './factsfile.js';
+import { readFacts } from './factsread.js';
 
 /** The documents the checklist asks about first. */
 export const CHECKLIST = Object.freeze(['rentroll', 't12', 'lease', 'om']);
@@ -65,6 +67,8 @@ export function stage(plan, info, file, dd = null) {
     scanned: !type && !!v.scanned && !!info.bytes, bytes: /** @type {Uint8Array | null} */ (!type && v.scanned && info.bytes ? info.bytes : null), ocr: false,
     ask: type ? [] : [...new Set([...(looks ? [looks] : []), ...(v.ask || []).filter(isType)])],
     ocrNote: info.ocr ? ocrNote(info.ocr) : '', ocrInfo: /** @type {any} */ (info.ocr || null),
+    // a tax bill, utility bill or unit mix: what its small reader found, to be checked and asked about (factsread.js); never stored on a deal
+    facts: /** @type {any} */ (info.facts ? info.facts.facts : null), factsSrc: /** @type {any} */ (info.facts ? info.facts.src : null), factAnswers: /** @type {Record<string, string>} */ ({}),
     use: useLabel(type), state: 'staged', from: /** @type {string | null} */ (info.from || null), dup: /** @type {string | null} */ (null), refuse: /** @type {string | null} */ (info.refuse || null),
   };
   if (info.note) item.reason = `${item.reason} ${info.note}`;
@@ -115,6 +119,25 @@ export async function readScan(plan, id, ocrText, onProgress) {
   it.confidence = looks ? 'Looks like' : 'Not sure';
   it.reason = looks ? `Read by OCR on this device: its first page reads like a ${typeLabel(looks).toLowerCase()}. OCR can misread, so confirm it, or choose another type. Its figures come only from that document’s own import, which checks them.` : 'Read by OCR on this device, but its first page does not say what it is. Choose a type, or skip it.';
   return { ok: true, chars };
+}
+
+/** The facts to show for an item (a tax bill, utility bill or unit mix read by factsread.js), or null: only while the item is, or is
+ * still asked whether it is, that kind of document. */
+export function factsShown(item) {
+  const f = item && item.facts;
+  if (!f || item.state === 'skipped') return null;
+  return item.type === f.type || (!item.type && Array.isArray(item.ask) && item.ask.includes(f.type)) ? f : null;
+}
+
+/** The broker answers one of an item's questions (which year, monthly or annual, ...): its facts are worked out again with the answer.
+ * Returns false when there is no such question or option. */
+export function answerFact(plan, id, askId, value) {
+  const it = plan.items.find((x) => x.id === id);
+  const ask = it && it.facts && it.facts.asks.find((a) => a.id === askId);
+  if (!it || !ask || !ask.options.some((o) => o.value === value) || !it.factsSrc) return false;
+  it.factAnswers = { ...it.factAnswers, [askId]: value };
+  it.facts = readFacts(it.facts.type, it.factsSrc, it.factAnswers);
+  return true;
 }
 
 /** The broker names an item's type ("What is this?"). Returns false when it is not a type, or the item is not staged. */
@@ -221,6 +244,7 @@ export async function stageFiles(plan, files, deps, dd = null, onStep = () => {}
       if (s.info && s.info.kind === 'xlsx' && !s.info.refuse && s.file) { try { if ((await checkUpload(s.file, { getFflate: deps.getFflate })).macros) s.info.note = MACRO_NOTE; } catch { /* the workbook's own read already said what is wrong */ } }
     }
     seen = await expandDocx(seen, deps); // a Word file is its tables (read as CSV rows) or its text
+    for (const s of seen) { if (s.info && !s.info.refuse) { const f = await factsOf(s.file, s.info, deps); if (f) s.info.facts = f; } } // a tax bill, utility bill or unit mix: its labelled figures, with the questions it leaves
     // a zip is several files: each part is staged exactly as if it had been dropped itself, naming the zip it came from
     let last = null;
     for (const s of seen) { if (deps.ocrOf && s.info.sha256) s.info.ocr = deps.ocrOf(s.info.sha256); last = stage(plan, s.info, s.file, dd); out.push(last); }

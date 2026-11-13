@@ -14,6 +14,8 @@ import { classify, TYPES, TYPE_BY_ID, typeLabel, PRESETS, PRESET_IDS } from './d
 import { ddOf, checklist, addDoc, removeDoc, restoreDoc, retype, markReviewed, setAsOf, setNa, clearNa, recordRead, MAX_REASON } from './dd.js';
 import { sha256Hex } from './filehash.js';
 import { ocrNote } from './ocrpdf.js';
+import { factsOf } from './factsfile.js';
+import { factsLine } from './factsread.js';
 import { LIMITS } from './filekind.js';
 
 const OPEN_KEY = 'zl.dd.open';
@@ -273,13 +275,16 @@ export function renderDocsCard(box, h) {
         }
         const r = addDoc(dd, { ...info, type, typeBy });
         if (r.error) { if (seen.length > 1) refusals.push(`${info.name}: ${r.error}`); else warn(r.error); say(''); continue; }
+        // a tax bill, utility bill or unit mix: what its small reader found is said here to be checked (never stored on the deal)
+        const fx = !type ? null : await factsOf(file, { ...info, verdict: { ...info.verdict, type } }, { readPdf: h.readPdf, getXlsx: h.getXlsx, getFflate: h.getFflate });
+        const fxLine = fx ? factsLine(fx.facts) : '';
         const where = info.sha256 ? await h.otherDeals(info.sha256).catch(() => []) : [];
         h.touch({ label: `Documents: added ${r.doc.name}${type ? ` as ${typeLabel(type)}` : ''}` });
-        say(`Added ${r.doc.name}${from}${type ? ` as ${typeLabel(type)}` : ' with no type'}.${info.ocr ? ` ${ocrNote(info.ocr)}` : ''}${where.length ? ` It is also in ${where.slice(0, 3).join(', ')}.` : ''}${info.sha256 ? '' : file.size > LIMITS.pdf ? ' It is too large to fingerprint, so adding it again will not be spotted.' : ' This browser cannot fingerprint files here, so adding it again will not be spotted.'}`);
+        say(`Added ${r.doc.name}${from}${type ? ` as ${typeLabel(type)}` : ' with no type'}.${info.ocr ? ` ${ocrNote(info.ocr)}` : ''}${fxLine ? ` ${fxLine}` : ''}${where.length ? ` It is also in ${where.slice(0, 3).join(', ')}.` : ''}${info.sha256 ? '' : file.size > LIMITS.pdf ? ' It is too large to fingerprint, so adding it again will not be spotted.' : ' This browser cannot fingerprint files here, so adding it again will not be spotted.'}`);
         draw();
         // the redraw replaces the status line, so a file from a zip, and what OCR did to a scan, are also said here
         if (info.from) toast(`Added ${r.doc.name}${type ? ` as ${typeLabel(type)}` : ' with no type'}, from ${info.from}.${info.ocr ? ` ${ocrNote(info.ocr)}` : ''}`, null, info.ocr ? 9000 : undefined);
-        else if (info.ocr) toast(ocrNote(info.ocr), null, 9000); // the redraw replaces the status line, so a file from a zip is also said here
+        else if (info.ocr || fxLine) toast(`${info.ocr ? `${ocrNote(info.ocr)} ` : ''}${fxLine}`.trim(), null, 9000); // the redraw replaces the status line, so a file from a zip is also said here
       }
       if (refusals.length) warn(refusals.join(' '));
     }

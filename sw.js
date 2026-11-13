@@ -62,6 +62,8 @@ const ASSETS = [
   'app/ocr.js',
   'app/ocrpdf.js',
   'app/docxread.js',
+  'app/factsread.js',
+  'app/factsfile.js',
   'app/ocrprogress.js',
   'app/deal.js',
   'app/dealui.js',
