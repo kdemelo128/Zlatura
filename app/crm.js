@@ -7,12 +7,18 @@ import { applyStageConfig } from './pipeline.js';
 import { migrateKvRecord, kvVersion, kvTooNew } from './migrate.js';
 
 const K = { tasks: 'crm.tasks', contacts: 'crm.contacts', activity: 'crm.activity' };
-const MAX_ACTIVITY = 500;
+export const MAX_ACTIVITY = 500;
+/** Whether `adding` more entries fit in a log of `have` without dropping the oldest. */
+export const activityRoom = (have, adding) => have + adding <= MAX_ACTIVITY;
 const id = (p) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
-async function list(key) { return (await kvGet(key)) || []; }
+/** What this file reads and writes through; a test swaps in memory ones. */
+let kio = { get: kvGet, set: kvSet };
+/** For tests only. @param {any} x */
+export const _useKv = (x) => { kio = x || { get: kvGet, set: kvSet }; };
+async function list(key) { return (await kio.get(key)) || []; }
 async function put(key, items) {
-  if (!(await kvSet(key, items))) throw new Error('This device would not save that (storage is full or blocked).');
+  if (!(await kio.set(key, items))) throw new Error('This device would not save that (storage is full or blocked).');
   document.dispatchEvent(new CustomEvent('crmchange', { detail: key }));
   return items;
 }
@@ -96,6 +102,18 @@ export async function log(type, text, dealId = null, extra = {}) {
   if (all.length > MAX_ACTIVITY) all.splice(0, all.length - MAX_ACTIVITY);
   return put(K.activity, all);
 }
+
+/** An activity made with its own time (a meeting or email filed from a file) and what it came from; resolves to the record. */
+export async function addActivity({ type, text, dealId = null, at = Date.now(), source = null, contactIds = [], approx = false }) {
+  const rec = { id: id('a'), at, type, text, dealId, ...(approx ? { approx: true } : {}), ...(source ? { source } : {}), ...(contactIds.length ? { contactIds } : {}) };
+  const all = await listActivity();
+  // never drop the oldest entries to make room: a filing that does not fit is refused and the item stays in To file
+  if (!activityRoom(all.length, 1)) throw new Error(`The activity log is full (${MAX_ACTIVITY} entries), so nothing was added and the oldest entries were kept. Free room by deleting entries, then file again.`);
+  all.push(rec);
+  await put(K.activity, all);
+  return rec;
+}
+export async function removeActivity(aid) { await put(K.activity, (await listActivity()).filter((a) => a.id !== aid)); }
 
 /** Everything CRM, for the backup. */
 export async function exportCrm() { return { tasks: await listTasks(), contacts: await listContacts(), activity: await listActivity() }; }

@@ -16,6 +16,7 @@
 
 import { datesIn } from './leaseread.js';
 import { looksLikeInstruction } from './docfacts.js';
+import { PRODUCT } from './brand.js';
 
 export const INBOX_V = 1;
 export const MAX_ITEMS = 500;
@@ -81,7 +82,7 @@ function parseValue(raw) {
 const okName = (n) => {
   const s = squash(n);
   if (s.length < 2 || s.length > 90 || GENERIC.test(s) || /^\d/.test(s) || s.includes('@')) return false;
-  if ((s.match(/[A-Za-z]/g) || []).length < 2) return false;
+  if ((s.match(/\p{L}/gu) || []).length < 2) return false;
   return s.split(' ').length <= 9;
 };
 
@@ -99,10 +100,10 @@ export function nameShape(name) {
   if (!okName(s) || /[<>{}=$%@]|https?:/i.test(s)) return null;
   const toks = s.split(' ');
   const low = toks.map((t) => t.toLowerCase().replace(/[.,]+$/, ''));
-  const cap = (t) => /^[A-Z][A-Za-z.'’-]*$/.test(t);
+  const cap = (t) => /^\p{Lu}[\p{L}.'’-]*$/u.test(t);
   if (isOrg(s)) {
     const words = toks.filter((t) => !SMALL.test(t));
-    return toks.length <= 8 && /^[A-Z0-9]/.test(s) && toks.filter((t) => SMALL.test(t)).length <= 2 && words.every((t) => /^[A-Z0-9&][A-Za-z0-9.&'’,-]*$/.test(t)) ? 'org' : null;
+    return toks.length <= 8 && /^[\p{Lu}0-9]/u.test(s) && toks.filter((t) => SMALL.test(t)).length <= 2 && words.every((t) => /^[\p{Lu}0-9&][\p{L}0-9.&'’,-]*$/u.test(t)) ? 'org' : null;
   }
   if (/\d/.test(s) || toks.length < 2 || toks.length > 4 || low.some((t) => NOT_NAME.has(t))) return null;
   return cap(toks[0]) && cap(toks[toks.length - 1]) && toks.every((t) => cap(t) || PARTICLE.test(t)) ? 'person' : null;
@@ -184,7 +185,7 @@ export function extractCandidates({ pages = [], today = new Date().toISOString()
  * possible). A name alone is likely only when it is the one person of that name and neither side has a different
  * email or phone; when several share it, each is only possible; with a different email or phone it is no match.
  * `hidden` (a Set of contact ids) are never considered: contacts on a confidential deal, for a record from elsewhere.
- * @param {{ name?: string, email?: string, phone?: string }} cand @param {any[]} contacts
+ * @param {{ name?: string, company?: string, email?: string, phone?: string, ext?: { src: string, id: string } | null, monalId?: string }} cand @param {any[]} contacts
  */
 const keyCache = new WeakMap();
 /** A contact's comparison keys, worked out once per record. */
@@ -201,8 +202,16 @@ export function matchContacts(cand, contacts, { hidden = new Set(), only = null 
   const pool = (contacts || []).filter((c) => c && !hidden.has(c.id) && (!only || only.has(c.id)));
   const sameName = pool.filter((c) => ck && keysOf(c).nk === ck);
   const out = [];
+  const cx = cand.ext && cand.ext.id ? cand.ext : null;
   for (const c of pool) {
     const { e, p, nk, co } = keysOf(c);
+    // a file's own id column (or this app's own id, from an export of it) finds the same person again on a re-import
+    if (cx && (c.sources || []).some((s) => s.ext && s.ext.src === cx.src && s.ext.id === cx.id)) {
+      const agrees = (ce && e && ce === e) || (ck && nk && ck === nk);
+      out.push(agrees ? { id: c.id, level: 'same', why: 'the same id as in an earlier import' } : { id: c.id, level: 'possible', why: 'the same id, but a different name and email' });
+      continue;
+    }
+    if (cand.monalId && cand.monalId === c.id) { out.push({ id: c.id, level: 'same', why: `the ${PRODUCT} ID in the file` }); continue; }
     const similar = ck && nk && (nk === ck || ck.split(' ').pop() === nk.split(' ').pop() && (ck.includes(nk) || nk.includes(ck)));
     if (ce && e && ce === e) { out.push({ id: c.id, level: 'same', why: 'the same email' }); continue; }
     if (cp && p && cp === p) { out.push({ id: c.id, level: similar ? 'likely' : 'possible', why: similar ? 'the same phone and a similar name' : 'the same phone, a different name' }); continue; }
@@ -218,7 +227,7 @@ export function matchContacts(cand, contacts, { hidden = new Set(), only = null 
 /* ------------------------------------------------------------------- items */
 
 /** One stable key for a candidate in a deal, so reading a document twice proposes it once. */
-export const itemKey = (c, dealId) => `${dealId || ''}|${c.kind}|${c.kind === 'contact' ? `${nameKey(c.name)}|${emailKey(c.email)}|${c.role}` : c.kind === 'task' ? `${c.title}|${c.due}` : nameKey(c.address)}`;
+export const itemKey = (c, dealId) => c.rowKey ? `${dealId || ''}|${c.kind}|${c.rowKey}` : `${dealId || ''}|${c.kind}|${c.kind === 'contact' ? `${nameKey(c.name)}|${emailKey(c.email)}|${c.role}` : c.kind === 'task' ? `${c.title}|${c.due}` : nameKey(c.address)}`;
 
 /**
  * New inbox items for the candidates of one document read on a deal. An item already in `existing` (in any state, so a
@@ -233,7 +242,7 @@ export function newItems(candidates, { dealId, source, existing = [], now = Date
     if (have.has(key)) continue;
     have.add(key);
     const { page, line, ...data } = c;
-    items.push({ v: INBOX_V, id: newId(), key, status: 'pending', createdAt: now, dealId: dealId || null, source: { file: clip(source.file, 120), docRole: source.docRole || null, sha256: source.sha256 || null, page, line }, data });
+    items.push({ v: INBOX_V, id: newId(), key, status: 'pending', createdAt: now, dealId: dealId || null, source: { kind: source.kind || 'document', file: clip(source.file, 120), docRole: source.docRole || null, sha256: source.sha256 || null, page, line }, data });
   }
   return items;
 }
@@ -257,10 +266,12 @@ export const readItems = (raw) => (Array.isArray(raw) ? raw.filter((x) => x && t
  * id, so marking a deal confidential later hides what was proposed before). An item whose deal is gone is hidden.
  */
 export const dealScope = (deals) => ({ known: new Set((deals || []).filter((d) => d && d.id).map((d) => d.id)), secret: new Set((deals || []).filter((d) => d && d.confidential).map((d) => d.id)) });
+/** An item with no deal (an import, a calendar or an email file) belongs to the device; one with a deal needs that deal to exist. */
+export const inScope = (x, scope) => x.dealId === null || scope.known.has(x.dealId);
 /** Items a person may see now: pending ones, and a confidential deal's only while that deal is the open one. */
-export const visible = (items, openDealId = null, scope = dealScope([])) => items.filter((x) => x.status === 'pending' && scope.known.has(x.dealId) && (!scope.secret.has(x.dealId) || x.dealId === openDealId));
+export const visible = (items, openDealId = null, scope = dealScope([])) => items.filter((x) => x.status === 'pending' && inScope(x, scope) && (!scope.secret.has(x.dealId) || x.dealId === openDealId));
 /** The count shown on Home and Connect: never an item of a confidential deal. */
-export const publicCount = (items, scope = dealScope([])) => items.filter((x) => x.status === 'pending' && scope.known.has(x.dealId) && !scope.secret.has(x.dealId)).length;
+export const publicCount = (items, scope = dealScope([])) => items.filter((x) => x.status === 'pending' && inScope(x, scope) && !scope.secret.has(x.dealId)).length;
 
 /** Contact ids a candidate on this deal must not see: with a confidential deal open, only its own contacts count; otherwise those on any confidential deal are hidden. */
 export function matchScope(contacts, deals, dealId) {
@@ -289,12 +300,12 @@ const blank = (field, v) => !squash(v) || (field === 'role' && v === 'Other');
 const same = (field, a, b) => (field === 'email' ? emailKey(a) === emailKey(b) : field === 'phone' ? (phoneKey(a) || squash(a)) === (phoneKey(b) || squash(b)) : field === 'name' || field === 'company' ? nameKey(a) === nameKey(b) : squash(a) === squash(b));
 
 /** The provenance written on a record that a document made or changed. */
-export const provenance = (item, at = Date.now()) => ({ kind: 'document', file: item.source.file, docRole: item.source.docRole, sha256: item.source.sha256, page: item.source.page, dealId: item.dealId, itemId: item.id, at });
+export const provenance = (item, at = Date.now()) => ({ kind: item.source.kind || 'document', file: item.source.file, docRole: item.source.docRole, sha256: item.source.sha256, page: item.source.page, line: item.source.line, dealId: item.dealId, itemId: item.id, ...(item.data.ext ? { ext: item.data.ext } : {}), at });
 
 /** The new contact a File tap makes from a contact item. */
 export function newContact(item, id, now = Date.now()) {
   const d = item.data;
-  return { id, name: squash(d.name), company: d.company || '', role: d.role || 'Other', phone: d.phone || '', email: d.email || '', notes: '', dealIds: item.dealId ? [item.dealId] : [], createdAt: now, updatedAt: now, v: 2, sources: [provenance(item, now)], otherValues: {} };
+  return { id, name: squash(d.name), company: d.company || '', role: d.role || 'Other', phone: d.phone || '', email: d.email || '', notes: squash(d.notes) ? String(d.notes).slice(0, 400) : '', dealIds: item.dealId ? [item.dealId] : [], createdAt: now, updatedAt: now, v: 2, sources: [provenance(item, now)], otherValues: {} };
 }
 
 /**
@@ -307,7 +318,7 @@ export function mergePreview(item, target) {
   const conflicts = [];
   for (const f of FIELDS) {
     const other = squash(d[f]);
-    if (!other) continue;
+    if (!other || (f === 'role' && other === 'Other')) continue; // 'Other' is the blank role: it fills nothing
     if (blank(f, target[f])) fills.push({ field: f, to: other });
     else if (!same(f, target[f], other)) conflicts.push({ field: f, have: target[f], other });
   }
@@ -363,3 +374,112 @@ export function contactV2(c) {
   if (!c.otherValues || typeof c.otherValues !== 'object' || Array.isArray(c.otherValues)) c.otherValues = {};
   return c;
 }
+
+/* ------------------------------------------------------------------- deals */
+
+/**
+ * The deals an imported deal row could be, best first: the same id (this app's own, or the file's id from an earlier import),
+ * then the same address, then the same name. A confidential deal is never offered: a record from a file never links to one.
+ * @param {{ name?: string, address?: string, ext?: { src: string, id: string } | null, monalId?: string }} cand @param {any[]} deals
+ */
+export function matchDeals(cand, deals) {
+  const nk = nameKey(cand.name);
+  const ak = nameKey(cand.address);
+  const out = [];
+  for (const d of deals || []) {
+    if (!d || d.confidential) continue;
+    if (cand.monalId && cand.monalId === d.id) { out.push({ id: d.id, level: 'same', why: `the ${PRODUCT} ID in the file` }); continue; }
+    const da = nameKey(d.figures && d.figures.address);
+    if (cand.ext && (d.externalIds || []).some((x) => x.src === cand.ext.src && x.id === cand.ext.id)) {
+      // an id is only the same record when the name or address agrees too (two sheets may number their rows alike)
+      const agrees = (nk && nameKey(d.name) === nk) || (ak && da && ak === da);
+      out.push(agrees ? { id: d.id, level: 'same', why: 'the same id as in an earlier import' } : { id: d.id, level: 'possible', why: 'the same id, but a different name and address' });
+      continue;
+    }
+    if (ak && da && ak === da) out.push({ id: d.id, level: 'likely', why: 'the same address' });
+    else if (nk && nameKey(d.name) === nk) out.push({ id: d.id, level: 'likely', why: 'the same name' });
+  }
+  return out.sort((a, b) => (a.level === 'same' ? 0 : 1) - (b.level === 'same' ? 0 : 1));
+}
+
+/** What an imported deal row would add to a deal it matches: the file's id, a closing date the deal lacks. The deal's own stage, dates and figures are never changed. */
+export function dealPreview(item, deal) {
+  const d = item.data;
+  const addExt = !!d.ext && !(deal.externalIds || []).some((x) => x.src === d.ext.src && x.id === d.ext.id);
+  const hasClosing = (deal.keyDates || []).some((k) => k.label === 'Closing');
+  const addDate = d.close && !hasClosing ? d.close : null;
+  const stage = d.stage && d.stage !== deal.stage && (deal.stage || 'underwriting') !== d.stage ? { have: deal.stage || 'underwriting', other: d.stage } : null;
+  return { addExt, addDate, stage };
+}
+
+/** The fields of the new deal a File tap makes from a deal item (dealui.js createDeal). */
+export function newDealFields(item, now = Date.now()) {
+  const d = item.data;
+  const notes = `Imported from ${item.source.file}${d.crmStage ? `; stage in the file: “${d.crmStage}”` : ''}${d.amount ? `; amount in the file: “${d.amount}” (kept as written; it is not the price)` : ''}${d.company ? `; account: ${d.company}` : ''}.`;
+  return {
+    name: squash(d.name), ...(d.stage ? { stage: d.stage } : {}), figures: d.address ? { address: d.address } : {},
+    keyDates: d.close ? [{ id: `k${now.toString(36)}`, label: 'Closing', date: d.close, done: false }] : [],
+    externalIds: d.ext ? [d.ext] : [],
+    visit: { at: null, items: {}, notes, photos: [], audio: [] },
+  };
+}
+
+/** Add what `dealPreview` says to `deal` (in place). Returns what Undo needs. */
+export function applyDealMerge(item, deal, now = Date.now()) {
+  const pv = dealPreview(item, deal);
+  const undo = { ext: null, keyId: null, itemId: item.id };
+  if (pv.addExt) { (deal.externalIds ||= []).push(item.data.ext); undo.ext = item.data.ext; }
+  if (pv.addDate) { const k = { id: `k${now.toString(36)}`, label: 'Closing', date: pv.addDate, done: false }; (deal.keyDates ||= []).push(k); undo.keyId = k.id; undo.keyDate = k.date; }
+  return undo;
+}
+/** Take back what applyDealMerge added, and only that. A closing date edited or ticked done since is the broker's now: nothing is undone and this throws. */
+export function undoDealMerge(deal, undo) {
+  const k = undo.keyId ? (deal.keyDates || []).find((x) => x.id === undo.keyId) : null;
+  if (k && (k.date !== undo.keyDate || k.done)) throw new Error('This changed since it was filed; nothing was undone.');
+  if (undo.ext) deal.externalIds = (deal.externalIds || []).filter((x) => !(x.src === undo.ext.src && x.id === undo.ext.id));
+  if (k) deal.keyDates = deal.keyDates.filter((x) => x.id !== undo.keyId);
+}
+
+/**
+ * Whether an imported row changes nothing: a contact whose one 'same' match already holds every value and the deal link,
+ * or a deal whose match already has the file's id and a closing date. Such a row is counted, not proposed.
+ * @param {any} cand @param {any[]} contacts @param {any[]} deals @param {{ hidden?: Set<string>, only?: Set<string> | null }} [scope] @param {string | null} [dealId]
+ */
+export function upToDate(cand, contacts, deals, scope = {}, dealId = null) {
+  const item = { id: '', dealId, source: {}, data: cand };
+  if (cand.kind === 'contact') {
+    const m = matchContacts(cand, contacts, scope);
+    if (m.length !== 1 || m[0].level !== 'same') return false;
+    const target = contacts.find((c) => c.id === m[0].id);
+    const pv = mergePreview(item, target);
+    const knows = !cand.ext || (target.sources || []).some((s) => s.ext && s.ext.src === cand.ext.src && s.ext.id === cand.ext.id);
+    return !pv.fills.length && !pv.conflicts.length && !pv.linkDeal && knows;
+  }
+  if (cand.kind === 'deal') {
+    const m = matchDeals(cand, deals);
+    if (m.length !== 1 || m[0].level !== 'same') return false;
+    const pv = dealPreview(item, deals.find((d) => d.id === m[0].id));
+    return !pv.addExt && !pv.addDate;
+  }
+  return false;
+}
+
+/**
+ * What a "File all" tap would do with a waiting item from a file: 'new' (a contact that matches nobody, an activity or a task, none flagged), 'updates'
+ * (a contact or deal with exactly one match by id or email, and a merge that only fills blanks), or null (needs a person's choice).
+ * @param {any} it @param {any[]} contacts @param {any[]} deals
+ */
+export function batchKind(it, contacts, deals) {
+  const d = it.data;
+  if (it.status !== 'pending' || d.suspicious || d.needsDate || !it.source || !FROM_FILE.has(it.source.kind)) return null;
+  if (d.kind === 'contact') {
+    const m = matchContacts(d, contacts, matchScope(contacts, deals, it.dealId));
+    if (isClean(it, { matches: m })) return 'new';
+    return m.length === 1 && m[0].level === 'same' && !mergePreview(it, contacts.find((c) => c.id === m[0].id)).conflicts.length ? 'updates' : null;
+  }
+  if (d.kind === 'deal') { const m = matchDeals(d, deals); return m.length === 1 && m[0].level === 'same' ? 'updates' : null; }
+  if (d.kind === 'activity' || d.kind === 'task') return 'new';
+  return null;
+}
+/** Where a record that came from a file the person chose says it came from (a document read on a deal is not one of these). */
+export const FROM_FILE = new Set(['import', 'calendar', 'email']);

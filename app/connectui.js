@@ -11,6 +11,8 @@ import { PRODUCT } from './brand.js';
 import { filterCategories, monogram } from './connectors.js';
 import { openAssistant } from './assistantui.js';
 import { openTemplates } from './dealui.js';
+import { openImport, openExport } from './importui.js';
+import { openMailFiles } from './mailui.js';
 
 let api = null;
 let tab = 'connectors';
@@ -32,10 +34,46 @@ const OPEN = {
   'my-data': () => openConnect('mydata'),
   'comps-file': () => { api.showView('comps'); $('file')?.click(); },
   'om-file': () => { api.showView('deal'); $('om-file')?.click(); },
+  // a CRM, deal or tenant file: choose it, map its columns, and every row goes to To file (importui.js)
+  'crm-file': () => chooseImport('auto'),
+  'deal-file': () => chooseImport('deals'),
+  'tenant-file': () => chooseImport('tenants'),
+  'crm-export': () => openExport(api),
+  'mail-file': () => chooseMail(),
   // these two import into a deal: the deal's own card does the work, so the page takes you to it
   'rent-roll': () => toDealCard('deal-rentroll', 'Rent roll', 'choose More, then Import from Excel, CSV or PDF'),
   t12: () => toDealCard('deal-t12', 'Operating statement', 'choose its import button'),
 };
+
+/** Open the file picker for an import; the choice is read in importui.js. The input lives in the page so it works the same everywhere. */
+function chooseImport(preset) {
+  /** @type {HTMLInputElement} */
+  let fi = /** @type {any} */ ($('connect-import'));
+  if (!fi) {
+    fi = /** @type {HTMLInputElement} */ (el('input'));
+    fi.type = 'file'; fi.id = 'connect-import'; fi.hidden = true;
+    fi.accept = '.csv,.txt,.xlsx,.xlsm,text/csv';
+    fi.addEventListener('change', () => { const f = fi.files[0]; const p = fi.dataset.preset; fi.value = ''; if (f) openImport(f, p, { api, done: () => openConnect('inbox') }); });
+    document.body.appendChild(fi);
+  }
+  fi.dataset.preset = preset;
+  fi.click();
+}
+
+/** Open the file picker for calendar and email files (several at once); the same path as dropping them on the page. */
+function chooseMail() {
+  /** @type {HTMLInputElement} */
+  let fi = /** @type {any} */ ($('connect-mail'));
+  if (!fi) {
+    fi = /** @type {HTMLInputElement} */ (el('input'));
+    fi.type = 'file'; fi.id = 'connect-mail'; fi.hidden = true; fi.multiple = true;
+    fi.accept = '.ics,.eml,text/calendar,message/rfc822';
+    fi.addEventListener('change', () => { const fs = [...fi.files]; fi.value = ''; if (fs.length) mailFiles(fs); });
+    document.body.appendChild(fi);
+  }
+  fi.click();
+}
+const mailFiles = (files) => openMailFiles(files, { api, done: () => openConnect('inbox') });
 
 function toDealCard(id, name, how) {
   api.showView('deal');
@@ -250,5 +288,6 @@ function render() {
 export function initConnect(compsApi) {
   api = compsApi;
   document.addEventListener('viewchange', (e) => { visible = e.detail === 'connect'; if (visible) { render(); waitingCount().then((n) => { if (n !== waiting && visible) { waiting = n; const t = $('connect-tab-inbox'); if (t) t.textContent = n ? `To file (${n})` : 'To file'; } }); } });
+  document.addEventListener('mailfiles', (e) => mailFiles([.../** @type {CustomEvent} */ (e).detail]));
   document.addEventListener('inboxchange', () => { waitingCount().then((n) => { waiting = n; const t = $('connect-tab-inbox'); if (visible && t) t.textContent = n ? `To file (${n})` : 'To file'; if (visible && tab === 'inbox') render(); }); });
 }

@@ -16,7 +16,7 @@ import { PRODUCT } from './brand.js';
 export const STATES = Object.freeze(['Built in', 'Import file', 'Coming soon', 'Needs your approval']);
 
 /** What `opens` may be: connectui.js answers each one. */
-export const OPENS = Object.freeze(['assistant', 'deals', 'home', 'comps-file', 'om-file', 'rent-roll', 't12', 'templates', 'my-data', 'tools']);
+export const OPENS = Object.freeze(['assistant', 'deals', 'home', 'comps-file', 'om-file', 'rent-roll', 't12', 'templates', 'my-data', 'tools', 'crm-file', 'deal-file', 'tenant-file', 'crm-export', 'mail-file']);
 
 const NEEDS_SERVER = 'It needs a server of ours to receive from outside, and nothing is hosted yet.';
 const FILE_FIRST = 'Planned: bring its export file in first. A direct sign-in comes only after a security review.';
@@ -31,21 +31,24 @@ export const CATEGORIES = Object.freeze([
   { id: 'crm', title: 'CRM and contacts', sub: 'Bring contacts in, send them back',
     rows: [
       { id: 'monal-crm', name: `${PRODUCT} contacts`, desc: 'People on your deals, with tasks and activity, kept on this device.', state: 'Built in', module: 'crm.js', opens: 'home' },
-      { id: 'salesforce', name: 'Salesforce', desc: 'Contacts, accounts and opportunities.', state: 'Coming soon', wait: FILE_FIRST },
-      { id: 'hubspot', name: 'HubSpot', desc: 'Contacts, companies and deals.', state: 'Coming soon', wait: FILE_FIRST },
-      { id: 'dynamics', name: 'Microsoft Dynamics 365', desc: 'Contacts and deals.', state: 'Coming soon', wait: FILE_FIRST },
-      { id: 'zoho', name: 'Zoho CRM', desc: 'Contacts and deals.', state: 'Coming soon', wait: FILE_FIRST },
-      { id: 'pipedrive', name: 'Pipedrive', desc: 'People and deals.', state: 'Coming soon', wait: FILE_FIRST },
+      { id: 'salesforce', name: 'Salesforce', desc: 'Your own export of contacts, accounts and opportunities (CSV or Excel), matched by column name.', state: 'Import file', module: 'importui.js', opens: 'crm-file' },
+      { id: 'hubspot', name: 'HubSpot', desc: 'Your own export of contacts, companies and deals (CSV or Excel), matched by column name.', state: 'Import file', module: 'importui.js', opens: 'crm-file' },
+      { id: 'dynamics', name: 'Microsoft Dynamics 365', desc: 'Your own export of contacts and deals (CSV or Excel), matched by column name.', state: 'Import file', module: 'importui.js', opens: 'crm-file' },
+      { id: 'zoho', name: 'Zoho CRM', desc: 'Your own export of contacts and deals (CSV or Excel), matched by column name.', state: 'Import file', module: 'importui.js', opens: 'crm-file' },
+      { id: 'pipedrive', name: 'Pipedrive', desc: 'Your own export of people and deals (CSV or Excel), matched by column name.', state: 'Import file', module: 'importui.js', opens: 'crm-file' },
+      { id: 'cre-crm', name: 'Apto, Buildout and other commercial real estate CRMs', desc: 'Your own export of contacts, companies and deals (CSV or Excel), matched by column name.', state: 'Import file', module: 'importui.js', opens: 'crm-file' },
+      { id: 'crm-export', name: 'Export contacts, deals and tasks', desc: 'CSV files made here, in this app’s column names or the common CRM ones, to load into your CRM.', state: 'Built in', module: 'importui.js', opens: 'crm-export' },
     ] },
   { id: 'deals', title: 'Deal management', sub: 'Pipelines and the documents behind them',
     rows: [
       { id: 'monal-deals', name: `${PRODUCT} deals`, desc: 'Your pipeline, workbook and checklist for every deal.', state: 'Built in', module: 'dealui.js', opens: 'deals' },
       { id: 'om-file', name: 'Offering memorandum', desc: 'Choose an OM as a PDF; its figures are read on this device.', state: 'Import file', module: 'om.js', opens: 'om-file' },
-      { id: 'dealpath', name: 'Dealpath', desc: 'Deals and pipeline stages.', state: 'Coming soon', wait: FILE_FIRST },
+      { id: 'dealpath', name: 'Dealpath', desc: 'Your own pipeline export (CSV or Excel): deal, stage, dates.', state: 'Import file', module: 'importui.js', opens: 'deal-file' },
       { id: 'juniper', name: 'Juniper Square', desc: 'Investors and entities.', state: 'Needs your approval', wait: 'Investor records are sensitive: a decision on data retention comes first.' },
     ] },
   { id: 'property', title: 'Property management', sub: 'Rent rolls and operating statements from the system that keeps them',
     rows: [
+      { id: 'tenant-list', name: 'Tenant list', desc: 'A tenant list from your property-management system, as CSV or Excel: tenant, suite, lease end.', state: 'Import file', module: 'importui.js', opens: 'tenant-file' },
       { id: 'rent-roll', name: 'Rent roll file', desc: 'An export from Yardi, AppFolio, Entrata, RealPage, MRI or Buildium, as Excel, CSV or PDF.', state: 'Import file', module: 'rentrollui.js', opens: 'rent-roll' },
       { id: 't12', name: 'Operating statement (T-12)', desc: 'A trailing twelve-month statement as Excel or CSV; every line is filed to a category you confirm.', state: 'Import file', module: 't12ui.js', opens: 't12' },
     ] },
@@ -68,6 +71,7 @@ export const CATEGORIES = Object.freeze([
       { id: 'excel-templates', name: 'Excel templates', desc: 'Your firm’s workbooks, mapped to deal fields and filled from a deal.', state: 'Built in', module: 'library.js', opens: 'templates' },
       { id: 'tools', name: 'Tools and calculators', desc: 'Loan, yield, lease and closing tools, with saved scenarios.', state: 'Built in', module: 'toolsui.js', opens: 'tools' },
       { id: 'cloud-folder', name: 'Google Drive, OneDrive and Dropbox', desc: 'Files in and out of a cloud folder.', state: 'Coming soon', wait: 'Planned after a security review of the sign-in; today choose a file from the folder on your device.' },
+      { id: 'mail-files', name: 'Calendar and email files', desc: 'Drop a calendar (.ics) or email (.eml) file: meetings and emails become activity, the people named become contacts to file, and attachments can go to Start from documents.', state: 'Import file', module: 'mailui.js', opens: 'mail-file' },
       { id: 'calendar-mail', name: 'Google and Microsoft calendar and mail', desc: 'Meetings and emails become activity and tasks.', state: 'Coming soon', wait: FILE_FIRST },
       { id: 'esign', name: 'DocuSign', desc: 'Envelope status to deal dates.', state: 'Coming soon', wait: 'Planned after the cloud sign-in is in.' },
     ] },

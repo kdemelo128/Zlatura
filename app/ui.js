@@ -1364,8 +1364,11 @@ document.addEventListener('drop', (e) => {
   e.preventDefault();
   dragDepth = 0;
   document.body.classList.remove('dragging');
-  const files = e.dataTransfer?.files;
+  let files = e.dataTransfer?.files;
   if (!files?.length) return;
+  // a calendar (.ics) or email (.eml) file is read for its meetings, emails and people, whatever tab is open (connectui.js); the rest carry on below
+  const mail = [...files].filter((f) => /\.(ics|eml)$/i.test(f.name));
+  if (mail.length) { document.dispatchEvent(new CustomEvent('mailfiles', { detail: mail })); files = /** @type {any} */ ([...files].filter((f) => !mail.includes(f))); if (!files.length) return; }
   // on the Underwrite tab every dropped file is a document for the Start from documents card, whatever its kind (not a CoStar report, not a template)
   if (currentView === 'underwrite') { document.dispatchEvent(new CustomEvent('uwdrop', { detail: [...files] })); return; }
   // on the Deal screen a dropped PDF is an OM; a dropped .xlsx is a template
