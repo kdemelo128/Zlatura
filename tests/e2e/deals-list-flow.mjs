@@ -31,6 +31,8 @@ for (const [size, options] of sizes) {
       await page.evaluate(async () => (await import('./app/look.js')).setLook('new'));
       await page.reload({ waitUntil: 'load' });
       await page.waitForSelector('#om-file', { state: 'attached' });
+      // the starting actions draw after the file input exists: wait for them, not just for the input (this raced under load)
+      await page.waitForFunction(() => /Choose OM/.test(document.body.innerText) && /Enter figures/.test(document.body.innerText), null, { timeout: 10000 }).catch(() => {});
       const emptyNew = await actions(page);
       check('compact-phone: a new device keeps every OM, manual and example starting action', emptyClassic.every((name) => emptyNew.includes(name)) && emptyNew.includes('Choose OM') && emptyNew.includes('Enter figures by hand') && emptyNew.includes('Try a fictional example deal'));
       await page.evaluate(async () => (await import('./app/look.js')).setLook('classic'));
