@@ -280,7 +280,7 @@ const D = await phone({ viewport: { width: 1360, height: 900 }, isMobile: false,
 await D.page.goto(BASE, { waitUntil: 'load' });
 await D.page.waitForSelector('#view-home', { state: 'visible' });
 const side = await D.page.evaluate(() => [...document.querySelectorAll('.sidebar .tab[data-view]:not([hidden])')].map((t) => t.dataset.view));
-check('desktop sidebar: Home, Deals, Underwrite, Comps, Tools, Settings', JSON.stringify(side) === JSON.stringify(['home', 'deal', 'underwrite', 'comps', 'tools', 'settings']), side.join(','));
+check('desktop sidebar: Home, Deals, Underwrite, Comps, Tools, Connect, Settings (Connect since 4.7.154)', JSON.stringify(side) === JSON.stringify(['home', 'deal', 'underwrite', 'comps', 'tools', 'connect', 'settings']), side.join(','));
 check('desktop: the top bar (and its gear) is not shown', !(await D.page.isVisible('.appbar')));
 await D.page.click('.sidebar .tab[data-view="underwrite"]'); await D.page.click('#uw-view-quick');
 await D.page.waitForSelector('#uw-card');

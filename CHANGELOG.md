@@ -1,8 +1,12 @@
 # Changelog
 
-## 4.7.155: My data tab (K2) (on the development branch; not merged or deployed)
+## 4.7.155: The Underwrite tab opens at once, never flashes the old bird, and its look is fixed (on the development branch; not merged or deployed)
 
-The Connect page's My data tab shows what is stored on this device as counts by kind (deals, contacts, tasks, comps, documents, templates, scenarios, tool projects, activity, research briefs, settings), the space used and the browser's allowance (a plain sentence when the browser gives no estimate), the last backup date, and buttons for the existing backup and restore. A test fails if a stored key has no kind. Nothing leaves the device. Tested by `tests/mydata.test.js` and `tests/e2e/connect-flow.mjs`.
+- Opening the Underwrite tab is a reveal, not a load: the tool loads on its own once the app is idle and stays in the page (hidden) when you leave it or switch to Quick underwrite, so reopening and closing take a fraction of a second.
+- The old cartoon bird no longer flashes for half a second when a deal is open: the tool's reload after it is filled from the deal is now covered like the first load.
+- The small glass design element in the tool's top-right corner is back (a script hid it), and it stands still under reduced motion.
+- The "A little help, right here" panel is easy to read: its text, its Ask Monal button and its close button pass 4.5:1 in light and dark.
+- The tool's Display & feel has accent swatches that recolour the tool's controls at once and are kept; the tool follows the app's accent until you pick its own ("Same as the app" goes back). The tool's dark theme is now the app's near-black New look palette.
 
 ## 4.7.154: Connect page (K1) (on the development branch; not merged or deployed)
 

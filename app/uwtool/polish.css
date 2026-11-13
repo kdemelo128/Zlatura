@@ -1,0 +1,46 @@
+/* polish.css -- loaded after restored.css. Three things, none of which touches the model or any amount:
+ *   1. the guide panel ("A little help, right here"): its text, its Ask Monal button and its close button read at 4.5:1 or more
+ *      on the panel in the light theme and in the dark one (the buttons took the page's light-on-accent label colour while
+ *      their own fill was transparent, so on the light panel they were near-white on cream);
+ *   2. the dark theme is the app's New look dark palette: near-black neutral surfaces, soft hairlines, one accent;
+ *   3. the accent: accent.js sets --tl-* (the tool's own choice, or the app's); these rules turn them into the tool's
+ *      --accent, --accent-ink and --uw-accent per theme. With neither set, the tool's own colours stand. */
+
+/* ---- 1. the guide panel */
+.juniper-guide { background: color-mix(in srgb, var(--accent) 7%, var(--card)); color: var(--ink); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }
+.juniper-guide strong { color: var(--ink); }
+.juniper-guide p { color: var(--ink); font-size: 14px; line-height: 1.5; opacity: 1; }
+.juniper-guide .monal-help-link { color: var(--ink) !important; background: var(--card) !important; border: 1px solid var(--muted) !important; font-size: 12px !important; }
+.juniper-guide > button[aria-label="Hide document guide"] { color: var(--muted); background: transparent; border: 0; min-width: 32px; min-height: 32px; }
+.juniper-guide > button[aria-label="Hide document guide"]:hover { color: var(--ink); }
+
+/* ---- 2. the dark theme: the app's New look dark palette */
+:root[data-theme="dark"] {
+  --bg: #111113; --card: #1C1C1F; --field: #26262A; --ink: #F5F5F7; --muted: #B8B8C0; --line: #2E2E33;
+  --ok: #7FCB9A; --ok-bg: #1C2E24; --warn: #E8B766; --warn-bg: #33291A; --bad: #F08A82; --bad-bg: #3A2220;
+}
+html[data-theme="dark"] .workspace-header { background: transparent; }
+html[data-theme="dark"] :is(.interface-settings, .monal-tip, .undo-toast, .nest-label, .flow-current, .review-panel, .document-lens, .export-review-card, .deal-visuals, .tool-library, .monthly-point, .template-peek-card) { background: var(--card); background-image: none; border-color: var(--line); color: var(--ink); }
+html[data-theme="dark"] .space-search { background: var(--field); color: var(--ink); border-color: var(--line); }
+html[data-theme="dark"] .global-deal-drop > div { background: color-mix(in srgb, var(--card) 94%, transparent); color: var(--ink); }
+html[data-theme="dark"] .brand-sculpture { filter: brightness(.6) saturate(.75); }
+html[data-theme="dark"] .juniper-guide { background: color-mix(in srgb, var(--accent) 9%, var(--card)); color: var(--ink); }
+html[data-theme="dark"] .dev-metrics > div, html[data-theme="dark"] .phase-card, html[data-theme="dark"] .refi-summary { background: var(--field); color: var(--ink); border-color: var(--line); }
+html[data-theme="dark"] .dev-tabs button, html[data-theme="dark"] .guide-chips span { background: var(--field); color: var(--ink); }
+html[data-theme="dark"] .glass-tracking { background-image: radial-gradient(160px circle at var(--light-x, 50%) var(--light-y, 50%), color-mix(in srgb, var(--accent) 14%, transparent), transparent 80%) !important; }
+html[data-theme="dark"] .orbit-workspace { background: var(--card); border-color: var(--line); }
+html[data-theme="dark"] .orbit-copy h2, html[data-theme="dark"] .orbit-links span { color: var(--ink); }
+html[data-theme="dark"] .orbit-copy > p, html[data-theme="dark"] .orbit-statline, html[data-theme="dark"] .orbit-caption { color: var(--muted); }
+html[data-theme="dark"] .orbit-links a, html[data-theme="dark"] .orbit-caption button { background: var(--field); border-color: var(--line); color: var(--ink); }
+
+/* ---- 3. the accent */
+:root { --uw-accent: var(--accent); }
+:root[data-tool-accent] { --accent: var(--tl-la); --uw-accent: var(--tl-la); --accent-ink: var(--tl-li); }
+:root[data-tool-accent][data-theme="dark"] { --accent: var(--tl-da); --uw-accent: var(--tl-da); --accent-ink: var(--tl-di); }
+.interface-settings .accent-pick { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 8px; justify-items: center; }
+.interface-settings .accent-pick legend { padding: 0; margin: 0 0 6px; font-size: 13px; color: var(--muted); text-align: center; width: 100%; }
+.accent-swatches { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.accent-swatch { width: 32px; height: 32px; min-width: 32px; padding: 0; border-radius: 50%; background: var(--sw, var(--field)); border: 2px solid var(--card); box-shadow: 0 0 0 1px var(--line); }
+.accent-swatch.accent-follow { background: conic-gradient(#1961B3 0 25%, #78516C 0 50%, #2F6B4F 0 75%, #A24B2B 0); }
+.accent-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--ink); }
+.accent-swatch:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }

@@ -43,7 +43,7 @@ check('the firm-pack card is the last card, collapsed, and every other card is s
   const ids = [...document.querySelector('#underwrite-root .stack').children].map((c) => c.id);
   return ids.join() === 'uw-intake,uw-filler,uw-card,uw-list,uw-calc-card';
 }), await page.evaluate(() => [...document.querySelector('#underwrite-root .stack').children].map((c) => c.id).join()));
-check('before a package is loaded: Load package and Load folder, no frame, no Open buttons', (await page.locator('#uwf-load').count()) === 1 && (await page.locator('#uwf-load-dir').count()) === 1 && (await page.locator('iframe').count()) === 0 && (await page.locator('#uwf-open').count()) === 0);
+check('before a package is loaded: Load package and Load folder, no frame, no Open buttons', (await page.locator('#uwf-load').count()) === 1 && (await page.locator('#uwf-load-dir').count()) === 1 && (await page.locator('iframe:not(#uwt-frame)').count()) === 0 && (await page.locator('#uwf-open').count()) === 0);
 check('no package bucket yet', !(await buckets()).includes('zlatura-uwfiller'));
 
 /* ---- a package that is not approved is refused */
@@ -58,7 +58,7 @@ check('a file that is not a zip is refused', !(await buckets()).includes('zlatur
 await page.setInputFiles('#uwf-zip', zipFile('stand-in.zip'));
 await page.waitForSelector('#uwf-open');
 check('the approved package loads: 5 files kept in the zlatura-uwfiller bucket, outside the deal database', (await buckets()).includes('zlatura-uwfiller') && /5 files/.test(await txt('#uw-filler')), (await txt('#uw-filler')).slice(0, 200));
-check('no frame yet: the iframe is made only when the card is opened', (await page.locator('iframe').count()) === 0 && responses.length === 0);
+check('no frame yet: the iframe is made only when the card is opened', (await page.locator('iframe:not(#uwt-frame)').count()) === 0 && responses.length === 0);
 
 /* ---- axe, layout, buttons (phone, then desktop) */
 async function axe(name) {
@@ -120,7 +120,7 @@ await pop.close();
 /* ---- close and open again; the Underwrite cards are unchanged */
 await page.click('#uwf-open');
 await page.waitForSelector('#uwf-frame', { state: 'detached' });
-check('Close filler removes the frame', (await page.locator('iframe').count()) === 0);
+check('Close filler removes the frame', (await page.locator('iframe:not(#uwt-frame)').count()) === 0);
 
 /* ---- a backup holds none of the package */
 await page.goto(`${BASE}#settings`, { waitUntil: 'load' });
@@ -146,7 +146,7 @@ await page.locator('#uw-filler').screenshot({ path: `${SHOTS}uw-embed-desktop.pn
 await page.click('#uwf-erase');
 await page.locator('.action-item.danger').click();
 await page.waitForSelector('#uwf-load');
-check('Erase package: the bucket is gone, the frame is gone, Load package is back', !(await buckets()).includes('zlatura-uwfiller') && (await page.locator('iframe').count()) === 0);
+check('Erase package: the bucket is gone, the frame is gone, Load package is back', !(await buckets()).includes('zlatura-uwfiller') && (await page.locator('iframe:not(#uwt-frame)').count()) === 0);
 const gone = await page.evaluate(() => fetch('uw-filler/index.html').then(async (r) => ({ s: r.status, t: await r.text() })));
 check('after the erase the route answers a 404 page that says to load the package (never the network)', gone.s === 404 && /Load the package/.test(gone.t), JSON.stringify(gone).slice(0, 200));
 await axe('desktop size, empty');

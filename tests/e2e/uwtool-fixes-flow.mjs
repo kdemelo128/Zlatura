@@ -5,7 +5,7 @@
  *    sentence, never a library error.
  * B. When the tab opened, the tool's early paint (its old cartoon bird guide, before its own scripts replaced it) showed
  *    for a moment. The frame now stays behind a calm skeleton until that has been replaced, then fades in (none under
- *    prefers-reduced-motion).
+ *    prefers-reduced-motion). Also with a deal open (the fill reload), and when the Quick view is left (the frame is kept).
  *
  *   node uwtool-fixes-flow.mjs        # BASE=http://localhost:8080/ by default */
 import { phone, BASE, finish } from './lib.mjs';
@@ -46,15 +46,17 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
   const fade = await page.evaluate(() => getComputedStyle(document.querySelector('#uwt-frame')).transitionDuration);
   check(`${size}: it fades in over 150 to 200 ms`, /^0\.(15|16|17|18|19|2)\d*s$/.test(fade), fade);
 
-  /* the Underwriting switch: same again on the new frame */
+  /* the Underwriting switch: the frame is kept, hidden, while the Quick view is up, so coming back is a reveal and not a
+     reload (no new load, the same frame element, never the old bird) */
+  await page.evaluate(() => { const f = document.querySelector('#uwt-frame'); window.__sameFrame = f; window.__loads = 0; document.addEventListener('uwtoolload', () => { window.__loads++; }); });
   await page.click('#uw-view-quick');
   await page.waitForSelector('#uw-card');
-  await page.evaluate(() => { window.__flash2 = { bird: 0, skel: false }; const t0 = performance.now(); const tick = () => { const f = document.querySelector('#uwt-frame'); if (f) { if (document.querySelector('.uwt-skel')) window.__flash2.skel = true; let old = false; try { const g = f.contentDocument && f.contentDocument.querySelector('.juniper-guide strong'); old = !!g && g.textContent === 'One step at a time.'; } catch { /* fine */ } if (old && Number(getComputedStyle(f).opacity) > 0.02) window.__flash2.bird++; } if (performance.now() - t0 < 5000) setTimeout(tick, 25); }; tick(); });
+  await page.evaluate(() => { window.__flash2 = { bird: 0, skel: false }; const t0 = performance.now(); const tick = () => { const f = document.querySelector('#uwt-frame'); if (f) { if (document.querySelector('.uwt-skel')) window.__flash2.skel = true; let old = false; try { const g = f.contentDocument && f.contentDocument.querySelector('.juniper-guide strong'); old = !!g && g.textContent === 'One step at a time.'; } catch { /* fine */ } if (old && f.offsetParent && Number(getComputedStyle(f).opacity) > 0.02) window.__flash2.bird++; } if (performance.now() - t0 < 5000) setTimeout(tick, 25); }; tick(); });
   await page.click('#uw-view-tool');
-  await page.waitForFunction(() => document.querySelector('#uwt-frame') && !document.querySelector('.uwt-skel'), null, { timeout: 20000 });
+  await page.waitForFunction(() => { const f = document.querySelector('#uwt-frame'); return f && f.offsetParent && !document.querySelector('.uwt-skel'); }, null, { timeout: 20000, polling: 20 });
   await page.waitForTimeout(300);
-  const f2 = await page.evaluate(() => window.__flash2);
-  check(`${size}: pressing Underwriting again also shows the skeleton and no bird flash`, f2.skel && f2.bird === 0, JSON.stringify(f2));
+  const f2 = await page.evaluate(() => ({ ...window.__flash2, same: document.querySelector('#uwt-frame') === window.__sameFrame, loads: window.__loads }));
+  check(`${size}: pressing Underwriting again keeps the same frame (no reload) and never shows the bird`, f2.same && f2.loads === 0 && !f2.skel && f2.bird === 0, JSON.stringify(f2));
   await page.screenshot({ path: `/tmp/shots/uwfull/after-flash-${size}.png` }).catch(() => {});
 
   /* ---- A: the preview */
@@ -78,6 +80,44 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
   await tile.click();
   await f.waitForSelector('#workbookPreview[open] table');
   check(`${size}: clicking it opens the full preview`, (await f.locator('#workbookPreview .workbook-audit').textContent()).includes('worksheets'));
+  await browser.close();
+}
+
+/* ---- B2: a deal is open. The tool is filled from it and reloaded once (uwfiller/bridge.js); that reload used to run with the
+   frame already on screen, so the old guide bird showed for about half a second. It is now covered like the first load. */
+{
+  const { browser, page } = await phone({ viewport: { width: 1280, height: 860 }, isMobile: false, hasTouch: false, userAgent: undefined, deviceScaleFactor: 1 });
+  page.setDefaultTimeout(20000);
+  await page.goto(`${BASE}#home`, { waitUntil: 'load' });
+  await page.waitForTimeout(800);
+  await page.evaluate(async () => {
+    const m = await import('./app/dealui.js');
+    const d = await m.createDeal({ name: 'Invented Plaza', figures: { price: 2000000, address: '1 Example St', city: 'Sample', bsf: 40000 }, sources: { price: { hand: true } },
+      loan: { ltv: 65, rate: 6.5, amort: 25, io: false, closing: 1, minDscr: null, minDy: null }, live: { hold: 7, exitCap: 7, saleCost: 2.5 }, targets: {} }, 'test fixture');
+    await m.showDeal(d.id);
+  });
+  await page.evaluate(() => {
+    window.__d = { n: 0, bird: 0, loads: 0, skelDuringReload: false };
+    document.addEventListener('uwtoolload', () => { window.__d.loads++; });
+    const t0 = performance.now();
+    const tick = () => {
+      const f = document.querySelector('#uwt-frame');
+      if (f) {
+        const s = window.__d; s.n++;
+        let old = false; try { const g = f.contentDocument && f.contentDocument.querySelector('.juniper-guide strong'); old = !!g && g.textContent === 'One step at a time.'; } catch { /* fine */ }
+        if (old && document.body.classList.contains('uw-full') && Number(getComputedStyle(f).opacity) > 0.02) s.bird++;
+        if (s.loads >= 1 && document.querySelector('.uwt-skel')) s.skelDuringReload = true;
+      }
+      if (performance.now() - t0 < 15000) setTimeout(tick, 15);
+    };
+    tick();
+    location.hash = '#underwrite';
+  });
+  await page.waitForFunction(() => { const b = document.querySelector('#uw-notcarried'); return b && !b.disabled; }, null, { timeout: 20000 });
+  await page.waitForTimeout(1500);
+  const d = await page.evaluate(() => window.__d);
+  check('a deal is open: the tool loads, is filled and reloads once (two loads)', d.loads === 2, JSON.stringify(d));
+  check('a deal is open: the old bird guide is never visible, not even during the fill reload', d.bird === 0 && d.n > 50, JSON.stringify(d));
   await browser.close();
 }
 

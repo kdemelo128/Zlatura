@@ -104,7 +104,7 @@ check('the first open kept the tool in its own bucket (not the install bucket)',
 /* ---- the quick underwrite is one click away in the same tab, and back */
 await page.click('#uw-view-quick');
 await page.waitForSelector('#uw-card');
-check('Quick underwrite (and every card it had) is still reachable in the tab', (await stackIds()) === 'uw-intake,uw-filler,uw-card,uw-list,uw-calc-card' && (await page.locator('#uwt-frame').count()) === 0, await stackIds());
+check('Quick underwrite (and every card it had) is still reachable in the tab', (await stackIds()) === 'uw-intake,uw-filler,uw-card,uw-list,uw-calc-card' && (await page.locator('#uwt-frame:visible').count()) === 0, await stackIds());   // (the tool's frame is kept, hidden, so coming back is not a reload)
 await page.click('#uw-view-tool');
 await page.waitForSelector('#uwt-frame');
 
