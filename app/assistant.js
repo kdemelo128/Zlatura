@@ -9,6 +9,7 @@
 import { parseNum, parsePct } from './kit.js';
 import { parseDateText } from './dateinput.js';
 import { understandAction } from './assistantact.js';
+import { docQuestion } from './docfacts.js';
 
 /**
  * The questions Monal answers (release 1). `example` is also what the panel suggests; `needsDeal` says
@@ -29,6 +30,7 @@ export const QUESTIONS = [
   { id: 'metric', title: 'A figure of the deal: price, NOI, cap rate, price per SF, occupancy, equity, cash-on-cash', example: 'What is the price per SF?', needsDeal: true },
   { id: 'summary', title: 'A summary of the deal', example: 'Summarize this deal', needsDeal: true },
   { id: 'notes', title: 'Show my site visit notes', example: 'What do my notes say?', needsDeal: true },
+  { id: 'doc_ask', title: 'Search the deal’s documents and quote the page (OM, leases, T-12, Word, scans read this session)', example: 'What does the OM say about the roof?', needsDeal: true },
   { id: 'glossary', title: 'Explain a term', example: 'Explain DSCR', needsDeal: false },
   { id: 'task', title: 'Add a follow-up task (asks first, with Undo)', example: 'Add a task to call the lender on Friday', needsDeal: false },
   { id: 'set_figure', title: 'Set a deal figure you state (asks first, with Undo)', example: 'Set the asking price to $4.6M', needsDeal: true },
@@ -235,6 +237,9 @@ export function understand(raw, { today = new Date() } = {}) {
     const g = termFor(text);
     return { id: 'glossary', term: g ? g.id : null, asked: text.replace(/^(explain|define|describe|what does|what is|what's|whats|what are|meaning of|what do you mean by)\s*(an?\s+|the\s+)?/, '').replace(/\s*(mean|stand for)$/, '') };
   }
+  // a question the deal's documents may answer: quoted from the page (assistantanswer.js docAnswer), never from a guess
+  const dq = docQuestion(text, raw);
+  if (dq) return { id: 'doc_ask', ...dq };
   if (has(/\b(missing|incomplete|still need|blank|not (filled|entered)|gaps?|what'?s left|haven'?t (entered|filled))\b/)) return { id: 'missing' };
   if (has(/\b(needs? (my )?(review|attention|checking)|to review|review queue|open checks?|data qc|red flags?|flagged|what'?s wrong|doesn'?t add up|problems?|issues?)\b/)) return { id: 'review' };
   if (has(/\bnotes?\b/) && has(/\b(what|show|read|list|see|say|said|do)\b/)) return { id: 'notes' };
@@ -271,8 +276,9 @@ export function understand(raw, { today = new Date() } = {}) {
 }
 
 /** Three questions worth asking on each screen (the deal screen's depend on whether a rent roll is there). */
-export function suggestions(view, { hasDeal = false, hasRentRoll = false, today = new Date() } = {}) {
+export function suggestions(view, { hasDeal = false, hasRentRoll = false, hasDocs = false, today = new Date() } = {}) {
   const next = today.getFullYear() + 1;
+  if (view === 'deal' && hasDeal && hasDocs) return ['What does the OM say about the roof?', 'What are the escalations?', hasRentRoll ? `Which leases expire in ${next}?` : 'What year was it built?'];
   if (view === 'deal') {
     return hasDeal
       ? ['What is missing from this deal?', hasRentRoll ? `Which leases expire in ${next}?` : 'What is the DSCR?', 'Where did the NOI come from?']

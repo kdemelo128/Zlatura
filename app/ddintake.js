@@ -83,7 +83,7 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
 export async function intake(file, { getFflate, getXlsx, readPdf, problem = (e) => String((e && e.message) || e) }) {
   const up = await checkUpload(file, { getFflate, bundle: true });
   const kind = kindOf(up.kind, file.name);
-  const info = { name: file.name, kind, size: file.size, sha256: /** @type {string | null} */ (null), pages: /** @type {number | null} */ (null), refuse: /** @type {string | null} */ (null), bytes: /** @type {Uint8Array | null} */ (null), verdict: identify({ name: file.name }), plainZip: !!up.plainZip, from: /** @type {string | null} */ (null) };
+  const info = { name: file.name, kind, size: file.size, sha256: /** @type {string | null} */ (null), pages: /** @type {number | null} */ (null), refuse: /** @type {string | null} */ (null), bytes: /** @type {Uint8Array | null} */ (null), verdict: identify({ name: file.name }), plainZip: !!up.plainZip, from: /** @type {string | null} */ (null), textPages: /** @type {string[] | null} */ (null) };
   // checkUpload's refusal for a PDF, photo or Word file means "the T-12 reader can't import it"; here only a size limit stops one
   const sizeOnly = ['pdf', 'image', 'docx'].includes(up.kind);
   if (up.refuse && (!sizeOnly || /^That file is \d/.test(up.refuse))) info.refuse = up.refuse;
@@ -94,6 +94,7 @@ export async function intake(file, { getFflate, getXlsx, readPdf, problem = (e) 
     if (up.kind === 'pdf' && bytes && !info.refuse) {
       const { pages, layouts } = await readPdf(bytes.slice());
       info.pages = pages.length || null;
+      info.textPages = pages;   // held in memory for Ask Monal's document search (docsession.js); never stored
       info.verdict = identify({ name: file.name, pages, layouts: layouts.length === pages.length ? layouts : null });
       // a scan keeps its bytes in memory for the broker's choice to read its first page; they are never stored
       if (info.verdict.scanned) info.bytes = bytes;

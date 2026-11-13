@@ -20,6 +20,8 @@ import { sourceLabel } from './aifacts.js';
 import { QUESTIONS, GLOSSARY } from './assistant.js';
 import { PRODUCT } from './brand.js';
 import { previewFor } from './assistantact.js';
+import { search, tokens } from './docindex.js';
+import { FIELDS, extractField, sayFigure, compareWithDeal, looksLikeInstruction, NOT_CHECKED } from './docfacts.js';
 
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 const LABEL = Object.fromEntries(DEAL_INPUTS.map((f) => [f.key, f.label]));
@@ -315,9 +317,113 @@ function helpAnswer() {
     { items: QUESTIONS.map((x) => ({ text: `${x.title}: “${x.example}”` })), suggest: QUESTIONS.map((x) => x.example) });
 }
 
+
+/* ------------------------------------------------------------ the deal's documents (assistant release 3) */
+
+const docLabel = (d) => (d.role === 'om' ? 'the OM' : `“${d.name}”`);
+const DOCS_BLANK = (ctx, text) => ({ text, go: { section: 'deal-dd' }, label: 'Open Documents' });
+/** Words of a question that name the subject rather than the field: a tenant, a suite number. */
+const subjectWords = (q) => (q.subject || []).filter((w) => w.length > 1).map((w) => w.toLowerCase().replace(/[^a-z0-9-]/g, '')).filter(Boolean);
+
+/** One passage as a quoted card: the text exactly as the document has it, where it is, and the figure beside its label if one is. */
+function passageCard(ix, hit, fieldId, subject) {
+  const d = ix.docs[hit.passage.doc];
+  const flagged = looksLikeInstruction(hit.text);
+  const x = fieldId && !flagged ? extractField(fieldId, hit.text, { subject }) : null;
+  return {
+    docId: d.id, docName: d.name, role: d.role, page: hit.passage.page, pages: d.pages.length, text: hit.text, start: hit.passage.start, end: hit.passage.end, flagged,
+    figure: x ? { text: sayFigure(x), note: NOT_CHECKED, field: x.field, value: x.value } : null,
+  };
+}
+
+/** Why there are no passages to search: nothing read this session, or no documents at all. */
+function noText(ctx) {
+  const docs = ctx.deal.docs || [];
+  if (!docs.length) return refuse(['This deal has no documents attached, so there is nothing for me to read. Add the OM, a lease or a T-12 on the Documents card and I can search it.'], { blanks: [DOCS_BLANK(ctx, 'No documents are recorded on this deal.')] });
+  return refuse([`${docs.length === 1 ? 'The document' : 'The documents'} of this deal ${docs.length === 1 ? 'was' : 'were'} read in an earlier session, and ${PRODUCT} keeps no document text or file on this device. Add ${docs.length === 1 ? 'it' : 'them'} again on the Documents card and I can search ${docs.length === 1 ? 'it' : 'them'}.`],
+    { blanks: [DOCS_BLANK(ctx, `${docs.length} document${docs.length === 1 ? '' : 's'} recorded on this deal; no text of ${docs.length === 1 ? 'it is' : 'them is'} held in this session.`)] });
+}
+
+/** What the rent roll holds for a tenant or a suite asked about: the deal's own record, shown before any document. */
+function rollLines(q, ctx) {
+  const rows = ctx.rrSum ? ctx.rrSum.rows : [];
+  const e = q.engine || {};
+  if (e.suite) {
+    const row = rows.find((x) => String(x.unit ?? '').toLowerCase() === String(e.suite).toLowerCase());
+    if (row) return [`On this deal’s rent roll, unit ${row.unit} is ${row.occupied ? row.tenant || 'occupied, with no tenant name' : 'vacant'}${row.occupied && row.end ? `; its lease ends ${row.end}` : ''}.`];
+  }
+  if (e.tenant) {
+    const words = e.tenant.toLowerCase().split(/\s+/).filter((w) => w.length > 1);
+    const hit = rows.filter((x) => x.occupied && x.tenant && words.length && words.every((w) => x.tenant.toLowerCase().includes(w)));
+    if (hit.length === 1) return [`On this deal’s rent roll, ${hit[0].tenant}${hit[0].unit ? ` (unit ${hit[0].unit})` : ''} ${hit[0].end ? `ends ${hit[0].end}` : 'has no end date'}.`];
+    if (hit.length > 1) return [`${hit.length} rent roll rows match “${e.tenant}”: ${hit.map((x) => `${x.tenant}${x.unit ? ` unit ${x.unit}` : ''}${x.end ? `, ends ${x.end}` : ''}`).join('; ')}.`];
+  }
+  return [];
+}
+
+/** "Find / what does the OM say about / the CAM charges / the escalations": the best passages, quoted, from this session's documents. */
+function docAnswer(q, ctx) {
+  const ix = ctx.docIndex || null;
+  const first = rollLines(q, ctx);
+  const query = String(q.query || '').replace(/^["'“]+|["'”]+$/g, '').trim();
+  if (!query || !tokens(query).length) return refuse(['What should I look for? For example: “What does the OM say about the roof?” or “find parking”.']);
+  if (!ix) { const r = noText(ctx); if (first.length) r.lines.unshift(...first); return r; }
+  const found = search(ix, query);
+  const subject = subjectWords(q);
+  const names = ix.docs.map((d) => d.name);
+  if (!found.hits.length && first.length) return result('answer', [...first, 'No passage in the documents I read says more about it.'], { cites: [DOCS_BLANK(ctx, 'The deal’s rent roll; the documents are listed on the Documents card.')].map((b) => ({ text: b.text, go: b.go })) });
+  if (!found.hits.length) {
+    const lines = [...first, `I searched ${ix.docs.length === 1 ? names[0] : `${ix.docs.length} documents (${names.slice(0, 4).join(', ')}${names.length > 4 ? ', …' : ''})`} for “${query}” and found nothing that answers it. I have not guessed.`];
+    if (found.missing.length) lines.push(`None of the documents uses: ${found.missing.slice(0, 5).join(', ')}.`);
+    return refuse(lines, { blanks: [DOCS_BLANK(ctx, 'The documents of this deal are listed on the Documents card.')], suggest: ['What does the OM say about parking?', 'find “roof”'] });
+  }
+  const passages = found.hits.map((h) => passageCard(ix, h, q.field, subject));
+  const figure = passages.find((p) => p.figure);
+  const r = result('answer', [...first, `${passages.length === 1 ? 'The best match' : `The ${passages.length} best matches`} in ${ix.docs.length === 1 ? names[0] : `the deal’s ${ix.docs.length} documents`}, quoted exactly:`], { passages });
+  if (q.field && !figure) r.lines.push(`None of these gives ${FIELDS[q.field].title.toLowerCase()} as a plain figure next to its label, so I show the text and take nothing from it.`);
+  if (passages.some((p) => p.flagged)) r.lines.push('A passage contains wording that reads like an instruction. It is quoted from the document as text; I did not act on it.');
+  return r;
+}
+
+/** The deal's figures a document can state, and where the engine holds the deal's own value. */
+const KEY_FIELD = { price: 'price', noi: 'noi', cap: 'cap', occ: 'occupancy' };
+
+/** After an engine answer about a deal figure: what a document says of it, beside the deal's own, when a passage states it plainly. */
+function withDocs(r, q, ctx) {
+  const ix = ctx.docIndex;
+  const key = q.id === 'metric' ? q.metric : q.id === 'source' ? q.key : null;
+  const fieldId = key && KEY_FIELD[key];
+  if (!ix || !fieldId || r.kind !== 'answer') return r;
+  const F = FIELDS[fieldId];
+  const { hits } = search(ix, F.query, { limit: 6, scope: null });
+  const seen = new Set();
+  for (const h of hits) {
+    if (seen.size >= 2 || seen.has(h.passage.doc)) continue;
+    const x = extractField(fieldId, h.text);
+    if (!x) continue;
+    seen.add(h.passage.doc);
+    const card = passageCard(ix, h, fieldId, []);
+    const d = ix.docs[h.passage.doc];
+    const dealVal = ctx.m[key];
+    const cmp = compareWithDeal(fieldId, x.value, dealVal);
+    const say = `${cap1(docLabel(d))} says, on page ${h.passage.page}: ${sayFigure(x)} (${NOT_CHECKED}).`;
+    r.lines.push(cmp === 'same' ? `${say} That matches the deal’s figure.` : cmp === 'differ' ? `${say} The deal holds ${showDeal(fieldId, dealVal)}, and that is the figure every calculation uses. The two differ; check the page.` : say);
+    r.passages = [...(r.passages || []), card];
+    r.cites.push({ text: `${docLabel(d)}, page ${h.passage.page}: the passage is quoted below.`, go: null });
+  }
+  return r;
+}
+const showDeal = (fieldId, v) => (FIELDS[fieldId].kind === 'pct' ? pct(v) : money0(v));
+
 /** Answer one understood question. @param {any} q from understand() @param {any} ctx */
 export function answer(q, ctx) {
   if (q.id === 'empty') return refuse(['Type a question, or pick one below.']);
+  if (q.id === 'unknown' && ctx.hasDeal && ctx.docIndex) {
+    // not one of the fixed questions: the deal's documents may still say something about it
+    const r = docAnswer({ query: q.text, field: null, subject: [], engine: null }, ctx);
+    if (r.kind === 'refuse') r.suggest = QUESTIONS.slice(0, 6).map((x) => x.example);
+    return r;
+  }
   if (q.id === 'unknown') {
     return refuse(['I can’t answer that yet. I only answer a fixed set of questions about your deal, and I don’t guess. Here is what I can do:'], { suggest: QUESTIONS.slice(0, 8).map((x) => x.example) });
   }
@@ -328,6 +434,7 @@ export function answer(q, ctx) {
   const f = { cap_at_price: capAtPrice, price_for_cap: priceForCap, dscr: dscrAnswer, expiries: expiriesAnswer, walt: waltAnswer, missing: missingAnswer, review: reviewAnswer,
     comps: compsAnswer, breakeven: breakevenAnswer, commission: commissionAnswer, source: sourceAnswer, metric: metricAnswer, summary: summaryAnswer, notes: notesAnswer,
     ...Object.fromEntries(['set_figure', 'set_stage', 'next_step', 'add_contact', 'add_note', 'make_scenario', 'start_export', 'open_doc'].map((id) => [id, previewFor])),
-    glossary: glossaryAnswer, task: taskAnswer, open: openAnswer, help: helpAnswer }[q.id];
-  return f(q, ctx);
+    doc_ask: docAnswer, glossary: glossaryAnswer, task: taskAnswer, open: openAnswer, help: helpAnswer }[q.id];
+  const r = f(q, ctx);
+  return q.id === 'metric' || q.id === 'source' ? withDocs(r, q, ctx) : r;
 }

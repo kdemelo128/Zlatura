@@ -2057,6 +2057,19 @@ dialog.assist .sheet-card { height: min(640px, calc(100dvh - 24px)); }
 .assist-list li > span, .assist-blank > span { flex: 1 1 14rem; min-width: 0; }
 .assist-quote { margin: 0; padding: var(--s2) var(--s3); border-left: 3px solid var(--line-strong); color: var(--muted); white-space: pre-wrap; max-height: 12rem; overflow: auto; }
 .assist-blank { color: var(--ink); }
+/* quoted passages from the deal's documents (assistant release 3) */
+.assist-passages { display: grid; gap: var(--s2); }
+.assist-passage { display: grid; gap: var(--s2); padding: var(--s3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
+.assist-where { margin: 0; font: 600 var(--t-13)/1.3 var(--ui); color: var(--muted); overflow-wrap: anywhere; }
+.assist-quoted { color: var(--ink); font-size: var(--t-13); line-height: 1.45; max-height: 11rem; }
+.assist-flag { color: var(--warn-ink, var(--ink)); font-size: var(--t-13); border-left: 3px solid var(--warn, var(--line-strong)); padding-left: var(--s2); }
+.assist-figure { font-size: var(--t-14); }
+.assist-note { color: var(--muted); }
+.assist-passage .assist-go { justify-self: start; }
+.assist-pagetext { white-space: pre-wrap; overflow-wrap: anywhere; font: 400 var(--t-13)/1.5 var(--mono, ui-monospace, monospace); padding: var(--s3); background: var(--surface-2); border-radius: var(--r-md); }
+.assist-hit { background: var(--warn-soft); color: var(--ink); padding: 1px 0; border-bottom: 2px solid var(--warn); }
+dialog.assist-page .sheet-card { height: min(640px, calc(100dvh - 24px)); }
+
 .assist-refuse { border-style: dashed; }
 .assist-chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .assist-tray { padding: var(--s2) var(--s5) 0; overflow-x: auto; border-top: 1px solid var(--line); }

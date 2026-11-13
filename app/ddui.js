@@ -278,6 +278,9 @@ export function renderDocsCard(box, h) {
         // a tax bill, utility bill or unit mix: what its small reader found is said here to be checked (never stored on the deal)
         const fx = !type ? null : await factsOf(file, { ...info, verdict: { ...info.verdict, type } }, { readPdf: h.readPdf, getXlsx: h.getXlsx, getFflate: h.getFflate });
         const fxLine = fx ? factsLine(fx.facts) : '';
+        // for Ask Monal's document search; in memory only (docsession.js)
+        if (h.remember && info.textPages) h.remember(r.doc, info.textPages);
+        else if (h.remember && h.docText && info.kind === 'docx') { try { const text = await h.docText(file); if (text && text.trim()) h.remember(r.doc, [text]); } catch { /* a Word file that cannot be read is still recorded */ } }
         const where = info.sha256 ? await h.otherDeals(info.sha256).catch(() => []) : [];
         h.touch({ label: `Documents: added ${r.doc.name}${type ? ` as ${typeLabel(type)}` : ''}` });
         say(`Added ${r.doc.name}${from}${type ? ` as ${typeLabel(type)}` : ' with no type'}.${info.ocr ? ` ${ocrNote(info.ocr)}` : ''}${fxLine ? ` ${fxLine}` : ''}${where.length ? ` It is also in ${where.slice(0, 3).join(', ')}.` : ''}${info.sha256 ? '' : file.size > LIMITS.pdf ? ' It is too large to fingerprint, so adding it again will not be spotted.' : ' This browser cannot fingerprint files here, so adding it again will not be spotted.'}`);

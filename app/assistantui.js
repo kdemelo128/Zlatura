@@ -9,11 +9,12 @@
  * goes through crm.js (the path Home and the deal's Pipeline card use); a figure, stage, note, scenario or export
  * through dealui.js assistantApply, which uses the deal screen's own functions. */
 
-import { el, openSheet, closeSheet } from './kit.js';
+import { el, openSheet, closeSheet, backdropCloses } from './kit.js';
 import { PRODUCT, installBrand } from './brand.js';
 import { understand, suggestions } from './assistant.js';
 import { answer } from './assistantanswer.js';
 import { dealForAssistant, assistantGo, assistantApply } from './dealui.js';
+import { pageText } from './docsession.js';
 import { addTask, deleteTask, updateTask, saveContact, deleteContact, listTasks, listContacts, log as crmLog } from './crm.js';
 
 let view = 'home';
@@ -41,11 +42,86 @@ function goButton(label, go, aria) {
   return b;
 }
 
+
+/** The page of a document as this session read it, with the quoted passage marked: text nodes only. */
+function openPage(p) {
+  const pg = dealPage(p);
+  const d = el('dialog', 'sheet assist-page');
+  d.setAttribute('aria-labelledby', 'assist-page-h');
+  const card = el('div', 'sheet-card');
+  const head = el('div', 'sheet-head');
+  const hd = el('div');
+  hd.appendChild(el('div', 'eyebrow', p.docName));
+  const h = el('h2', null, `Page ${p.page}${p.pages ? ` of ${p.pages}` : ''}`);
+  h.id = 'assist-page-h';
+  hd.appendChild(h);
+  hd.appendChild(el('p', 'sub', `The text of the page as read on this device; the passage ${PRODUCT} quoted is marked. The original file is not kept here.`));
+  const close = btn('btn-plain', 'Close', () => closeSheet(d));
+  close.setAttribute('aria-label', `Close page ${p.page}`);
+  head.append(hd, close);
+  const body = el('div', 'sheet-body');
+  const pre = el('div', 'assist-pagetext');
+  pre.tabIndex = 0;
+  pre.setAttribute('role', 'region');
+  pre.setAttribute('aria-label', `Text of page ${p.page}`);
+  const t = pg ? pg.text : p.text;
+  const at = pg ? t.indexOf(p.text) : 0;
+  if (at < 0) pre.textContent = t;
+  else {
+    pre.appendChild(document.createTextNode(t.slice(0, at)));
+    const mk = el('mark', 'assist-hit');
+    mk.textContent = p.text;
+    pre.appendChild(mk);
+    pre.appendChild(document.createTextNode(t.slice(at + p.text.length)));
+  }
+  body.appendChild(pre);
+  card.append(head, body);
+  d.appendChild(card);
+  backdropCloses(d);
+  d.addEventListener('close', () => d.remove());
+  document.body.appendChild(d);
+  openSheet(d);
+  const m = pre.querySelector('mark');
+  if (m) m.scrollIntoView({ block: 'center' });
+  close.focus();
+}
+const dealPage = (p) => { const snap = (() => { try { return dealForAssistant(); } catch { return null; } })(); return snap ? pageText(snap.deal.id, p.docId, p.page) : null; };
+
+/** The quoted passages of an answer: each a card with the document, the page, the text exactly as written, and the page link. */
+function passageCards(list) {
+  const wrap = el('div', 'assist-passages');
+  wrap.setAttribute('role', 'list');
+  for (const p of list) {
+    const c = el('section', 'assist-passage');
+    c.setAttribute('role', 'listitem');
+    c.setAttribute('aria-label', `Quoted from ${p.docName}, page ${p.page}`);
+    c.appendChild(el('h4', 'assist-where', `${p.docName} · page ${p.page}`));
+    const q = el('blockquote', 'assist-quote assist-quoted');
+    q.textContent = p.text;
+    q.tabIndex = 0;   // it scrolls when long: reachable from the keyboard
+    q.setAttribute('aria-label', `Quoted text, ${p.docName}, page ${p.page}`);
+    c.appendChild(q);
+    if (p.flagged) c.appendChild(el('p', 'assist-flag', `This passage reads like an instruction. It is quoted from the document as text; ${PRODUCT} did not act on it.`));
+    if (p.figure) {
+      const f = el('p', 'assist-figure');
+      f.appendChild(el('strong', null, p.figure.text));
+      f.appendChild(el('span', 'assist-note', ` (${p.figure.note})`));
+      c.appendChild(f);
+    }
+    const open = btn('btn-sm btn-gray assist-go', 'Open at this page', () => openPage(p));
+    open.setAttribute('aria-label', `Open at this page: ${p.docName}, page ${p.page}`);
+    c.appendChild(open);
+    wrap.appendChild(c);
+  }
+  return wrap;
+}
+
 /** One answer, as text nodes and buttons. */
 function draw(r) {
   const box = el('div', `assist-msg assist-answer assist-${r.kind}`);
   if (r.title) box.appendChild(el('h3', 'assist-title', r.title));
   for (const t of r.lines) box.appendChild(el('p', null, t));
+  if (r.passages && r.passages.length) box.appendChild(passageCards(r.passages));
   if (r.quote) { const q = el('blockquote', 'assist-quote'); q.textContent = r.quote; box.appendChild(q); }
   if (r.items && r.items.length) {
     const ul = el('ul', 'assist-list');
@@ -185,7 +261,7 @@ function drawChips() {
   const snap = (() => { try { return dealForAssistant(); } catch { return null; } })();
   chips.textContent = '';
   if (chips.parentElement) chips.parentElement.scrollLeft = 0;
-  for (const s of suggestions(view, { hasDeal: !!snap, hasRentRoll: !!(snap && snap.rrSum), today: new Date() })) chips.appendChild(btn('btn-sm assist-chip', s, () => ask(s)));
+  for (const s of suggestions(view, { hasDeal: !!snap, hasRentRoll: !!(snap && snap.rrSum), hasDocs: !!(snap && snap.docIndex), today: new Date() })) chips.appendChild(btn('btn-sm assist-chip', s, () => ask(s)));
 }
 
 function build() {
@@ -198,7 +274,7 @@ function build() {
   const h = el('h2', null, `Ask ${PRODUCT}`);
   h.id = 'assist-h';
   hd.appendChild(h);
-  hd.appendChild(el('p', 'sub', 'From your deal and the app’s own calculations. Nothing leaves this device.'));
+  hd.appendChild(el('p', 'sub', 'From your deal, its documents read this session, and the app’s own calculations. Nothing leaves this device.'));
   const close = btn('btn-plain', 'Close', () => closeSheet(dlg));
   close.setAttribute('aria-label', `Close Ask ${PRODUCT}`);
   head.append(hd, close);

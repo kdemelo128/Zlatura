@@ -101,10 +101,10 @@ export async function expandDocx(seen, deps) {
       const part = memberFile(name, bytes);
       let one;
       try { one = await intake(/** @type {any} */ (part), deps); } catch { continue; }
-      out.push({ file: part, info: { ...one, from, note: `Read from table ${n} of ${tables.length} in the Word document (${rows.length} rows). ${NO_PAGES}` } });
+      out.push({ file: part, info: { ...one, textPages: [rows.map((r) => r.join('   ')).join('\n')], from, note: `Read from table ${n} of ${tables.length} in the Word document (${rows.length} rows). ${NO_PAGES}` } });
     }
     const verdict = { ...identify({ name: base, pages: text ? [text] : null }), scanned: false }; // a short Word text is short, not a scan
-    if (!tables.length || verdict.type || verdict.looks) out.push({ file: s.file, info: { ...s.info, verdict, note: text ? `Text read from the Word document, outside its tables. ${NO_PAGES}` : `${base} has no text in its body (it may hold only pictures). Save it as a PDF and add that.` } });
+    if (!tables.length || verdict.type || verdict.looks) out.push({ file: s.file, info: { ...s.info, verdict, textPages: text.trim() ? [text] : null, note: text ? `Text read from the Word document, outside its tables. ${NO_PAGES}` : `${base} has no text in its body (it may hold only pictures). Save it as a PDF and add that.` } });
   }
   return out;
 }

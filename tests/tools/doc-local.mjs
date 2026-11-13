@@ -12,6 +12,12 @@
  *   --ocr                    a PDF with no text layer is read by the app's on-device OCR (app/ocrpdf.js, the same code and
  *                            limits the app runs): the engine runs in Playwright's Chromium (tests/tools/ocr-browser.mjs; it cannot
  *                            run in Node), everything else here. Slow: about a minute a page on a cloud machine. Adds a count line.
+ *   --om                     the OM diagnostic (tests/tools/om-diag.mjs): for every PDF the classifier calls an OM, or that has OM
+ *                            wording (the 'ask:*om*' families too), run the deal page's own OM reading path (readOm, omReadRecord,
+ *                            omRollRecord) and print per file label COUNTS ONLY: pages, text characters per page bucket, pages with
+ *                            no text layer, pages scored as a rent roll (numbers), rows read, with a rent, with SF, with a lease end,
+ *                            total rows dropped, rows on the deal and held back by a check, OCR needed/offered, and reason codes when
+ *                            the roll is not found or only partly read (listed in om-diag.mjs). Works with --reasons.
  *   --allow-outside-private  lets a folder elsewhere be read (the tests use it on invented files)
  *   --reasons                after the family table, WHY each refused, asked or identified file ended where it did:
  *                            a 'reason | files' table and a 'family | reason | files' table, counts only. A reason is
@@ -77,6 +83,11 @@ const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => (a
 });
 const files = walk(folder);
 const REASONS = flag('--reasons');
+// --where (with --reasons): for sheet-read failures, the app or library file and line that failed, and the message's SHAPE;
+// for an unexplained zip refusal, the message's shape. Quoted text longer than a code name and every digit are blanked,
+// so no name, figure or path from a document is printed.
+const WHERE = REASONS && flag('--where');
+const shape = (m) => String(m || '').replace(/"[^"]*"|'[^']*'|“[^”]*”|‘[^’]*’/g, (q) => (/^.[A-Za-z_$][\w$]{0,30}.$/.test(q) ? q : '"…"')).replace(/\S*[\/\\]\S*|\S+\.[A-Za-z]{2,5}\b/g, '…').replace(/\b[A-Z][\w’'-]*/g, (w) => (/^(That|The|This|It|Its|A|An|No|Not|Cannot|Can|Could|Error|TypeError|RangeError|SyntaxError|Invalid|Unexpected|End|Bad|Zip|ZIP|PDF|XML|File|Sheet|Workbook|Unsupported|Unknown|Missing|Undefined|Null|NaN|N)$/.test(w) ? w : '…')).replace(/\d+/g, 'N').replace(/[|\n\r]/g, ' ').slice(0, 90);
 
 /** An error's class name and nothing else (a message could hold document content). */
 const errClass = (e) => { const n = e && e.constructor && e.constructor.name; return typeof n === 'string' && /^[A-Za-z]{0,24}Error$/.test(n) ? n : 'Error'; };
@@ -104,6 +115,20 @@ if (flag('--ocr')) { const { openOcrBrowser } = await import('./ocr-browser.mjs'
 const readPdf = async (bytes) => (ocrBrowser
   ? readPdfOcr(pdfjs, new Uint8Array(bytes), readText, () => ({ signal: { aborted: false }, say() {}, end() {} }), { open: ocrBrowser.open, supported: () => true })
   : readText(bytes));
+
+// --om: the OM diagnostic (om-diag.mjs); a separate block, counts only
+const OM = flag('--om');
+const OM_WORDING = /offering memorandum|confidential offering|investment summary|executive summary|investment highlights|offering summary/i;
+const omRows = []; const omReasons = {};
+async function omDiag(label, v, pages, name) {
+  const isOm = v.reader === 'om' || v.looks === 'om' || (v.ask || []).includes('om') || v.type === 'om' || /(^|[^a-z])om([^a-z]|$)|offering/i.test(name) || OM_WORDING.test(pages.pages.join('\n').slice(0, 20000));
+  if (!isOm) return;
+  const { omDiagnose, omLine } = await import('./om-diag.mjs');
+  let r;
+  try { r = omDiagnose(pages.pages, pages.layouts, { asOf: new Date().toISOString().slice(0, 10), file: 'x.pdf' }); } catch (e) { omRows.push(`${label} | om read failed: ${errClass(e)}`); omReasons[`om-read-failed:${errClass(e)}`] = (omReasons[`om-read-failed:${errClass(e)}`] || 0) + 1; return; }
+  omRows.push(omLine(label, r));
+  for (const x of r.reasons.length ? r.reasons : ['none (roll read cleanly)']) omReasons[x] = (omReasons[x] || 0) + 1;
+}
 
 const same = (a, b) => (typeof a === 'number' || typeof b === 'number') ? Math.abs(Number(a) - Number(b)) <= 0.005 : String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 
@@ -149,7 +174,7 @@ async function reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridE
   const k = upRes.kind;
   if (k === 'docx') out.push('docx-later');
   else if (k === 'image') out.push('no-reader-for-type:image');
-  else if (k === 'zip') { const plain = /^That is a zip file/.test(upRes.refuse || ''); out.push(plain ? 'zip-not-workbook' : 'zip-not-opened'); if (!plain) out.push(`zip-cause:${zipCause(upRes.refuse || '')}`); }
+  else if (k === 'zip') { const plain = /^That is a zip file/.test(upRes.refuse || ''); out.push(plain ? 'zip-not-workbook' : 'zip-not-opened'); if (!plain) out.push(`zip-cause:${zipCause(upRes.refuse || '')}`); if (WHERE && !plain && zipCause(upRes.refuse || '') === 'other') out.push(`message-shape:${shape(upRes.refuse)}`); }
   else if (k === 'xls') out.push('old-xls');
   else if (k === 'doc') out.push('old-doc');
   else if (k === 'encrypted') out.push('encrypted');
@@ -158,7 +183,7 @@ async function reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridE
   else if (upRes.refuse && /^That file is \d/.test(upRes.refuse)) out.push('too-big');
   else if (intakeErr) out.push(`${k === 'pdf' ? 'pdf' : 'sheet'}-read-failed:${k === 'pdf' ? errClass(intakeErr) : readWhy(intakeErr)}`);
   else if (k === 'pdf' && !pages) out.push(`pdf-read-failed:${errClass(pdfErr)}`);
-  else if ((k === 'xlsx' || k === 'text') && !grids && gridErr) out.push(`sheet-read-failed:${readWhy(gridErr)}`);
+  else if ((k === 'xlsx' || k === 'text') && !grids && gridErr) out.push(`sheet-read-failed:${readWhy(gridErr)}`, ...(WHERE ? [`where:${gridErr.at || 'unknown'}`, `message-shape:${shape(gridErr.message)}`] : []));
   else if (v.scanned) out.push(`no-text-layer:${bucket((pages ? pages.pages.join('') : '').replace(/\s/g, '').length, CHAR_BUCKETS)}`);
   else if (outcome === 'identified') out.push(`no-reader-for-type:${v.looks}`);
   else if (v.ask.length) {
@@ -205,7 +230,7 @@ for (const f of files) {
   if (z && !z.refuse) {
     zipOpened.push(z.members.length);
     for (const m of z.members) units.push({ f: null, rel: `${path.relative(folder, f)}#${m.name}`, file: m.file, partRefuse: m.refuse });
-  } else units.push({ f, rel: path.relative(folder, f), file, zipRefuse: z ? (/empty zip/.test(z.refuse) ? 'zip-empty' : 'zip-not-opened') : null, zipCause: z && !/empty zip/.test(z.refuse) ? zipCause(z.refuse) : null });
+  } else units.push({ f, rel: path.relative(folder, f), file, zipRefuse: z ? (/empty zip/.test(z.refuse) ? 'zip-empty' : 'zip-not-opened') : null, zipCause: z && !/empty zip/.test(z.refuse) ? zipCause(z.refuse) : null, zipMsg: z ? z.refuse : '' });
 }
 // a Word file is its tables (each read as a CSV, as in the app: docxread.js) and/or its text (classified; no reader takes prose)
 for (let i = units.length - 1; i >= 0; i--) {
@@ -230,7 +255,7 @@ for (const u of units) {
   let why = [];
   try {
     const file = u.file;
-    if (u.zipRefuse || u.partRefuse) { family = u.zipRefuse ? 'zip' : 'zip-part'; outcome = 'refused'; if (REASONS) why = u.zipRefuse ? [u.zipRefuse, ...(u.zipCause ? [`zip-cause:${u.zipCause}`] : [])] : [zipPartWhy(u.partRefuse)]; throw new Done(); }
+    if (u.zipRefuse || u.partRefuse) { family = u.zipRefuse ? 'zip' : 'zip-part'; outcome = 'refused'; if (REASONS) why = u.zipRefuse ? [u.zipRefuse, ...(u.zipCause ? [`zip-cause:${u.zipCause}`] : []), ...(WHERE && u.zipCause === 'other' ? [`message-shape:${shape(u.zipMsg)}`] : [])] : [zipPartWhy(u.partRefuse)]; throw new Done(); }
     if (u.docxText) { // Word text outside any table: nothing reads prose as figures, so it is identified or asked, never read
       const v = u.docxText.verdict;
       family = 'docx-text'; outcome = v.type ? 'accepted' : v.looks ? 'identified' : v.ask.length ? 'asked' : 'refused';
@@ -248,6 +273,7 @@ for (const u of units) {
     if (!info.refuse && !readerNote) {
       if (sniffedKind === 'pdf') { try { pages = await readPdf(new Uint8Array(await file.arrayBuffer())); } catch (e) { pdfErr = e; pages = null; } } else if (['xlsx', 'text'].includes(sniffedKind)) { try { grids = await readGrids(file, getXlsx, { maxRows: 1500, getFflate }); } catch (e) { gridErr = e; grids = null; } }
     }
+    if (OM && pages && !info.refuse && !readerNote) await omDiag(label, v, pages, file.name);
     if (ocrBrowser && info.sha256 && ocrOf(info.sha256) && ocrOf(info.sha256).read.length) { const o = ocrOf(info.sha256); ocrStats.files += 1; ocrStats.pages += o.read.length; ocrStats.unsure += o.unsure; ocrStats.accepted += v.type ? 1 : 0; }
     if (info.refuse || readerNote) { outcome = 'refused'; family = sniffedKind || 'unknown'; }
     else if (v.type) { outcome = 'accepted'; family = v.reader; }
@@ -311,6 +337,12 @@ if (REASONS) {
   for (const [fm, rs] of Object.entries(reasonByFam).sort()) for (const [r, n] of Object.entries(rs).sort()) console.log(`${fm} | ${r} | ${n}`);
 }
 if (factStats.files) console.log(`facts | files read by the tax bill, utility bill and unit mix readers | figures read | questions left to ask\nfacts | ${factStats.files} | ${factStats.fields} | ${factStats.asks}`);
+if (OM) {
+  console.log('');
+  console.log(`om diagnostic: ${omRows.length} OM file(s) read by the deal page's own OM path; counts only`);
+  for (const l of omRows) console.log(l);
+  if (omRows.length) { console.log('om reason | files'); for (const [r, n] of Object.entries(omReasons).sort()) console.log(`${r} | ${n}`); }
+}
 if (flag('--verbose-files')) for (const l of perFile) console.log(l);
 if (ocrBrowser) {
   console.log(`ocr | files read by OCR | pages read | figures left blank as unsure | files then accepted`);

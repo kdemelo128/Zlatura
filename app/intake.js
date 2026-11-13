@@ -59,7 +59,7 @@ export function stage(plan, info, file, dd = null) {
   const looks = isType(v.looks) ? v.looks : null;
   const ocrRead = !!(info.ocr && info.ocr.read && info.ocr.read.length);
   const item = {
-    id: `f${++plan.seq}`, name: String(info.name ?? ''), file, kind: info.kind || 'other', size: info.size | 0, sha256: info.sha256 || null, pages: info.pages || null,
+    id: `f${++plan.seq}`, name: String(info.name ?? ''), file, kind: info.kind || 'other', size: info.size | 0, sha256: info.sha256 || null, pages: info.pages || null, textPages: /** @type {string[] | null} */ (info.textPages || null),
     type, typeBy: type ? 'reader' : null,
     confidence: type ? (ocrRead ? 'Read by OCR' : 'Read') : looks ? 'Looks like' : 'Not sure',
     reason: type ? (REASONS[v.reader] || 'A reader on this device recognised it.') : looks ? `Its text reads like a ${typeLabel(looks).toLowerCase()}. Confirm it, or choose another type.` : v.scanned ? NO_TEXT : 'Nothing in it says what it is. Choose a type, or skip it.',
