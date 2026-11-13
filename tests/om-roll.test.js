@@ -108,3 +108,23 @@ test('figures far from their labels are NOT placed when the order does not decid
   assert.ok(r.rows.every((x) => x.sf === null || x.sf === undefined || x.sf > 0));
   assert.ok(r.rows.every((x) => x.annual !== 2000 && x.annual !== 1500 && x.annual !== 1200 && x.annual !== 1800), 'an SF figure is never the rent');
 });
+
+test('a header whose "Lease Start" and "Lease End" sit a hair apart (one cell in the text) is cut into its two columns: the lease ends are read', async () => {
+  const r = await roll(F.tightHeader());
+  assert.deepEqual(r.rows.map((x) => x.end && x.end.toISOString().slice(0, 10)), ['2030-12-31', '2027-05-31', '2033-02-28', '2028-08-31']);
+  assert.deepEqual(r.rows.map((x) => x.start && x.start.toISOString().slice(0, 10)), ['2021-01-01', '2022-06-01', '2023-03-01', '2020-09-01']);
+  assert.deepEqual(r.columns.filter((c) => c.kind === 'start' || c.kind === 'end').map((c) => c.label), ['Lease Start', 'Lease End']);
+});
+
+test('a name that runs up to the SF figure (one cell in the text) is cut: the name is the name, the SF is the SF', async () => {
+  const r = await roll(F.tightRows());
+  assert.deepEqual(r.rows.map((x) => x.tenant), ['Maple Leaf Bakery and Cafe Co', 'Quillfeather Books Gift Shop', 'Copperline Yoga Studios Inc', 'Bluefin Sushi Bar and Grill']);
+  assert.deepEqual(r.rows.map((x) => x.sf), [2000, 1500, 1200, 1800]);
+  assert.deepEqual(r.rows.map((x) => x.annual), [60000, 42000, 36000, 54000]);
+});
+
+test('a whole header in one text item is not cut on its words: no columns to go by, so nothing is read, and no figure lands in a wrong column', async () => {
+  const D = await import('./om-diag-fixtures.js');
+  const { om } = await readPages(D.FIXTURES.merged());
+  assert.equal(om.rentRoll, null);
+});

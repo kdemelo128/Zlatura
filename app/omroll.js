@@ -75,7 +75,7 @@ export function pageLines(text, geom = null) {
       if (g && g.frags) { const p = spanOf(g.frags, c.start, c.end); if (p) { x0 = p[0] / cw; x1 = p[1] / cw; } }
       return { text: c.text, start: c.start, end: c.end, x0, x1 };
     });
-    return { i, text: s, cells, y: g ? g.y : null, h: g ? g.h : null, ocr: !!(g && g.ocr), conf: g && Number.isFinite(g.conf) ? g.conf : null };
+    return { i, text: s, cells, y: g ? g.y : null, h: g ? g.h : null, ocr: !!(g && g.ocr), conf: g && Number.isFinite(g.conf) ? g.conf : null, frags: g && g.frags ? g.frags : null, cw };
   });
 }
 
@@ -89,7 +89,7 @@ export function pageLines(text, geom = null) {
 export function documentLines(pages, layouts = null) {
   const cws = (layouts || []).map((g) => (g && g.cw > 0 ? g.cw : 0)).filter(Boolean).sort((a, b) => a - b);
   const cw = cws.length ? cws[Math.floor(cws.length / 2)] : 0;
-  return pages.map((p, pi) => { const g = layouts && layouts[pi]; return pageLines(p, g && cw && g.cw > 0 && Math.abs(g.cw / cw - 1) <= 0.35 ? { ...g, cw } : g); });   // a page far off (a scan, in pixels) keeps its own
+  return pages.map((p, pi) => { const g = layouts && layouts[pi]; return pageLines(p, g && cw && g.cw > 0 && Math.abs(g.cw / cw - 1) <= 0.35 ? { ...g, cw } : g).map(splitHeaderLine); });   // a page far off (a scan, in pixels) keeps its own
 }
 
 /* --------------------------------------------------------- the columns */
@@ -165,12 +165,13 @@ const TEXT_KINDS = new Set(['tenant', 'suite', 'status', 'type', 'beds', 'notes'
 
 /**
  * A roll with no tenant column (a multifamily roll: one row a unit, the resident not named): its rows are keyed by a
- * Unit or Suite column, and it must also say what the unit holds (a lease date or a status) so that a unit mix or a
+ * Unit or Suite column, and it must also give the unit's SF and say what it holds (a lease date or a status), in four
+ * known columns or more, so that a unit mix or a
  * comparables table, which have a "Unit Type" but no lease, are not taken for one. "Unit Type" alone is not a unit column.
  */
 function unitKeyed(cols, used) {
   const key = cols.find((c) => c.kind === 'suite');
-  return !!key && key.score >= 8 && ['start', 'end', 'term', 'status'].some((k) => used.has(k));
+  return !!key && key.score >= 8 && used.has('sf') && ['start', 'end', 'term', 'status'].some((k) => used.has(k)) && cols.filter((c) => c.kind !== 'other').length >= 4;
 }
 
 /** The best assignment of kinds to header cells, or null if it isn't a rent roll header. */
@@ -267,6 +268,121 @@ function accepts(kind, text) {
   return true;
 }
 
+/* ------------------------------------------------------ merged cells */
+
+// A PDF's text turned into lines puts two items a hair apart in one cell ("Quillfeather Books 1,500", "Lease Start Lease End"):
+// the gap between them was under a space. These cut such a cell apart, never guessing: at a word that is a figure, and (with the
+// PDF's positions) where a fragment starts at a different header column's edge; a header's cell by its column words.
+
+const FIG_TOKEN = /^(?:\(?-?\$\s?\d[\d,]*(?:\.\d+)?\)?|\(?\d{1,3}(?:,\d{3})+(?:\.\d+)?\)?|\d+\.\d+|\d{1,2}[/-]\d{1,2}[/-](?:\d{2}|\d{4})|\d{1,2}[/-](?:19|20)\d\d|\d+(?:\.\d+)?%|mtm|m-t-m)$/i;
+const UNIT_SUFFIX = /^(?:sf|rsf|psf|\/sf|\/mo|\/yr|\/month|\/year|sf\/yr)$/i;
+const RANGE_JOIN = /^(?:-|–|—|to|thru|through)$/i;
+
+/** The words of a cell with where each sits in the cell: [{ w, s, e }]. */
+const wordsOf = (text) => { const out = []; const re = /\S+/g; let m; while ((m = re.exec(text))) out.push({ w: m[0], s: m.index, e: m.index + m[0].length }); return out; };
+
+/** A cell of the line cut at character offsets [s, e) of the line: its text and where it sits. */
+function subCell(L, s, e) {
+  const p = L.frags ? spanOf(L.frags, s, e) : null;
+  const cw = L.cw > 0 ? L.cw : 1;
+  return { text: L.text.slice(s, e), start: s, end: e, x0: p ? p[0] / cw : s, x1: p ? p[1] / cw : e, cut: true };
+}
+
+/**
+ * A line's cells with the merged ones cut apart, or the line itself. A cell is cut at the words that are figures (money,
+ * a number with thousands, a decimal, a date, a percent), between a figure and text, and between two figures; a date range
+ * ("01/01/21 - 12/31/30") and a figure with its unit ("2,000 SF") stay whole. A bare whole number ("650") counts as a
+ * figure only next to one that is certain. With the PDF's positions, also where one fragment ends and the next starts at a
+ * different header column's left edge (a suite number run into a name).
+ */
+function unmerge(L, cols) {
+  if (!L.cells.length || L.cells.every((c) => !/\s/.test(c.text))) return L;
+  const cw = L.cw > 0 ? L.cw : 1;
+  let changed = false; const out = [];
+  for (const c of L.cells) {
+    const ws = wordsOf(c.text);
+    if (ws.length < 2 || NUM_RE.test(c.text.trim()) || (isDateText(c.text.trim()) && !/[a-z]{4}/i.test(c.text))) { out.push(c); continue; }
+    // figure words, then bare whole numbers next to one
+    const kind = ws.map((x) => (FIG_TOKEN.test(x.w) ? 'f' : UNIT_SUFFIX.test(x.w) ? 'u' : RANGE_JOIN.test(x.w) ? 'r' : /^\d{1,7}$/.test(x.w) ? 'n' : 't'));
+    for (let pass = 0; pass < ws.length; pass++) {
+      let moved = false;
+      kind.forEach((k, i) => { if (k === 'n' && (kind[i - 1] === 'f' || kind[i + 1] === 'f')) { kind[i] = 'f'; moved = true; } });
+      if (!moved) break;
+    }
+    const cut = new Set();
+    if (kind.includes('f')) {
+      for (let i = 1; i < ws.length; i++) {
+        const a = kind[i - 1]; const b = kind[i];
+        if (b === 'u' || b === 'r') continue;                                  // a unit stays with its figure; a range word with its dates
+        if (a === 'r') continue;
+        if ((a === 'f' || a === 'u') !== (b === 'f') || (a === 'f' && b === 'f') || (a === 'u' && b === 'f')) cut.add(i);
+      }
+      // a date range's two dates: not cut between them when a range word joins them
+      for (let i = 1; i < ws.length - 1; i++) if (kind[i] === 'r') { cut.delete(i); cut.delete(i + 1); }
+    }
+    // fragments of this cell: a fragment starting at another header column's left edge starts a new cell
+    if (L.frags && cols) {
+      const fr = L.frags.filter((f) => f.s >= c.start && f.e <= c.end).sort((a, b) => a.s - b.s);
+      const colOf = (f) => cols.filter((q) => q.kind !== 'other').map((q) => ({ q, g: gapOf({ x0: f.x0 / cw, x1: f.x1 / cw }, q) })).sort((a, b) => a.g - b.g)[0];
+      for (let k = 1; k < fr.length; k++) {
+        const a = colOf(fr[k - 1]); const b = colOf(fr[k]);
+        const wi = ws.findIndex((x) => c.start + x.s >= fr[k].s);
+        if (wi > 0 && a && b && a.q !== b.q && a.g <= 1.5 && b.g <= 1.5 && Math.abs(fr[k].x0 / cw - b.q.x0) <= 1.5 && kind[wi] !== 'u' && kind[wi] !== 'r') cut.add(wi);
+      }
+    }
+    // text only: a short id first in a cell that starts at the Suite column and runs into the Tenant column beside it
+    const suiteCol = cols && cols.find((q) => q.kind === 'suite'); const tenantCol = cols && cols.find((q) => q.kind === 'tenant');
+    if (suiteCol && tenantCol && suiteCol.x0 < tenantCol.x0 && c === L.cells[0] && Math.abs(c.x0 - suiteCol.x0) <= TOL && /^[A-Z]?\d{1,4}[A-Z]?$/i.test(ws[0].w) && kind[1] === 't' && !cut.has(1)) cut.add(1);
+    if (!cut.size) { out.push(c); continue; }
+    changed = true;
+    let from = 0;
+    for (const i of [...[...cut].sort((a, b) => a - b), ws.length]) { out.push(subCell(L, c.start + ws[from].s, c.start + ws[i - 1].e)); from = i; }
+  }
+  return changed ? { ...L, cells: out } : L;
+}
+
+/** The key words that keep a header's label whole ("Market Rent", "Lease End"): the kind a phrase scores best, and the score. */
+/** @param {string} t @returns {[string, number]} */
+const topKind = (t) => { const e = Object.entries(kindScores(t)).sort((a, b) => b[1] - a[1]); return e.length ? e[0] : ['', 0]; };
+const RENT_FAMILY = new Set(['annual', 'monthly', 'rent', 'psf', 'mpsf', 'market']);
+
+/** A header cell's words as the labels they run together from: "Lease Start Lease End" as two. */
+function phrasesOf(ws, text) {
+  const out = []; let i = 0;
+  while (i < ws.length) {
+    let j = i + 1;
+    let [k, v] = topKind(ws[i].w);
+    while (j < ws.length && j - i < 4) {
+      const joined = text.slice(ws[i].s, ws[j].e);
+      const [k2, v2] = topKind(joined);
+      const alone = Object.keys(kindScores(ws[j].w));
+      // a label with no kind yet takes the next word; a finished one ("Lease Start") only a word of its own kind that sharpens it ("Annual" + "Rent")
+      const grows = v === 0 ? true : alone.length ? v2 >= v && (alone.includes(k) || (RENT_FAMILY.has(k) && alone.some((a) => RENT_FAMILY.has(a)) && (k2 === k || v < 8))) : v < 8 && k2 === k && v2 >= v;
+      if (!grows) break;
+      [k, v] = [k2, v2]; j++;
+    }
+    out.push([i, j]); i = j;
+  }
+  return out;
+}
+
+/** A header line whose labels are run together in one cell (a tight header; a whole header as one text run), cut into its labels, if that makes it a header. */
+function splitHeaderLine(L) {
+  if (!L.cells.some((c) => /\s/.test(c.text)) || hasFigure(L)) return L;
+  const twoKinds = (c) => Object.values(kindScores(c.text)).filter((v) => v >= 8).length >= 2;
+  if (assignKinds(L.cells) && !L.cells.some(twoKinds)) return L;
+  const out = [];
+  for (const c of L.cells) {
+    const ws = wordsOf(c.text);
+    const ph = ws.length >= 2 ? phrasesOf(ws, c.text) : [];
+    if (ph.length < 2) { out.push(c); continue; }
+    if (ph.length > 2) return L;   // a whole header in one text item has no positions to read its columns by; two labels a hair apart do
+    for (const [a, b] of ph) out.push(subCell(L, c.start + ws[a].s, c.start + ws[b - 1].e));
+  }
+  // a label still holding two columns' words (one text item the PDF would not part: "Lease End Annual Rent") can't be placed: not a header
+  return out.length > L.cells.length && !out.some(twoKinds) && assignKinds(out) ? { ...L, cells: out } : L;
+}
+
 /* ---------------------------------------------------------- the reader */
 
 const TOTAL_WORD = /\b(?:totals?|sub-?totals?|grand total)\b/i;
@@ -301,7 +417,7 @@ function assignCells(cells, cols) {
   for (const { cell, opts } of order) {
     let pick = null;
     for (const o of opts) {
-      if (gapOf(cell, o.col) > FAR) continue;
+      if (gapOf(cell, o.col) > (cell.cut ? TOL : FAR)) continue;   // a piece cut from a merged cell, its place only roughly known, takes a column only if it sits on it
       if (!accepts(o.col.kind, cell.text)) continue;
       const prev = taken.get(o.col);
       if (prev && !TEXT_KINDS.has(o.col.kind)) continue;
@@ -899,13 +1015,14 @@ export function rentRoll(pages, { layouts = null, periods = null, onRowLines = n
     const h = headerAt(P[pi], li);
     if (!h) { li += 1; continue; }
     const t = { cols: h.cols, page: pi + 1, line: li + 1, rows: [], totals: [], segments: [], boundary: 0, lastGrand: 0, allCaps: false };
+    const PT = P.map((lines) => lines.map((L) => unmerge(L, t.cols)));   // the table's lines, merged cells cut apart by its columns
     let at = { pi, li: li + h.n, how: 'header' };
     for (;;) {
-      const seg = readBody(P, at, t);
+      const seg = readBody(PT, at, t);
       t.segments.push(seg);
       t.allCaps = t.rows.length >= 2 && t.rows.filter((r) => r.raw.tenant && upperish(r.raw.tenant)).length > t.rows.length / 2;
       if (seg.reason !== 'page-end') { pi = at.pi; li = Math.max(seg.endLi, at.li + 1); break; }
-      const nx = carryOn(P, at.pi + 1, t);
+      const nx = carryOn(PT, at.pi + 1, t);
       if (!nx) { pi = at.pi + 1; li = 0; break; }
       at = nx;
     }

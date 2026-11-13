@@ -83,3 +83,19 @@ export function wideFigures({ blankDates = false } = {}) {
 }
 /** Dates and rent, but no unit, suite or tenant: nothing to key a row by. */
 export const noKey = () => [summary(), grid({ cols: [['SF', 250, 1], ['Lease Start', 265, 0], ['Lease End', 325, 0], ['Annual Rent', 430, 1]], rows: SUITE_ROWS.map((r) => [r[2], r[3], r[4], r[5]]) })];
+
+/* ---- tight columns: items a hair apart, so the text has them in one cell ---- */
+const TIGHT = [['Suite', 40, 0], ['Tenant', 80, 0], ['SF', 250, 1], ['Lease Start', 265, 0], ['Lease End', 313, 0], ['Annual Rent', 430, 1]];
+/** The header's "Lease Start" and "Lease End" 2 points apart (one cell in the text), the rows' dates apart. */
+export const tightHeader = () => [summary(), grid({ cols: TIGHT, rows: SUITE_ROWS })];
+/** Tenant names that run right up to the SF figure: "Quillfeather Books Gift Shop 1,500" in one cell. */
+const LONG_NAMES = [['101', 'Maple Leaf Bakery and Cafe Co', '2,000', '01/01/2021', '12/31/2030', '$60,000'], ['102', 'Quillfeather Books Gift Shop', '1,500', '06/01/2022', '05/31/2027', '$42,000'],
+  ['103', 'Copperline Yoga Studios Inc', '1,200', '03/01/2023', '02/28/2033', '$36,000'], ['104', 'Bluefin Sushi Bar and Grill', '1,800', '09/01/2020', '08/31/2028', '$54,000']];
+export function tightRows() {
+  const g = grid({ cols: SUITE_COLS('Tenant'), rows: LONG_NAMES });
+  // the SF figure starts 2 points after the name ends (4.2 points a character at 7 pt)
+  return [summary(), g.map((it) => { const n = LONG_NAMES.find((r) => r[1] === it.s); return n ? it : it; }).map((it) => {
+    if (it.y < 700 && it.right && it.x === 250) { const n = LONG_NAMES.find((r) => r[2] === it.s); const end = 80 + n[1].length * 4.2 + 2; return { ...it, x: end, right: false }; }
+    return it;
+  })];
+}
