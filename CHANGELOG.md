@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.7.150: Monthly actual PDF statements: twelve printed months read through the shared T-12 engine (on the development branch; not merged or deployed)
+
+PDF operating statements can be previewed as twelve printed, consecutively dated actual months on one page. Current/future, incomplete, model, currency and unit ambiguities remain held; the existing format choice, financial QC and separate Use confirmation still apply. Annual actual columns remain available beside monthly comparisons. Positioned reading preserves label word gaps and tightly set positive currency cells while refusing currency ranges.
+
+- **Review fixes.** The table, not the whole PDF, must sit on one page: a cover or notes page around a one-page statement no longer holds it (a second page of statement rows, or a "continued" page, still does). The word-spacing change in `app/layout.js` reaches every PDF reader; it is proved to change nothing else by reading 66 invented PDFs (the browser suite's files, every rent roll spec and the monthly fixture) with old and new code and comparing the text and geometry (identical), plus a test of header cells in a larger font. `monthly-pdf-flow` is in the browser run list.
+
 ## 4.7.149: An OM's rent roll with run-together header words is read, and a counts-only OM diagnostic for the owner's own files (on the development branch; not merged or deployed)
 
 An OM whose rent roll header runs words together ("LeaseEnd", "AnnualRent") read its rows but left the lease end and annual rent columns unmatched, so those figures were blank on the deal.
