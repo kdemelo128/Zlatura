@@ -163,6 +163,8 @@ const ASSETS = [
   'app/preview.js',
   'app/pointerfx.js',
   'app/settings.js',
+  'app/connectors.js',
+  'app/connectui.js',
   'app/command.js',
   'app/assistant.js',
   'app/assistantact.js',

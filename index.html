@@ -70,6 +70,7 @@
     <button class="tab tab-review" type="button" data-view="review" hidden><svg data-icon="review" aria-hidden="true"></svg><span>Review</span><b class="badge" hidden></b></button>
     <div id="ws-rail"></div>
     <div class="nav-label" aria-hidden="true">Workspace</div>
+    <button class="tab" type="button" data-view="connect"><svg data-icon="connect" aria-hidden="true"></svg><span>Connect</span></button>
     <button class="tab" type="button" data-view="settings"><svg data-icon="settings" aria-hidden="true"></svg><span>Settings</span></button>
     <div class="sidebar-foot">
       <div class="seg theme-seg" role="radiogroup" aria-label="Appearance">
@@ -92,6 +93,7 @@
         <button class="btn btn-sm btn-gray" id="install" type="button" hidden>Install</button>
         <div id="bar-actions" class="view-actions"></div>
         <button class="cmd-trigger" type="button" data-cmd aria-label="Search deals, contacts and tools"><svg data-icon="search" width="16" height="16" aria-hidden="true"></svg><span class="cmd-label">Search</span><kbd>⌘K</kbd></button>
+        <button class="appbar-gear appbar-connect" type="button" data-view="connect" aria-label="Connect"><svg data-icon="connect" width="20" height="20" aria-hidden="true"></svg></button>
         <button class="appbar-gear" type="button" data-view="settings" aria-label="Settings"><svg data-icon="settings" width="20" height="20" aria-hidden="true"></svg></button>
       </div>
     </header>
@@ -266,6 +268,11 @@
       <!-- =============================================================== REVIEW -->
       <section class="view" id="view-review" data-title="Review" hidden>
         <div id="review-root"></div>
+      </section>
+
+      <!-- ============================================================== CONNECT -->
+      <section class="view" id="view-connect" data-title="Connect" hidden>
+        <div id="connect-root"></div>
       </section>
 
       <!-- ================================================================ TOOLS -->

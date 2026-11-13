@@ -1,5 +1,6 @@
 # Changelog
 
+<<<<<<< HEAD
 ## 4.7.154: An OM's rent roll is read when it has no tenant column, runs over many pages, or is typeset tightly (on the development branch; not merged or deployed)
 
 An OM's rent roll reader (`app/omroll.js`) refused or cut short rolls of several kinds, found by the OM diagnostic on a set of 41 real OMs (counts only). Each now reads, with every earlier guard kept: only a labelled rent fills the rent (a market rent never does), a blank is never zero, monthly or annual is never guessed (a column that does not say is flagged and asked), SF and units are not mixed, and a summary or Total row is never a unit.
@@ -10,6 +11,11 @@ An OM's rent roll reader (`app/omroll.js`) refused or cut short rolls of several
 - **Totals compared like with like.** A Total that does not match the rows above it is also compared with every row from the roll's start (a running total), and, only for a rent column that does not say its period, with the rows in the other period; the check's note says which. A stated column, or a total that matches neither, still fails and holds the roll.
 - **The diagnostic** (`tests/tools/om-diag.mjs`) now lists, for a header the reader refused, which column kinds it found, from a fixed vocabulary only (unit, suite, tenant, type, beds, baths, sf, rent, market-rent, rent-psf, lease-start, lease-end, term, status, deposit, charges, other), never the header text; `tests/tools/om-roll-corpus.mjs` writes the invented OMs for before/after runs.
 - **Tested.** `tests/om-roll.test.js` (39 tests on invented OMs typeset as PDFs and read through pdf.js; 22 fail on the old code, the rest are guards, each mutated once), `tests/om-diag.test.js`, and the browser flow `tests/e2e/om-roll-flow.mjs` (a unit roll and a six-page roll through the deal page's OM upload, with Use and Undo, at phone and desktop size). On an invented corpus of 22 OMs the rows read go from 56 to 235 (on the deal 32 to 235). Real OMs were not re-run here. Saved deal results and golden figures unchanged.
+=======
+## 4.7.154: Connect page (K1) (on the development branch; not merged or deployed)
+
+A new Connect page, in the navigation (sidebar on a desktop, the top bar on a phone) and the command palette. It lists, from one static list (`app/connectors.js`), what Monal takes in or sends out, in nine categories: assistants, CRM and contacts, deal management, property management, market and property data, public data, files and productivity, automation and API. Each row has a plain-text name, a one-line description, a neutral initials tile (no logos) and one of four states: Built in, Import file, Coming soon, Needs your approval. Built in and Import file open the real feature (the assistant, the comps importer, the OM reader, the rent roll and T-12 cards); the other two say what they wait for. A search box filters rows. The page makes no network request. Tabs: Connectors and My data (the latter filled in the next release). Tested by `tests/connectors.test.js` and `tests/e2e/connect-flow.mjs`.
+>>>>>>> origin/main
 
 ## 4.7.153: OCR on every PDF upload, tax bill, utility bill and unit mix readers, and three Model-step fixes (on the development branch; not merged or deployed)
 

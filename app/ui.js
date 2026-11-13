@@ -46,6 +46,7 @@ import { initUnderwrite } from './underwrite.js';
 import { initHome } from './home.js';
 import { initWorkspaces } from './workspaceui.js';
 import { initSettings } from './settings.js';
+import { initConnect } from './connectui.js';
 import { initCommand } from './command.js';
 import { initAssistant } from './assistantui.js';
 import { initTheme } from './theme.js';
@@ -81,7 +82,7 @@ const monthsAgo = (c) => (c.date ? (Date.now() - new Date(c.date).getTime()) / 8
 
 /* ------------------------------------------------------------- the shell */
 
-const VIEWS = ['home', 'comps', 'deal', 'underwrite', 'tools', 'review', 'settings'];
+const VIEWS = ['home', 'comps', 'deal', 'underwrite', 'tools', 'review', 'settings', 'connect'];
 let currentView = 'home';
 /* The phone's Back button walks the screens the broker has been through: each
  * screen (and each deal, as #deal/<id>) is one history entry, and Back never
@@ -1617,6 +1618,7 @@ step('Underwrite', () => initUnderwrite(compsApi));
 step('Workspaces', () => initWorkspaces(compsApi));
 step('Home', () => initHome(compsApi));
 step('Settings', () => initSettings(compsApi));
+step('Connect', () => initConnect(compsApi));
 step('Command palette', () => initCommand(compsApi));
 step('Assistant', () => initAssistant());
 step('Theme', () => initTheme());
