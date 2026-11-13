@@ -130,12 +130,21 @@
               <label class="btn btn-primary btn-lg" for="file">Choose files</label>
               <button class="btn btn-lg" id="example" type="button">Try example comps</button>
             </div>
+            <div class="comps-manual-start">
+              <span>Or start by hand</span>
+              <button class="btn" type="button" data-ui-add="sale">Add sale by hand</button>
+              <button class="btn" type="button" data-ui-add="market">Add listing by hand</button>
+            </div>
             <div class="trust"><svg data-icon="shield" width="14" height="14" aria-hidden="true"></svg>Nothing is uploaded. Works offline once loaded.</div>
             <input type="file" id="file" aria-label="Choose CoStar comp reports, spreadsheets of comps, or a project file" accept="application/pdf,.pdf,application/json,.json,.csv,.tsv,.txt,text/csv,.xlsx" multiple>
           </div>
 
           <div class="card addbar" id="addbar" hidden>
             <span class="hint" id="addbar-text"></span>
+            <div class="comps-manual-more">
+              <button class="btn btn-sm" type="button" data-ui-add="sale">Add sale by hand</button>
+              <button class="btn btn-sm" type="button" data-ui-add="market">Add listing by hand</button>
+            </div>
             <label class="btn btn-sm" for="file">
               <svg data-icon="plus" width="15" height="15" aria-hidden="true"></svg>Add reports</label>
           </div>
@@ -209,13 +218,13 @@
             <div class="card-head">
               <h2>Sale comps</h2><span class="count" id="sales-count"></span>
               <div class="tools">
-                <label class="search"><svg data-icon="search" width="15" height="15" aria-hidden="true"></svg><input type="search" id="sale-search" placeholder="Search" aria-label="Search sale comps"></label>
-                <select class="compact" id="sale-sort" aria-label="Order sale comps">
+                <label class="comps-control comps-control-search"><span class="comps-control-label">Search sale comps</span><span class="search"><svg data-icon="search" width="15" height="15" aria-hidden="true"></svg><input type="search" id="sale-search" placeholder="Search" aria-label="Search sale comps"></span></label>
+                <label class="comps-control"><span class="comps-control-label">Sort by</span><select class="compact" id="sale-sort" aria-label="Order sale comps">
                   <option value="ppsf">$/SF, high to low</option><option value="date">Newest first</option><option value="price">Price</option><option value="bsf">Size</option><option value="cap">Cap rate</option><option value="name">Name</option>
-                </select>
-                <select class="compact" id="sales-window" aria-label="Sold within">
+                </select></label>
+                <label class="comps-control"><span class="comps-control-label">Sold within</span><select class="compact" id="sales-window" aria-label="Sold within">
                   <option value="0">Any date</option><option value="12">Last 12 mo</option><option value="18">Last 18 mo</option><option value="24">Last 24 mo</option><option value="36">Last 3 yrs</option><option value="60">Last 5 yrs</option>
-                </select>
+                </select></label>
                 <button class="btn btn-sm" type="button" data-bulk="sale" aria-label="Include or set aside every sale comp">All / none</button>
                 <button class="btn btn-sm" data-add="sale" type="button">+ Add</button>
               </div>
@@ -227,10 +236,10 @@
             <div class="card-head">
               <h2>On market</h2><span class="count" id="market-count"></span>
               <div class="tools">
-                <label class="search"><svg data-icon="search" width="15" height="15" aria-hidden="true"></svg><input type="search" id="market-search" placeholder="Search" aria-label="Search listings"></label>
-                <select class="compact" id="market-sort" aria-label="Order listings">
+                <label class="comps-control comps-control-search"><span class="comps-control-label">Search listings</span><span class="search"><svg data-icon="search" width="15" height="15" aria-hidden="true"></svg><input type="search" id="market-search" placeholder="Search" aria-label="Search listings"></span></label>
+                <label class="comps-control"><span class="comps-control-label">Sort by</span><select class="compact" id="market-sort" aria-label="Order listings">
                   <option value="ppsf">$/SF, high to low</option><option value="dom">Days on market</option><option value="price">Price</option><option value="bsf">Size</option><option value="cap">Cap rate</option><option value="name">Name</option>
-                </select>
+                </select></label>
                 <button class="btn btn-sm" type="button" data-bulk="market" aria-label="Include or set aside every listing">All / none</button>
                 <button class="btn btn-sm" data-add="market" type="button">+ Add</button>
               </div>
