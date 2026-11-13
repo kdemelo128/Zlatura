@@ -197,3 +197,26 @@ test('text under the table in its own columns still ends it (a sidebar rule is n
   const r = await roll(pages);
   assert.equal(r.rows.length, 4);
 });
+
+test('figures far from their labels with no figures around them to fix their order are left unread, never put in the first column that takes a number', async () => {
+  const r = await roll(F.wideFigures({ bare: true }));
+  assert.ok(r.rows.every((x) => x.sf === null && x.annual === null), JSON.stringify(r.rows.map((x) => [x.sf, x.annual])));
+});
+
+test('a line of one figure after a gap is not a continuation of the table', async () => {
+  const r = await roll(F.gapped({ taxes: true }));
+  assert.equal(r.rows.length, 12);
+  assert.ok(!r.rows.some((x) => /taxes/i.test(x.tenant || '')));
+});
+
+test('a stated monthly rent column under a Total printed as a year is still a failed check (only an unstated period is compared both ways)', async () => {
+  const r = await roll(F.mfStatedTotal('$86,400'));
+  const t = r.issues.find((i) => i.kind === 'total' && i.field === 'monthly');
+  assert.equal(t.level, 'fail');
+});
+
+test('header labels touching ("Lease StartLease End") are cut into two columns', async () => {
+  const r = await roll(F.tightHeader({ flush: true }));
+  assert.deepEqual(r.rows.map((x) => x.end && x.end.toISOString().slice(0, 10)), ['2030-12-31', '2027-05-31', '2033-02-28', '2028-08-31']);
+  assert.equal(r.rows[0].start.toISOString().slice(0, 10), '2021-01-01');
+});

@@ -80,14 +80,17 @@ export function pageLines(text, geom = null) {
 }
 
 /**
- * Every page's lines, with x in one character width for the whole document: the median of the pages' own. A page's own
+ * Every page's lines, with x in one character width for the whole document: the median of the table pages' own. A page's own
  * width is the median of its glyphs, so it moves a little with each page's mix of words and figures (and with a font
  * size that differs from page to page), and a column at the same place on the page would drift several characters
  * between pages: past the point where a continuation page lines up with the header's columns. Positions are in points
  * underneath, so one unit for all pages puts a column where it is on the page.
  */
 export function documentLines(pages, layouts = null) {
-  const cws = (layouts || []).map((g) => (g && g.cw > 0 ? g.cw : 0)).filter(Boolean).sort((a, b) => a - b);
+  // the pages that hold a table (three or more lines of three or more cells with a figure) set the unit: a summary page in a larger type must not
+  const tabular = (t) => String(t || '').split('\n').filter((l) => /\d/.test(l) && (l.match(/\S+(?: \S+)*/g) || []).length >= 3).length >= 3;
+  const own = (layouts || []).map((g, i) => (g && g.cw > 0 && tabular(pages[i]) ? g.cw : 0)).filter(Boolean);
+  const cws = (own.length ? own : (layouts || []).map((g) => (g && g.cw > 0 ? g.cw : 0)).filter(Boolean)).sort((a, b) => a - b);
   const cw = cws.length ? cws[Math.floor(cws.length / 2)] : 0;
   return pages.map((p, pi) => { const g = layouts && layouts[pi]; return pageLines(p, g && cw && g.cw > 0 && Math.abs(g.cw / cw - 1) <= 0.35 ? { ...g, cw } : g).map(splitHeaderLine); });   // a page far off (a scan, in pixels) keeps its own
 }

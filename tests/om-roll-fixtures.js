@@ -77,8 +77,8 @@ const MORE = [['105', 'Harrow Tailors', '1,000', '02/01/2024', '01/31/2029', '$3
 export const sizeDrift = () => [summary(), grid({ cols: SUITE_COLS('Tenant'), rows: SUITE_ROWS }), grid({ cols: SUITE_COLS('Tenant'), rows: MORE, header: false, title: '', size: 6, y0: 740 })];
 const WIDE = [['Suite', 40, 0], ['Tenant', 80, 0], ['SF', 180, 0], ['Lease End', 330, 0], ['Annual Rent', 430, 0]];
 /** Headings left-aligned, figures right-aligned a long way from them: SF under 'SF' at 80 points, rent under 'Annual Rent' at 110. */
-export function wideFigures({ blankDates = false } = {}) {
-  const g = grid({ cols: WIDE, rows: SUITE_ROWS.map((r) => [r[0], r[1], r[2], blankDates ? '' : r[4], r[5]]) });
+export function wideFigures({ blankDates = false, bare = false } = {}) {
+  const g = grid({ cols: WIDE, rows: SUITE_ROWS.map((r) => (bare ? [r[0], r[1], '', '', r[5]] : [r[0], r[1], r[2], blankDates ? '' : r[4], r[5]])) });
   return [summary(), g.map((it) => (it.y < 700 && it.x === 180 ? { ...it, x: 290, right: true } : it.y < 700 && it.x === 430 ? { ...it, x: 540, right: true } : it))];
 }
 /** Dates and rent, but no unit, suite or tenant: nothing to key a row by. */
@@ -86,8 +86,8 @@ export const noKey = () => [summary(), grid({ cols: [['SF', 250, 1], ['Lease Sta
 
 /* ---- tight columns: items a hair apart, so the text has them in one cell ---- */
 const TIGHT = [['Suite', 40, 0], ['Tenant', 80, 0], ['SF', 250, 1], ['Lease Start', 265, 0], ['Lease End', 313, 0], ['Annual Rent', 430, 1]];
-/** The header's "Lease Start" and "Lease End" 2 points apart (one cell in the text), the rows' dates apart. */
-export const tightHeader = () => [summary(), grid({ cols: TIGHT, rows: SUITE_ROWS })];
+/** The header's "Lease Start" and "Lease End" 2 points apart (one cell in the text), the rows' dates apart; `flush`: touching, run together ("Lease StartLease End"). */
+export const tightHeader = ({ flush = false } = {}) => [summary(), grid({ cols: flush ? TIGHT.map((c) => (c[0] === 'Lease End' ? ['Lease End', 311.2, 0] : c)) : TIGHT, rows: SUITE_ROWS })];
 /** Tenant names that run right up to the SF figure: "Quillfeather Books Gift Shop 1,500" in one cell. */
 const LONG_NAMES = [['101', 'Maple Leaf Bakery and Cafe Co', '2,000', '01/01/2021', '12/31/2030', '$60,000'], ['102', 'Quillfeather Books Gift Shop', '1,500', '06/01/2022', '05/31/2027', '$42,000'],
   ['103', 'Copperline Yoga Studios Inc', '1,200', '03/01/2023', '02/28/2033', '$36,000'], ['104', 'Bluefin Sushi Bar and Grill', '1,800', '09/01/2020', '08/31/2028', '$54,000']];
@@ -104,8 +104,8 @@ export function tightRows() {
 const RETAIL_COLS = SUITE_COLS('Tenant');
 const RETAIL_ROWS = UNIT_ROWS.map((r, i) => [String(100 + i), 'Tenant ' + String.fromCharCode(65 + (i % 26)) + ' Shop', r[3], '01/01/2021', '12/31/2030', r[5]]);
 const num = (s) => Number(String(s).replace(/[$,]/g, ''));
-/** Groups of four rows with fifty points of white space between groups, on one page; `heading` puts "Building B" in each gap. */
-export function gapped({ heading = false, groups = 3 } = {}) {
+/** Groups of four rows with fifty points of white space between groups, on one page; `heading` puts "Building B" in each gap; `taxes` a line of one figure after the last gap. */
+export function gapped({ heading = false, groups = 3, taxes = false } = {}) {
   const it = [{ x: 40, y: 730, s: 'Rent Roll', size: 14, bold: true }];
   RETAIL_COLS.forEach((c) => it.push({ x: c[1], y: 700, s: c[0], right: !!c[2], bold: true, size: 7 }));
   let y = 684;
@@ -114,6 +114,7 @@ export function gapped({ heading = false, groups = 3 } = {}) {
     for (let k = 0; k < 4; k++) { const r = RETAIL_ROWS[g * 4 + k]; RETAIL_COLS.forEach((c, ci) => it.push({ x: c[1], y, s: r[ci], right: !!c[2], size: 7 })); y -= 14; }
     y -= 50;
   }
+  if (taxes) it.push({ x: 80, y: y + 30, s: 'Taxes', size: 7 }, { x: 430, y: y + 30, s: '$12,400', right: true, size: 7 });
   return [summary(), it];
 }
 /** Four pages of six rows, the header on each, and a Total row at the foot of each: its own page's rows, or (running) every row so far. */
@@ -146,3 +147,6 @@ export function sidebar({ heading = true, numbers = false } = {}) {
   const words = numbers ? ['Built 1998', 'Parking 4.1 per 1,000', 'Zoning C2', 'Lot 1.2 acres', 'Taxes $12,400', 'Year 3'] : ['Highlights', 'Leased 90 percent to local tenants', 'Long weighted average term', 'Strong in place rents', 'Corner location', 'Recent roof'];
   return [summary(), [...t, ...words.slice(heading ? 0 : 1).map((s, i) => ({ x: 385, y: (heading ? 700 : 686) - i * 14, s, size: 7 }))]];
 }
+
+/** The multifamily roll with the rent column stated monthly ("Monthly Rent") and a Total printed as a year. */
+export const mfStatedTotal = (rent) => [grid({ cols: MF_COLS.map((c) => (c[0] === 'Current Rent' ? ['Monthly Rent', c[1], c[2]] : c)), rows: MF_ROWS, total: ['Total', '', '', '4,920', '', rent, '', '', ''] })];
