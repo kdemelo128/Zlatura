@@ -1802,6 +1802,8 @@ dialog.sheet[open] { animation: up .26s var(--ease); }
 .ci44, input.ci44, select.ci44 { min-height: 44px; }
 input.ci44, select.ci44 { height: 44px; }
 .radio-row.ci44 { display: flex; align-items: center; gap: var(--s2); }
+/* the box itself is a 24 px target (WCAG 2.2 target size), not only its row */
+.radio-row.ci44 input[type="checkbox"] { width: 24px; height: 24px; flex: none; margin: 0; }
 
 /* ========================================================= workspaces (workspaceui.js) */
 .wsp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3) var(--s4); margin: var(--s3) 0 var(--s2); }
@@ -2230,6 +2232,9 @@ body.uw-full .uwt { flex: 1 1 auto; min-height: 0; padding: 0 env(safe-area-inse
 body.uw-full .assist-fab { display: none; }
 /* the loaded-package frame inside Quick underwrite takes taps at its own corners: the bird would sit over them on a phone */
 body:has(.uwf-frame) .assist-fab { display: none; }
+/* while another sheet or dialog is open the bird would sit over its controls on a phone (it covered the comps import's
+   checkbox): it steps aside, and comes back when the sheet closes; Ask Monal's own panel keeps it, so focus can return */
+body:has(dialog[open]:not(.assist)) .assist-fab { display: none; }
 @media (min-width: 760px) { .assist-fab { left: auto; right: 24px; bottom: 24px; } }
 @media print { .assist-fab, dialog.assist { display: none !important; } }
 @media (prefers-reduced-motion: reduce) { dialog.assist[open] { animation: none; } }
