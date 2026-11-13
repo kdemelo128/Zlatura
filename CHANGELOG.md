@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.7.158: To file inbox (K3) (on the development branch; not merged or deployed)
+
+When a document is read (an OM, a lease, a rent roll, a T-12, a Word file or a facts document), the people and companies it names (broker, owner, tenant, lender, property manager), the property address and key dates become proposed records in a new To file tab on the Connect page, each with its file and page. File makes a contact or a task; Merge adds the source to an existing contact (blank fields fill; where both have a value you choose, and the one not used is kept under other values); Dismiss sets it aside; each can be undone. A typed value is never overwritten, two different people with the same name are not matched by name alone, and a name that reads like an instruction is kept as text. A Settings switch, off by default, files clean new records automatically. Records from a confidential deal stay with that deal and out of the counts on Home and Connect. Stored format: new kv keys `inbox.items` and `inbox.prefs`; contacts gain `sources` and `otherValues` (contact records are v2, an older one is brought up to date as it is read); older backups load unchanged. Nothing leaves the device.
+
 ## 4.7.157: A new Monal: a hand-drawn vector bird replaces the voxel bird in the underwriting tool (on the development branch; not merged or deployed)
 
 - The tool's bird (the guide, Monal's nest, the wardrobe, the flight) is now a hand-drawn SVG Himalayan monal: a metallic green crest with feathered tips, a copper-to-violet neck, an iridescent blue-violet wing with the white rump patch, a rust tail and a black body. It replaces the voxel model (`monal-3d.js`, `monal-natural.js`) with `app/uwtool/monal-vector.js` and `monal-vector.css`.
