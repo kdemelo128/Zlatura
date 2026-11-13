@@ -26,6 +26,15 @@ const READER_TYPES = ['om', 'rentroll', 't12'];
 /** The first lines of a page: where a title sits. */
 const topOf = (page) => String(page).split('\n').filter((l) => l.trim()).slice(0, 8).join('\n');
 
+/** Whether the first page of a PDF that is not itself titled as a rent roll says the document is an appraisal or a broker opinion of value: 'appraisal', 'bov' or null. */
+function appraisalFirst(pages) {
+  const first = String(pages[0] || '');
+  if (ROLL_TITLE.test(topOf(first))) return null;
+  if (/broker'?s?\s+opinion\s+of\s+value|\bBOV\b/i.test(first)) return 'bov';
+  const sc = scoreText(first).find((x) => x.id === 'appraisal');
+  return sc && sc.score >= 2 ? 'appraisal' : null;
+}
+
 /**
  * Does the reader of `type` accept this PDF's own content? Only a rent roll's table or an operating statement's
  * month or year columns count: the words alone never do. { reader, why } or null. A rent roll needs three rows, a rent column
@@ -95,7 +104,13 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
     out.text = pages.slice(0, 3).join('\n');
     dk = docKind(pages, layouts);
     out.scanned = dk.kind === 'scanned';
-    if (dk.kind === 'rentroll') return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrpdf' };
+    if (dk.kind === 'rentroll') {
+      // an appraisal or a broker opinion of value that carries a titled rent roll page is that document, not a rent roll: asked, with no reader, and its roll pages offered apart
+      const heldBy = appraisalFirst(pages);
+      if (!heldBy) return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrpdf' };
+      const parts = pageParts(pages, layouts, ['rentroll']);
+      return { ...out, ask: heldBy === 'bov' ? ['om', 'appraisal'] : ['appraisal'], why: `Its first page reads as ${heldBy === 'bov' ? 'a broker opinion of value' : 'an appraisal'}, and a rent roll is only one part of it, so the whole file is not read as a rent roll. Choose what it is${parts.length ? '; the rent roll pages are offered apart from it' : ''}.`, ...(parts.length ? { parts } : {}) };
+    }
     if (dk.kind === 't12' && pdfStatementChoices(pages, { layouts }).some((c) => c.eligible)) {
       // a title that says operating statement keeps the statement route; a rent roll on another page is offered by its pages, never read in its place
       const parts = pageParts(pages, layouts, ['rentroll']);

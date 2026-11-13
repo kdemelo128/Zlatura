@@ -70,3 +70,37 @@ test('gap 4: the OCR gate and the lease reader use the same rule', async () => {
   assert.equal(needsOcr(COVER.join('\n')), false);
   assert.equal(needsOcr('Page 1 of 1'), true);
 });
+
+/* ---- 3: an appraisal or a broker opinion of value with a titled rent roll page */
+
+const APPRAISAL = () => prose(['Appraisal Report', 'Uniform Standards of Professional Appraisal Practice (USPAP)', 'Market value as of 10/01/2026', 'Highest and best use is the existing use. Sales comparison approach and income capitalization approach were developed.', ...Array.from({ length: 10 }, (_, i) => `Invented appraisal narrative sentence ${i + 1}, written only for a test.`)]);
+const BOV = () => prose(['Broker Opinion of Value', 'Prepared for the owner of the invented plaza.', ...Array.from({ length: 12 }, (_, i) => `Invented opinion narrative sentence ${i + 1}, written only for a test.`)]);
+
+test('gap 3: an appraisal with a titled rent roll on page 2 is asked as an appraisal, with no reader, and its roll page is offered apart', async () => {
+  const v = await verdictOf(pdfOf([APPRAISAL(), rollPage({ title: true })]), 'a.pdf');
+  assert.equal(v.type, null); assert.equal(v.reader, null); assert.equal(v.typeBy, null);
+  assert.deepEqual(v.ask, ['appraisal']);
+  assert.match(v.why, /appraisal/);
+  assert.deepEqual(v.parts, [{ type: 'rentroll', reader: 'rrpdf', pages: [2, 2] }]);
+  const p = await stageOf(pdfOf([APPRAISAL(), rollPage({ title: true })]), 'a.pdf');
+  const [whole, roll] = p.items;
+  assert.equal(whole.type, null); assert.equal(whole.confidence, 'Not sure'); assert.deepEqual(whole.ask, ['appraisal']);
+  assert.match(whole.reason, /appraisal/);
+  assert.equal(roll.type, 'rentroll'); assert.deepEqual(roll.span, [2, 2]);
+  assert.match(roll.reason, /Page 2 read as rent roll, apart from the rest of the file/);
+  assert.equal(I.readyItems(p, null).length, 1, 'only the roll pages are ready, and only when the broker taps Use');
+});
+
+test('gap 3: a broker opinion of value with a rent roll page is asked, and a plain rent roll is still read', async () => {
+  const v = await verdictOf(pdfOf([BOV(), rollPage({ title: true })]), 'a.pdf');
+  assert.equal(v.type, null); assert.equal(v.reader, null);
+  assert.ok(v.ask.includes('om') && v.ask.includes('appraisal'));
+  assert.equal(v.parts.length, 1);
+  const abbr = await verdictOf(pdfOf([prose(['BOV for the invented plaza', ...Array.from({ length: 12 }, (_, i) => `Invented narrative sentence ${i + 1}, written only for a test.`)]), rollPage({ title: true })]), 'c.pdf');
+  assert.equal(abbr.type, null); assert.ok(abbr.ask.includes('om'));
+  // the rent roll alone, and a rent roll whose first page names an appraisal only in passing, are as before
+  const plain = await verdictOf(pdfOf([rollPage({ title: true })]), 'a.pdf');
+  assert.equal(plain.type, 'rentroll'); assert.equal(plain.reader, 'rrpdf');
+  const titledFirst = await verdictOf(pdfOf([[...rollPage({ title: true }), ...prose(['Appraisal Report', 'USPAP'], { y: 120 })], narrative('Notes')]), 'b.pdf');
+  assert.equal(titledFirst.type, 'rentroll', 'a page that is itself a titled rent roll stays one');
+});
