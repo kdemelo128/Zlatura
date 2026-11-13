@@ -7,7 +7,8 @@
 import { el, toast, actionSheet, money0, money2, niceDate, getXlsx, getFflate, getPdfjs } from './kit.js';
 import { readGrids, pastedRows } from './sheetread.js';
 import { checkUpload, checkReader, LIMITS } from './filekind.js';
-import { pdfPagesWithOcr as pdfPages } from './ocrpdf.js'; // a scan already read by OCR gives that text
+import { pdfPagesAutoOcr, ocrNote } from './ocrpdf.js'; // a PDF with no text layer is read by OCR on this device by itself
+import { startOcrProgress } from './ocrprogress.js';
 import { pdfStatementChoices, statementFromPdfChoice } from './pdfstatement.js';
 import {
   CATEGORIES, CATEGORY, SIDES, statementTotals, annualized, openLines, fileLine, periodText, rematch, sourceText, periodShort, lineNotes,
@@ -531,7 +532,7 @@ export async function importFile(h, file) {
       if (refusal) throw new Error(refusal);
       const layouts = [];
       let pages;
-      try { pages = await pdfPages(await getPdfjs(), new Uint8Array(await file.arrayBuffer()), { layouts }); }
+      try { pages = await pdfPagesAutoOcr(await getPdfjs(), new Uint8Array(await file.arrayBuffer()), { layouts, ocr: { onOcr: (o) => toast(ocrNote(o), null, 9000) } }, startOcrProgress); }
       catch (err) { throw new Error(`The PDF could not be read: ${err.message || String(err)}`); }
       const choices = pdfStatementChoices(pages, { layouts });
       if (!choices.some((c) => c.eligible)) throw new Error(choices.find((c) => c.why)?.why || 'No eligible actual operating statement was found. Use an annual total or twelve completed dated months. A scan needs OCR; an unclear period or model output is not imported as actuals.');

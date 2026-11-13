@@ -6,11 +6,14 @@
  * row printing $220,000 where its rows add up to $215,000; page 4 a scan.
  *   1. on a phone: Data QC shows the failed Total row with its page, line and
  *      cell, and the rent roll is held back (not applied);
- *   2. page 4 is flagged with "Read this scanned page";
- *   3. Review lists the check; "Accept as read" applies the rent roll: six
- *      units from pages 2-3, each lease's source on its page;
- *   4. page 4 read by OCR (Tesseract, loaded only now, from this site): its
- *      rows wait behind a failed check, marked OCR, until accepted;
+ *   2. page 4, a scan, is read by OCR on this device when the OM is uploaded,
+ *      before the OM reader runs (ocrpdf.js): its two rows are read with the
+ *      others, flagged low confidence "read by OCR", and the occupancy and SF
+ *      checks now count them;
+ *   3. Review lists the check; "Accept as read" applies the rent roll: eight
+ *      units, six from pages 2-3 and two from page 4, each lease's source on
+ *      its page, the two OCR rows marked OCR;
+ *   4. the OCR files came from this site only, loaded only at the upload;
  *   5. axe on the panel and the Review queue; no request to another site. */
 import { createRequire } from 'module';
 import { phone, BASE, SHOTS, finish } from './lib.mjs';
@@ -32,7 +35,9 @@ const axe = async (name, scope) => {
 await page.goto(BASE + '#deal', { waitUntil: 'load' });
 await page.waitForTimeout(400);
 await page.setInputFiles('#om-file', F + 'om-rr-qc.pdf');
-await page.waitForSelector('#deal-qc', { timeout: 20000 });
+await page.waitForSelector('.ocr-progress', { timeout: 20000 });
+await page.waitForSelector('#deal-qc', { timeout: 240000 });
+await page.waitForFunction(() => !document.querySelector('.ocr-progress'), null, { timeout: 240000 });
 await page.waitForTimeout(600);
 
 // 1. the failed Total row holds the rent roll back
@@ -46,12 +51,11 @@ await fail.locator('summary').click();
 check('the fail points to page 3, its line and the Annual Rent cell', /page 3, line \d+, column Annual Rent \(“\$220,000”\)/.test(await fail.innerText()), await fail.innerText());
 check('the line as printed is shown', /Total/.test(await fail.locator('.qc-line').innerText()));
 check('the carried page passes', /Page 3 carries on the table with no header/.test(qc));
-check('occupancy checked on the stated building SF', /80\.0% occupancy matches the rent roll's leases, which fill 80\.0% of the stated 9,000 SF/.test(qc), qc);
+check('occupancy is checked on the stated building SF, now counting the two rows OCR read from page 4', /The OM states 80\.0% occupancy; the rent roll's leases fill 92\.2% of the stated 9,000 SF, with 2 vacant rows/.test(qc), qc);
 
-// 2. the scanned page
-const scan = page.locator('#deal-qc .qc-item', { hasText: 'Page 4 has no text layer' });
-check('page 4 is flagged as having no text', (await scan.count()) === 1);
-check('with “Read this scanned page”', (await scan.locator('button.qc-ocr').count()) === 1 && /Read this scanned page/.test(await scan.locator('button.qc-ocr').innerText()));
+// 2. the scanned page was read by OCR at the upload, and says so
+check('page 4 is no longer left unread: no “no text layer” flag, no button to read it', (await page.locator('#deal-qc .qc-item', { hasText: 'Page 4 has no text layer' }).count()) === 0 && (await page.locator('#deal-qc button.qc-ocr').count()) === 0, qc.slice(0, 300));
+check('the roll was read from pages 2–4, the OCR rows flagged low confidence to be checked', /Read 8 rows from pages 2–4/.test(qc) && /2 rows have low confidence: check them against the OM/.test(qc), qc.slice(0, 500));
 await page.screenshot({ path: `${SHOTS}omrr-qc.png`, fullPage: true });
 check('nothing overflows on a phone', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
 await axe('the Data QC panel', '#deal-qc');
@@ -61,8 +65,8 @@ await page.evaluate(() => { location.hash = '#review'; });
 await page.waitForSelector('#review-root .review-rrcheck', { timeout: 8000 });
 const items = await page.locator('#review-root .review-rrcheck').allInnerTexts();
 check('Review lists the rent roll checks', items.length >= 2, items.join(' / '));
-const first = page.locator('#review-root .review-rrcheck').first();
-check('the fail first, with its page, line and cell', /check failed/.test(await first.innerText()) && /page 3, line \d+, column Annual Rent/.test(await first.innerText()), await first.innerText());
+const first = page.locator('#review-root .review-rrcheck', { hasText: 'check failed' }).first();
+check('the fail, with its page, line and cell', /page 3, line \d+, column Annual Rent/.test(await first.innerText()), await first.innerText());
 await axe('the Review queue', '#review-root');
 await first.locator('button', { hasText: 'Accept as read' }).click();
 await page.waitForFunction(() => /now the deal’s/.test(document.querySelector('.toast')?.textContent || ''), null, { timeout: 5000 }).catch(() => {});
@@ -70,7 +74,7 @@ check('accepting applies the rent roll', /now the deal’s/.test(await text('.to
 await page.evaluate(() => { location.hash = '#deal'; });
 await page.waitForSelector('#deal-qc');
 await page.waitForTimeout(500);
-check('six units from pages 2–3', /6 units · read from OM pages 2–3/.test(await text('#deal-rr .card-head')), await text('#deal-rr .card-head'));
+check('eight units from pages 2–4', /8 units · read from OM pages 2–4/.test(await text('#deal-rr .card-head')), await text('#deal-rr .card-head'));
 check('the check shows it was accepted', /Accepted/.test(await text('#deal-qc .qc-fail')));
 const leases = await page.evaluate(async () => {
   const db = await new Promise((r) => { const q = indexedDB.open('zlatura'); q.onsuccess = () => r(q.result); });
@@ -78,31 +82,17 @@ const leases = await page.evaluate(async () => {
   const d = all.find((x) => x.rrQc);
   return d ? { pages: d.rr.leases.map((L) => L.source && L.source.page), held: d.rrQc.held, resolved: d.rrQc.checks.filter((c) => c.resolved).map((c) => c.id) } : null;
 }).catch((e) => String(e));
-check('each lease keeps its page', leases && JSON.stringify(leases.pages) === JSON.stringify([2, 2, 2, 3, 3, 3]), JSON.stringify(leases));
+check('each lease keeps its page', leases && JSON.stringify(leases.pages) === JSON.stringify([2, 2, 2, 3, 3, 3, 4, 4]), JSON.stringify(leases));
 
-// 4. the scanned page, read by OCR on request
-const before = requests.filter((u) => /vendor\/ocr\//.test(u)).length;
-check('the OCR files were not loaded before the tap', before === 0);
-await page.locator('#deal-qc button.qc-ocr').click();
-await page.waitForSelector('#deal-qc .qc-item[data-check="ocr:4"]', { timeout: 120000 });
-const ocr = await text('#deal-qc .qc-item[data-check="ocr:4"]');
-check('page 4 read by OCR: its rows wait behind a failed check', /Page 4 was read by OCR: 2 rows/.test(ocr) && /Fail/.test(ocr), ocr);
-await page.locator('#deal-qc .qc-item[data-check="ocr:4"] .qc-ocr-rows summary').click();
-const rowsText = await text('#deal-qc .qc-item[data-check="ocr:4"] .qc-ocr-rows');
-check('the rows OCR read are shown to compare', /107/.test(rowsText) && /1,100/.test(rowsText) && /\$33,000/.test(rowsText) && /Vacant/.test(rowsText), rowsText);
-check('the OCR files came from this site only', requests.filter((u) => /vendor\/ocr\//.test(u)).every((u) => u.startsWith(BASE)) && requests.filter((u) => /vendor\/ocr\//.test(u)).length >= 3, requests.filter((u) => /ocr/.test(u)).join(' '));
-check('still six units until accepted', /6 units/.test(await text('#deal-rr .card-head')));
-await page.locator('#deal-qc .qc-item[data-check="ocr:4"] button', { hasText: 'Accept as read' }).click();
-await page.waitForTimeout(800);
-check('accepted: eight units', /8 units/.test(await text('#deal-rr .card-head')), await text('#deal-rr .card-head'));
-await page.waitForTimeout(600);
+// 4. the OCR rows are marked, and the OCR files came from this site only
 const ocrLeases = await page.evaluate(async () => {
   const db = await new Promise((r) => { const q = indexedDB.open('zlatura'); q.onsuccess = () => r(q.result); });
   const all = await new Promise((r) => { const q = db.transaction('deals').objectStore('deals').getAll(); q.onsuccess = () => r(q.result); });
   const d = all.find((x) => x.rrQc);
   return d.rr.leases.map((L) => [L.unit, !!(L.source && L.source.ocr), L.source && L.source.page]);
 });
-check('the two from OCR are marked OCR, on page 4; the rest are not', JSON.stringify(ocrLeases.map((x) => x[1])) === JSON.stringify([false, false, false, false, false, false, true, true]) && ocrLeases[6][2] === 4 && ocrLeases[6][0] === '107', JSON.stringify(ocrLeases));
+check('the two from OCR are marked OCR, on page 4; the rest are not', JSON.stringify(ocrLeases.map((x) => x[1])) === JSON.stringify([false, false, false, false, false, false, true, true]) && ocrLeases[6][2] === 4, JSON.stringify(ocrLeases));
+check('the OCR files came from this site only', requests.filter((u) => /vendor\/ocr\//.test(u)).every((u) => u.startsWith(BASE)) && requests.filter((u) => /vendor\/ocr\//.test(u)).length >= 3, requests.filter((u) => /ocr/.test(u)).join(' '));
 await page.screenshot({ path: `${SHOTS}omrr-ocr.png`, fullPage: true });
 check('no request to another site', requests.every((u) => u.startsWith(BASE) || u.startsWith('data:') || u.startsWith('blob:')), requests.filter((u) => !u.startsWith(BASE)).join(' '));
 const bad = ['NaN', 'Infinity', 'undefined'].filter((w) => new RegExp(`\\b${w}\\b`).test(qc));

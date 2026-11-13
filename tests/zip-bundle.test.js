@@ -145,16 +145,17 @@ test('a cap on files: the parts past it are refused as one line and the rest sta
   } finally { LIMITS.zipTotal = bytesCap; }
 });
 
-test('a zip inside a zip is opened once; a zip three deep is refused, the rest stage', async () => {
-  assert.equal(ZIP_DEPTH, 1);
-  const deepest = zip({ 'deep.csv': enc(ROLL) });
-  const inner = zip({ 'inner.csv': enc(`${ROLL}\n`), 'deepest.zip': deepest });
+test('a zip inside a zip inside a zip is opened; one more level is refused, the rest stage', async () => {
+  assert.equal(ZIP_DEPTH, 2);
+  const tooDeep = zip({ 'deep.csv': enc(ROLL) });
+  const third = zip({ 'third.csv': enc(`${ROLL}\n\n\n`), 'toodeep.zip': tooDeep });
+  const inner = zip({ 'inner.csv': enc(`${ROLL}\n`), 'third.zip': third });
   const outer = zip({ 'top.csv': enc(`${ROLL}\n\n`), 'inner.zip': inner });
   const p = I.newPlan();
   const out = await I.stageFiles(p, [file(outer, 'outer.zip')], deps);
   const names = out.map((x) => `${x.name}|${x.from}|${x.refuse ? 'refused' : 'ok'}`);
-  assert.deepEqual(names, ['top.csv|outer.zip|ok', 'inner.csv|outer.zip › inner.zip|ok', 'deepest.zip|outer.zip › inner.zip|refused']);
-  assert.match(out[2].refuse, /zip inside a zip inside a zip/);
+  assert.deepEqual(names, ['top.csv|outer.zip|ok', 'inner.csv|outer.zip › inner.zip|ok', 'third.csv|outer.zip › inner.zip › third.zip|ok', 'toodeep.zip|outer.zip › inner.zip › third.zip|refused']);
+  assert.match(out[3].refuse, /zip inside a zip inside a zip inside a zip/);
 });
 
 test('an empty zip says so; a corrupt one is refused with a reason', async () => {

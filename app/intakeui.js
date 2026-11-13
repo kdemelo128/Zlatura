@@ -7,7 +7,8 @@
 import { el, toast, actionSheet } from './kit.js';
 import { PRODUCT } from './brand.js';
 import { TYPES, typeLabel } from './ddtypes.js';
-import { newPlan, useLabel, stageFiles, answer, skip, choose, controlling, usable, readyItems, questions, checklist, markUsed, readScan, CONTROLLED, KEEP } from './intake.js';
+import { newPlan, useLabel, stageFiles, answer, skip, choose, controlling, usable, readyItems, questions, checklist, markUsed, readScan, factsShown, answerFact, CONTROLLED, KEEP } from './intake.js';
+import { whereText } from './factsread.js';
 import { intakeDeps, useDocuments, discardDeal, showDeal } from './dealui.js';
 
 let plan = newPlan();
@@ -211,6 +212,32 @@ function fileRow(name, stateText, why) {
   return li;
 }
 
+/** What a tax bill, utility bill or unit mix reader found in a file: each figure with its page and line, the notes, and the questions
+ * the page leaves (a button per answer). Shown to be checked; nothing here goes on a deal. */
+function factsBlock(it, facts) {
+  const box = el('div', 'uwi-facts');
+  box.dataset.facts = it.id;
+  box.appendChild(el('p', 'hint-sm', facts.fields.length ? `Read from it${it.ocrInfo && it.ocrInfo.read && it.ocrInfo.read.length ? ' by OCR' : ''}: check each figure against the page. These are shown for review; no deal has a place for them yet, so nothing is stored.` : 'Nothing could be read from it as labelled figures.'));
+  if (facts.fields.length) {
+    const ul = el('ul', 'uwi-fact-list');
+    for (const f of facts.fields) { const li = el('li', null); li.append(el('span', 'uwi-fact-label', `${f.label}: `), el('b', null, f.text), el('span', 'hint-sm', ` · ${whereText(f.where)}`)); ul.appendChild(li); }
+    box.appendChild(ul);
+  }
+  for (const n of facts.notes) box.appendChild(el('p', 'hint-sm', n));
+  for (const a of facts.asks) {
+    const q = el('div', 'uwi-fact-ask');
+    q.dataset.ask = a.id;
+    q.appendChild(el('p', 'warn-text hint-sm', a.question));
+    if (a.options.length) {
+      const row = el('div', 'dd-formbtns');
+      for (const o of a.options) { const b = btn('btn-sm', o.label, () => { if (answerFact(plan, it.id, a.id, o.value)) { fill(); say(`Answered: ${o.label}.`); } }); b.dataset.answer = o.value; row.appendChild(b); }
+      q.appendChild(row);
+    }
+    box.appendChild(q);
+  }
+  return box;
+}
+
 function itemRow(it) {
   const li = el('li', `dd-row uwi-item uwi-${it.state}`);
   li.dataset.id = it.id;
@@ -222,6 +249,8 @@ function itemRow(it) {
   if (it.state === 'used') line.appendChild(el('span', 'dd-chip dd-reviewed', 'Used'));
   else if (it.state === 'skipped') line.appendChild(el('span', 'dd-chip', 'Skipped'));
   li.appendChild(line);
+  const facts = factsShown(it);
+  if (facts) li.appendChild(factsBlock(it, facts));
   if (it.state !== 'staged') return li;
   const acts = el('div', 'dd-formbtns uwi-itemacts');
   if (!it.type) {

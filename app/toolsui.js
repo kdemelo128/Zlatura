@@ -319,7 +319,10 @@ function open(t, seed = null) {
   if (t.docs) { import('./pdfpagesui.js').then((m) => m.openPdfPages(api)); return; }
   const mem = (memory[t.id] ||= {});
   // figures the caller holds (the underwriting tool's Model step): they replace what was remembered, field by field, only where it has one
-  if (seed) for (const [k, v] of Object.entries(seed)) if (ok(v) && t.inputs.some((i) => i[0] === k)) mem[k] = v;
+  // they are shown for this opening only: the calculator's remembered figures are not overwritten until the broker edits that field
+  const seeded = new Set();
+  const shown = { ...mem };
+  if (seed) for (const [k, v] of Object.entries(seed)) if (ok(v) && t.inputs.some((i) => i[0] === k)) { shown[k] = v; seeded.add(k); }
   const d = dealForTools();
   const ctx = { deal: d, sales: api.sales };
   const clear = el('button', 'btn btn-gray', 'Clear');
@@ -366,10 +369,13 @@ function open(t, seed = null) {
   form.style.padding = '0';
   const inputs = {};
   for (const spec of t.inputs) {
-    const [f, i] = inputField(t, spec, mem, () => update());
+    const [f, i] = inputField(t, spec, shown, () => update());
     inputs[spec[0]] = [i, spec[2], spec[1]];
     form.appendChild(f);
   }
+  // an edit to a seeded field makes it the broker's own, and remembered from then on
+  const own = (e) => { for (const [id, [i]] of Object.entries(inputs)) if (seeded.has(id) && (i === e.target || (i.contains && i.contains(e.target)))) seeded.delete(id); };
+  form.addEventListener('input', own, true); form.addEventListener('change', own, true);
   body.appendChild(form);
   const warn = el('div', 'tool-warn');
   warn.setAttribute('role', 'status');
@@ -401,7 +407,7 @@ function open(t, seed = null) {
   let current = {};
   const update = () => {
     current = values();
-    Object.assign(mem, current);
+    for (const [k, v] of Object.entries(current)) if (!seeded.has(k)) mem[k] = v;
     remember();
     try {
       out = normal(t.run(current, ctx));

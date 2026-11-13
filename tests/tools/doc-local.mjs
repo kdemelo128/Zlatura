@@ -51,6 +51,7 @@ import { readPdfOcr, ocrOf } from '../../app/ocrpdf.js';
 import { readGrids } from '../../app/sheetread.js';
 import { sheetChoices, pickSheet, layoutOf, numberFormatOf, importStatement, statementTotals } from '../../app/t12.js';
 import { readOm } from '../../app/om.js';
+import { readFacts, FACT_TYPES } from '../../app/factsread.js';
 import { readLease, pageModel, docType } from '../../app/leaseread.js';
 
 // pdf.js says "cannot polyfill DOMMatrix" in Node (no canvas); that is not this tool's output
@@ -86,6 +87,7 @@ const REASONS = flag('--reasons');
 // for an unexplained zip refusal, the message's shape. Quoted text longer than a code name and every digit are blanked,
 // so no name, figure or path from a document is printed.
 const WHERE = REASONS && flag('--where');
+const sizeBucket = (n) => (n <= 25e6 ? 'up-to-25MB' : n <= 100e6 ? '25-100MB' : n <= 250e6 ? '100-250MB' : n <= 500e6 ? '250-500MB' : 'over-500MB');
 const shape = (m) => String(m || '').replace(/"[^"]*"|'[^']*'|“[^”]*”|‘[^’]*’/g, (q) => (/^.[A-Za-z_$][\w$]{0,30}.$/.test(q) ? q : '"…"')).replace(/\S*[\/\\]\S*|\S+\.[A-Za-z]{2,5}\b/g, '…').replace(/\b[A-Z][\w’'-]*/g, (w) => (/^(That|The|This|It|Its|A|An|No|Not|Cannot|Can|Could|Error|TypeError|RangeError|SyntaxError|Invalid|Unexpected|End|Bad|Zip|ZIP|PDF|XML|File|Sheet|Workbook|Unsupported|Unknown|Missing|Undefined|Null|NaN|N)$/.test(w) ? w : '…')).replace(/\d+/g, 'N').replace(/[|\n\r]/g, ' ').slice(0, 90);
 
 /** An error's class name and nothing else (a message could hold document content). */
@@ -173,14 +175,14 @@ async function reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridE
   const k = upRes.kind;
   if (k === 'docx') out.push('docx-later');
   else if (k === 'image') out.push('no-reader-for-type:image');
-  else if (k === 'zip') { const plain = /^That is a zip file/.test(upRes.refuse || ''); out.push(plain ? 'zip-not-workbook' : 'zip-not-opened'); if (!plain) out.push(`zip-cause:${zipCause(upRes.refuse || '')}`); if (WHERE && !plain && zipCause(upRes.refuse || '') === 'other') out.push(`message-shape:${shape(upRes.refuse)}`); }
+  else if (k === 'zip') { const plain = /^That is a zip file/.test(upRes.refuse || ''); out.push(plain ? 'zip-not-workbook' : 'zip-not-opened'); if (!plain) out.push(`zip-cause:${zipCause(upRes.refuse || '')}`); if (WHERE && !plain && zipCause(upRes.refuse || '') === 'other') out.push(`message-shape:${shape(upRes.refuse)}`, `zip-size:${sizeBucket(file.size)}`); }
   else if (k === 'xls') out.push('old-xls');
   else if (k === 'doc') out.push('old-doc');
   else if (k === 'encrypted') out.push('encrypted');
   else if (k === 'ole') out.push('ole-unknown');
   else if (k === 'unknown') out.push('binary-unknown');
   else if (upRes.refuse && /^That file is \d/.test(upRes.refuse)) out.push('too-big');
-  else if (intakeErr) out.push(`${k === 'pdf' ? 'pdf' : 'sheet'}-read-failed:${k === 'pdf' ? errClass(intakeErr) : readWhy(intakeErr)}`);
+  else if (intakeErr) out.push(`${k === 'pdf' ? 'pdf' : 'sheet'}-read-failed:${k === 'pdf' ? errClass(intakeErr) : readWhy(intakeErr)}`, ...(WHERE ? [`where:${intakeErr.at || 'unknown'}`, `message-shape:${shape(intakeErr.message)}`] : []));
   else if (k === 'pdf' && !pages) out.push(`pdf-read-failed:${errClass(pdfErr)}`);
   else if ((k === 'xlsx' || k === 'text') && !grids && gridErr) out.push(`sheet-read-failed:${readWhy(gridErr)}`, ...(WHERE ? [`where:${gridErr.at || 'unknown'}`, `message-shape:${shape(gridErr.message)}`] : []));
   else if (v.scanned) out.push(`no-text-layer:${bucket((pages ? pages.pages.join('') : '').replace(/\s/g, '').length, CHAR_BUCKETS)}`);
@@ -211,6 +213,7 @@ const reasonCount = {}; const reasonByFam = {};
 const fam = {}; // family -> counts
 const bump = (f, k, n = 1) => { (fam[f] ||= { files: 0, accepted: 0, asked: 0, refused: 0, identified: 0, right: 0, wrong: 0, askedFields: 0, missed: 0, answered: 0 })[k] += n; };
 const labels = {};
+const factStats = { files: 0, fields: 0, asks: 0 };
 const ocrStats = { files: 0, pages: 0, unsure: 0, accepted: 0 };
 const perFile = [];
 
@@ -249,7 +252,7 @@ for (const u of units) {
   n += 1;
   const label = `file-${String(n).padStart(2, '0')}`;
   labels[label] = u.rel;
-  let family = 'unreadable'; let outcome = 'refused'; let gotAsked = null;
+  let family = 'unreadable'; let outcome = 'refused'; let gotAsked = null; let factsRead = false;
   let why = [];
   try {
     const file = u.file;
@@ -279,9 +282,13 @@ for (const u of units) {
       // a PDF no reader typed may still be a lease: the lease reader's own type test says so
       let lease = false;
       if (pages && !v.scanned) { try { const t = docType(pageModel(pages.pages), file.name).type; lease = t === 'lease' || t === 'amendment'; } catch { lease = false; } }
-      if (lease) { outcome = 'accepted'; family = 'lease'; } else if (v.scanned) { outcome = 'refused'; family = 'scan'; } else { outcome = 'asked'; family = v.ask.length ? `ask:${[...v.ask].sort().join('+')}` : 'unclassified'; if (!v.ask.length) outcome = 'refused'; }
+      // a tax bill, utility bill or unit mix the classifier named: the small readers (app/factsread.js) read what is labelled and ask the rest
+      let facts = null;
+      if (!lease && !v.scanned && v.looks && FACT_TYPES.includes(v.looks)) { const src = pages ? { pages: pages.pages } : grids ? { grids } : null; if (src) { try { facts = readFacts(v.looks, src); } catch { facts = null; } } }
+      if (facts && (facts.fields.length || facts.asks.length)) { outcome = facts.fields.length ? 'accepted' : 'asked'; family = v.looks; factStats.files += 1; factStats.fields += facts.fields.length; factStats.asks += facts.asks.length; factsRead = true; }
+      else if (lease) { outcome = 'accepted'; family = 'lease'; } else if (v.scanned) { outcome = 'refused'; family = 'scan'; } else { outcome = 'asked'; family = v.ask.length ? `ask:${[...v.ask].sort().join('+')}` : 'unclassified'; if (!v.ask.length) outcome = 'refused'; }
     }
-    if (REASONS && outcome === 'asked' && v.looks) outcome = 'identified'; // typed confidently, but the app has no reader for that type
+    if (REASONS && outcome === 'asked' && v.looks && !factsRead) outcome = 'identified'; // typed confidently, but the app has no reader for that type
     if (REASONS && outcome !== 'accepted') why = await reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridErr, pdfErr, outcome });
     if (outcome === 'accepted') { try { gotAsked = await extract(file, { ...info, verdict: { ...v, reader: family === 'lease' ? 'lease' : v.reader } }, grids, pages); } catch { gotAsked = { got: {}, asked: new Set(), failed: true }; } }
   } catch (e) { if (!(e instanceof Done)) { family = 'unreadable'; outcome = 'refused'; if (REASONS) why = [`read-exception:${errClass(e)}`]; } }
@@ -330,6 +337,7 @@ if (REASONS) {
   console.log('family | reason | files');
   for (const [fm, rs] of Object.entries(reasonByFam).sort()) for (const [r, n] of Object.entries(rs).sort()) console.log(`${fm} | ${r} | ${n}`);
 }
+if (factStats.files) console.log(`facts | files read by the tax bill, utility bill and unit mix readers | figures read | questions left to ask\nfacts | ${factStats.files} | ${factStats.fields} | ${factStats.asks}`);
 if (OM) {
   console.log('');
   console.log(`om diagnostic: ${omRows.length} OM file(s) read by the deal page's own OM path; counts only`);

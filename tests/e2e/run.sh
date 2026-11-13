@@ -55,6 +55,7 @@ python3 make_pdfs.py files >/dev/null
 node dump-docqa.mjs files
 python3 make_docqa.py files >/dev/null
 python3 make_scans.py files >/dev/null
+python3 make_ocr_deal.py files >/dev/null
 node ../tools/leasepdfs.mjs files >/dev/null
 python3 make_lease_scans.py files >/dev/null
 python3 make_tpl.py files/acme-template.xlsx >/dev/null
@@ -64,6 +65,8 @@ node ../tools/docxfiles.mjs files >/dev/null
 node ../tools/macrofiles.mjs files >/dev/null
 node ../tools/zipfiles.mjs files >/dev/null
 node ../tools/sheetfiles.mjs files >/dev/null
+node ../tools/factsfiles.mjs files >/dev/null
+python3 make_facts_scans.py files >/dev/null
 python3 - <<'PY'
 import zipfile
 with zipfile.ZipFile('files/uw-model.xlsx') as z, zipfile.ZipFile('files/uw-model.xlsm', 'w', zipfile.ZIP_DEFLATED) as o:
@@ -82,7 +85,7 @@ trap 'kill $SERVER 2>/dev/null || true; rm -rf "$LOCK"' EXIT
 sleep 1
 # another server already on the port would be tested in its place, from wherever it serves
 if ! kill -0 "$SERVER" 2>/dev/null; then echo "Port $PORT is in use: stop whatever holds it and run again." >&2; exit 2; fi
-FLOWS=${*:-"workflows rentroll-flow encoding-flow bigroll-flow template-flow tools-flow ai-flow research-flow back-flow home-flow shell-flow rename-flow engine-flow history-flow snapshot-flow impact-flow migrate-flow t12-flow t12partial-flow t12read-flow t12sug-flow t12period-flow t12values-flow t12norm-flow strict-flow rollchecks-flow upgrade-flow limits-flow backup-flow a11y-flow live-flow voice-flow final-e2e deal-persistence lostedit-flow deal-isolation comps-reload errors-flow reader-caps-flow pwa-flow tpl-flow comps-flow deal-export omrr-flow photoocr-flow rrscale-flow rrpdf-flow rrstated-flow rrheader-flow omstmt-flow typing-flow mobile-audit hostile-flow fee-flow credit-flow calendar-flow rent-schedule-flow perf-flow documents-flow convert-flow confidential-flow underwrite-flow ui-d1-flow edgecases-flow dd-flow ui-d2-flow look-filler-flow look-home-flow home-tool-flow abstract-flow comps-render-flow comps-import-flow loaderror-flow sink-flow workspace-flow leaseread-flow uw-intake-flow uw-evidence-flow uw-embed-flow uwtool-flow uwbridge-flow uwtool-fixes-flow uwtool-perf-flow uwtool-polish-flow uwclarity-flow ui-fixes-flow settings-groups-flow manual-entry-flow pdf-statement-flow pmroll-flow deal-navigation-flow home-fold-flow deal-groups-flow assistant-flow assistant-docs-flow uw-space-r3-flow ocrscan-flow docx-flow xlsm-flow zipparts-flow sheetrepair-flow om-joined-flow monthly-pdf-flow"}
+FLOWS=${*:-"workflows rentroll-flow encoding-flow bigroll-flow template-flow tools-flow ai-flow research-flow back-flow home-flow shell-flow rename-flow engine-flow history-flow snapshot-flow impact-flow migrate-flow t12-flow t12partial-flow t12read-flow t12sug-flow t12period-flow t12values-flow t12norm-flow strict-flow rollchecks-flow upgrade-flow limits-flow backup-flow a11y-flow live-flow voice-flow final-e2e deal-persistence lostedit-flow deal-isolation comps-reload errors-flow reader-caps-flow pwa-flow tpl-flow comps-flow deal-export omrr-flow photoocr-flow rrscale-flow rrpdf-flow rrstated-flow rrheader-flow omstmt-flow typing-flow mobile-audit hostile-flow fee-flow credit-flow calendar-flow rent-schedule-flow perf-flow documents-flow convert-flow confidential-flow underwrite-flow ui-d1-flow edgecases-flow dd-flow ui-d2-flow look-filler-flow look-home-flow deals-list-flow home-tool-flow abstract-flow comps-render-flow comps-import-flow loaderror-flow sink-flow workspace-flow leaseread-flow uw-intake-flow uw-evidence-flow uw-embed-flow uwtool-flow uwbridge-flow uwtool-fixes-flow uwtool-perf-flow uwtool-polish-flow uwclarity-flow ui-fixes-flow settings-groups-flow manual-entry-flow pdf-statement-flow pmroll-flow deal-navigation-flow home-fold-flow deal-groups-flow assistant-flow assistant-docs-flow uw-space-r3-flow ocrscan-flow docx-flow xlsm-flow zipparts-flow sheetrepair-flow om-joined-flow monthly-pdf-flow ocrdeal-flow facts-flow"}
 # every flow runs even when one fails; any flow that exits with an error
 # (a failed check, no checks, or a crash) is listed and the run fails
 FAILED=()
