@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.7.162: Clearer PDF-page and file-conversion sheets (on the development branch; not merged or deployed)
+
+The New look groups the existing Documents controls into file entry, page arrangement or format choice, and saving. File names wrap, controls keep their large targets, and quiet cards show which actions belong together. Classic and every existing operation remain available. Reduced motion and the app's motion switch are respected.
+
+No reader, conversion, worker, financial or saved-data logic changes. Implementation is not fully tested: static source-boundary and syntax checks precede browser/type/golden/full checks. No merge or deployment; real files, Safari, a physical phone and Excel have not been tested here.
+
+## 4.7.161: Find calculators and document tools in the New look (on the development branch; not merged or deployed)
+
+The Tools catalog adds labeled search, categories, unique result counts and Clear filters. Workspace shortcuts remain first, every existing tool remains reachable, and quiet cards use the existing four tones and reduced-motion-aware interactive states. The catalog follows look changes without needing a reload; Classic retains its current presentation.
+
+Only list/card presentation changes. Existing tool definitions, input readers, financial calculations, tool actions, scenarios and exports remain byte-for-byte unchanged. No new storage, dependency, reader or remote connection.
+
+Implemented, not fully tested: syntax, diff and source-boundary checks pass. The new browser flow is written but has not run; type/golden checks, old-code comparison and the full release gate remain pending. No Safari or physical-phone testing. Not merged or deployed.
+
 ## 4.7.160: Start from documents reads more files instead of asking, and offers the parts of one file separately (on the development branch; not merged or deployed)
 
 A file whose text names one type that has a reader is now read and shown as a preview when that reader accepts the content, and a workbook or an OM that holds more than one kind of document is staged once per kind, with where it came from. Nothing changes a deal before Use, and a type is never set from words alone.
