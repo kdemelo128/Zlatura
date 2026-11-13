@@ -82,6 +82,7 @@ function run(){
   for(const f of r.flags){els.flag.append(make('p',null,f.label+': the app works out '+f.engine+'; this tool has '+f.tool+'. A deal keeps the app’s figure.'));}
   els.flag.hidden=!r.flags.length;
   els.save.disabled=!r.canSave;
+  els.res.dataset.runs=String(Number(els.res.dataset.runs||0)+1); // tests wait on this rather than on a fixed pause
 }
 
 function start(){

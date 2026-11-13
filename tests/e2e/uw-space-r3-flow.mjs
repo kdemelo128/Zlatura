@@ -41,7 +41,10 @@ const val = (f, id) => f.inputValue(`#qc_${id}`);
 async function setTool(f, fin) {
   await f.evaluate((x) => { const m = UWEditor.model(); Object.assign(m.finance, x); UWEditor.commit(); window.dispatchEvent(new Event('uw-model-change')); }, fin);
 }
-async function type(f, id, v) { await f.fill(`#qc_${id}`, v); await wait(150); }
+// the panel re-runs 60 ms after an edit; wait for that run to land (a counter it bumps) instead of a fixed pause, which raced under load
+const runs = (f) => f.evaluate(() => Number(document.querySelector('#qcResults')?.dataset.runs || 0));
+async function settle(f, before) { await f.waitForFunction((b) => Number(document.querySelector('#qcResults')?.dataset.runs || 0) > b, before, { timeout: 5000 }).catch(() => {}); }
+async function type(f, id, v) { const b = await runs(f); await f.fill(`#qc_${id}`, v); await settle(f, b); }
 
 async function run(label, opts) {
   const { browser, ctx, page, errors } = await phone(opts);
@@ -99,7 +102,9 @@ async function run(label, opts) {
   await f.click('#qcRefill');
   check(L('"Use this tool\'s figures" puts 65 back and clears the flag'), (await val(f, 'ltv')) === '65' && await f.isHidden('#qcFlag'));
   await type(f, 'saleCost', '-1');
-  check(L('a refused entry (negative sale costs) says so and the engine\'s default is used'), /can’t be used here/.test(await f.textContent('#qc_err_saleCost')));
+  // wait for the panel's own message rather than a fixed pause: under load the re-render can take longer than 150 ms
+  const refused = await f.waitForFunction(() => /can’t be used here/.test(document.querySelector('#qc_err_saleCost')?.textContent || ''), null, { timeout: 5000 }).then(() => true, () => false);
+  check(L('a refused entry (negative sale costs) says so and the engine\'s default is used'), refused);
   await f.click('#qcRefill');
 
   /* ---- size, reduced motion, axe */
@@ -108,7 +113,7 @@ async function run(label, opts) {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await f.fill('#qc_price', '4,100,000'); await wait(200);
   check(L('reduced motion: the panel runs no animation or transition'), await f.evaluate(() => document.getAnimations().filter((a) => document.querySelector('#quickCheck').contains(a.effect?.target)).length === 0));
-  await f.fill('#qc_price', '4,000,000'); await wait(150);
+  { const b = await runs(f); await f.fill('#qc_price', '4,000,000'); await settle(f, b); }
   await f.evaluate(AXE_SRC);
   await f.evaluate(() => { document.querySelector('#qcCalcs').open = true; });
   const ax = await f.evaluate(async () => (await axe.run(document.querySelector('#quickCheck'), { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }, resultTypes: ['violations'] })).violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`));
