@@ -143,8 +143,7 @@ for (const [size, opts] of SIZES) {
       await axe(page, `${label} Classic`);
       check(`${label}: no request left the app`, external.length === 0, external.join(' '));
       check(`${label}: no console errors`, errors.length === 0, errors.slice(0, 3).join(' | '));
-    } catch (e) { check(`${label}: ran to the end`, false, String(e).slice(0, 400)); }
-    await browser.close();
+    } catch (e) { check(`${label}: ran to the end`, false, String(e).slice(0, 400)); } finally { await browser.close(); }
   }
 }
 for (const r of R) console.log(r.join(" | "));
