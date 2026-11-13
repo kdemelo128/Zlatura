@@ -393,7 +393,9 @@ function row(c, kind) {
   tog.checked = !c.exclude;
   tog.setAttribute('aria-label', `Include ${c.name} in the workbook`);
   tog.addEventListener('change', () => { setField(c, 'exclude', !tog.checked); onEdit(); });
-  tdTog.appendChild(tog);
+  const includeLabel = el('label', 'comp-include');
+  includeLabel.appendChild(tog);
+  tdTog.appendChild(includeLabel);
   tr.appendChild(tdTog);
 
   const tdName = el('td', 'name-cell');
@@ -500,10 +502,12 @@ function renderTable(kind) {
   const shown = comps.filter((c) => matches(c, q));
   const table = $(kind === 'sale' ? 'sales-table' : 'market-table');
   table.textContent = '';
+  table.appendChild(el('caption', 'comps-table-caption', kind === 'sale' ? 'Sale comps: editable property figures and workbook inclusion' : 'Listings: editable property figures and workbook inclusion'));
   const thead = el('thead');
   const htr = el('tr');
   for (const [t, cls] of kind === 'sale' ? SALE_HEAD : MKT_HEAD) {
     const th = el('th', cls, t);
+    th.scope = 'col';
     if (!t) th.setAttribute('aria-label', 'controls');
     htr.appendChild(th);
   }
@@ -1461,6 +1465,8 @@ for (const kind of ['sale', 'market']) {
   });
 }
 document.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', () => addManual(b.dataset.add)));
+// New look shortcuts reuse the existing manual-entry action without changing the original selectors.
+document.querySelectorAll('[data-ui-add]').forEach((b) => b.addEventListener('click', () => addManual(b.dataset.uiAdd)));
 document.querySelectorAll('[data-bulk]').forEach((b) => b.addEventListener('click', () => bulkToggle(b.dataset.bulk)));
 $('sales-window').addEventListener('change', () => {
   state.windowMonths = Number($('sales-window').value) || 0;
