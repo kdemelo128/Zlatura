@@ -220,3 +220,27 @@ test('header labels touching ("Lease StartLease End") are cut into two columns',
   assert.deepEqual(r.rows.map((x) => x.end && x.end.toISOString().slice(0, 10)), ['2030-12-31', '2027-05-31', '2033-02-28', '2028-08-31']);
   assert.equal(r.rows[0].start.toISOString().slice(0, 10), '2021-01-01');
 });
+
+test('a unit roll that gives no SF, and a bare listing of units, SF and status, are not read as rent rolls', async () => {
+  assert.equal(await roll(F.unitNoSf()), null);
+  assert.equal(await roll(F.unitSfStatus()), null);
+});
+
+test('continuation pages in a smaller type with blank cells in their rows (no order to place a drifted figure by) still line up', async () => {
+  const r = await roll(F.sizeDrift({ blankEnds: true, size: 5 }));
+  assert.equal(r.rows.length, 7);
+  assert.deepEqual(r.rows.slice(4).map((x) => [x.sf, x.annual]), [[1000, 32000], [1500, 45000], [900, 27000]]);
+});
+
+test('"Lease End" and "Annual Rent" touching: the rent column is the annual one, read as stated', async () => {
+  const r = await roll(F.flushRent());
+  assert.deepEqual(r.columns.filter((c) => c.kind === 'annual' || c.kind === 'rent').map((c) => [c.kind, c.label, c.basis]), [['annual', 'Annual Rent', 'stated']]);
+  assert.deepEqual(r.rows.map((x) => x.annual), [60000, 42000, 36000, 54000]);
+});
+
+test('a column the broker chose the period of (basis stated) under a Total printed as a year is still a failed check', async () => {
+  const { text, layouts } = await readPages(F.mfTotal('$86,400'));
+  const { rentRoll } = await import('../app/omroll.js');
+  const r = rentRoll(text, { layouts, periods: { rent: 'monthly' } });
+  assert.equal(r.issues.find((i) => i.kind === 'total' && i.field === 'monthly').level, 'fail');
+});

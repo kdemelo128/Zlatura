@@ -300,7 +300,7 @@ const wordsOf = (text) => {
 function subCell(L, s, e) {
   const p = L.frags ? spanOf(L.frags, s, e) : null;
   const cw = L.cw > 0 ? L.cw : 1;
-  return { text: L.text.slice(s, e), start: s, end: e, x0: p ? p[0] / cw : s, x1: p ? p[1] / cw : e, cut: true };
+  return { text: L.text.slice(s, e), start: s, end: e, x0: p ? p[0] / cw : s, x1: p ? p[1] / cw : e };
 }
 
 /** A currency sign printed in a cell of its own to the left of a figure (accounting style): the figure's, "$ 60,000" is "$60,000". */
@@ -396,6 +396,7 @@ function phrasesOf(ws, text) {
 /** A header line whose labels are run together in one cell (a tight header; a whole header as one text run), cut into its labels, if that makes it a header. */
 function splitHeaderLine(L) {
   if (!L.cells.some((c) => /\s|[a-z][A-Z]/.test(c.text)) || hasFigure(L)) return L;
+  // a header that already matches is left alone, unless a cell of it holds two columns' labels ("Lease Start Lease End"): that one is cut
   const twoKinds = (c) => Object.values(kindScores(c.text)).filter((v) => v >= 8).length >= 2;
   if (assignKinds(L.cells) && !L.cells.some(twoKinds)) return L;
   const out = [];
@@ -403,11 +404,11 @@ function splitHeaderLine(L) {
     const ws = wordsOf(c.text);
     const ph = ws.length >= 2 ? phrasesOf(ws, c.text) : [];
     if (ph.length < 2) { out.push(c); continue; }
-    if (ph.length > 2) return L;   // a whole header in one text item has no positions to read its columns by; two labels a hair apart do
+    // a whole header in one text item (three labels or more with spaces between) has no positions to read its columns by; two labels a hair apart do, and so do labels touching
+    if (ph.length > 2 && ph.slice(1).some(([a]) => /\s/.test(c.text[ws[a].s - 1] || ''))) return L;
     for (const [a, b] of ph) out.push(subCell(L, c.start + ws[a].s, c.start + ws[b - 1].e));
   }
-  // a label still holding two columns' words (one text item the PDF would not part: "Lease End Annual Rent") can't be placed: not a header
-  return out.length > L.cells.length && !out.some(twoKinds) && assignKinds(out) ? { ...L, cells: out } : L;
+  return out.length > L.cells.length && assignKinds(out) ? { ...L, cells: out } : L;
 }
 
 /* ---------------------------------------------------------- the reader */
@@ -444,7 +445,7 @@ function assignCells(cells, cols) {
   for (const { cell, opts } of order) {
     let pick = null;
     for (const o of opts) {
-      if (gapOf(cell, o.col) > (cell.cut ? TOL : FAR)) continue;   // a piece cut from a merged cell, its place only roughly known, takes a column only if it sits on it
+      if (gapOf(cell, o.col) > FAR) continue;
       if (!accepts(o.col.kind, cell.text)) continue;
       const prev = taken.get(o.col);
       if (prev && !TEXT_KINDS.has(o.col.kind)) continue;

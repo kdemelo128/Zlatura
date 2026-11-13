@@ -74,7 +74,8 @@ export const compsTable = () => [summary(), prose(), grid({ title: 'Rent Compara
 
 /* ---- a roll whose later pages are a different size, and a label over figures aligned far from it ---- */
 const MORE = [['105', 'Harrow Tailors', '1,000', '02/01/2024', '01/31/2029', '$32,000'], ['106', 'Dune Pharmacy', '1,500', '09/01/2020', '08/31/2028', '$45,000'], ['107', 'Elm Street Cafe', '900', '09/01/2020', '08/31/2028', '$27,000']];
-export const sizeDrift = () => [summary(), grid({ cols: SUITE_COLS('Tenant'), rows: SUITE_ROWS }), grid({ cols: SUITE_COLS('Tenant'), rows: MORE, header: false, title: '', size: 6, y0: 740 })];
+export const sizeDrift = ({ blankEnds = false, size = 6 } = {}) => [summary(), grid({ cols: SUITE_COLS('Tenant'), rows: SUITE_ROWS }),
+  grid({ cols: SUITE_COLS('Tenant'), rows: blankEnds ? MORE.map((r) => [r[0], r[1], r[2], r[3], '', r[5]]) : MORE, header: false, title: '', size, y0: 740 })];
 const WIDE = [['Suite', 40, 0], ['Tenant', 80, 0], ['SF', 180, 0], ['Lease End', 330, 0], ['Annual Rent', 430, 0]];
 /** Headings left-aligned, figures right-aligned a long way from them: SF under 'SF' at 80 points, rent under 'Annual Rent' at 110. */
 export function wideFigures({ blankDates = false, bare = false } = {}) {
@@ -88,6 +89,8 @@ export const noKey = () => [summary(), grid({ cols: [['SF', 250, 1], ['Lease Sta
 const TIGHT = [['Suite', 40, 0], ['Tenant', 80, 0], ['SF', 250, 1], ['Lease Start', 265, 0], ['Lease End', 313, 0], ['Annual Rent', 430, 1]];
 /** The header's "Lease Start" and "Lease End" 2 points apart (one cell in the text), the rows' dates apart; `flush`: touching, run together ("Lease StartLease End"). */
 export const tightHeader = ({ flush = false } = {}) => [summary(), grid({ cols: flush ? TIGHT.map((c) => (c[0] === 'Lease End' ? ['Lease End', 311.2, 0] : c)) : TIGHT, rows: SUITE_ROWS })];
+/** "Lease End" and a left-aligned "Annual Rent" touching ("Lease EndAnnual Rent"), the rents a little to the right of it. */
+export const flushRent = () => [summary(), grid({ cols: [['Suite', 40, 0], ['Tenant', 80, 0], ['SF', 250, 1], ['Lease Start', 265, 0], ['Lease End', 311.2, 0], ['Annual Rent', 349, 0]], rows: SUITE_ROWS }).map((it) => (it.y < 700 && it.x === 349 ? { ...it, x: 360 } : it))];
 /** Tenant names that run right up to the SF figure: "Quillfeather Books Gift Shop 1,500" in one cell. */
 const LONG_NAMES = [['101', 'Maple Leaf Bakery and Cafe Co', '2,000', '01/01/2021', '12/31/2030', '$60,000'], ['102', 'Quillfeather Books Gift Shop', '1,500', '06/01/2022', '05/31/2027', '$42,000'],
   ['103', 'Copperline Yoga Studios Inc', '1,200', '03/01/2023', '02/28/2033', '$36,000'], ['104', 'Bluefin Sushi Bar and Grill', '1,800', '09/01/2020', '08/31/2028', '$54,000']];
@@ -150,3 +153,8 @@ export function sidebar({ heading = true, numbers = false } = {}) {
 
 /** The multifamily roll with the rent column stated monthly ("Monthly Rent") and a Total printed as a year. */
 export const mfStatedTotal = (rent) => [grid({ cols: MF_COLS.map((c) => (c[0] === 'Current Rent' ? ['Monthly Rent', c[1], c[2]] : c)), rows: MF_ROWS, total: ['Total', '', '', '4,920', '', rent, '', '', ''] })];
+
+/** A unit roll that gives no SF: a unit, lease dates, a status and a rent. */
+export const unitNoSf = () => [summary(), prose(), grid({ cols: [['Unit', 40, 0], ['Lease Start', 120, 0], ['Lease End', 200, 0], ['Status', 280, 0], ['Monthly Rent', 380, 1]], rows: MF_ROWS.map((r) => [r[0], r[6], r[7], r[8], r[5]]) })];
+/** Only a unit, its SF and its status: a listing of units, not a rent roll. */
+export const unitSfStatus = () => [summary(), prose(), grid({ cols: [['Unit', 40, 0], ['SF', 150, 1], ['Status', 200, 0]], rows: MF_ROWS.map((r) => [r[0], r[3], r[8]]) })];
