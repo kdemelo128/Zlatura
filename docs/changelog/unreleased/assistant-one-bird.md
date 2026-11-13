@@ -1,3 +1,0 @@
-# One bird: the Underwrite tool's Monal opens Ask Monal
-
-Clicking Monal (or the nest) inside the Underwrite tool now opens Ask Monal over the tool, with the tool's current step (Files, Read & review, Model or Export) and the nest's tips as suggested questions. This step's tips come first; "More tips from the nest" adds the rest, so all 16 tips stay reachable, and each answer keeps its "Take me there" button, which runs the route in the tool. The tool's coins, shop and wardrobe work as before. The step and tips cross the existing same-origin frame bridge as plain text, cleaned and capped in the app; the tool opened on its own page keeps its own tip card. No figures, no saved data and no network request change.
