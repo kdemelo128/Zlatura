@@ -9,8 +9,8 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.167 (development branch; GitHub Pages deploys from main).
-- **Current branch:** `codex/deals-new-look`: UI-only saved-deal search, stage filters, sorting and paging, phone cards and top-level New deal/Choose OM. Tested with synthetic fixtures only: 94 Chromium browser checks, 4 focused tests, 3 mutations, quick/type checks and 646 unchanged displayed figures. Full gate is running; this branch is not merged or deployed. Claude owns all readers, intake, OCR, assistant and the underwriting tool. Next UI item: Comps, then Tools and Documents as separate PRs.
+- **Version:** 4.7.168 (development branch; GitHub Pages deploys from main).
+- **Current branch:** `codex/comps-new-look` (draft PR #160): Comps-only New look controls and phone layout. Synced main 4.7.167, preserving Claude’s tool, assistant and command-palette changes. Tested with synthetic fixtures only: 266 Chromium checks on main 4.7.165 plus this UI; quick/type pass, 646 displayed figures unchanged, three rendered UI guard mutations detected. Full regression on that snapshot is still running and has failures under investigation; final synchronized checks pending. Deals #159, Tools 4.7.161 and Documents 4.7.162 are already incorporated. The coordination README remains the sole ownership table. Nothing from this PR is merged or deployed.
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
   - both Part 2 proposals (#21, #22);
