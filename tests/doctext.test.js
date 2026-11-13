@@ -27,7 +27,7 @@ function backend({ full = false } = {}) {
   return {
     rows, calls, full,
     async putDocText(r) { if (this.full) return { ok: false, reason: 'quota' }; rows.set(`${r.dealId}|${r.sha256}`, structuredClone(r)); return { ok: true }; },
-    async docTextOf(id) { calls.docTextOf += 1; return [...rows.values()].filter((r) => r.dealId === id).map((r) => structuredClone(r)); },
+    async docTextOf(id) { calls.docTextOf += 1; return [...rows.entries()].filter(([k]) => k.startsWith(`${id}|`)).map(([, r]) => r).map((r) => structuredClone(r)); },
     async docTextStats(size) { const o = { docs: 0, bytes: 0, deals: {} }; for (const r of rows.values()) { const d = (o.deals[r.dealId] ||= { docs: 0, bytes: 0 }); d.docs++; d.bytes += size(r); o.docs++; o.bytes += size(r); } return o; },
     async forgetDocText(id, sha = null) { for (const k of [...rows.keys()]) if (k.startsWith(`${id}|`) && (!sha || k.endsWith(sha))) rows.delete(k); return true; },
     async forgetAllDocText() { rows.clear(); return true; },
@@ -80,6 +80,10 @@ test('hostile or damaged records are refused, not trusted', async () => {
   const bomb = new Uint8Array(zlib.gzipSync(JSON.stringify(['a'.repeat(9e6)])));
   assert.ok(bomb.length < 20000);
   assert.equal(await T.unpackDoc({ ...good, z: 'gzip', pages: bomb }), null);
+  // reading stops at the cap: a 60 MB expansion is abandoned part-way, not built in memory
+  const huge = new Uint8Array(zlib.gzipSync(Buffer.alloc(60e6, 97)));
+  assert.equal(await T.gunzip(huge, 8e6), null);
+  assert.equal((await T.gunzip(new Uint8Array(zlib.gzipSync('["small"]')), 8e6)), '["small"]');
   // odd fields are cut or dropped, never rendered as markup (the app shows text only)
   const odd = await T.unpackDoc({ ...good, z: 'none', pages: '["ok"]', name: 'n'.repeat(900), docId: { x: 1 }, type: 7 });
   assert.equal(odd.name.length, 200);

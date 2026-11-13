@@ -23,7 +23,7 @@ async function gzip(text) {
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 /** The text of gzipped bytes, read in pieces and stopped past `cap` characters (null then). */
-async function gunzip(bytes, cap) {
+export async function gunzip(bytes, cap) {
   const reader = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip')).getReader();
   const dec = new TextDecoder();
   let out = ''; let n = 0;
