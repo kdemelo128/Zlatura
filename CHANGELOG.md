@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.7.159: Start from documents reads more files instead of asking, and offers the parts of one file separately (on the development branch; not merged or deployed)
+
+A file whose text names one type that has a reader is now read and shown as a preview when that reader accepts the content, and a workbook or an OM that holds more than one kind of document is staged once per kind, each with where it came from. Nothing changes a deal before Use, and a type is never set from words alone.
+
+- **One candidate, or a title late in the file:** a PDF or Word text the classifier reads as one type with a reader (or names a reader type but is not titled in its first pages) is read when the reader finds its table: a rent roll of three or more rows with a rent column and a suite or area column, or an operating statement the T-12 PDF import would offer. Otherwise it is asked as before. A statement title on the document keeps the statement route: its rent roll pages are never sent to the rent roll reader in its place.
+- **Workbooks with a rent roll sheet and a statement sheet:** two staged uses of the one file, each naming its sheet. A hidden sheet is used only when no visible sheet reads as that kind, and the item says so. A sheet both readers accept goes to the higher score (recognised rent roll headings against month columns); a tie keeps both uses; the other use is offered as a "What is this?" question.
+- **An OM that also holds rent roll or statement pages:** the OM, and apart from it the pages a specific reader accepts, with the page range. A broker opinion of value or an appraisal is still asked. Loan and tax pages have no reader, so a file whose other pages are only those is still asked.
+- **Tested:** `tests/routing.test.js` (19 tests, 8 guards each mutated once), `tests/e2e/routing-flow.mjs` at phone and desktop size (a workbook with a hidden rent roll sheet, an OM with a rent roll page, an untitled rent roll; Use each, Undo). Saved results and the golden outputs did not change.
+
 ## 4.7.158: An OM's rent roll is read when it has no tenant column, runs over many pages, or is typeset tightly (on the development branch; not merged or deployed)
 
 An OM's rent roll reader (`app/omroll.js`) refused or cut short rolls of several kinds, found by the OM diagnostic on a set of 41 real OMs (counts only). Each now reads, with every earlier guard kept: only a labelled rent fills the rent (a market rent never does), a blank is never zero, monthly or annual is never guessed (a column that does not say is flagged and asked), SF and units are not mixed, and a summary or Total row is never a unit.
