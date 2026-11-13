@@ -5,13 +5,14 @@
 import { el, toast, niceDate } from './kit.js';
 import { listContacts } from './crm.js';
 import * as store from './store.js';
-import { loadItems, fileItem, mergeItem, dismissItem, undoItem, autoOn, setAuto } from './inboxstore.js';
-import { matchContacts, matchScope, mergePreview, visible, publicCount, dealScope } from './inbox.js';
-import { updateDeal, currentDealId } from './dealui.js';
+import { loadItems, fileItem, mergeItem, mergeDealItem, dismissItem, undoItem, undoBatch, fileBatch, autoOn, setAuto } from './inboxstore.js';
+import { matchContacts, matchScope, mergePreview, visible, publicCount, dealScope, matchDeals, dealPreview, inScope, batchKind } from './inbox.js';
+import { updateDeal, currentDealId, createDeal, discardDeal } from './dealui.js';
+import { STAGE_LABEL } from './pipeline.js';
 
 const FIELD_LABEL = { name: 'Name', company: 'Company', role: 'Role', email: 'Email', phone: 'Phone' };
-const KIND_LABEL = { contact: 'Contact', task: 'Task', property: 'Property' };
-const deps = () => ({ updateDeal });
+const KIND_LABEL = { contact: 'Contact', task: 'Task', property: 'Property', deal: 'Deal' };
+const deps = () => ({ updateDeal, createDeal, discardDeal });
 
 /** How many items wait, as Home and the Connect tab show it (never an item of a confidential deal). */
 export async function waitingCount() { const [items, deals] = await Promise.all([loadItems(), store.listDeals()]); return publicCount(items, dealScope(deals)); }
@@ -28,11 +29,13 @@ export async function autoSwitch(id = 'inbox-auto') {
   return label;
 }
 
-const dealName = (deals, id) => { const d = deals.find((x) => x.id === id); return d ? (d.name || (d.figures && d.figures.address) || 'Untitled deal') : 'a deal that is no longer here'; };
+const dealName = (deals, id) => {
+  if (id === null) return 'not tied to a deal'; const d = deals.find((x) => x.id === id); return d ? (d.name || (d.figures && d.figures.address) || 'Untitled deal') : 'a deal that is no longer here'; };
 
 function summary(it) {
   const d = it.data;
   if (d.kind === 'contact') return [d.name, [d.role, d.company && d.company !== d.name ? d.company : ''].filter(Boolean).join(' · '), [d.email, d.phone].filter(Boolean).join(' · ')].filter(Boolean);
+  if (d.kind === 'deal') return [d.name, [d.address, d.crmStage && `Stage in the file: ${d.crmStage}`, d.close && `Closing ${niceDate(`${d.close}T12:00:00`)}`].filter(Boolean).join(' · '), d.amount ? `Amount in the file: ${d.amount} (kept in the notes, not the price)` : ''].filter(Boolean);
   if (d.kind === 'task') return [`${d.title}: ${niceDate(`${d.due}T12:00:00`)}`, 'A task on this deal, due that day'];
   return [d.address, 'The property’s address'];
 }
@@ -52,12 +55,22 @@ function card(it, ctx) {
   const [main, ...rest] = summary(it);
   const t = el('div', 'inbox-text');
   t.append(chips(it), el('span', 'inbox-main', main), ...rest.map((x) => el('span', 'conn-desc', x)));
-  t.appendChild(el('span', 'conn-desc inbox-src', `From ${it.source.file}${it.source.page ? `, page ${it.source.page}` : ''} · ${dealName(ctx.deals, it.dealId)}`));
+  t.appendChild(el('span', 'conn-desc inbox-src', `${it.source.kind === 'import' ? 'Imported from' : 'From'} ${it.source.file}${it.source.page ? `, page ${it.source.page}` : it.source.line ? `, row ${it.source.line}` : ''} · ${dealName(ctx.deals, it.dealId)}`));
   const acts = el('div', 'inbox-acts');
   const matches = it.data.kind === 'contact' ? matchContacts(it.data, ctx.contacts, matchScope(ctx.contacts, ctx.deals, it.dealId)) : [];
   if (matches.length) {
     const m = matches.map((x) => { const c = ctx.contacts.find((y) => y.id === x.id); return `${c ? c.name : 'a contact'} (${x.why})`; });
     t.appendChild(el('span', 'conn-desc inbox-match', `${matches[0].level === 'possible' ? 'Possible match' : 'Matches'}: ${m.join('; ')}`));
+  }
+  const dealMatches = it.data.kind === 'deal' ? matchDeals(it.data, ctx.deals) : [];
+  if (dealMatches.length) {
+    const m = dealMatches.map((x) => { const dl = ctx.deals.find((y) => y.id === x.id); return `${dl.name || (dl.figures && dl.figures.address) || 'Untitled deal'} (${x.why})`; });
+    t.appendChild(el('span', 'conn-desc inbox-match', `Matches: ${m.join('; ')}`));
+    const dl = ctx.deals.find((y) => y.id === dealMatches[0].id);
+    const pv = dealPreview(it, dl);
+    const adds = [pv.addExt && 'the file’s id', pv.addDate && `a closing date (${pv.addDate})`].filter(Boolean);
+    t.appendChild(el('span', 'conn-desc', adds.length ? `Updating adds ${adds.join(' and ')}; the deal’s own values stay.` : 'Nothing to add: the deal’s own values stay.'));
+    if (pv.stage) t.appendChild(el('span', 'conn-desc inbox-conflict', `The deal stays at ${STAGE_LABEL[pv.stage.have]}; the file says ${STAGE_LABEL[pv.stage.other]}.`));
   }
   if (it.data.kind === 'property') {
     const deal = ctx.deals.find((x) => x.id === it.dealId);
@@ -66,8 +79,9 @@ function card(it, ctx) {
   }
   const filable = !(it.data.kind === 'property' && (() => { const d = ctx.deals.find((x) => x.id === it.dealId); return !d || String((d.figures && d.figures.address) || '').trim(); })());
   const act = (label, cls, fn) => { const b = el('button', `btn btn-sm conn-btn ${cls}`, label); b.type = 'button'; b.addEventListener('click', async () => { b.disabled = true; try { await fn(); } catch (e) { toast(e.message); } ctx.refresh(); }); return b; };
-  if (filable) acts.appendChild(act(matches.length ? 'File as new' : 'File', 'btn-primary', async () => { await fileItem(it.id, deps()); toast('Filed.', { label: 'Undo', run: () => undoItem(it.id, deps()).then(ctx.refresh, (e) => { toast(e.message); ctx.refresh(); }) }); }));
+  if (filable) acts.appendChild(act(matches.length || dealMatches.length ? 'File as new' : 'File', 'btn-primary', async () => { await fileItem(it.id, deps()); toast('Filed.', { label: 'Undo', run: () => undoItem(it.id, deps()).then(ctx.refresh, (e) => { toast(e.message); ctx.refresh(); }) }); }));
   if (matches.length) acts.appendChild(act('Merge…', 'btn-gray', async () => { openMerge(it, matches, ctx); }));
+  if (dealMatches.length) acts.appendChild(act('Update deal', 'btn-gray', async () => { await mergeDealItem(it.id, dealMatches[0].id, deps()); toast('Updated.', { label: 'Undo', run: () => undoItem(it.id, deps()).then(ctx.refresh, (e) => { toast(e.message); ctx.refresh(); }) }); }));
   acts.appendChild(act('Dismiss', 'btn-plain', async () => { await dismissItem(it.id); toast('Dismissed.', { label: 'Undo', run: () => undoItem(it.id, deps()).then(ctx.refresh, (e) => { toast(e.message); ctx.refresh(); }) }); }));
   li.append(t, acts);
   return li;
@@ -149,12 +163,22 @@ export async function renderInbox(host, api, onCount = () => {}) {
     host.appendChild(await autoSwitch('inbox-auto-tab'));
     const hiddenSecret = items.some((x) => x.status === 'pending' && scope.secret.has(x.dealId) && x.dealId !== open);
     if (hiddenSecret) host.appendChild(el('p', 'hint-sm', 'Records from a confidential deal show here only while that deal is open.'));
+    const kinds = wait.filter((x) => !x.secret).map((x) => batchKind(x, contacts, deals));
+    const nNew = kinds.filter((k) => k === 'new').length;
+    const nUpd = kinds.filter((k) => k === 'updates').length;
+    if (nNew || nUpd) {
+      const bar = el('div', 'inbox-batch');
+      const go = (label, mode, id) => { const b = el('button', 'btn btn-sm conn-btn btn-gray', label); b.type = 'button'; b.id = id; b.addEventListener('click', async () => { bar.querySelectorAll('button').forEach((x) => { x.disabled = true; }); try { const r = await fileBatch(mode, deps()); toast(`${r.filed + r.merged} done${r.kept ? `; ${r.kept} kept for you to look at` : ''}.`, { label: 'Undo all', run: () => undoBatch(r.batch, deps()).then((u) => { toast(`${u.undone} undone${u.kept ? `; ${u.kept} changed since and kept` : ''}.`); ctx.refresh(); }) }); } catch (e) { toast(e.message); } ctx.refresh(); }); return b; };
+      if (nNew) bar.appendChild(go(`File ${nNew} new record${nNew === 1 ? '' : 's'} from files`, 'new', 'inbox-file-new'));
+      if (nUpd) bar.appendChild(go(`Apply ${nUpd} update${nUpd === 1 ? '' : 's'} that only fill blanks`, 'updates', 'inbox-file-updates'));
+      host.appendChild(bar);
+    }
     const ul = el('ul', 'inbox-list');
     ul.setAttribute('aria-label', 'Records waiting to be filed');
     for (const it of wait) ul.appendChild(card(it, ctx));
     if (!wait.length) host.appendChild(el('p', 'conn-lede inbox-empty', 'Nothing is waiting. Read an offering memorandum, a lease or a rent roll, and what it names appears here.'));
     else host.appendChild(ul);
-    const done = items.filter((x) => x.status !== 'pending' && scope.known.has(x.dealId) && (!scope.secret.has(x.dealId) || x.dealId === open)).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 15);
+    const done = items.filter((x) => x.status !== 'pending' && inScope(x, scope) && (!scope.secret.has(x.dealId) || x.dealId === open)).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 15);
     if (done.length) {
       host.appendChild(el('h2', 'inbox-h', 'Done'));
       const dl = el('ul', 'inbox-list inbox-done');

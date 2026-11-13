@@ -8,7 +8,7 @@
 import * as store from './store.js';
 import * as crm from './crm.js';
 import { kvTooNew } from './migrate.js';
-import { extractCandidates, newItems, trim, readItems, newContact, mergeInto, undoMerge, matchContacts, matchScope, isClean } from './inbox.js';
+import { extractCandidates, newItems, trim, readItems, newContact, mergeInto, undoMerge, matchContacts, matchScope, isClean, inScope, dealScope, MAX_ITEMS, upToDate, matchDeals, batchKind, newDealFields, applyDealMerge, undoDealMerge } from './inbox.js';
 
 const ITEMS = 'inbox.items';
 const PREFS = 'inbox.prefs';
@@ -87,8 +87,8 @@ export function proposeFromDocument({ deal, doc, pages, now = Date.now() }) {
 
 const taskSnap = (t) => ({ title: t.title, due: t.due || null, done: !!t.done, dealId: t.dealId || null, contactId: t.contactId || null, note: t.note || '' });
 
-/** The filing itself, inside the queue. @param {string} id @param {any} deps @param {{ auto?: boolean }} opts */
-async function fileNow(id, deps = {}, { auto = false } = {}) {
+/** The filing itself, inside the queue. @param {string} id @param {any} deps @param {{ auto?: boolean, batch?: string | null }} opts */
+async function fileNow(id, deps = {}, { auto = false, batch = null } = {}) {
   const items = await loadItems();
   const it = items.find((x) => x.id === id);
   if (!it || it.status !== 'pending') return null;
@@ -111,8 +111,13 @@ async function fileNow(id, deps = {}, { auto = false } = {}) {
     }, { label: `Address filled from ${it.source.file}, page ${it.source.page}` });
     if (!wrote) throw new Error('The deal already has an address: it is kept as typed.');
     it.result = { address: d.address };
+  } else if (d.kind === 'deal') {
+    if (!deps.createDeal) throw new Error('The deal could not be made.');
+    const deal = await deps.createDeal(newDealFields(it, now), `Deal made from ${it.source.file}`);
+    it.result = { dealId: deal.id, updatedAt: deal.updatedAt };
   } else throw new Error('Unknown item.');
   it.status = 'filed';
+  if (batch) it.batch = batch;
   it.auto = !!auto;
   it.doneAt = now;
   await saveItems(items);
@@ -123,7 +128,8 @@ async function fileNow(id, deps = {}, { auto = false } = {}) {
 export const fileItem = (/** @type {string} */ id, deps = {}, opts = {}) => serial(() => fileNow(id, deps, opts));
 
 /** Merge a contact item into an existing contact. `choice` answers each conflict ('keep' or 'use'); see inbox.js mergeInto. */
-export const mergeItem = (/** @type {string} */ id, /** @type {string} */ targetId, choice = {}) => modify(async (items) => {
+const mergeNow = async (/** @type {string} */ id, /** @type {string} */ targetId, choice = {}, { batch = null } = {}) => {
+  const items = await loadItems();
   const it = items.find((x) => x.id === id);
   if (!it || it.status !== 'pending' || it.data.kind !== 'contact') return { ok: false, missing: [] };
   const target = (await io.listContacts()).find((c) => c.id === targetId);
@@ -133,10 +139,29 @@ export const mergeItem = (/** @type {string} */ id, /** @type {string} */ target
   await io.saveContact(r.record);
   it.status = 'merged';
   it.result = { mergedInto: targetId, undo: r.undo };
+  if (batch) it.batch = batch;
   it.doneAt = Date.now();
   await saveItems(items);
   return { ok: true };
-});
+};
+export const mergeItem = (/** @type {string} */ id, /** @type {string} */ targetId, choice = {}) => serial(() => mergeNow(id, targetId, choice));
+
+/** Add what an imported deal row brings (its id, a closing date the deal lacks) to a deal it matches; the deal's own values stay. `deps.updateDeal` is dealui's. */
+const mergeDealNow = async (/** @type {string} */ id, /** @type {string} */ dealId, /** @type {any} */ deps, { batch = null } = {}) => {
+  const items = await loadItems();
+  const it = items.find((x) => x.id === id);
+  if (!it || it.status !== 'pending' || it.data.kind !== 'deal' || !deps.updateDeal) return { ok: false };
+  let undo = null;
+  const d = await deps.updateDeal(dealId, (/** @type {any} */ deal) => { if (deal.confidential) return false; undo = applyDealMerge(it, deal); return !!(undo.ext || undo.keyId); }, { label: `Updated from ${it.source.file}` });
+  if (!d) throw new Error('That deal is no longer here.');
+  it.status = 'merged';
+  it.result = { mergedDeal: dealId, undoDeal: undo || { ext: null, keyId: null } };
+  if (batch) it.batch = batch;
+  it.doneAt = Date.now();
+  await saveItems(items);
+  return { ok: true };
+};
+export const mergeDealItem = (/** @type {string} */ id, /** @type {string} */ dealId, deps = {}) => serial(() => mergeDealNow(id, dealId, deps));
 
 export const dismissItem = (/** @type {string} */ id) => modify(async (items) => {
   const it = items.find((x) => x.id === id);
@@ -150,7 +175,8 @@ export const dismissItem = (/** @type {string} */ id) => modify(async (items) =>
  * task is removed only if it is still exactly what filing made (not edited since, nothing else added to it); otherwise
  * this throws CHANGED_SINCE and changes nothing.
  */
-export const undoItem = (/** @type {string} */ id, /** @type {any} */ deps = {}) => modify(async (items) => {
+const undoNow = async (/** @type {string} */ id, /** @type {any} */ deps = {}) => {
+  const items = await loadItems();
   const it = items.find((x) => x.id === id);
   if (!it || it.status === 'pending') return null;
   const r = it.result || {};
@@ -170,15 +196,92 @@ export const undoItem = (/** @type {string} */ id, /** @type {any} */ deps = {})
         await io.deleteTask(r.taskId);
       }
     }
+    if (r.dealId) {
+      const dl = (await io.listDeals()).find((x) => x.id === r.dealId);
+      if (dl) {
+        if (dl.updatedAt !== r.updatedAt || !deps.discardDeal) throw new Error(CHANGED_SINCE);
+        await deps.discardDeal(r.dealId);
+      }
+    }
     if (r.address && deps.updateDeal && it.dealId) await deps.updateDeal(it.dealId, (/** @type {any} */ deal) => { if ((deal.figures || {}).address !== r.address) return false; deal.figures = { ...deal.figures, address: '' }; return true; }, { label: 'Address filled from a document: undone' });
   } else if (it.status === 'merged' && r.mergedInto) {
     const target = (await io.listContacts()).find((c) => c.id === r.mergedInto);
     if (target) await io.saveContact(undoMerge(target, r.undo, it.dealId));
+  } else if (it.status === 'merged' && r.mergedDeal && deps.updateDeal) {
+    await deps.updateDeal(r.mergedDeal, (/** @type {any} */ deal) => { undoDealMerge(deal, r.undoDeal); return true; }, { label: 'Update from a file: undone' });
   }
   it.status = 'pending';
   delete it.result;
   delete it.doneAt;
   delete it.auto;
+  delete it.batch;
   await saveItems(items);
   return it;
+};
+export const undoItem = (/** @type {string} */ id, /** @type {any} */ deps = {}) => serial(() => undoNow(id, deps));
+
+/** Undo every item of one batch (one "File all" tap). Returns { undone, kept }: a record changed since is kept, as one Undo would keep it. */
+export const undoBatch = (/** @type {string} */ batch, /** @type {any} */ deps = {}) => serial(async () => {
+  const ids = (await loadItems()).filter((x) => x.batch === batch && x.status !== 'pending').map((x) => x.id);
+  let undone = 0; let kept = 0;
+  for (const id of ids) { try { await undoNow(id, deps); undone += 1; } catch { kept += 1; } }
+  return { undone, kept };
+});
+
+/**
+ * Rows from a file the person chose (an import: CRM, deal or tenant export) become proposed items with no deal.
+ * A row that changes nothing is counted and not proposed; a row seen before (in any state) is not proposed again;
+ * a pending row whose values changed replaces its older pending copy. At most 500 items wait at once: the rest are
+ * counted in `left`, and importing the same file again continues where this stopped. Never files anything.
+ * @param {{ cands: any[], source: { file: string, docRole?: string | null, sha256?: string | null }, now?: number }} o
+ * @returns {Promise<{ added: number, replaced: number, unchanged: number, seen: number, flagged: number, left: number }>}
+ */
+export function proposeRows({ cands, source, now = Date.now() }) {
+  return serial(async () => {
+    const [existing, deals, contacts] = await Promise.all([loadItems(), io.listDeals(), io.listContacts()]);
+    const scope = matchScope(contacts, deals, null);
+    const fresh = [];
+    let unchanged = 0;
+    for (const c of cands) if (upToDate(c, contacts, deals, scope)) unchanged += 1; else fresh.push(c);
+    const keep = newItems(fresh, { dealId: null, source: { ...source, kind: 'import' }, existing, now });
+    const seen = fresh.length - keep.length;
+    const room = Math.max(0, MAX_ITEMS - existing.filter((x) => x.status === 'pending').length);
+    const take = keep.slice(0, room);
+    const ids = new Set(take.map((x) => x.data.idKey).filter(Boolean));
+    const base = existing.filter((x) => !(x.status === 'pending' && x.data.idKey && ids.has(x.data.idKey)));
+    const replaced = existing.length - base.length;
+    if (take.length) await saveItems([...base, ...take]);
+    return { added: take.length, replaced, unchanged, seen, flagged: take.filter((x) => x.data.suspicious).length, left: keep.length - take.length };
+  });
+}
+
+/**
+ * One tap files or merges many waiting items from files (those with no deal). `mode` 'new': contacts that match nobody and are not
+ * flagged. 'updates': a contact or deal with exactly one match by id or email whose merge only fills blanks (no conflict).
+ * Everything is one batch, undone together (undoBatch). Returns { batch, filed, merged, kept } where `kept` could not be done.
+ * @param {'new' | 'updates'} mode @param {any} deps
+ */
+export const fileBatch = (mode, deps = {}) => serial(async () => {
+  const batch = `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+  const [items, deals] = [await loadItems(), await io.listDeals()];
+  const scope = dealScope(deals);
+  let contacts = await io.listContacts();
+  const out = { batch, filed: 0, merged: 0, kept: 0 };
+  for (const it of items.filter((x) => x.status === 'pending' && x.dealId === null && inScope(x, scope))) {
+    if (batchKind(it, contacts, deals) !== mode) continue;
+    try {
+      if (it.data.kind === 'contact') {
+        if (mode === 'new') { if (await fileNow(it.id, deps, { batch })) out.filed += 1; }
+        else {
+          const m = matchContacts(it.data, contacts, matchScope(contacts, deals, null));
+          if ((await mergeNow(it.id, m[0].id, {}, { batch })).ok) out.merged += 1;
+        }
+        contacts = await io.listContacts();
+      } else if (it.data.kind === 'deal') {
+        const m = matchDeals(it.data, deals);
+        if ((await mergeDealNow(it.id, m[0].id, deps, { batch })).ok) out.merged += 1;
+      }
+    } catch { out.kept += 1; }
+  }
+  return out;
 });
