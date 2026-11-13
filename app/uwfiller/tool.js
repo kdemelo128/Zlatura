@@ -101,7 +101,7 @@ function preloadWhenIdle(load) {
   let c = null;
   try { c = /** @type {any} */ (navigator).connection; } catch { /* fine */ }
   if (c && c.saveData) return;
-  const idle = (fn) => { if (typeof requestIdleCallback === 'function') requestIdleCallback(fn, { timeout: 8000 }); else setTimeout(fn, 1000); };
+  const idle = (fn) => { if (typeof requestIdleCallback === 'function') requestIdleCallback(fn, { timeout: 8000 }); else setTimeout(() => fn(), 1000); };
   const go = () => setTimeout(() => idle(load), PRELOAD_AFTER_MS);
   if (document.readyState === 'complete') go(); else window.addEventListener('load', go, { once: true });
 }
