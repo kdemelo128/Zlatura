@@ -597,6 +597,8 @@ export function importStatement(rows, { file = '', sheet = '', corrections = {},
 }
 
 const PROJECTION = /\b(budget|forecast|pro ?forma|projected|projection)\b/i;
+/** A sheet named as a plan or a fiscal year ("2026 Plan", "FY26") is a projection; only the sheet's name says so, never its cells. */
+const PLAN_SHEET = /\b(plan|fy ?\d{2,4})\b/i;
 
 /**
  * Every sheet of a file tried as a statement: [{ sheet, i (its place in the file), hidden, projection, lines,
@@ -609,7 +611,7 @@ const PROJECTION = /\b(budget|forecast|pro ?forma|projected|projection)\b/i;
  */
 export function sheetChoices(grids, opts = {}) {
   return grids.map((g, i) => {
-    const projection = PROJECTION.test(g.sheet) || PROJECTION.test(g.rows.slice(0, 5).map((r) => r.cells.filter((v) => typeof v === 'string').join(' ')).join(' '));
+    const projection = PROJECTION.test(g.sheet) || PLAN_SHEET.test(g.sheet) || PROJECTION.test(g.rows.slice(0, 5).map((r) => r.cells.filter((v) => typeof v === 'string').join(' ')).join(' '));
     const base = { sheet: g.sheet, i, hidden: !!g.hidden, projection };
     try {
       const layout = layoutOf(g.rows, { sheet: g.sheet });
