@@ -145,3 +145,24 @@ test('to-dos become tasks with their due date and source note; a to-do with no d
   await S.proposeRows({ cands, source: SRC('calendar', 't.ics') });
   assert.equal((await S.loadItems()).length, 2);
 });
+
+test('review 4: no invented time: a meeting with no usable zone is logged at local noon of its date, marked; an email with no date is kept out of batches and asks for one', async () => {
+  const io = mem();
+  const c = readCalendar(cal(ev('UID:f', 'DTSTART:20261110T150000', 'SUMMARY:Floating')), { now: NOW });
+  const a = M.calendarCandidates(c, { deals: [], today: TODAY }).cands[0];
+  assert.equal(a.at, new Date(2026, 10, 10, 12).getTime());
+  assert.equal(a.approx, true);
+  assert.match(a.text, /time not stated/);
+  const em = M.emailCandidates(readEmail(new TextEncoder().encode('From: a@example.test\r\nSubject: x\r\nDate: nonsense\r\n\r\nbody')), { deals: [] }).cands[0];
+  assert.equal(em.needsDate, true);
+  await S.proposeRows({ cands: [a, em], source: SRC('calendar', 'c.ics') });
+  const items = await S.loadItems();
+  assert.equal(I.batchKind(items.find((x) => x.data.needsDate), [], []), null);
+  await assert.rejects(S.fileItem(items.find((x) => x.data.needsDate).id, {}), /date/i);
+  await S.fileItem(items.find((x) => x.data.needsDate).id, {}, { date: '2026-03-12' });
+  const rec = io.all().acts.find((r) => r.type === 'email');
+  assert.equal(rec.at, new Date(2026, 2, 12, 12).getTime());
+  assert.match(rec.text, /on 2026-03-12/);
+  await S.fileItem(items.find((x) => x.data.approx).id, {});
+  assert.equal(io.all().acts.find((r) => r.type === 'meeting').approx, true);
+});

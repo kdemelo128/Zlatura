@@ -37,7 +37,7 @@ function summary(it) {
   const d = it.data;
   if (d.kind === 'contact') return [d.name, [d.role, d.company && d.company !== d.name ? d.company : ''].filter(Boolean).join(' · '), [d.email, d.phone].filter(Boolean).join(' · ')].filter(Boolean);
   if (d.kind === 'deal') return [d.name, [d.address, d.crmStage && `Stage in the file: ${d.crmStage}`, d.close && `Closing ${niceDate(`${d.close}T12:00:00`)}`].filter(Boolean).join(' · '), d.amount ? `Amount in the file: ${d.amount} (kept in the notes, not the price)` : ''].filter(Boolean);
-  if (d.kind === 'activity') return [d.text, d.detail ? `“${d.detail}”` : '', d.suspicious ? 'The text above is kept as written; nothing in it is acted on.' : ''].filter(Boolean);
+  if (d.kind === 'activity') return [d.text, d.needsDate ? 'The file has no readable date: choose one to file it.' : '', d.detail ? `“${d.detail}”` : '', d.suspicious ? 'The text above is kept as written; nothing in it is acted on.' : ''].filter(Boolean);
   if (d.kind === 'task') return [d.due ? `${d.title}: ${niceDate(`${d.due}T12:00:00`)}` : d.title, it.source && it.source.kind !== 'document' ? `A to-do from the file${d.due ? ', due that day' : ' (no due date in it)'}${d.note ? `: ${d.note}` : ''}` : 'A task on this deal, due that day'];
   return [d.address, 'The property’s address'];
 }
@@ -81,7 +81,17 @@ function card(it, ctx) {
   }
   const filable = !(it.data.kind === 'property' && (() => { const d = ctx.deals.find((x) => x.id === it.dealId); return !d || String((d.figures && d.figures.address) || '').trim(); })());
   const act = (label, cls, fn) => { const b = el('button', `btn btn-sm conn-btn ${cls}`, label); b.type = 'button'; b.addEventListener('click', async () => { b.disabled = true; try { await fn(); } catch (e) { toast(e.message); } ctx.refresh(); }); return b; };
-  if (filable) acts.appendChild(act(matches.length || dealMatches.length ? 'File as new' : 'File', 'btn-primary', async () => { await fileItem(it.id, deps()); toast('Filed.', { label: 'Undo', run: () => undoItem(it.id, deps()).then(ctx.refresh, (e) => { toast(e.message); ctx.refresh(); }) }); }));
+  /** @type {HTMLInputElement | null} */
+  let dateIn = null;
+  if (it.data.needsDate) {
+    // an email whose date could not be read is filed only with a date the person chooses
+    const lab = el('label', 'conn-desc inbox-date', 'Date of this email ');
+    dateIn = /** @type {HTMLInputElement} */ (el('input', 'input ci44'));
+    dateIn.type = 'date'; dateIn.id = `inbox-date-${it.id}`;
+    lab.appendChild(dateIn);
+    t.appendChild(lab);
+  }
+  if (filable) acts.appendChild(act(matches.length || dealMatches.length ? 'File as new' : 'File', 'btn-primary', async () => { await fileItem(it.id, deps(), { date: dateIn ? dateIn.value : '' }); toast('Filed.', { label: 'Undo', run: () => undoItem(it.id, deps()).then(ctx.refresh, (e) => { toast(e.message); ctx.refresh(); }) }); }));
   if (matches.length) acts.appendChild(act('Merge…', 'btn-gray', async () => { openMerge(it, matches, ctx); }));
   if (dealMatches.length) acts.appendChild(act('Update deal', 'btn-gray', async () => { await mergeDealItem(it.id, dealMatches[0].id, deps()); toast('Updated.', { label: 'Undo', run: () => undoItem(it.id, deps()).then(ctx.refresh, (e) => { toast(e.message); ctx.refresh(); }) }); }));
   acts.appendChild(act('Dismiss', 'btn-plain', async () => { await dismissItem(it.id); toast('Dismissed.', { label: 'Undo', run: () => undoItem(it.id, deps()).then(ctx.refresh, (e) => { toast(e.message); ctx.refresh(); }) }); }));
@@ -170,7 +180,7 @@ export async function renderInbox(host, api, onCount = () => {}) {
     const nUpd = kinds.filter((k) => k === 'updates').length;
     if (nNew || nUpd) {
       const bar = el('div', 'inbox-batch');
-      const go = (label, mode, id) => { const b = el('button', 'btn btn-sm conn-btn btn-gray', label); b.type = 'button'; b.id = id; b.addEventListener('click', async () => { bar.querySelectorAll('button').forEach((x) => { x.disabled = true; }); try { const r = await fileBatch(mode, deps()); toast(`${r.filed + r.merged} done${r.kept ? `; ${r.kept} kept for you to look at` : ''}.`, { label: 'Undo all', run: () => undoBatch(r.batch, deps()).then((u) => { toast(`${u.undone} undone${u.kept ? `; ${u.kept} changed since and kept` : ''}.`); ctx.refresh(); }) }); } catch (e) { toast(e.message); } ctx.refresh(); }); return b; };
+      const go = (label, mode, id) => { const b = el('button', 'btn btn-sm conn-btn btn-gray', label); b.type = 'button'; b.id = id; b.addEventListener('click', async () => { bar.querySelectorAll('button').forEach((x) => { x.disabled = true; }); try { const r = await fileBatch(mode, deps()); toast(`${r.filed + r.merged} done${r.kept ? `; ${r.kept} kept for you to look at${r.reason ? ` (${r.reason})` : ''}` : ''}.`, { label: 'Undo all', run: () => undoBatch(r.batch, deps()).then((u) => { toast(`${u.undone} undone${u.kept ? `; ${u.kept} changed since and kept` : ''}.`); ctx.refresh(); }) }); } catch (e) { toast(e.message); } ctx.refresh(); }); return b; };
       if (nNew) bar.appendChild(go(`File ${nNew} new record${nNew === 1 ? '' : 's'} from files`, 'new', 'inbox-file-new'));
       if (nUpd) bar.appendChild(go(`Apply ${nUpd} update${nUpd === 1 ? '' : 's'} that only fill blanks`, 'updates', 'inbox-file-updates'));
       host.appendChild(bar);

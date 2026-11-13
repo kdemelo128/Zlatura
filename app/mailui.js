@@ -37,7 +37,7 @@ export async function proposeFromMailFiles(files, { now = Date.now() } = {}) {
         const r = calendarCandidates(cal, { deals, today });
         cands = r.cands;
         const sk = cal.skipped;
-        said = `${plural(r.counts.meetings, 'meeting', 'meetings')}, ${plural(r.counts.tasks, 'to-do', 'to-dos')}, ${plural(r.counts.people, 'person', 'people')}${sk.cancelled ? `; ${sk.cancelled} cancelled left out` : ''}${sk.noDate ? `; ${sk.noDate} with no date left out` : ''}${sk.tooMany ? `; ${sk.tooMany} more than the ${MAX_EVENTS} read left out` : ''}`;
+        said = `${plural(r.counts.meetings, 'meeting', 'meetings')}, ${plural(r.counts.tasks, 'to-do', 'to-dos')}, ${plural(r.counts.people, 'person', 'people')}${sk.cancelled ? `; ${sk.cancelled} cancelled left out` : ''}${sk.noDate ? `; ${sk.noDate} with no date left out` : ''}${sk.tooMany ? `; ${sk.tooMany} more than the ${MAX_EVENTS} read left out` : ''}${sk.repeatsCut ? `; ${sk.repeatsCut} repeating meetings shown once (too many to expand)` : ''}`;
       } else {
         kind = 'email';
         const em = readEmail(new Uint8Array(buf));
@@ -63,8 +63,9 @@ export async function proposeFromMailFiles(files, { now = Date.now() } = {}) {
  */
 export async function openMailFiles(files, h) {
   const { lines, attachments, added } = await proposeFromMailFiles(files);
-  toast(lines.join(' '), attachments.length ? { label: `Send ${plural(attachments.length, 'attachment', 'attachments')} to Start from documents`, run: () => sendToDocuments(attachments, h) } : null, 12000);
-  if (added) h.done();
+  toast(`${lines.join(' ')}${added && document.querySelector('#sheet[open]') ? ' Open To file to see them.' : ''}`, attachments.length ? { label: `Send ${plural(attachments.length, 'attachment', 'attachments')} to Start from documents`, run: () => sendToDocuments(attachments, h) } : null, 12000);
+  // a sheet the person has open is left alone: the records wait in To file, and the message says so
+  if (added && !document.querySelector('#sheet[open]')) h.done();
 }
 
 const wait = (ms) => new Promise((r) => { setTimeout(() => r(null), ms); });

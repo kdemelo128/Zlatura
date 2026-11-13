@@ -13,6 +13,8 @@ import { hashOf } from './presets.js';
 
 const squash = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 const alnum = (s) => ` ${squash(s).toLowerCase().normalize('NFKC').replace(/[^\p{L}\p{N}]+/gu, ' ').trim()} `;
+/** Local noon of an ISO day (ms). */
+const noon = (iso) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d, 12).getTime(); };
 const NOISE = /^(?:no-?reply|do-?not-?reply|donotreply|mailer-daemon|postmaster|notifications?)@/i;
 
 /** The id of the one deal whose name or street address the text names, or null (none, or more than one). */
@@ -60,7 +62,11 @@ export function calendarCandidates(cal, { deals = [], today }) {
     const dealId = dealIn(text, deals);
     const upcoming = ev.date > today;
     const bits = [`${upcoming ? 'Upcoming meeting' : 'Meeting'}: ${ev.summary || '(no title)'}`, when(ev), ev.location && `at ${ev.location}`, ev.zoneNote && `(${ev.zoneNote})`, ev.repeatNote && `(${ev.repeatNote})`].filter(Boolean);
-    const a = { kind: 'activity', type: 'meeting', text: bits.join(' · ').slice(0, 300), at: ev.instant, date: ev.date, time: ev.time, zone: ev.zone, detail: squash(ev.description).slice(0, 200), people: ev.people.map((p) => p.email), dealId };
+    // no usable zone: the date is kept and the entry sits at local noon of that day, marked; a time is never invented
+    const approx = ev.instant === null;
+    if (approx) bits.push('time not stated');
+    /** @type {any} */
+    const a = { kind: 'activity', type: 'meeting', text: bits.join(' · ').slice(0, 300), at: approx ? noon(ev.date) : ev.instant, ...(approx ? { approx: true } : {}), date: ev.date, time: ev.time, zone: ev.zone, detail: squash(ev.description).slice(0, 200), people: ev.people.map((p) => p.email), dealId };
     if (looksLikeInstruction(text)) a.suspicious = true;
     a.idKey = `calendar|${ev.uid}|${ev.date}`;
     a.rowKey = `${a.idKey}|${hashOf({ t: a.text, at: a.at, d: a.detail })}`;
@@ -92,6 +98,7 @@ export function emailCandidates(em, { deals = [] }) {
   const day = em.instant === null ? null : new Date(em.instant).toISOString().slice(0, 10);
   const text = [`Email: ${em.subject || '(no subject)'}`, em.from.length && `from ${who(em.from)}`, em.to.length && `to ${who(em.to)}`, day ? `on ${day}` : 'date not readable in the file'].filter(Boolean).join(' · ').slice(0, 300);
   const a = { kind: 'activity', type: 'email', text, at: em.instant, date: day, time: null, zone: null, detail: squash(em.text).slice(0, 200), people: all.map((p) => p.email), dealId };
+  if (em.instant === null) a.needsDate = true; // an email with no readable date asks for one; it is never dated "now"
   if (looksLikeInstruction(`${em.subject}\n${em.text}`)) a.suspicious = true;
   a.idKey = `email|${em.messageId || hashOf({ s: em.subject, i: em.instant, f: em.from })}`;
   a.rowKey = `${a.idKey}|${hashOf({ t: text, d: a.detail })}`;

@@ -111,3 +111,14 @@ test('at most 100 meetings a file, and open to-dos become tasks', () => {
   const t = readCalendar(cal(['BEGIN:VTODO', 'UID:t1', 'SUMMARY:Send rent roll', 'DUE;VALUE=DATE:20261120', 'END:VTODO'], ['BEGIN:VTODO', 'UID:t2', 'SUMMARY:Done', 'STATUS:COMPLETED', 'END:VTODO']), { now: NOW });
   assert.deepEqual(t.todos.map((x) => [x.title, x.date]), [['Send rent roll', '2026-11-20']]);
 });
+
+test('review: EXDATE and RECURRENCE-ID in UTC are compared in the series\' own zone; many long series stop at a work cap', () => {
+  // 09:00 New York on 2026-11-23 is 14:00Z the same day; a late-evening one would be the next UTC day
+  const r = readCalendar(cal(ev('UID:r', 'DTSTART;TZID=America/New_York:20261116T210000', 'RRULE:FREQ=DAILY;COUNT=3', 'EXDATE:20261118T020000Z', 'SUMMARY:Evening')), { now: NOW });
+  assert.deepEqual(r.events.map((e) => e.date), ['2026-11-16', '2026-11-18'], '21:00 on the 17th is 02:00Z on the 18th');
+  const many = Array.from({ length: 300 }, (_, i) => ev(`UID:l${i}`, 'DTSTART;VALUE=DATE:19900101', 'RRULE:FREQ=DAILY', `SUMMARY:L${i}`)).flat();
+  const t0 = Date.now();
+  const big = readCalendar(cal(many), { now: NOW });
+  assert.ok(Date.now() - t0 < 5000);
+  assert.ok(big.skipped.repeatsCut > 0 && big.events.length <= 100);
+});

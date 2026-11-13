@@ -64,7 +64,7 @@ export async function openImport(file, preset, h) {
   }
 
   const rowsOf = () => S.grid.rows.slice(S.hd.idx + 1);
-  const run = () => readRows(rowsOf(), S.hd.headers, S.columns, S.preset, { stages: S.stages, dateOrder: S.dateOrder });
+  const run = () => readRows(rowsOf(), S.hd.headers, S.columns, S.preset, { stages: S.stages, dateOrder: S.dateOrder, file: file.name });
 
   async function draw() {
     body.textContent = '';
@@ -184,7 +184,8 @@ export async function openImport(file, preset, h) {
 
 /** The Export sheet: contacts, deals and tasks as CSV, in this app's own column names or the common CRM ones. */
 export async function openExport(api) {
-  const [contacts, deals, tasks] = await Promise.all([crm.listContacts(), store.listDeals(), crm.listTasks()]);
+  let contacts; let deals; let tasks;
+  try { [contacts, deals, tasks] = await Promise.all([crm.listContacts(), store.listDealsStrict(), crm.listTasks()]); } catch { toast('Your deals could not be read, so nothing was exported: confidential deals could not be left out. Try again.'); return; }
   const body = api.sheetOpen({ eyebrow: 'Connect', title: `Export from ${PRODUCT}`, sub: 'CSV files made on this device. Confidential deals, their tasks and their contacts are left out.' });
   let layout = 'neutral';
   const fs = el('fieldset', 'field');

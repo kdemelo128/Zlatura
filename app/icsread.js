@@ -138,6 +138,13 @@ function readDate(p, aliases) {
   return out;
 }
 
+/** The calendar day of a date value as the series' own zone sees it (a UTC value is converted); a value in another zone is converted too. */
+function dayIn(r, zone) {
+  if (!r) return null;
+  if (r.instant !== null && zone && !r.allDay && (r.utc || (r.zone && r.zone !== zone))) { const p = wallParts(r.instant, zone); return isoDay(p.year, p.month, p.day); }
+  return isoDay(r.y, r.mo, r.d);
+}
+
 /* ------------------------------------------------------------- repeating */
 
 const DOW = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
@@ -161,7 +168,7 @@ function nthWeekday(y, mo, d, dow, n) {
  * The local calendar days (as { y, mo, d }) a rule gives from the start day on, up to `until` (a UTC-midnight ms) and at most
  * `cap`. Returns { days, unsupported } where `unsupported` names a part this reader does not handle (days is then just the start).
  */
-function ruleDays(rule, start, untilMs, countLimit = Infinity) {
+function ruleDays(rule, start, untilMs, budget = { left: MAX_ITER, hit: false }) {
   for (const k of Object.keys(rule)) if (!SUPPORTED.has(k)) return { days: [{ y: start.y, mo: start.mo, d: start.d }], unsupported: k };
   const freq = rule.FREQ;
   if (!['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'].includes(freq)) return { days: [{ y: start.y, mo: start.mo, d: start.d }], unsupported: 'FREQ' };
@@ -175,8 +182,10 @@ function ruleDays(rule, start, untilMs, countLimit = Infinity) {
   const wkst = Math.max(0, DOW.indexOf((rule.WKST || 'MO').toUpperCase()));
   const s0 = Date.UTC(start.y, start.mo - 1, start.d);
   const days = [];
-  let n = 0; let iter = 0;
-  for (let t = s0; t <= stop && iter < MAX_ITER && n < Math.min(count, countLimit); t += DAY, iter++) {
+  let n = 0; let iter = 0; void iter;
+  for (let t = s0; t <= stop && n < count; t += DAY, iter++) {
+    if (budget.left <= 0) { budget.hit = true; break; }
+    budget.left -= 1;
     const dt = new Date(t);
     const y = dt.getUTCFullYear(); const mo = dt.getUTCMonth() + 1; const d = dt.getUTCDate(); const wd = dt.getUTCDay();
     let ok = false;
@@ -227,20 +236,21 @@ function person(p) {
  * organizer, recurring, repeatNote, cancelled }.
  * @param {string} text @param {{ now?: number }} [o]
  * Also `todos`: a task list's open items { uid, title, date (or null), description }.
- * @returns {{ events: any[], todos: any[], skipped: { cancelled: number, tooMany: number, noDate: number }, method: string | null }}
+ * @returns {{ events: any[], todos: any[], skipped: { cancelled: number, tooMany: number, noDate: number, repeatsCut: number }, method: string | null }}
  */
 export function readCalendar(text, { now = Date.now() } = {}) {
   const root = tree(text);
   const aliases = new Map();
   for (const tz of walk(root, 'VTIMEZONE')) { const id = prop(tz, 'TZID'); const loc = prop(tz, 'X-LIC-LOCATION'); if (id && loc) aliases.set(id.value, loc.value); }
   const method = (walk(root, 'VCALENDAR')[0] && prop(walk(root, 'VCALENDAR')[0], 'METHOD') || { value: '' }).value.toUpperCase() || null;
-  const skipped = { cancelled: 0, tooMany: 0, noDate: 0 };
+  const skipped = { cancelled: 0, tooMany: 0, noDate: 0, repeatsCut: 0 };
   const vevents = walk(root, 'VEVENT');
   const overrides = new Map(); // uid -> Set of local days replaced by an edited instance
-  for (const e of vevents) { const rid = prop(e, 'RECURRENCE-ID'); const u = prop(e, 'UID'); if (rid && u) { const r = readDate(rid, aliases); if (r) { if (!overrides.has(u.value)) overrides.set(u.value, new Set()); overrides.get(u.value).add(isoDay(r.y, r.mo, r.d)); } } }
+  for (const e of vevents) { const rid = prop(e, 'RECURRENCE-ID'); const u = prop(e, 'UID'); if (rid && u) { const r = readDate(rid, aliases); const series = vevents.find((x) => !prop(x, 'RECURRENCE-ID') && prop(x, 'UID') && prop(x, 'UID').value === u.value); const zone = series ? (readDate(prop(series, 'DTSTART'), aliases) || {}).zone : null; if (r) { if (!overrides.has(u.value)) overrides.set(u.value, new Set()); overrides.get(u.value).add(dayIn(r, zone)); } } }
   const from = Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), new Date(now).getUTCDate());
   const until = from + WINDOW_DAYS * DAY;
   const events = [];
+  const budget = { left: 400000, hit: false };
   for (const e of vevents) {
     const status = ((prop(e, 'STATUS') || { value: '' }).value || '').toUpperCase();
     if (status === 'CANCELLED' || method === 'CANCEL') { skipped.cancelled += 1; continue; }
@@ -274,9 +284,10 @@ export function readCalendar(text, { now = Date.now() } = {}) {
       events.push(make({ y: st.y, mo: st.mo, d: st.d }));
       continue;
     }
-    const { days, unsupported } = ruleDays(rrule, st, until);
+    const { days, unsupported } = ruleDays(rrule, st, until, budget);
+    if (budget.hit) { skipped.repeatsCut += 1; events.push(make({ y: st.y, mo: st.mo, d: st.d }, 'this file has too many repeating meetings to expand them all; only the first meeting is shown')); continue; }
     if (unsupported) { events.push(make({ y: st.y, mo: st.mo, d: st.d }, `repeats in a way this reader does not expand (${unsupported}); only the first meeting is shown`)); continue; }
-    const ex = new Set(all(e, 'EXDATE').flatMap((x) => x.value.split(',').map((v) => readDate({ ...x, value: v.trim() }, aliases))).filter(Boolean).map((r) => isoDay(r.y, r.mo, r.d)));
+    const ex = new Set(all(e, 'EXDATE').flatMap((x) => x.value.split(',').map((v) => readDate({ ...x, value: v.trim() }, aliases))).filter(Boolean).map((r) => dayIn(r, st.zone)));
     const skip = overrides.get(uid) || new Set();
     for (const day of days) {
       const t = Date.UTC(day.y, day.mo - 1, day.d);

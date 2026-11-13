@@ -206,7 +206,11 @@ export function matchContacts(cand, contacts, { hidden = new Set(), only = null 
   for (const c of pool) {
     const { e, p, nk, co } = keysOf(c);
     // a file's own id column (or this app's own id, from an export of it) finds the same person again on a re-import
-    if (cx && (c.sources || []).some((s) => s.ext && s.ext.src === cx.src && s.ext.id === cx.id)) { out.push({ id: c.id, level: 'same', why: 'the same id as in an earlier import' }); continue; }
+    if (cx && (c.sources || []).some((s) => s.ext && s.ext.src === cx.src && s.ext.id === cx.id)) {
+      const agrees = (ce && e && ce === e) || (ck && nk && ck === nk);
+      out.push(agrees ? { id: c.id, level: 'same', why: 'the same id as in an earlier import' } : { id: c.id, level: 'possible', why: 'the same id, but a different name and email' });
+      continue;
+    }
     if (cand.monalId && cand.monalId === c.id) { out.push({ id: c.id, level: 'same', why: `the ${PRODUCT} ID in the file` }); continue; }
     const similar = ck && nk && (nk === ck || ck.split(' ').pop() === nk.split(' ').pop() && (ck.includes(nk) || nk.includes(ck)));
     if (ce && e && ce === e) { out.push({ id: c.id, level: 'same', why: 'the same email' }); continue; }
@@ -385,8 +389,13 @@ export function matchDeals(cand, deals) {
   for (const d of deals || []) {
     if (!d || d.confidential) continue;
     if (cand.monalId && cand.monalId === d.id) { out.push({ id: d.id, level: 'same', why: `the ${PRODUCT} ID in the file` }); continue; }
-    if (cand.ext && (d.externalIds || []).some((x) => x.src === cand.ext.src && x.id === cand.ext.id)) { out.push({ id: d.id, level: 'same', why: 'the same id as in an earlier import' }); continue; }
     const da = nameKey(d.figures && d.figures.address);
+    if (cand.ext && (d.externalIds || []).some((x) => x.src === cand.ext.src && x.id === cand.ext.id)) {
+      // an id is only the same record when the name or address agrees too (two sheets may number their rows alike)
+      const agrees = (nk && nameKey(d.name) === nk) || (ak && da && ak === da);
+      out.push(agrees ? { id: d.id, level: 'same', why: 'the same id as in an earlier import' } : { id: d.id, level: 'possible', why: 'the same id, but a different name and address' });
+      continue;
+    }
     if (ak && da && ak === da) out.push({ id: d.id, level: 'likely', why: 'the same address' });
     else if (nk && nameKey(d.name) === nk) out.push({ id: d.id, level: 'likely', why: 'the same name' });
   }
@@ -420,13 +429,15 @@ export function applyDealMerge(item, deal, now = Date.now()) {
   const pv = dealPreview(item, deal);
   const undo = { ext: null, keyId: null, itemId: item.id };
   if (pv.addExt) { (deal.externalIds ||= []).push(item.data.ext); undo.ext = item.data.ext; }
-  if (pv.addDate) { const k = { id: `k${now.toString(36)}`, label: 'Closing', date: pv.addDate, done: false }; (deal.keyDates ||= []).push(k); undo.keyId = k.id; }
+  if (pv.addDate) { const k = { id: `k${now.toString(36)}`, label: 'Closing', date: pv.addDate, done: false }; (deal.keyDates ||= []).push(k); undo.keyId = k.id; undo.keyDate = k.date; }
   return undo;
 }
-/** Take back what applyDealMerge added, and only that. */
+/** Take back what applyDealMerge added, and only that. A closing date edited or ticked done since is the broker's now: nothing is undone and this throws. */
 export function undoDealMerge(deal, undo) {
+  const k = undo.keyId ? (deal.keyDates || []).find((x) => x.id === undo.keyId) : null;
+  if (k && (k.date !== undo.keyDate || k.done)) throw new Error('This changed since it was filed; nothing was undone.');
   if (undo.ext) deal.externalIds = (deal.externalIds || []).filter((x) => !(x.src === undo.ext.src && x.id === undo.ext.id));
-  if (undo.keyId) deal.keyDates = (deal.keyDates || []).filter((k) => k.id !== undo.keyId);
+  if (k) deal.keyDates = deal.keyDates.filter((x) => x.id !== undo.keyId);
 }
 
 /**
@@ -460,7 +471,7 @@ export function upToDate(cand, contacts, deals, scope = {}, dealId = null) {
  */
 export function batchKind(it, contacts, deals) {
   const d = it.data;
-  if (it.status !== 'pending' || d.suspicious || !it.source || !FROM_FILE.has(it.source.kind)) return null;
+  if (it.status !== 'pending' || d.suspicious || d.needsDate || !it.source || !FROM_FILE.has(it.source.kind)) return null;
   if (d.kind === 'contact') {
     const m = matchContacts(d, contacts, matchScope(contacts, deals, it.dealId));
     if (isClean(it, { matches: m })) return 'new';

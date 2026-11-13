@@ -212,7 +212,7 @@ export function hashOf(o) {
  *   deal:    { kind: 'deal', name, address, stage (key or null), crmStage, amount (as written), close (ISO or ''), company, ext, monalId, ... }
  * `ext` is { src, id } for the file's own id column; `src` is the preset id, so two systems' ids never collide.
  */
-export function readRows(rows, headers, columns, preset, { stages = {}, dateOrder = null } = {}) {
+export function readRows(rows, headers, columns, preset, { stages = {}, dateOrder = null, file = '' } = {}) {
   const cands = [];
   const skipped = [];
   let blankDates = 0;
@@ -221,7 +221,8 @@ export function readRows(rows, headers, columns, preset, { stages = {}, dateOrde
     const get = (f) => { const i = col(f); return i < 0 ? '' : clip(row.cells[i]); };
     if (!row.cells.some((c) => clip(c))) return;
     const idv = get('ext');
-    const ext = idv ? { src: preset.id, id: idv } : null;
+    // an id belongs to the file and kind it came from: two sheets may number their rows alike
+    const ext = idv ? { src: `${preset.id}:${clip(file, 120).toLowerCase()}`, id: idv } : null;
     const monalId = get('monalId');
     /** @type {any} */
     let c;
@@ -258,8 +259,8 @@ export function readRows(rows, headers, columns, preset, { stages = {}, dateOrde
       c.suspicious = looksLikeInstruction([name, c.address, st, c.company].join(' ')) || undefined;
     }
     if (c.suspicious === undefined) delete c.suspicious;
-    const who = ext ? `x:${ext.id}` : c.kind === 'contact' ? `${nameKey(c.name)}|${c.email.toLowerCase()}` : `${nameKey(c.name)}|${nameKey(c.address)}`;
-    c.idKey = `${preset.id}|${who}`;
+    const own = c.kind === 'contact' ? `${nameKey(c.name)}|${c.email.toLowerCase()}|${nameKey(c.company)}` : `${nameKey(c.name)}|${nameKey(c.address)}`;
+    c.idKey = ext ? `${ext.src}|x:${ext.id}|${nameKey(c.name)}` : `${preset.id}|${own}`;
     c.rowKey = `${c.idKey}|${hashOf({ ...c, line: undefined })}`;
     c.line = row.r;
     cands.push(c);
@@ -328,7 +329,7 @@ export function dealsCsv(deals, layout = 'neutral', stageLabel = (k) => k) {
 export function tasksCsv(tasks, deals, contacts, layout = 'neutral') {
   const secret = CONF(deals);
   const names = nameOfDeal(deals);
-  const who = new Map((contacts || []).map((c) => [c.id, c.name]));
+  const who = new Map((contacts || []).filter((c) => !(c.dealIds || []).some((id) => secret.has(id))).map((c) => [c.id, c.name]));
   const rows = []; let left = 0;
   for (const t of tasks || []) {
     if (t.dealId && secret.has(t.dealId)) { left += 1; continue; }

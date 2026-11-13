@@ -87,8 +87,8 @@ export function proposeFromDocument({ deal, doc, pages, now = Date.now() }) {
 
 const taskSnap = (t) => ({ title: t.title, due: t.due || null, done: !!t.done, dealId: t.dealId || null, contactId: t.contactId || null, note: t.note || '' });
 
-/** The filing itself, inside the queue. @param {string} id @param {any} deps @param {{ auto?: boolean, batch?: string | null }} opts */
-async function fileNow(id, deps = {}, { auto = false, batch = null } = {}) {
+/** The filing itself, inside the queue. @param {string} id @param {any} deps @param {{ auto?: boolean, batch?: string | null, date?: string }} opts */
+async function fileNow(id, deps = {}, { auto = false, batch = null, date = '' } = {}) {
   const items = await loadItems();
   const it = items.find((x) => x.id === id);
   if (!it || it.status !== 'pending') return null;
@@ -116,7 +116,16 @@ async function fileNow(id, deps = {}, { auto = false, batch = null } = {}) {
     const contacts = await io.listContacts();
     const scope = matchScope(contacts, await io.listDeals(), it.dealId);
     const ids = [...new Set((d.people || []).flatMap((e) => matchContacts({ email: e }, contacts, scope).filter((m) => m.level === 'same').map((m) => m.id)))];
-    const rec = await io.addActivity({ type: d.type, text: d.text, dealId: it.dealId, at: d.at ?? now, source: { kind: it.source.kind, file: it.source.file }, contactIds: ids });
+    let at = d.at; let text = d.text;
+    if (d.needsDate) {
+      // an email whose date could not be read is filed only with a date the person gives, at local noon of that day
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date || '');
+      const t = m ? new Date(+m[1], +m[2] - 1, +m[3], 12) : null;
+      if (!t || t.getMonth() !== +m[2] - 1) throw new Error('This email has no readable date. Choose its date first.');
+      at = t.getTime(); text = text.replace('date not readable in the file', `on ${date}`);
+    }
+    if (at === null || at === undefined) throw new Error('This has no date, so it was not filed.');
+    const rec = await io.addActivity({ type: d.type, text, dealId: it.dealId, at, approx: !!(d.approx || d.needsDate), source: { kind: it.source.kind, file: it.source.file }, contactIds: ids });
     it.result = { activityId: rec.id };
   } else if (d.kind === 'deal') {
     if (!deps.createDeal) throw new Error('The deal could not be made.');
@@ -132,7 +141,7 @@ async function fileNow(id, deps = {}, { auto = false, batch = null } = {}) {
 }
 
 /** File an item as a new record: a contact, a task, or (property) the deal's blank address. `deps.updateDeal` is dealui's. */
-export const fileItem = (/** @type {string} */ id, deps = {}, opts = {}) => serial(() => fileNow(id, deps, opts));
+export const fileItem = (/** @type {string} */ id, deps = {}, /** @type {{ auto?: boolean, batch?: string | null, date?: string }} */ opts = {}) => serial(() => fileNow(id, deps, opts));
 
 /** Merge a contact item into an existing contact. `choice` answers each conflict ('keep' or 'use'); see inbox.js mergeInto. */
 const mergeNow = async (/** @type {string} */ id, /** @type {string} */ targetId, choice = {}, { batch = null } = {}) => {
@@ -286,7 +295,7 @@ export const fileBatch = (mode, deps = {}) => serial(async () => {
   const [items, deals] = [await loadItems(), await io.listDeals()];
   const scope = dealScope(deals);
   let contacts = await io.listContacts();
-  const out = { batch, filed: 0, merged: 0, kept: 0 };
+  const out = { batch, filed: 0, merged: 0, kept: 0, reason: '' };
   for (const it of items.filter((x) => x.status === 'pending' && FROM_FILE.has(x.source && x.source.kind) && inScope(x, scope) && !scope.secret.has(x.dealId))) {
     if (batchKind(it, contacts, deals) !== mode) continue;
     try {
@@ -301,7 +310,7 @@ export const fileBatch = (mode, deps = {}) => serial(async () => {
         const m = matchDeals(it.data, deals);
         if ((await mergeDealNow(it.id, m[0].id, deps, { batch })).ok) out.merged += 1;
       } else if (await fileNow(it.id, deps, { batch })) out.filed += 1;
-    } catch { out.kept += 1; }
+    } catch (e) { out.kept += 1; out.reason ||= (e && e.message) || ''; }
   }
   return out;
 });
