@@ -199,7 +199,7 @@ export function dayOf(v, order = null) {
 const roleOf = (v) => { const t = norm(v); return CONTACT_ROLES.find((r) => norm(r) === t) || null; };
 
 /** A short stable hash of a record's values, so the same row in a re-imported file is recognised. */
-function hashOf(o) {
+export function hashOf(o) {
   let h = 2166136261;
   for (const ch of JSON.stringify(o)) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; }
   return h.toString(36);

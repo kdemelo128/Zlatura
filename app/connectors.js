@@ -16,7 +16,7 @@ import { PRODUCT } from './brand.js';
 export const STATES = Object.freeze(['Built in', 'Import file', 'Coming soon', 'Needs your approval']);
 
 /** What `opens` may be: connectui.js answers each one. */
-export const OPENS = Object.freeze(['assistant', 'deals', 'home', 'comps-file', 'om-file', 'rent-roll', 't12', 'templates', 'my-data', 'tools', 'crm-file', 'deal-file', 'tenant-file', 'crm-export']);
+export const OPENS = Object.freeze(['assistant', 'deals', 'home', 'comps-file', 'om-file', 'rent-roll', 't12', 'templates', 'my-data', 'tools', 'crm-file', 'deal-file', 'tenant-file', 'crm-export', 'mail-file']);
 
 const NEEDS_SERVER = 'It needs a server of ours to receive from outside, and nothing is hosted yet.';
 const FILE_FIRST = 'Planned: bring its export file in first. A direct sign-in comes only after a security review.';
@@ -71,6 +71,7 @@ export const CATEGORIES = Object.freeze([
       { id: 'excel-templates', name: 'Excel templates', desc: 'Your firm’s workbooks, mapped to deal fields and filled from a deal.', state: 'Built in', module: 'library.js', opens: 'templates' },
       { id: 'tools', name: 'Tools and calculators', desc: 'Loan, yield, lease and closing tools, with saved scenarios.', state: 'Built in', module: 'toolsui.js', opens: 'tools' },
       { id: 'cloud-folder', name: 'Google Drive, OneDrive and Dropbox', desc: 'Files in and out of a cloud folder.', state: 'Coming soon', wait: 'Planned after a security review of the sign-in; today choose a file from the folder on your device.' },
+      { id: 'mail-files', name: 'Calendar and email files', desc: 'Drop a calendar (.ics) or email (.eml) file: meetings and emails become activity, the people named become contacts to file, and attachments can go to Start from documents.', state: 'Import file', module: 'mailui.js', opens: 'mail-file' },
       { id: 'calendar-mail', name: 'Google and Microsoft calendar and mail', desc: 'Meetings and emails become activity and tasks.', state: 'Coming soon', wait: FILE_FIRST },
       { id: 'esign', name: 'DocuSign', desc: 'Envelope status to deal dates.', state: 'Coming soon', wait: 'Planned after the cloud sign-in is in.' },
     ] },

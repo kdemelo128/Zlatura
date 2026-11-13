@@ -11,7 +11,8 @@ import { updateDeal, currentDealId, createDeal, discardDeal } from './dealui.js'
 import { STAGE_LABEL } from './pipeline.js';
 
 const FIELD_LABEL = { name: 'Name', company: 'Company', role: 'Role', email: 'Email', phone: 'Phone' };
-const KIND_LABEL = { contact: 'Contact', task: 'Task', property: 'Property', deal: 'Deal' };
+const KIND_LABEL = { contact: 'Contact', task: 'Task', property: 'Property', deal: 'Deal', activity: 'Activity' };
+const FROM = { import: 'Imported from', calendar: 'From calendar file', email: 'From email file' };
 const deps = () => ({ updateDeal, createDeal, discardDeal });
 
 /** How many items wait, as Home and the Connect tab show it (never an item of a confidential deal). */
@@ -36,7 +37,8 @@ function summary(it) {
   const d = it.data;
   if (d.kind === 'contact') return [d.name, [d.role, d.company && d.company !== d.name ? d.company : ''].filter(Boolean).join(' · '), [d.email, d.phone].filter(Boolean).join(' · ')].filter(Boolean);
   if (d.kind === 'deal') return [d.name, [d.address, d.crmStage && `Stage in the file: ${d.crmStage}`, d.close && `Closing ${niceDate(`${d.close}T12:00:00`)}`].filter(Boolean).join(' · '), d.amount ? `Amount in the file: ${d.amount} (kept in the notes, not the price)` : ''].filter(Boolean);
-  if (d.kind === 'task') return [`${d.title}: ${niceDate(`${d.due}T12:00:00`)}`, 'A task on this deal, due that day'];
+  if (d.kind === 'activity') return [d.text, d.detail ? `“${d.detail}”` : '', d.suspicious ? 'The text above is kept as written; nothing in it is acted on.' : ''].filter(Boolean);
+  if (d.kind === 'task') return [d.due ? `${d.title}: ${niceDate(`${d.due}T12:00:00`)}` : d.title, it.source && it.source.kind !== 'document' ? `A to-do from the file${d.due ? ', due that day' : ' (no due date in it)'}${d.note ? `: ${d.note}` : ''}` : 'A task on this deal, due that day'];
   return [d.address, 'The property’s address'];
 }
 
@@ -55,7 +57,7 @@ function card(it, ctx) {
   const [main, ...rest] = summary(it);
   const t = el('div', 'inbox-text');
   t.append(chips(it), el('span', 'inbox-main', main), ...rest.map((x) => el('span', 'conn-desc', x)));
-  t.appendChild(el('span', 'conn-desc inbox-src', `${it.source.kind === 'import' ? 'Imported from' : 'From'} ${it.source.file}${it.source.page ? `, page ${it.source.page}` : it.source.line ? `, row ${it.source.line}` : ''} · ${dealName(ctx.deals, it.dealId)}`));
+  t.appendChild(el('span', 'conn-desc inbox-src', `${FROM[it.source.kind] || 'From'} ${it.source.file}${it.source.page ? `, page ${it.source.page}` : it.source.line ? `, row ${it.source.line}` : ''} · ${dealName(ctx.deals, it.dealId)}`));
   const acts = el('div', 'inbox-acts');
   const matches = it.data.kind === 'contact' ? matchContacts(it.data, ctx.contacts, matchScope(ctx.contacts, ctx.deals, it.dealId)) : [];
   if (matches.length) {

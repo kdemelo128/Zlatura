@@ -8,14 +8,14 @@
 import * as store from './store.js';
 import * as crm from './crm.js';
 import { kvTooNew } from './migrate.js';
-import { extractCandidates, newItems, trim, readItems, newContact, mergeInto, undoMerge, matchContacts, matchScope, isClean, inScope, dealScope, MAX_ITEMS, upToDate, matchDeals, batchKind, newDealFields, applyDealMerge, undoDealMerge } from './inbox.js';
+import { extractCandidates, newItems, trim, readItems, newContact, mergeInto, undoMerge, matchContacts, matchScope, isClean, inScope, dealScope, MAX_ITEMS, upToDate, matchDeals, batchKind, FROM_FILE, newDealFields, applyDealMerge, undoDealMerge } from './inbox.js';
 
 const ITEMS = 'inbox.items';
 const PREFS = 'inbox.prefs';
 const changed = () => { try { document.dispatchEvent(new CustomEvent('inboxchange')); } catch { /* no page (a test) */ } };
 
 /** What this file reads and writes through; a test swaps in memory ones (_useIO). */
-const realIO = { kvGet: store.kvGet, kvSet: store.kvSet, listDeals: store.listDeals, listContacts: crm.listContacts, saveContact: crm.saveContact, deleteContact: crm.deleteContact, listTasks: crm.listTasks, addTask: crm.addTask, deleteTask: crm.deleteTask };
+const realIO = { kvGet: store.kvGet, kvSet: store.kvSet, listDeals: store.listDeals, listContacts: crm.listContacts, saveContact: crm.saveContact, deleteContact: crm.deleteContact, listTasks: crm.listTasks, addTask: crm.addTask, deleteTask: crm.deleteTask, addActivity: crm.addActivity, removeActivity: crm.removeActivity, listActivity: crm.listActivity };
 let io = realIO;
 /** @type {Promise<any>} */
 let chain = Promise.resolve();
@@ -98,7 +98,7 @@ async function fileNow(id, deps = {}, { auto = false, batch = null } = {}) {
     const rec = await io.saveContact(newContact(it, undefined, now));
     it.result = { contactId: rec.id, updatedAt: rec.updatedAt };
   } else if (d.kind === 'task') {
-    const t = await io.addTask({ title: d.title, due: d.due, dealId: it.dealId, source: 'document', note: `From ${it.source.file}, page ${it.source.page}` });
+    const t = await io.addTask({ title: d.title, due: d.due, dealId: it.dealId, source: 'document', note: it.source.kind && it.source.kind !== 'document' ? [`From ${it.source.file}`, d.note].filter(Boolean).join(': ') : `From ${it.source.file}, page ${it.source.page}` });
     it.result = { taskId: t.id, snap: taskSnap(t) };
   } else if (d.kind === 'property') {
     if (!deps.updateDeal || !it.dealId) throw new Error('The deal could not be opened.');
@@ -111,6 +111,13 @@ async function fileNow(id, deps = {}, { auto = false, batch = null } = {}) {
     }, { label: `Address filled from ${it.source.file}, page ${it.source.page}` });
     if (!wrote) throw new Error('The deal already has an address: it is kept as typed.');
     it.result = { address: d.address };
+  } else if (d.kind === 'activity') {
+    // the people on it that are already contacts (by email, never one on a confidential deal the activity is not on)
+    const contacts = await io.listContacts();
+    const scope = matchScope(contacts, await io.listDeals(), it.dealId);
+    const ids = [...new Set((d.people || []).flatMap((e) => matchContacts({ email: e }, contacts, scope).filter((m) => m.level === 'same').map((m) => m.id)))];
+    const rec = await io.addActivity({ type: d.type, text: d.text, dealId: it.dealId, at: d.at ?? now, source: { kind: it.source.kind, file: it.source.file }, contactIds: ids });
+    it.result = { activityId: rec.id };
   } else if (d.kind === 'deal') {
     if (!deps.createDeal) throw new Error('The deal could not be made.');
     const deal = await deps.createDeal(newDealFields(it, now), `Deal made from ${it.source.file}`);
@@ -196,6 +203,7 @@ const undoNow = async (/** @type {string} */ id, /** @type {any} */ deps = {}) =
         await io.deleteTask(r.taskId);
       }
     }
+    if (r.activityId) await io.removeActivity(r.activityId);
     if (r.dealId) {
       const dl = (await io.listDeals()).find((x) => x.id === r.dealId);
       if (dl) {
@@ -229,22 +237,34 @@ export const undoBatch = (/** @type {string} */ batch, /** @type {any} */ deps =
 });
 
 /**
- * Rows from a file the person chose (an import: CRM, deal or tenant export) become proposed items with no deal.
+ * Rows from a file the person chose (a CRM, deal or tenant export; a calendar or email file) become proposed items, each on the
+ * deal it names (`dealId` on the candidate) or on none.
  * A row that changes nothing is counted and not proposed; a row seen before (in any state) is not proposed again;
  * a pending row whose values changed replaces its older pending copy. At most 500 items wait at once: the rest are
  * counted in `left`, and importing the same file again continues where this stopped. Never files anything.
- * @param {{ cands: any[], source: { file: string, docRole?: string | null, sha256?: string | null }, now?: number }} o
+ * @param {{ cands: any[], source: { kind?: string, file: string, docRole?: string | null, sha256?: string | null }, now?: number }} o
  * @returns {Promise<{ added: number, replaced: number, unchanged: number, seen: number, flagged: number, left: number }>}
  */
 export function proposeRows({ cands, source, now = Date.now() }) {
   return serial(async () => {
     const [existing, deals, contacts] = await Promise.all([loadItems(), io.listDeals(), io.listContacts()]);
-    const scope = matchScope(contacts, deals, null);
-    const fresh = [];
-    let unchanged = 0;
-    for (const c of cands) if (upToDate(c, contacts, deals, scope)) unchanged += 1; else fresh.push(c);
-    const keep = newItems(fresh, { dealId: null, source: { ...source, kind: 'import' }, existing, now });
-    const seen = fresh.length - keep.length;
+    // each record names its deal (or none): matched and kept apart per deal, so a confidential deal's records stay inside it
+    const byDeal = new Map();
+    for (const c of cands) {
+      const { dealId = null, ...data } = c;
+      const id = dealId && deals.some((d) => d.id === dealId) ? dealId : null;
+      byDeal.set(id, [...(byDeal.get(id) || []), data]);
+    }
+    const keep = [];
+    let unchanged = 0; let seen = 0;
+    for (const [dealId, list] of byDeal) {
+      const scope = matchScope(contacts, deals, dealId);
+      const fresh = [];
+      for (const c of list) { if (upToDate(c, contacts, deals, scope, dealId)) unchanged += 1; else fresh.push(c); }
+      const made = newItems(fresh, { dealId, source: { ...source, kind: source.kind || 'import' }, existing: [...existing, ...keep], now });
+      seen += fresh.length - made.length;
+      keep.push(...made);
+    }
     const room = Math.max(0, MAX_ITEMS - existing.filter((x) => x.status === 'pending').length);
     const take = keep.slice(0, room);
     const ids = new Set(take.map((x) => x.data.idKey).filter(Boolean));
@@ -267,20 +287,20 @@ export const fileBatch = (mode, deps = {}) => serial(async () => {
   const scope = dealScope(deals);
   let contacts = await io.listContacts();
   const out = { batch, filed: 0, merged: 0, kept: 0 };
-  for (const it of items.filter((x) => x.status === 'pending' && x.dealId === null && inScope(x, scope))) {
+  for (const it of items.filter((x) => x.status === 'pending' && FROM_FILE.has(x.source && x.source.kind) && inScope(x, scope) && !scope.secret.has(x.dealId))) {
     if (batchKind(it, contacts, deals) !== mode) continue;
     try {
       if (it.data.kind === 'contact') {
         if (mode === 'new') { if (await fileNow(it.id, deps, { batch })) out.filed += 1; }
         else {
-          const m = matchContacts(it.data, contacts, matchScope(contacts, deals, null));
+          const m = matchContacts(it.data, contacts, matchScope(contacts, deals, it.dealId));
           if ((await mergeNow(it.id, m[0].id, {}, { batch })).ok) out.merged += 1;
         }
         contacts = await io.listContacts();
       } else if (it.data.kind === 'deal') {
         const m = matchDeals(it.data, deals);
         if ((await mergeDealNow(it.id, m[0].id, deps, { batch })).ok) out.merged += 1;
-      }
+      } else if (await fileNow(it.id, deps, { batch })) out.filed += 1;
     } catch { out.kept += 1; }
   }
   return out;

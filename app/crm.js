@@ -97,6 +97,17 @@ export async function log(type, text, dealId = null, extra = {}) {
   return put(K.activity, all);
 }
 
+/** An activity made with its own time (a meeting or email filed from a file) and what it came from; resolves to the record. */
+export async function addActivity({ type, text, dealId = null, at = Date.now(), source = null, contactIds = [] }) {
+  const rec = { id: id('a'), at, type, text, dealId, ...(source ? { source } : {}), ...(contactIds.length ? { contactIds } : {}) };
+  const all = await listActivity();
+  all.push(rec);
+  if (all.length > MAX_ACTIVITY) all.splice(0, all.length - MAX_ACTIVITY);
+  await put(K.activity, all);
+  return rec;
+}
+export async function removeActivity(aid) { await put(K.activity, (await listActivity()).filter((a) => a.id !== aid)); }
+
 /** Everything CRM, for the backup. */
 export async function exportCrm() { return { tasks: await listTasks(), contacts: await listContacts(), activity: await listActivity() }; }
 export async function importCrm({ tasks = [], contacts = [], activity = [] }) {

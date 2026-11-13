@@ -432,10 +432,10 @@ export function undoDealMerge(deal, undo) {
 /**
  * Whether an imported row changes nothing: a contact whose one 'same' match already holds every value and the deal link,
  * or a deal whose match already has the file's id and a closing date. Such a row is counted, not proposed.
- * @param {any} cand @param {any[]} contacts @param {any[]} deals @param {{ hidden?: Set<string>, only?: Set<string> | null }} [scope]
+ * @param {any} cand @param {any[]} contacts @param {any[]} deals @param {{ hidden?: Set<string>, only?: Set<string> | null }} [scope] @param {string | null} [dealId]
  */
-export function upToDate(cand, contacts, deals, scope = {}) {
-  const item = { id: '', dealId: null, source: {}, data: cand };
+export function upToDate(cand, contacts, deals, scope = {}, dealId = null) {
+  const item = { id: '', dealId, source: {}, data: cand };
   if (cand.kind === 'contact') {
     const m = matchContacts(cand, contacts, scope);
     if (m.length !== 1 || m[0].level !== 'same') return false;
@@ -454,18 +454,21 @@ export function upToDate(cand, contacts, deals, scope = {}) {
 }
 
 /**
- * What a "File all" tap would do with a waiting item from a file: 'new' (a contact that matches nobody, not flagged), 'updates'
+ * What a "File all" tap would do with a waiting item from a file: 'new' (a contact that matches nobody, an activity or a task, none flagged), 'updates'
  * (a contact or deal with exactly one match by id or email, and a merge that only fills blanks), or null (needs a person's choice).
  * @param {any} it @param {any[]} contacts @param {any[]} deals
  */
 export function batchKind(it, contacts, deals) {
   const d = it.data;
-  if (it.status !== 'pending' || it.dealId !== null || d.suspicious) return null;
+  if (it.status !== 'pending' || d.suspicious || !it.source || !FROM_FILE.has(it.source.kind)) return null;
   if (d.kind === 'contact') {
-    const m = matchContacts(d, contacts, matchScope(contacts, deals, null));
+    const m = matchContacts(d, contacts, matchScope(contacts, deals, it.dealId));
     if (isClean(it, { matches: m })) return 'new';
     return m.length === 1 && m[0].level === 'same' && !mergePreview(it, contacts.find((c) => c.id === m[0].id)).conflicts.length ? 'updates' : null;
   }
   if (d.kind === 'deal') { const m = matchDeals(d, deals); return m.length === 1 && m[0].level === 'same' ? 'updates' : null; }
+  if (d.kind === 'activity' || d.kind === 'task') return 'new';
   return null;
 }
+/** Where a record that came from a file the person chose says it came from (a document read on a deal is not one of these). */
+export const FROM_FILE = new Set(['import', 'calendar', 'email']);
