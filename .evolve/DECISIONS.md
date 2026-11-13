@@ -147,3 +147,14 @@ The owner approved all five recommendations in the session chat ("approve all"):
 | 3 | Filing suggests only, with an opt-in switch that files clean new records automatically; a typed value is never overwritten; every filing can be undone |
 | 4 | A read-only local AI connector, confidential deals always left out, no write tools |
 | 5 | The server (relay), automation services and licensed data stay parked until K1-K8 ship; then a written quote |
+
+## 2026-11-13: document memory and the learning loop (`docs/proposals/document-memory-and-learning.md`)
+
+The owner answered "yes to all" in the session chat:
+
+| # | Decision |
+|---|---|
+| 1 | Option 4: the extracted, compressed page text of documents attached to a deal is kept on this device (a new `doctext` store); the original files are never stored; Forget per deal and for the whole device, confidential deals included |
+| 2 | Document text is left out of backups (backups stay small and carry no document contents) |
+| 3 | Correction lessons are kept until deleted, capped at 2,000, structure only (fixed vocabulary, error type, no names or figures), and included in backups; a learned mapping is offered after 3 matching corrections and saved only on the broker's yes; a rule ships only after held-out invented fixtures and the owner's answer files pass |
+| 4 | A structure-only export of lessons is allowed |
