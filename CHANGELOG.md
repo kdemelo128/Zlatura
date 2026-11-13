@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.7.166: One bird: the Underwrite tool's Monal opens Ask Monal (on the development branch; not merged or deployed)
+
+Clicking Monal (or the nest) inside the Underwrite tool now opens Ask Monal over the tool, with the tool's current step (Files, Read & review, Model or Export) and the nest's tips as suggested questions. This step's tips come first; "More tips from the nest" adds the rest, so all 16 tips stay reachable, and each answer keeps its "Take me there" button, which runs the route in the tool. The tool's coins, shop and wardrobe work as before. The step and tips cross the existing same-origin frame bridge as plain text, cleaned and capped in the app; the tool opened on its own page keeps its own tip card. No figures, no saved data and no network request change.
+
 ## 4.7.165: Speed budgets: screen switches, opening a deal and typing are measured and held (on the development branch; not merged or deployed)
 
 Measured with 30 saved deals in Chromium: every screen switch takes under 60 ms and opening a deal 63 ms on a normal CPU; with the CPU slowed 4x (a mid-range phone) switches take 40 to 150 ms (the first Underwrite open about 350 ms), opening a deal about 210 ms and a keystroke under 20 ms. Home draws about 100 ms after a reload (about 450 ms at 4x), and most of that is the browser reading and compiling the app's 149 files, not data work. A new browser flow, speed-flow, holds budgets so a slowdown fails the run: a switch under 100 ms (median of three), a deal opening under 150 ms, a keystroke under 50 ms, and looser limits at 4x. No app code changed in this release.
