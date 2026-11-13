@@ -105,7 +105,7 @@ export function openConvert(api) {
   input.id = 'conv-file';
   input.hidden = true;
   pick.addEventListener('click', () => input.click());
-  const pickRow = el('div', 'docs-row');
+  const pickRow = el('div', 'docs-row doc-file-entry');
   pickRow.append(pick, input);
 
   const status = el('p', 'hint-sm docs-status');
@@ -158,7 +158,7 @@ export function openConvert(api) {
   for (const [what, why] of NOT_OFFERED) notList.appendChild(el('li', null, `${what}: ${why}`));
   all.appendChild(notList);
 
-  body.append(pickRow, status, alert, fileLine, noteLine, canLab, can, noLab, no, prog, all);
+  body.append(el('h3', 'doc-phase', 'Choose a file'), pickRow, status, alert, fileLine, noteLine, el('h3', 'doc-phase', 'Choose a format'), canLab, can, noLab, no, prog, all);
   canLab.hidden = noLab.hidden = true;
 
   const say = (t) => { status.textContent = ''; setTimeout(() => { status.textContent = t; }, 30); };

@@ -79,8 +79,9 @@ export function openPdfPages(api) {
   input.multiple = true;
   input.hidden = true;
   add.addEventListener('click', () => input.click());
-  const addRow = el('div', 'docs-row');
+  const addRow = el('div', 'docs-row doc-file-entry');
   addRow.append(add, input);
+  body.appendChild(el('h3', 'doc-phase', 'Add PDFs'));
   body.appendChild(addRow);
 
   const status = el('p', 'hint-sm docs-status');
@@ -97,7 +98,7 @@ export function openPdfPages(api) {
   const list = el('ol', 'docs-list');
   list.id = 'docs-list';
   list.setAttribute('aria-label', 'Pages, in the order they will be saved');
-  body.append(fileList, list);
+  body.append(el('h3', 'doc-phase', 'Arrange pages'), fileList, list);
 
   const out = el('div', 'docs-out');
   const nameField = el('div', 'field');
@@ -142,7 +143,7 @@ export function openPdfPages(api) {
   prog.append(bar, cancel);
 
   out.append(nameField, save, rangeField, acts, prog);
-  body.appendChild(out);
+  body.append(el('h3', 'doc-phase', 'Save result'), out);
 
   const say = (t) => { status.textContent = ''; setTimeout(() => { status.textContent = t; }, 30); };
   const problems = (lines) => {

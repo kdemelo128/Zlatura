@@ -1455,6 +1455,8 @@ dialog.sheet[open] { animation: up .26s var(--ease); }
 .sheet-head { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--s2) var(--s5) var(--s3); border-bottom: 1px solid var(--line); }
 .sheet-head h2 { font: 600 var(--t-20)/1.2 var(--serif); letter-spacing: -.01em; margin-right: auto; overflow-wrap: anywhere; }
 .sheet-head .eyebrow { font: 600 var(--t-11)/1.2 var(--ui); color: var(--brass); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
+/* the sheet's Done button is a touch target in every sheet (44 px, at any text size) */
+#sheet-close { min-height: 44px; min-width: 44px; }
 .sheet-head p, .sheet-head .sub { color: var(--muted); font-size: var(--t-13); margin-top: 4px; line-height: 1.5; }
 .sheet-body { overflow-y: auto; padding: var(--s4) var(--s5) var(--s5); display: grid; gap: var(--s4); -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
   /* rows as tall as their content: a scrolling table must never be squeezed to nothing */
@@ -1700,6 +1702,40 @@ dialog.sheet[open] { animation: up .26s var(--ease); }
 .conv-all summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
 .conv-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
 .conv-table th, .conv-table td { text-align: left; vertical-align: top; padding: var(--s1, 4px) var(--s2); border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+
+/* Documents presentation follows the active sheet's contents, never a class left on the shared body. */
+.doc-phase { display: none; }
+:root[data-look="new"] #sheet-body:has(:is(#docs-file, #conv-file)) { gap: var(--s4); }
+:root[data-look="new"] #sheet-body .doc-phase { display: block; margin: var(--s3) 0 0; font-size: 1rem; font-weight: 600; line-height: 1.4; color: var(--ink); }
+:root[data-look="new"] #sheet-body .doc-file-entry { padding: var(--s4); border: 1px dashed var(--edge); border-radius: var(--r-md); background: var(--surface-2); }
+:root[data-look="new"] #sheet-body:has(#docs-file) .docs-files li { padding: var(--s3); border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface-2); }
+:root[data-look="new"] #sheet-body:has(#docs-file) .docs-page { gap: var(--s3); padding: var(--s3); border-radius: var(--r-md); }
+:root[data-look="new"] #sheet-body:has(#docs-file) .docs-page .docs-ptext b { font-size: 1rem; font-variant-numeric: tabular-nums; }
+:root[data-look="new"] #sheet-body:has(#docs-file) .docs-page .docs-ptext span { font-size: .875rem; line-height: 1.5; }
+:root[data-look="new"] #sheet-body:has(#docs-file) .docs-btns { flex-wrap: wrap; gap: var(--s2); }
+:root[data-look="new"] #sheet-body:has(#docs-file) .docs-out { padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); }
+:root[data-look="new"] #sheet-body:has(#docs-file) .docs-out .field { min-width: 0; }
+:root[data-look="new"] #sheet-body:has(#docs-file) .docs-out input { width: 100%; min-width: 0; }
+:root[data-look="new"] #sheet-body:has(#docs-list:not(:empty)) .docs-add { background: var(--surface); border-color: var(--edge); color: var(--ink); }
+:root[data-look="new"] #sheet-body:has(#conv-file) #conv-file-line:not(:empty) { padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface-2); }
+:root[data-look="new"] #sheet-body:has(#conv-file) .conv-can { gap: var(--s3); }
+:root[data-look="new"] #sheet-body:has(#conv-file) .conv-can li { padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); justify-items: stretch; }
+:root[data-look="new"] #sheet-body:has(#conv-file) .conv-can li .btn { justify-self: start; }
+:root[data-look="new"] #sheet-body:has(#conv-file) .conv-can li .hint-sm { line-height: 1.5; font-size: .875rem; }
+:root[data-look="new"] #sheet-body:has(#conv-file) .conv-all { padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--r-md); }
+:root[data-look="new"] #sheet-body:has(#conv-file) .conv-all summary { font-weight: 500; line-height: 1.4; }
+:root[data-look="new"] #sheet-body:has(:is(#docs-file, #conv-file)) :is(.docs-status, .docs-problems) { font-size: .875rem; line-height: 1.5; }
+:root[data-look="new"] #sheet-body:has(:is(#docs-file, #conv-file)) :is(.docs-fname, .docs-ptext, #conv-file-line) { overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  :root[data-look="new"] #sheet-body:has(#docs-file) .docs-page { grid-template-columns: 64px minmax(0, 1fr); }
+  :root[data-look="new"] #sheet-body:has(#docs-file) .docs-btns { grid-column: 1 / -1; }
+  :root[data-look="new"] #sheet-body:has(:is(#docs-file, #conv-file)) :is(.doc-file-entry, .docs-out, .conv-can li, .conv-all) { padding: var(--s3); }
+  :root[data-look="new"] #sheet-body:has(#conv-file) .conv-table { table-layout: fixed; }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  :root[data-look="new"]:not([data-motion="off"]) #sheet-body:has(:is(#docs-file, #conv-file)) :is(.docs-page, .conv-can li) { transition: border-color 120ms var(--ease), background-color 120ms var(--ease); }
+  :root[data-look="new"]:not([data-motion="off"]) #sheet-body:has(:is(#docs-file, #conv-file)) :is(.docs-page, .conv-can li):hover { border-color: var(--edge); background: var(--surface-2); }
+}
 
 /* the comp importer's sheet: every control is at least 44 px tall, a radio's whole row is its target */
 .ci44, input.ci44, select.ci44 { min-height: 44px; }
