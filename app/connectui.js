@@ -2,7 +2,10 @@
  * and "My data", what is stored on this device (mydata.js). Nothing here makes a network request: a row opens
  * something Monal already has, or says plainly what it waits for. */
 
-import { el, icon, toast } from './kit.js';
+import { el, icon, toast, niceDate } from './kit.js';
+import * as store from './store.js';
+import { KINDS, countKinds, storageLine, countText } from './mydata.js';
+import { makeBackup, restore } from './backupui.js';
 import { PRODUCT } from './brand.js';
 import { filterCategories, monogram } from './connectors.js';
 import { openAssistant } from './assistantui.js';
@@ -129,13 +132,64 @@ function connectorsPanel() {
   return p;
 }
 
+/** Everything the tab reads, from this device only. */
+async function readDevice() {
+  const [deals, kv, session, info] = await Promise.all([store.listDeals(), store.kvAll(), store.loadSession(), store.storageInfo()]);
+  const local = {};
+  try { const v = localStorage.getItem('uw-v3'); if (v) local['uw-v3'] = v; } catch { /* blocked: none counted */ }
+  return { counts: countKinds({ deals, kv, session, local }), last: kv['backup.last'] || null, info };
+}
+
 function myDataPanel() {
   const p = el('div', 'conn-panel');
   p.appendChild(el('p', 'conn-lede', `Everything ${PRODUCT} keeps is in this browser on this device. Nothing leaves it unless you export a file or connect a service.`));
-  const go = el('button', 'btn btn-sm conn-btn', 'Back up or restore in Settings');
-  go.type = 'button';
-  go.addEventListener('click', () => { api.showView('settings'); document.dispatchEvent(new CustomEvent('settingsgroup', { detail: 'data' })); });
-  p.appendChild(go);
+  const body = el('div', 'md-body');
+  body.setAttribute('aria-busy', 'true');
+  p.appendChild(body);
+  const mine = tab;
+  readDevice().then(({ counts, last, info }) => {
+    if (tab !== mine || !body.isConnected) return;
+    body.removeAttribute('aria-busy');
+    const ul = el('ul', 'md-kinds');
+    ul.setAttribute('aria-label', 'What is stored on this device');
+    for (const k of KINDS) {
+      const li = el('li', 'md-kind');
+      li.dataset.kind = k.id;
+      const t = el('div', 'conn-text');
+      t.append(el('span', 'conn-name', k.label), el('span', 'conn-desc', `${k.where}. ${k.backup ? 'In a backup.' : 'Not in a backup.'}`));
+      const n = el('b', 'md-count', String(counts[k.id]));
+      n.setAttribute('aria-label', countText(k, counts[k.id]));
+      li.append(t, n);
+      ul.appendChild(li);
+    }
+    const st = storageLine(info);
+    const sbox = el('div', 'md-storage');
+    sbox.id = 'md-storage';
+    sbox.appendChild(el('b', null, 'Space'));
+    if (st.share !== null) {
+      const m = el('meter', 'md-meter');
+      m.min = 0; m.max = 1; m.value = st.share;
+      m.setAttribute('aria-label', 'Share of the browser’s allowance in use');
+      sbox.appendChild(m);
+    }
+    sbox.appendChild(el('span', 'conn-desc', st.text));
+    const lbox = el('p', 'conn-lede md-last', last ? `Last backup: ${niceDate(last)}.` : 'No backup made from this device yet.');
+    lbox.id = 'md-last';
+    const acts = el('div', 'md-acts');
+    const bk = el('button', 'btn btn-sm conn-btn btn-primary', 'Back up everything');
+    bk.type = 'button';
+    bk.id = 'md-backup';
+    bk.addEventListener('click', () => makeBackup().then(() => { if (visible && tab === 'mydata') render(); }).catch((e) => toast(`The backup could not be made: ${e.message}`)));
+    const rs = el('button', 'btn btn-sm conn-btn btn-gray', 'Restore from a backup…');
+    rs.type = 'button';
+    rs.id = 'md-restore-btn';
+    const fi = el('input');
+    fi.type = 'file'; fi.accept = '.json,application/json'; fi.id = 'md-restore'; fi.hidden = true;
+    rs.addEventListener('click', () => fi.click());
+    fi.addEventListener('change', () => { const f = fi.files[0]; fi.value = ''; if (f) restore(f, api); });
+    acts.append(bk, rs, fi);
+    body.append(ul, sbox, lbox, acts);
+  });
   return p;
 }
 
