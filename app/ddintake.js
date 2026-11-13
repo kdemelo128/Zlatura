@@ -94,16 +94,16 @@ function pageParts(pages, layouts, kinds) {
  * or CSV's sheets: [{ sheet, rows: [{ r, cells }] }]) }. Output: { type, typeBy ('reader'|null), reader, looks (a type
  * the text clearly reads as, to be confirmed with a tap: never set by itself), readers (only when two readers both accept a workbook: ['t12', 'rrsheet']), ask (the types to offer, best first),
  * suggest (from the name), scanned, text }. Only a reader sets `type`. A budget, an annual-only statement, a T-12 or an
- * appraisal in a PDF, or text that reads as an OM, rent roll or T-12, is never typed by its text: it asks.
- * @param {{ name?: string, pages?: string[] | null, layouts?: any, grids?: any[] | null }} f
+ * appraisal in a PDF, or text that reads as an OM, rent roll or T-12, is never typed by its text: it asks. `ocr`: the pages' text was written by OCR, so a short text is never taken for real text (textlayer.js).
+ * @param {{ name?: string, pages?: string[] | null, layouts?: any, grids?: any[] | null, ocr?: boolean }} f
  */
-export function identify({ name = '', pages = null, layouts = null, grids = null }) {
+export function identify({ name = '', pages = null, layouts = null, grids = null, ocr = false }) {
   const out = { type: /** @type {string | null} */ (null), typeBy: /** @type {'reader'|null} */ (null), reader: /** @type {string | null} */ (null), looks: /** @type {string | null} */ (null), ask: /** @type {string[]} */ ([]), suggest: suggestFromName(name), scanned: false, text: '' };
   let omRead = false;
   let dk = /** @type {any} */ (null);
   if (pages) {
     out.text = pages.slice(0, 3).join('\n');
-    dk = docKind(pages, layouts);
+    dk = docKind(pages, layouts, { ocr });
     out.scanned = dk.kind === 'scanned';
     // a table with a rent roll's columns that is a unit mix or a lease comparable table (rrdoc.js docKind says so): never read as a rent roll
     if (dk.shape) {
@@ -229,10 +229,10 @@ export async function intake(file, { getFflate, getXlsx, readPdf, problem = (e) 
   if (info.refuse && !(up.kind === 'pdf' || up.kind === 'image')) return info;
   try {
     if (up.kind === 'pdf' && bytes && !info.refuse) {
-      const { pages, layouts } = await readPdf(bytes.slice());
+      const { pages, layouts, ocr } = /** @type {any} */ (await readPdf(bytes.slice()));
       info.pages = pages.length || null;
       info.textPages = pages;   // held in memory for Ask Monal's document search (docsession.js); never stored
-      info.verdict = identify({ name: file.name, pages, layouts: layouts.length === pages.length ? layouts : null });
+      info.verdict = identify({ name: file.name, pages, layouts: layouts.length === pages.length ? layouts : null, ocr: !!ocr });
       // a scan keeps its bytes in memory for the broker's choice to read its first page; they are never stored
       if (info.verdict.scanned) info.bytes = bytes;
     } else if ((up.kind === 'xlsx' || up.kind === 'text') && !up.refuse) {

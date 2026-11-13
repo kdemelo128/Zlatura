@@ -214,3 +214,19 @@ test('gap 1: the heading rules, one at a time', async () => {
   assert.equal(isRentSchedule(['Line', 'Account', 'Jan', 'Feb', 'Mar'], months), false);
   assert.equal(isRentSchedule(['Tenant', null, 'Jan', 'Feb', 'Mar'], [false, false, true, true, true]), true);
 });
+
+test('gap 4: text OCR wrote, or a cover page beside a page with no text, does not turn a scan into text', async () => {
+  const { pagesAreScan } = await import('../app/textlayer.js');
+  assert.equal(pagesAreScan([COVER.join('\n')]), false);
+  assert.equal(pagesAreScan([COVER.join('\n')], { ocr: true }), true, 'OCR text under 200 characters stays a scan (nothing is typed from it)');
+  assert.equal(pagesAreScan([COVER.join('\n'), '', '']), true, 'a cover page and two picture pages is a scan');
+  assert.equal(pagesAreScan([COVER.join('\n'), COVER.join('\n')]), false);
+  // the intake passes what readPdf says: a result with `ocr` set is OCR text
+  const cover = prose(COVER, { y: 700, size: 18 });
+  const bytes = pdfOf([cover, cover]);
+  const ocrRead = async (b) => ({ ...(await readPdf(b)), ocr: { read: [1, 2] } });
+  const fromOcr = (await intake(file(bytes, 'a.pdf'), { ...deps, readPdf: ocrRead })).verdict;
+  assert.equal(fromOcr.scanned, true);
+  const plain = (await intake(file(bytes, 'a.pdf'), deps)).verdict;
+  assert.equal(plain.scanned, false);
+});

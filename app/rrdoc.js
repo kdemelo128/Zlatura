@@ -35,9 +35,9 @@ function monthLine(pages) {
  * wording. Both rent roll and OM signals answer 'om'. `roll` is the table omroll.js found, if any, so a person who
  * says "it is a rent roll" can read it anyway.
  */
-export function docKind(pages, layouts = null) {
+export function docKind(pages, layouts = null, { ocr = false } = {}) {
   const text = pages.join('\n');
-  if (pagesAreScan(pages)) return { kind: 'scanned', why: ['The PDF has almost no text: it is a scan or a picture.'], roll: null };
+  if (pagesAreScan(pages, { ocr })) return { kind: 'scanned', why: ['The PDF has almost no text: it is a scan or a picture.'], roll: null };
   const head = pages.slice(0, 2).join('\n');
   const { roll, summary, rowLines } = readRoll(pages, layouts, null);
   const om = OM_WORDS.filter((re) => re.test(text)).length >= 2;
