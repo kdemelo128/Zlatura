@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.7.163: Home has a live Pulse panel with the monal, and you choose what Home shows (on the development branch; not merged or deployed)
+
+The empty top right of Home now holds a Pulse panel drawn from your own deals and tasks: the pipeline's asking value by stage as softly moving bars, or a 12-week sparkline of deals added or tasks finished, with chips for what is due today, overdue, due in the next 7 days and waiting in To file. With no deals it says so and invites the first one; nothing is invented. The monal perches on the panel's edge, blinks and tilts when you hover, and never takes a click. Customise Home (in the quick row) lets you hide panels, move them up or down and pick the chart; it is kept on this device and Reset brings back today's Home. Motion is off under reduced motion and the Motion switch. Classic shows the panel too. The bird's drawing now lives in one shared file used by Home and the underwriting tool.
+
 ## 4.7.162: Clearer PDF-page and file-conversion sheets (on the development branch; not merged or deployed)
 
 The New look groups the existing Documents controls into file entry, page arrangement or format choice, and saving. File names wrap, controls keep their large targets, and quiet cards show which actions belong together. Classic and every existing operation remain available. Reduced motion and the app's motion switch are respected.
