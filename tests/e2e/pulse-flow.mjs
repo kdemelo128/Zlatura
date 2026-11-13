@@ -6,8 +6,7 @@
  *  - reduced motion and the Motion switch stop every animation; the bird takes no click; every control is 44 px;
  *  - it also draws in Classic, and makes no network request outside the app. */
 import { createRequire } from 'node:module';
-import { phone, BASE } from './lib.mjs';
-import { finish } from './finish.mjs';
+import { phone, BASE, finish } from './lib.mjs';
 import { seedPulse } from './pulse-seed.mjs';
 
 const AXE = createRequire(import.meta.url).resolve('axe-core/axe.min.js');

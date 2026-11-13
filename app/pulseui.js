@@ -2,14 +2,15 @@
  * its edge, and the "Customise Home" sheet. The numbers come from pulse.js, which takes them from the person's own deals and tasks.
  * Motion is transform and opacity only (styles.css, `.pulse`), off under reduced motion and the Motion switch. */
 
-import './monal-vector.js';
+import { birdNode } from './monal/art.js';
 import { el, short } from './kit.js';
 import { CHARTS, WEEKS, describe, arrange, move, savePrefs } from './pulse.js';
 
 const NS = 'http://www.w3.org/2000/svg';
+/** @param {string} tag @param {Record<string, any>} [attrs] @param {Node[]} [kids] */
 const sv = (tag, attrs = {}, kids = []) => {
   const n = document.createElementNS(NS, tag);
-  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
   for (const k of kids) n.appendChild(k);
   return n;
 };
@@ -18,8 +19,8 @@ const sv = (tag, attrs = {}, kids = []) => {
 function bird() {
   const box = el('div', 'pulse-bird');
   box.setAttribute('aria-hidden', 'true');
-  const art = /** @type {any} */ (globalThis).UWMonalArt;
-  if (art) box.innerHTML = art.svg('pulsebird');
+  const art = birdNode('pulsebird');
+  if (art) box.appendChild(art);
   return box;
 }
 
@@ -102,7 +103,7 @@ export function pulsePanel({ data, chart, pick, go }) {
 
   const stage = el('div', 'pulse-stage');
   stage.setAttribute('role', 'img');
-  stage.setAttribute('aria-label', describe(chart, data, short));
+  stage.setAttribute('aria-label', describe(chart, data, (n) => String(short(n))));
   let empty = false;
   if (chart === 'flow') {
     if (data.flow.rows.length) stage.appendChild(flowChart(data));

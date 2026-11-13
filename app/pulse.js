@@ -5,6 +5,7 @@ import { ACTIVE, HIDDEN } from './pipeline.js';
 
 export const WEEKS = 12;
 const WEEK_MS = 7 * 86400000;
+/** @type {(x: unknown) => x is number} */
 const ok = (x) => typeof x === 'number' && Number.isFinite(x);
 
 /** The charts the panel can draw. */
@@ -59,6 +60,7 @@ export function pulseData({ deals, tasks, waiting = 0, summary, buckets, now = D
 }
 
 /** One sentence for a screen reader: what the chart shows. */
+/** @param {(n: number) => string} [money] */
 export function describe(chart, d, money = String) {
   if (chart === 'flow') {
     if (!d.flow.rows.length) return 'No active deals yet.';
