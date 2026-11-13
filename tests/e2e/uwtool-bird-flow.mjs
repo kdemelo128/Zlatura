@@ -1,4 +1,4 @@
-/* The tool's Monal is a hand-drawn vector bird (app/uwtool/monal-vector.js), not a 3D model: no canvas or WebGL, the same
+/* The tool's Monal is a hand-drawn vector bird (app/monal-vector.js), not a 3D model: no canvas or WebGL, the same
  * places (guide panel, roaming bird by the nest, shop preview), the same poses (standing, blinking, flying, dozing) and the same
  * shop items as layers, the palettes as colours, reduced motion respected, crisp at 24 px and 240 px; the shop and coins work.
  *   node uwtool-bird-flow.mjs        # BASE=http://localhost:8080/ by default */

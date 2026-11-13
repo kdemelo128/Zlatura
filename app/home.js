@@ -16,6 +16,8 @@ import { feesCsv } from './exporters.js';
 import { waitingCount } from './inboxui.js';
 import { openConnect } from './connectui.js';
 import { toolIndex, openToolById } from './toolsui.js';
+import { pulseData, loadPrefs, savePrefs, arrange } from './pulse.js';
+import { pulsePanel, customiseHome } from './pulseui.js';
 import { activeWorkspace, workspaceReady, workspaceBar, restoreTabFocus } from './workspaceui.js';
 
 let api = null;
@@ -115,7 +117,29 @@ async function render() {
     quick.classList.add('home-quick');
     quick.append(om, quiet);
   } else quick.append(om, cp, nt);
+  // Customise Home: which panels show and their order; kept on this device
+  const cust = el('button', 'btn btn-plain home-cust', 'Customise Home');
+  cust.type = 'button';
+  cust.addEventListener('click', () => customiseHome({
+    api, ids: ws.homeCards.filter((id) => id !== 'home-dates'), prefs: loadPrefs(),
+    titles: { 'home-continue': 'Continue working', 'home-attention': 'Needs attention and key dates', 'home-pipeline': 'Pipeline', 'home-tasks': 'Tasks', 'home-activity': 'Recent activity', 'home-contacts': 'Contacts', 'home-ws-tools': `${ws.name} tools` },
+    change: () => { render(); },
+  }));
+  if (isNew()) quick.querySelector('.home-quiet').appendChild(cust); else quick.appendChild(cust);
   head.appendChild(quick);
+  // the pulse panel: the pipeline or a 12-week sparkline from the person's own deals and tasks, and this week's chips
+  const prefs = loadPrefs();
+  const waitingFile = await waitingCount();
+  if (prefs.pulse) {
+    const toTasks = () => { const t = $('home-tasks'); if (t) t.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
+    head.classList.add('has-pulse');
+    head.appendChild(pulsePanel({
+      data: pulseData({ deals, tasks, waiting: waitingFile, summary: p, buckets: b }),
+      chart: prefs.chart,
+      pick: (id) => { prefs.chart = id; savePrefs(prefs); render(); },
+      go: { tasks: toTasks, file: () => openConnect('inbox') },
+    }));
+  }
   root.appendChild(head);
   root.appendChild(workspaceBar({ dealCount: deals.length }));
 
@@ -149,7 +173,6 @@ async function render() {
   const att = attention(deals, tasks);
   const dates = upcomingDates(deals, { days: 30 });
   for (const k of dates.filter((x) => x.daysLeft <= 7)) att.unshift({ kind: 'date', dealId: k.dealId, text: `${k.name}: ${k.label} ${k.daysLeft < 0 ? `was ${-k.daysLeft} day${k.daysLeft === -1 ? '' : 's'} ago` : k.daysLeft === 0 ? 'is today' : `in ${k.daysLeft} day${k.daysLeft === 1 ? '' : 's'}`}.` });
-  const waitingFile = await waitingCount();
   if (waitingFile) att.push({ kind: 'file', text: `${waitingFile} record${waitingFile === 1 ? '' : 's'} found in your documents ${waitingFile === 1 ? 'is' : 'are'} waiting in To file.` });
   if (deals.length && (!lastBackup || Date.now() - lastBackup > 30 * 86400000)) att.push({ kind: 'backup', view: 'settings', text: lastBackup ? `No backup for ${Math.floor((Date.now() - lastBackup) / 86400000)} days: back up in Settings.` : 'No backup yet: everything is on this device only. Back up in Settings.' });
 
@@ -162,7 +185,7 @@ async function render() {
     'home-activity': activityCard(activity, nameOf),
     'home-contacts': contactsCard(contacts, deals, nameOf),
   };
-  root.appendChild(composeHome(ws, parts));
+  root.appendChild(composeHome(ws, parts, prefs));
   window.scrollTo({ top: scrollY });
   restoreTabFocus();
 }
@@ -172,10 +195,12 @@ const SPAN = { 'home-pipeline': 'span-12', 'home-tasks': 'span-7', 'home-activit
 const SIDE = new Set(['home-attention', 'home-dates']);
 
 /** The Home grid for a workspace: the same sections in its order, plus its tools card; Brokerage gets today's Home. */
-export function composeHome(ws, parts) {
+export function composeHome(ws, parts, prefs = null) {
   const have = { ...parts, 'home-ws-tools': ws.homeCards.includes('home-ws-tools') ? wsToolsCard(ws) : null };
   const grid = el('div', 'bento');
-  for (const id of ws.homeCards) {
+  // the person's own order and hidden panels, when they have set any (home-dates always travels with Needs attention)
+  const order = prefs ? arrange(ws.homeCards.filter((id) => id !== 'home-dates'), prefs).filter((x) => x.shown).map((x) => x.id) : ws.homeCards;
+  for (const id of order) {
     if (id === 'home-attention') {
       const side = el('div', 'span-4 ws-main');
       side.appendChild(have['home-attention']);
