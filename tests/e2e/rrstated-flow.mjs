@@ -36,7 +36,27 @@ await page.setInputFiles('#om-file', F + 'om-rr-qc.pdf');
 await page.waitForSelector('#deal-qc', { timeout: 20000 });
 await page.waitForTimeout(700);
 const qc = await text('#deal-qc');
-check('Data QC compares the OM’s stated $215,000 with the rent roll', /The OM states \$215,000 of in-place rent; the rent roll's leases add up to \$215,000 a year and its Total row prints \$220,000/.test(qc), qc.slice(0, 300));
+check('Data QC compares the OM’s stated $215,000 with the rent roll', /The OM states \$215,000 of in-place rent; the rent roll's leases add up to \$215,000 a year and its Total row prints \$220,000/.test(qc), qc.slice(0, 900));
+// the scanned page 4 is read by OCR on upload, but its rows are kept apart until accepted: nothing is merged into the 6 text rows
+check('the rent roll read from the text pages is 6 rows', /Read 6 rows from pages 2–3/.test(qc) || /the 6 rows read add up/.test(qc), qc.slice(0, 900));
+const ocrItem = page.locator('#deal-qc .qc-item[data-check="ocr:4"]');
+check('an OCR offer for page 4 lists 2 rows', (await ocrItem.count()) === 1 && /Page 4 was read by OCR: 2 rows/.test(await ocrItem.innerText()), await text('#deal-qc .qc-item[data-check="ocr:4"]'));
+const ocrStored = await page.evaluate(async () => {
+  const db = await new Promise((r) => { const q = indexedDB.open('zlatura'); q.onsuccess = () => r(q.result); });
+  const all = await new Promise((r) => { const q = db.transaction('deals').objectStore('deals').getAll(); q.onsuccess = () => r(q.result); });
+  const d = all.find((x) => x.rrQc);
+  return d ? { units: (d.rr && d.rr.leases ? d.rr.leases.length : 0), held: d.rrQc.held ? d.rrQc.held.length : 0, offered: (d.rrQc.ocr || []).map((o) => [o.page, o.rows.length, o.added]) } : null;
+});
+check('nothing from page 4 is merged before Accept', ocrStored && ocrStored.units + ocrStored.held === 6 && JSON.stringify(ocrStored.offered) === '[[4,2,false]]', JSON.stringify(ocrStored));
+await ocrItem.locator('button', { hasText: 'Accept as read' }).click();
+await page.waitForTimeout(800);
+const afterAccept = await page.evaluate(async () => {
+  const db = await new Promise((r) => { const q = indexedDB.open('zlatura'); q.onsuccess = () => r(q.result); });
+  const all = await new Promise((r) => { const q = db.transaction('deals').objectStore('deals').getAll(); q.onsuccess = () => r(q.result); });
+  const d = all.find((x) => x.rrQc);
+  return d ? { held: d.rrQc.held ? d.rrQc.held.length : 0, heldOcr: d.rrQc.held ? d.rrQc.held.filter((r) => r.ocr).length : 0, units: d.rr ? d.rr.leases.length : 0 } : null;
+});
+check('after Accept the two page-4 rows join the 6 held rows (marked OCR); no roll is made of them alone', afterAccept && afterAccept.held === 8 && afterAccept.heldOcr === 2 && afterAccept.units === 0, JSON.stringify(afterAccept));
 const a = await savedDeal();
 check('no in-place rent figure is stored, and the deal has no box for it', a && !('rent_inplace' in a.figures) && !('rent_inplace' in a.sources) && (await page.locator('#fig-rent_inplace').count()) === 0, JSON.stringify(a && Object.keys(a.figures)));
 

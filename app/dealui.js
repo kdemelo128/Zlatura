@@ -658,7 +658,14 @@ async function readOmFile(file) {
     toast(`${file.name} can’t be read: ${pdfProblem(err, file)}`, null, 8000);
     return;
   }
-  const om = readOm(pages, { layouts: layouts.length === pages.length ? layouts : null, asOf: localDate() });
+  const lay = layouts.length === pages.length ? layouts : null;
+  let om = readOm(pages, { layouts: lay, asOf: localDate() });
+  // pages read by OCR (their layout lines are marked) stay out of the rent roll read: their rows wait on the Data QC record, behind a check, until the broker accepts them
+  const ocrPages = lay ? lay.map((g, i) => (g && g.lines && g.lines.some((l) => l && l.ocr) ? i + 1 : 0)).filter(Boolean) : [];
+  if (ocrPages.length) {
+    const blank = readOm(pages.map((t, i) => (ocrPages.includes(i + 1) ? '' : t)), { layouts: lay.map((g, i) => (ocrPages.includes(i + 1) ? null : g)), asOf: localDate() });
+    om = { ...om, rentRoll: blank.rentRoll, scanned: [...new Set([...blank.scanned, ...ocrPages])].sort((a, b) => a - b) };
+  }
   if (om.chars < 200) {
     // every page a scan: the Data QC record lists them, so one can be read by OCR
     const { qc } = omRollRecord({ ...om, rentRoll: null, scanned: pages.map((_, i) => i + 1) }, { asOf: localDate(), file: file.name });
@@ -684,6 +691,11 @@ async function readOmFile(file) {
   const stmt = omReadRecord(om, { figures, sources, file: file.name });
   // the rent roll, checked (Data QC): a failed check holds it back until the broker resolves or accepts it
   const { qc, rows } = omRollRecord(om, { figures: stmt.figures, sources: stmt.sources, asOf: localDate(), file: file.name });
+  // each OCR'd page's own read, kept apart as "Read this scanned page" keeps it (rentroll.js ocrReading)
+  for (const pg of ocrPages) {
+    const g = lay[pg - 1]; const cf = g.lines.filter((l) => l && l.ocr && Number.isFinite(l.conf)).map((l) => l.conf);
+    if (qc) ocrReading(qc, pg, { text: pages[pg - 1], geom: g, words: (pages[pg - 1].match(/\S+/g) || []).length, conf: cf.length ? cf.reduce((a, b) => a + b, 0) / cf.length : 0 });
+  }
   deal = newDeal({
     name: figures.address || file.name.replace(/\.pdf$/i, ''),
     source: file.name, readAt: Date.now(), pages: om.pages, figures: stmt.figures, sources: stmt.sources,

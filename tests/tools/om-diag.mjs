@@ -9,7 +9,8 @@
  *                                 at "scanned images", rent roll never tried)
  *   roll-partly-on-scanned-page   a rent roll was read, and a page next to it has no text layer: it may hold more rows
  *   roll-not-detected             text everywhere, and no line looks like a rent roll header
- *   header-not-matched:<missing>  a line looks like a header but the reader refused it: tenant | rent-or-sf | columns
+ *   header-not-matched:<missing>  a line looks like a header but the reader refused it: tenant | rent-or-sf | columns; the line then also
+ *                                 reports which column kinds it was taken to hold (headerKinds, COLUMN_VOCAB: a fixed list, never the header text)
  *   header-found-no-rows          a header matched and no row under it was read
  *   joined-header                 a header cell has words run together ("LeaseEnd"); the reader splits them (omroll.js norm), flagged so it is known
  *   table-cells-merged            header words sit in one cell (single spaces), or a tenant cell holds a figure
@@ -22,9 +23,34 @@
 import { readOm } from '../../app/om.js';
 import { omReadRecord } from '../../app/omstatement.js';
 import { omRollRecord } from '../../app/rentroll.js';
-import { pageLines, headerAt, assignKinds, kindScores, readNumber } from '../../app/omroll.js';
+import { documentLines, headerAt, assignKinds, kindScores, readNumber } from '../../app/omroll.js';
 
 const CAMEL = /[a-z][A-Z]/;
+
+/** The only words the diagnostic may print about a header's columns: what the reader took each header cell for, never its text. */
+export const COLUMN_VOCAB = ['unit', 'suite', 'tenant', 'type', 'beds', 'baths', 'sf', 'rent', 'market-rent', 'rent-psf', 'lease-start', 'lease-end', 'term', 'status', 'deposit', 'charges', 'other'];
+/** The column kinds (COLUMN_VOCAB) a header's cells are taken for, sorted; a cell the reader knows no kind for counts as 'other'. */
+export function columnKinds(texts) {
+  const out = new Set();
+  for (const t of texts) {
+    const k = Object.keys(kindScores(t));
+    if (!k.length) out.add('other');
+    for (const x of k) {
+      if (x === 'suite') out.add(/\b(unit|apt|apartment)\b/i.test(t) ? 'unit' : 'suite');
+      else if (x === 'beds') { if (/\b(beds?|br|bd|bedrooms?)\b/i.test(t)) out.add('beds'); if (/\b(baths?|ba|bathrooms?)\b/i.test(t)) out.add('baths'); if (!/\b(beds?|br|bd|bedrooms?|baths?|ba|bathrooms?)\b/i.test(t)) out.add('beds'); }
+      else if (x === 'annual' || x === 'monthly' || x === 'rent') out.add('rent');
+      else if (x === 'market') out.add('market-rent');
+      else if (x === 'psf' || x === 'mpsf') out.add('rent-psf');
+      else if (x === 'start') out.add('lease-start');
+      else if (x === 'end') out.add('lease-end');
+      else if (x === 'term' || x === 'remaining') out.add('term');
+      else if (x === 'recov') out.add('charges');
+      else if (COLUMN_VOCAB.includes(x)) out.add(x);
+      else out.add('other');
+    }
+  }
+  return [...out].sort();
+}
 const bucketOf = (n) => (n === 0 ? 'none' : n < 50 ? 'under-50' : n < 200 ? '50-199' : '200+');
 const RENT_KINDS = ['annual', 'monthly', 'rent'];
 
@@ -64,7 +90,7 @@ export function omDiagnose(pages, layouts, { asOf = null, file = 'x.pdf' } = {})
   const perPage = { none: 0, 'under-50': 0, '50-199': 0, '200+': 0 };
   for (const p of pages) perPage[bucketOf(String(p || '').replace(/\s+/g, '').length)] += 1;
   const out = { pages: pages.length, charsPerPage: perPage, noTextPages: om.scanned.length, headerPages: [], rollPages: [],
-    rows: 0, rowsRent: 0, rowsSf: 0, rowsEnd: 0, rowsVacant: 0, totalsDropped: 0, rowsOnDeal: 0, rowsHeld: 0, failChecks: 0,
+    rows: 0, rowsRent: 0, rowsSf: 0, rowsEnd: 0, rowsVacant: 0, totalsDropped: 0, rowsOnDeal: 0, rowsHeld: 0, failChecks: 0, headerKinds: [],
     ocrNeeded: om.scanned.length > 0, ocrOffered: false, reasons };
   if (om.chars < 200) { // the deal page stops here: "scanned images with no text", no rent roll tried
     const { qc } = omRollRecord({ ...om, rentRoll: null, scanned: pages.map((_, i) => i + 1) }, { asOf, file });
@@ -83,7 +109,7 @@ export function omDiagnose(pages, layouts, { asOf = null, file = 'x.pdf' } = {})
   out.failChecks = qc ? qc.checks.filter((c) => c.level === 'fail' && !c.resolved).length : 0;
 
   // which pages the reader scores as a rent roll: a header it accepts
-  const P = pages.map((p, i) => pageLines(p, lay && lay[i]));
+  const P = documentLines(pages, lay);
   P.forEach((lines, i) => { for (let k = 0; k < lines.length; k++) if (headerAt(lines, k)) { out.headerPages.push(i + 1); break; } });
   const cand = P.map((lines) => headerLines(lines));
   const roll = om.rentRoll;
@@ -121,6 +147,7 @@ export function omDiagnose(pages, layouts, { asOf = null, file = 'x.pdf' } = {})
     else if (best && best.kinds.size >= 2) {
       const hasMoney = ['sf', ...RENT_KINDS, 'psf', 'mpsf'].some((k) => best.kinds.has(k));
       reasons.push(`header-not-matched:${!best.kinds.has('tenant') ? 'tenant' : !hasMoney ? 'rent-or-sf' : 'columns'}`);
+      out.headerKinds = columnKinds(best.L.cells.map((c) => c.text));   // vocabulary only, never the header's text
     } else if (om.scanned.length) reasons.push('roll-on-scanned-page');
     else reasons.push('roll-not-detected');
   }
@@ -132,5 +159,5 @@ export function omDiagnose(pages, layouts, { asOf = null, file = 'x.pdf' } = {})
 /** One file's result as a counts-only line (no text from the document). */
 export function omLine(label, r) {
   const c = r.charsPerPage;
-  return `${label} | pages ${r.pages} | chars/page none ${c.none}, under-50 ${c['under-50']}, 50-199 ${c['50-199']}, 200+ ${c['200+']} | no-text pages ${r.noTextPages} | header pages ${r.headerPages.join(',') || '-'} | roll pages ${r.rollPages.join(',') || '-'} | rows ${r.rows} (rent ${r.rowsRent}, sf ${r.rowsSf}, lease end ${r.rowsEnd}, vacant ${r.rowsVacant}) | total rows dropped ${r.totalsDropped} | on deal ${r.rowsOnDeal}, held ${r.rowsHeld}, failing checks ${r.failChecks} | ocr needed ${r.ocrNeeded ? 'yes' : 'no'}, offered ${r.ocrOffered ? 'yes' : 'no'} | reasons ${r.reasons.join(', ') || 'none'}`;
+  return `${label} | pages ${r.pages} | chars/page none ${c.none}, under-50 ${c['under-50']}, 50-199 ${c['50-199']}, 200+ ${c['200+']} | no-text pages ${r.noTextPages} | header pages ${r.headerPages.join(',') || '-'} | roll pages ${r.rollPages.join(',') || '-'} | rows ${r.rows} (rent ${r.rowsRent}, sf ${r.rowsSf}, lease end ${r.rowsEnd}, vacant ${r.rowsVacant}) | total rows dropped ${r.totalsDropped} | on deal ${r.rowsOnDeal}, held ${r.rowsHeld}, failing checks ${r.failChecks} | ocr needed ${r.ocrNeeded ? 'yes' : 'no'}, offered ${r.ocrOffered ? 'yes' : 'no'} | reasons ${r.reasons.join(', ') || 'none'}${r.headerKinds.length ? ` | header columns found ${r.headerKinds.join(',')}` : ''}`;
 }

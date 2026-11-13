@@ -210,6 +210,17 @@ test('OCR words become the same lines, so the same reader runs; every row is mar
   assert.equal(addOcrRows(d, 3, '2026-10-14'), 0, 'once');
 });
 
+test('OCR rows accepted while the text pages\' rows are held join the held rows: one roll, all marked right, nothing made of the OCR rows alone', () => {
+  const row = (page, suite, ocr) => ({ tenant: `T${suite}`, suite, sf: 1000, start: null, end: null, mtm: false, annual: 12000, monthly: 1000, psf: 12, vacant: false, ocr, src: { page, line: 1, cells: {} } });
+  const qc = { held: [row(2, '101', false), row(2, '102', false)], checks: [], ocr: [{ page: 4, rows: [row(4, '107', true)], added: false }], pages: [2], page: 2 };
+  const d = { id: 'd4', figures: {}, rrQc: qc, rr: null, rentRoll: [] };
+  assert.equal(addOcrRows(d, 4, '2026-10-14'), 1);
+  assert.equal(d.rr, null, 'no roll of the OCR row alone');
+  assert.deepEqual(qc.held.map((r) => r.suite), ['101', '102', '107']);
+  assert.equal(applyHeldRows(d, '2026-10-14'), 'applied');
+  assert.deepEqual(d.rr.leases.map((L) => [L.unit, !!L.source.ocr]), [['101', false], ['102', false], ['107', true]]);
+});
+
 /* two rolls, compared (the PDF import's preview) */
 import { compareRolls } from '../app/reconcile.js';
 import { fromOmRows } from '../app/lease.js';

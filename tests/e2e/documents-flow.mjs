@@ -199,7 +199,8 @@ await desk.browser.close();
 await page.evaluate(() => { location.hash = '#home'; });
 await page.waitForFunction(() => navigator.serviceWorker && navigator.serviceWorker.controller || false, null, { timeout: 15000 }).catch(() => {});
 if (!(await page.evaluate(() => !!navigator.serviceWorker.controller))) await page.reload({ waitUntil: 'load' });
-const cached = await page.evaluate(async () => { for (const k of await caches.keys()) { const c = await caches.open(k); for (const u of ['vendor/pdf-lib-cantoo-2.11.1.min.js', 'app/pdfpages-worker.js', 'app/pdfpagesui.js']) if (!(await c.match(u))) return u; } return 'ok'; });
+// any of the app's caches may hold a file (since 4.7.155 the underwriting tool keeps its own cache beside the app's): ask them all at once
+const cached = await page.evaluate(async () => { for (const u of ['vendor/pdf-lib-cantoo-2.11.1.min.js', 'app/pdfpages-worker.js', 'app/pdfpagesui.js']) if (!(await caches.match(u))) return u; return 'ok'; });
 check('the service worker has cached the library, the worker and the screen', cached === 'ok', cached);
 await ctx.setOffline(true);
 await page.reload({ waitUntil: 'load' });
