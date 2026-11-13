@@ -38,7 +38,7 @@ export function renderT12Card(box, h) {
   box.appendChild(head);
   const t = d.t12;
   if (!t) {
-    box.appendChild(el('p', 'hint', 'Import a trailing-12 operating statement (.xlsx, .csv or a PDF with full-year actuals). Each line goes in a standard category; lines it can’t place go to Review; its NOI is set beside the OM’s and the rent roll’s.'));
+    box.appendChild(el('p', 'hint', 'Import a trailing-12 operating statement (.xlsx, .csv or a PDF with annual or twelve dated monthly actuals). Each line goes in a standard category; lines it can’t place go to Review; its NOI is set beside the OM’s and the rent roll’s.'));
     box.appendChild(importButton(h, 'Import a T-12…', 'btn btn-primary'));
     box.appendChild(pasteButton(h, 'btn btn-gray', 'Paste a statement…'));
     return;
@@ -535,8 +535,8 @@ export async function importFile(h, file) {
       try { pages = await pdfPagesAutoOcr(await getPdfjs(), new Uint8Array(await file.arrayBuffer()), { layouts, ocr: { onOcr: (o) => toast(ocrNote(o), null, 9000) } }, startOcrProgress); }
       catch (err) { throw new Error(`The PDF could not be read: ${err.message || String(err)}`); }
       const choices = pdfStatementChoices(pages, { layouts });
-      if (!choices.some((c) => c.eligible)) throw new Error(choices.find((c) => c.why)?.why || 'No explicit full-year actual operating statement was found. A scan needs OCR; an unclear period or model output is not imported as actuals.');
-      const id = await actionSheet('Which annual actual column should be imported?', choices.map((c) => ({ label: `Page ${c.page} · ${c.label}`, sub: c.why || `Year ended ${c.year} · annual totals only, no monthly values invented`, value: c.id, disabled: !c.eligible })));
+      if (!choices.some((c) => c.eligible)) throw new Error(choices.find((c) => c.why)?.why || 'No eligible actual operating statement was found. Use an annual total or twelve completed dated months. A scan needs OCR; an unclear period or model output is not imported as actuals.');
+      const id = await actionSheet('Which actual statement should be imported?', choices.map((c) => ({ label: `Page ${c.page} · ${c.label}`, sub: c.why || (c.basis === 'monthly' ? `${c.months[0]} to ${c.months.at(-1)} · 12 printed actual months` : `Year ended ${c.year} · annual totals only, no monthly values invented`), value: c.id, disabled: !c.eligible })));
       const choice = choices.find((c) => c.id === id && c.eligible);
       if (!choice) return;
       const format = choice.number.ask ? await askFormat(file.name, choice.number) : choice.number.format;
