@@ -144,7 +144,7 @@ export async function renderInbox(host, api, onCount = () => {}) {
     onCount(publicCount(items));
     if (!host.isConnected) return;
     host.textContent = '';
-    host.appendChild(el('p', 'conn-lede', 'People, companies, the property and dates that Monal found in the documents you read. Nothing is filed until you tap File; a value you typed is never overwritten.'));
+    host.appendChild(el('p', 'conn-lede', 'People, companies, the property and dates found in the documents you read. Nothing is filed until you tap File; a value you typed is never overwritten.'));
     host.appendChild(await autoSwitch('inbox-auto-tab'));
     const hiddenSecret = items.some((x) => x.status === 'pending' && x.confidential && x.dealId !== open);
     if (hiddenSecret) host.appendChild(el('p', 'hint-sm', 'Records from a confidential deal show here only while that deal is open.'));
