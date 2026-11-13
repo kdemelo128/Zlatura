@@ -1,11 +1,7 @@
-# Current UI ownership and branch boundaries
+# Codex UI branch status
 
-Owner's latest instruction reserves Home's pulse/customization and app-wide speed work, Underwrite, the bird, readers/OCR, assistant, To file inbox/routing and connectivity for Claude. Codex is continuing the New look UI for Comps, Tools and Documents, one pull request per screen. Deals PR #159 is already merged. No old reader branch is a dependency or is to be reapplied.
+Read [README.md](README.md) first. It is the single authoritative ownership table; this file records only this branch status and never overrides it.
 
-- Comps: `codex/comps-new-look`, based on main 4.7.159. Static Comps markup, table/control semantics and scoped visual styles only. Existing manual-entry actions are reused. New shortcuts use a distinct UI attribute, preserving original `data-add` selectors and handlers.
-- Tools: `codex/tools-new-look`, based on main 4.7.159. Catalog/list/card UI only; all tool definitions, calculator/input logic and existing tool opening remain unchanged.
-- Documents: reserved next UI slice. Existing PDF-pages/Convert presentation only; no worker, reader, conversion, intake or financial logic changes.
+Comps UI is on `codex/comps-new-look`; Tools UI on `codex/tools-new-look`; Documents UI on `codex/documents-new-look`. All are isolated UI changes. Deals PR #159 is merged.
 
-Before each commit, review changed paths and hunks against these boundaries. Save ordinary working-branch commits remotely so a cloud restart does not lose unfinished work. Before a PR, merge current main, preserve all other workers' changes, choose the next free release version, and report exact tests and limitations. No merge, force-push, production change or deployment by Codex.
-
-Browser checks use invented fixtures only, run serially for reliable performance measurements, and retain accessibility/error/budget checks. Acceptance counts never establish financial correctness. Claude's uncommitted session work is not visible here; this note follows the owner's latest pasted split and repository evidence.
+Current source checkpoints preserve existing actions and contain no changes to Claude-owned reader, OCR, routing, inbox, Home, speed, assistant, connectivity or Underwrite modules. Shared styles and flow registration keep main entries. Browser/type/golden/full validation remains pending for these three screens. Normal remote checkpoints protect work from cloud restarts; no force push, main merge or deployment by Codex.

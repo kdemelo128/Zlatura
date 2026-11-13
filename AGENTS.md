@@ -10,6 +10,8 @@ owner's latest instruction wins, then `CLAUDE.md`. Parts of `CLAUDE.md` that
 name Claude-only tools (subagents, skills, model routing) do not apply to you,
 but every rule about the product, tests and approvals does.
 
+**Before any work, read `docs/coordination/README.md`:** it says which files Claude is changing right now and which items are yours; do not edit files another agent owns, and merge `main` before you start.
+
 **Start every session by reading `docs/NOW.md` only.** Read `docs/PLAN_STATUS.md`,
 `ZLATURA_MASTER_PROMPT_v2.md` (never edit it) and `docs/acceptance-matrix.md` by
 section with grep, never in full.
