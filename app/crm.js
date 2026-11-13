@@ -12,9 +12,13 @@ export const MAX_ACTIVITY = 500;
 export const activityRoom = (have, adding) => have + adding <= MAX_ACTIVITY;
 const id = (p) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
-async function list(key) { return (await kvGet(key)) || []; }
+/** What this file reads and writes through; a test swaps in memory ones. */
+let kio = { get: kvGet, set: kvSet };
+/** For tests only. @param {any} x */
+export const _useKv = (x) => { kio = x || { get: kvGet, set: kvSet }; };
+async function list(key) { return (await kio.get(key)) || []; }
 async function put(key, items) {
-  if (!(await kvSet(key, items))) throw new Error('This device would not save that (storage is full or blocked).');
+  if (!(await kio.set(key, items))) throw new Error('This device would not save that (storage is full or blocked).');
   document.dispatchEvent(new CustomEvent('crmchange', { detail: key }));
   return items;
 }

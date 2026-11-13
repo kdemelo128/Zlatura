@@ -375,3 +375,20 @@ test('review 5: a task with no deal never names a contact on a confidential deal
   const ui = (await import('node:fs')).readFileSync(new URL('../app/importui.js', import.meta.url), 'utf8');
   assert.match(ui, /listDealsStrict/);
 });
+
+test('review 2: the real activity log refuses at 500 and keeps every older entry; an item with no time at all is not filed as now', async () => {
+  globalThis.CustomEvent ||= class { constructor(t, o) { this.type = t; this.detail = o && o.detail; } };
+  globalThis.document.dispatchEvent ||= () => true;
+  const crm = await import('../app/crm.js');
+  const kv = new Map([['crm.activity', Array.from({ length: 499 }, (_, i) => ({ id: `o${i}`, at: i, type: 'x', text: 't' }))]]);
+  crm._useKv({ get: async (k) => structuredClone(kv.get(k) ?? null), set: async (k, v) => { kv.set(k, structuredClone(v)); return true; } });
+  await crm.addActivity({ type: 'meeting', text: 'fits', at: 1 });
+  await assert.rejects(crm.addActivity({ type: 'meeting', text: 'does not', at: 2 }), /activity log is full/);
+  assert.equal(kv.get('crm.activity').length, 500);
+  assert.equal(kv.get('crm.activity')[0].id, 'o0', 'the oldest is still there');
+  crm._useKv(null);
+  const io = mem();
+  await S.proposeRows({ cands: [{ kind: 'activity', type: 'meeting', text: 'No time', at: null, date: null, people: [], idKey: 'k', rowKey: 'k1' }], source: { kind: 'calendar', file: 'c.ics' } });
+  await assert.rejects(S.fileItem((await S.loadItems())[0].id, {}), /no date/);
+  assert.equal(io.all().contacts.length, 0);
+});

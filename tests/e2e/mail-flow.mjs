@@ -124,6 +124,14 @@ for (const size of ['phone', 'desktop']) {
   await page.waitForSelector('.toast:has-text("not read as an email")', { timeout: 15000 });
   check(`${size}: a file that is not an email is refused in words`, true);
 
+  // a file dropped while a sheet is open does not close it: the records wait in To file and the message says so
+  await page.click('#connect-tab-connectors');
+  await page.click('.conn-row[data-id="crm-export"] button');
+  await page.waitForSelector('#sheet[open] #exp-contacts');
+  const ics3 = ['BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:late1', 'DTSTART;VALUE=DATE:20260312', 'SUMMARY:Late meeting', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  await page.evaluate((text) => { const dt = new DataTransfer(); dt.items.add(new File([text], 'late.ics', { type: 'text/calendar' })); document.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true })); }, ics3);
+  await page.waitForSelector('.toast:has-text("Open To file to see them")', { timeout: 15000 });
+  check(`${size}: a drop while a sheet is open leaves the sheet open`, await page.isVisible('#sheet[open] #exp-contacts') && (await kv('inbox.items')).some((x) => x.data.text && x.data.text.includes('Late meeting')));
   check(`${size}: no request left this origin`, outside.length === 0, outside.join(' '));
   check(`${size}: no console errors`, errors.length === 0, errors.join(' | '));
   await browser.close();

@@ -100,7 +100,7 @@ for (const size of ['phone', 'desktop']) {
   // 3. importing the same file again changes nothing; a changed row is a pending update
   await page.click('#connect-tab-connectors');
   await page.waitForSelector('#connect-list');
-  await pick('hubspot', csv('crm-contacts-later.csv', CONTACTS2));
+  await pick('hubspot', csv('crm-contacts.csv', CONTACTS2));
   check(`${size}: the layout was remembered from the first file and the preview counts what is already up to date`, /2 already up to date/.test(await page.textContent('#imp-preview')) || /already up to date/.test(await page.textContent('#imp-preview')), await page.textContent('#imp-preview'));
   await page.click('#imp-go');
   await page.waitForSelector('#connect-tab-inbox[aria-selected="true"]');
