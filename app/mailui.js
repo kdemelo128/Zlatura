@@ -67,12 +67,14 @@ export async function openMailFiles(files, h) {
   if (added) h.done();
 }
 
+const wait = (ms) => new Promise((r) => { setTimeout(() => r(null), ms); });
+
 /** Open Underwrite (quick side), where Start from documents is, and hand it the files as if they had been dropped on it. */
 async function sendToDocuments(files, h) {
   h.api.showView('underwrite');
   // the tab opens on the built-in tool; Start from documents is on the quick underwrite side
-  for (let i = 0; i < 20 && !document.getElementById('uw-view-quick'); i++) await new Promise((r) => setTimeout(r, 100));
+  for (let i = 0; i < 20 && !document.getElementById('uw-view-quick'); i++) await wait(100);
   if (!document.getElementById('uw-intake')) document.getElementById('uw-view-quick')?.click();
-  for (let i = 0; i < 30 && !document.getElementById('uw-intake'); i++) await new Promise((r) => setTimeout(r, 100));
+  for (let i = 0; i < 30 && !document.getElementById('uw-intake'); i++) await wait(100);
   document.dispatchEvent(new CustomEvent('uwdrop', { detail: files }));
 }
