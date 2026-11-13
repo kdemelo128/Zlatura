@@ -151,7 +151,11 @@ Approved as decision 1 of `docs/proposals/argus-class-cashflow.md` (section 0), 
 - **Never** decompile, disassemble, trace or get round a licence, key or terms of use on any vendor's software.
 - **Never** copy or use a vendor's file formats, databases, report layouts or help text, or leaked code.
 - **Never** import or export another vendor's model files.
-- **No vendor trademark** appears in the product, its exports or its marketing (code comments included).
+- **No vendor trademark** appears in the product, its exports or its marketing (code comments included), with one
+  exception approved by the owner on 2026-11-13 (`docs/proposals/connectivity-and-market-data.md`, Q1): the Connect page
+  and the import/export presets may name a third-party service in **plain text** only to say what connects or which
+  export a file came from. No logos, no colours or styling taken from the vendor, no claim of partnership or
+  endorsement, and never in a calculation, report layout or export header.
 - Build the **published industry method** (textbooks, appraisal practice, public measurement standards) on our own
   engine, with test values worked by hand from invented cases. Public vendor pages may be read for terminology only.
 - Where the method allows two readings, ask the owner; never copy a vendor's default.
