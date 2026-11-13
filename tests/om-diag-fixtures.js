@@ -49,8 +49,8 @@ export const FIXTURES = {
   },
   // only a rent per SF column (no annual or monthly total)
   psfOnly: () => [summary(), table({ cols: col('Suite', 'Tenant', 'SF', 'Lease Start', 'Lease End', 'Rent/SF'), withTotal: false })],
-  // no tenant column
-  noTenant: () => [summary(), table({ cols: col('Suite', 'SF', 'Lease Start', 'Lease End', 'Annual Rent'), withTotal: false })],
+  // no tenant column and no unit or suite column either: nothing to key a row by
+  noTenant: () => [summary(), table({ cols: col('SF', 'Lease Start', 'Lease End', 'Annual Rent'), withTotal: false })],
   // a header line with tenant but nothing to measure
   noMoney: () => [summary(), table({ cols: col('Suite', 'Tenant', 'Lease Start', 'Lease End'), withTotal: false })],
   // the whole header in one cell

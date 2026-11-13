@@ -79,12 +79,26 @@ export function pageLines(text, geom = null) {
   });
 }
 
+/**
+ * Every page's lines, with x in one character width for the whole document: the median of the pages' own. A page's own
+ * width is the median of its glyphs, so it moves a little with each page's mix of words and figures (and with a font
+ * size that differs from page to page), and a column at the same place on the page would drift several characters
+ * between pages: past the point where a continuation page lines up with the header's columns. Positions are in points
+ * underneath, so one unit for all pages puts a column where it is on the page.
+ */
+export function documentLines(pages, layouts = null) {
+  const cws = (layouts || []).map((g) => (g && g.cw > 0 ? g.cw : 0)).filter(Boolean).sort((a, b) => a - b);
+  const cw = cws.length ? cws[Math.floor(cws.length / 2)] : 0;
+  return pages.map((p, pi) => { const g = layouts && layouts[pi]; return pageLines(p, g && cw && g.cw > 0 && Math.abs(g.cw / cw - 1) <= 0.35 ? { ...g, cw } : g); });   // a page far off (a scan, in pixels) keeps its own
+}
+
 /* --------------------------------------------------------- the columns */
 
 // words run together by a designer's tool ("LeaseEnd", "AnnualRent") are split where a capital follows a lower-case letter, before the match
 const norm = (s) => ` ${String(s).replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().replace(/\s*\/\s*/g, '/').replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim()} `;
 const W = {
-  tenant: /\b(tenants?|lessee|occupant|residents?|tenant name|business|tenancy|company)\b/,
+  tenant: /\b(tenants?|lessees?|occupants?|residents?|tenant name|business|tenancy|company|d\/?b\/?a|leaseholders?|licensees?)\b/,
+  name: /\bname\b/,
   suite: /\b(suites?|ste|unit|unit no|space|apt|apartment|bldg|building|premises|location|floor)\b|#|\bno\.? /,
   sf: /\b(sf|s\.f\.|rsf|usf|nra|gla|sq\.? ?ft\.?|sq\.? ?feet|square f(ee|oo)t(age)?|size|area|footage)\b/,
   per: /\/(sf|rsf|ft|sq\.? ?ft)\b|\bper (sf|rsf|sq\.? ?ft|square foot|foot|ft)\b|\bpsf\b|\$\/sf|\bp\.s\.f\.?/,
@@ -98,7 +112,8 @@ const W = {
   term: /\bterm\b/,
   remaining: /\b(remaining|left|yrs|years|walt)\b/,
   status: /\b(status|occupancy|occ|lease status)\b/,
-  type: /\b(type|bd\/ba|bed|beds|br|bedrooms?|floor ?plan|plan|use|class)\b/,
+  type: /\b(type|floor ?plan|plan|use|class)\b/,
+  beds: /\b(beds?|baths?|bd\/ba|br\/ba|bd|ba|br|bedrooms?|bathrooms?)\b/,
   recov: /\b(cam|recover\w*|reimb\w*|nnn|opex|taxes|tax|insurance|ins|expenses?)\b/,
   deposit: /\b(deposits?|security)\b/,
   share: /%|\bpercent\b|\bshare\b|\bpro ?rata\b/,
@@ -117,6 +132,7 @@ export function kindScores(text) {
   // "Monthly Charges" and "Fees" are billed on top of the rent: a charge word with no rent word of its own is a recovery, never a rent kind
   const mkt = has('market'); const bump = has('bump'); const recov = has('recov') || (CHARGE.test(t) && !STRICT_RENT.test(t)); const dep = has('deposit'); const share = has('share');
   if (has('tenant')) s.tenant = 10;
+  else if (has('name') && !/\b(property|building|project|file|lender|broker|asset)\b/.test(t)) s.tenant = 7;   // a bare "Name" column, weaker than any tenant word
   if (has('suite')) s.suite = has('type') ? 4 : 8;
   if (has('sf') && !per && !share && !rent && !mkt) s.sf = 9;
   if (has('start')) s.start = 8 + (/\b(lease|date|commence)/.test(t) ? 1 : 0);
@@ -134,6 +150,7 @@ export function kindScores(text) {
   }
   if (has('status')) s.status = 7;
   if (has('type')) s.type = 6;
+  if (has('beds') && !has('type')) s.beds = 6;
   if (recov) s.recov = 6;
   if (dep) s.deposit = 6;
   if (share) s.share = 6;
@@ -144,7 +161,17 @@ export function kindScores(text) {
 const MONEY_KINDS = new Set(['annual', 'monthly', 'rent', 'psf', 'mpsf', 'market', 'recov', 'deposit']);
 const NUM_KINDS = new Set([...MONEY_KINDS, 'sf', 'share']);
 const DATE_KINDS = new Set(['start', 'end', 'term']);
-const TEXT_KINDS = new Set(['tenant', 'suite', 'status', 'type', 'notes', 'bumps', 'other', 'remaining']);
+const TEXT_KINDS = new Set(['tenant', 'suite', 'status', 'type', 'beds', 'notes', 'bumps', 'other', 'remaining']);
+
+/**
+ * A roll with no tenant column (a multifamily roll: one row a unit, the resident not named): its rows are keyed by a
+ * Unit or Suite column, and it must also say what the unit holds (a lease date or a status) so that a unit mix or a
+ * comparables table, which have a "Unit Type" but no lease, are not taken for one. "Unit Type" alone is not a unit column.
+ */
+function unitKeyed(cols, used) {
+  const key = cols.find((c) => c.kind === 'suite');
+  return !!key && key.score >= 8 && ['start', 'end', 'term', 'status'].some((k) => used.has(k));
+}
 
 /** The best assignment of kinds to header cells, or null if it isn't a rent roll header. */
 export function assignKinds(cells) {
@@ -162,7 +189,7 @@ export function assignKinds(cells) {
   });
   const known = cols.filter((c) => c.kind !== 'other').length;
   const money = ['sf', ...RENT_KINDS].some((k) => used.has(k));
-  return used.has('tenant') && money && known >= 3 ? cols : null;
+  return (used.has('tenant') || unitKeyed(cols, used)) && money && known >= 3 ? cols : null;
 }
 
 /** Old name, same job: the header's columns, or null. */
@@ -288,11 +315,39 @@ function assignCells(cells, cols) {
     taken.set(pick.col, a);
     out.push(a);
   }
+  orderFill(out, loose, cols, taken);
   for (const a of out) {
     a.parts.sort((x, y) => x.x0 - y.x0);
     a.text = a.parts.map((p) => p.text).join(' ');
   }
   return { cells: out.sort((x, y) => x.col.idx - y.col.idx), loose };
+}
+
+/**
+ * Figures that line up with no column (a label printed left-aligned over a figure column aligned to its right edge, far
+ * from the label) placed by order: between two cells already placed, when exactly as many free figure, date or share
+ * columns as loose figure cells lie between them, each cell takes the next free column that can hold it. Any other count
+ * leaves the cells loose: a blank cell means the order says nothing, and nothing is guessed.
+ */
+function orderFill(out, loose, cols, taken) {
+  const figs = loose.filter((c) => NUM_RE.test(c.text.trim()) || isDateText(c.text.trim()));
+  if (!figs.length || !out.length) return;
+  const placed = [...out].sort((a, b) => a.cell.x0 - b.cell.x0);
+  const byX = [...figs].sort((a, b) => a.x0 - b.x0);
+  const at = (c) => placed.filter((a) => a.cell.x1 <= c.x0 + 0.01).length;   // how many placed cells lie wholly left of it
+  const groups = new Map();
+  for (const c of byX) { const k = at(c); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(c); }
+  for (const [k, cells] of groups) {
+    const left = k > 0 ? placed[k - 1].col.idx : -1;
+    const right = k < placed.length ? placed[k].col.idx : Infinity;
+    const free = cols.filter((c) => c.idx > left && c.idx < right && !taken.has(c) && c.kind !== 'other' && !TEXT_KINDS.has(c.kind));
+    if (free.length !== cells.length || cells.some((c, i) => !accepts(free[i].kind, c.text))) continue;
+    cells.forEach((cell, i) => {
+      const a = { cell, col: free[i], parts: [cell] };
+      taken.set(free[i], a); out.push(a);
+      loose.splice(loose.indexOf(cell), 1);
+    });
+  }
 }
 
 /** Whether this line has a figure in it (a header never does). */
@@ -370,7 +425,7 @@ function classify(L, t) {
   // text only: a wrapped name, a section heading, or something else (the table has ended)
   const txt = L.cells.map((c) => c.text).join(' ').trim();
   if (FOOTNOTE.test(txt) || txt.length > 60 || loose.length) return { ...base, type: 'mismatch' };
-  const nameCols = textCells.filter((a) => ['tenant', 'suite', 'bumps', 'notes', 'type', 'status'].includes(a.col.kind));
+  const nameCols = textCells.filter((a) => ['tenant', 'suite', 'bumps', 'notes', 'type', 'beds', 'status'].includes(a.col.kind));
   if (!nameCols.length || nameCols.length !== textCells.length) return { ...base, type: 'mismatch' };
   if (HEADING_WORDS.test(txt) || UNIT_COUNT.test(txt)) return { ...base, type: 'heading', txt };
   return { ...base, type: 'text', txt, upper: upperish(txt) && txt.length <= 30 && !by.suite };
@@ -835,7 +890,7 @@ function tableScore(t, P) {
  * @param {{ layouts?: any, periods?: any, onRowLines?: ((row: any, lines: { page: number, line: number }[]) => void) | null }} [options]
  */
 export function rentRoll(pages, { layouts = null, periods = null, onRowLines = null } = {}) {
-  const P = pages.map((p, pi) => pageLines(p, layouts && layouts[pi]));
+  const P = documentLines(pages, layouts);
   const geo = !!(layouts && layouts.some((g) => g && g.lines));
   const tables = [];
   let pi = 0; let li = 0;

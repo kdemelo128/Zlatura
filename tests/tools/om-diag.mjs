@@ -22,7 +22,7 @@
 import { readOm } from '../../app/om.js';
 import { omReadRecord } from '../../app/omstatement.js';
 import { omRollRecord } from '../../app/rentroll.js';
-import { pageLines, headerAt, assignKinds, kindScores, readNumber } from '../../app/omroll.js';
+import { documentLines, headerAt, assignKinds, kindScores, readNumber } from '../../app/omroll.js';
 
 const CAMEL = /[a-z][A-Z]/;
 const bucketOf = (n) => (n === 0 ? 'none' : n < 50 ? 'under-50' : n < 200 ? '50-199' : '200+');
@@ -83,7 +83,7 @@ export function omDiagnose(pages, layouts, { asOf = null, file = 'x.pdf' } = {})
   out.failChecks = qc ? qc.checks.filter((c) => c.level === 'fail' && !c.resolved).length : 0;
 
   // which pages the reader scores as a rent roll: a header it accepts
-  const P = pages.map((p, i) => pageLines(p, lay && lay[i]));
+  const P = documentLines(pages, lay);
   P.forEach((lines, i) => { for (let k = 0; k < lines.length; k++) if (headerAt(lines, k)) { out.headerPages.push(i + 1); break; } });
   const cand = P.map((lines) => headerLines(lines));
   const roll = om.rentRoll;
