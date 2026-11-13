@@ -278,8 +278,20 @@ const FIG_TOKEN = /^(?:\(?-?\$\s?\d[\d,]*(?:\.\d+)?\)?|\(?\d{1,3}(?:,\d{3})+(?:\
 const UNIT_SUFFIX = /^(?:sf|rsf|psf|\/sf|\/mo|\/yr|\/month|\/year|sf\/yr)$/i;
 const RANGE_JOIN = /^(?:-|–|—|to|thru|through)$/i;
 
+/** A suite or unit number on its own ("101", "2B", "A7"). */
+const ID_WORD = /^[A-Z]?\d{1,4}[A-Z]?$/i;
+
 /** The words of a cell with where each sits in the cell: [{ w, s, e }]. */
-const wordsOf = (text) => { const out = []; const re = /\S+/g; let m; while ((m = re.exec(text))) out.push({ w: m[0], s: m.index, e: m.index + m[0].length }); return out; };
+const wordsOf = (text) => {
+  const out = []; const re = /\S+/g; let m;
+  while ((m = re.exec(text))) {
+    // words run together by a designer's tool ("StartLease") are two words
+    let from = 0;
+    for (const c of m[0].matchAll(/[a-z](?=[A-Z])/g)) { const at = c.index + 1; out.push({ w: m[0].slice(from, at), s: m.index + from, e: m.index + at }); from = at; }
+    out.push({ w: m[0].slice(from), s: m.index + from, e: m.index + m[0].length });
+  }
+  return out;
+};
 
 /** A cell of the line cut at character offsets [s, e) of the line: its text and where it sits. */
 function subCell(L, s, e) {
@@ -288,14 +300,26 @@ function subCell(L, s, e) {
   return { text: L.text.slice(s, e), start: s, end: e, x0: p ? p[0] / cw : s, x1: p ? p[1] / cw : e, cut: true };
 }
 
+/** A currency sign printed in a cell of its own to the left of a figure (accounting style): the figure's, "$ 60,000" is "$60,000". */
+const CURRENCY = /^[$€£]$/;
+function joinCurrency(L) {
+  const cells = [];
+  for (let i = 0; i < L.cells.length; i++) {
+    const c = L.cells[i]; const nx = L.cells[i + 1];
+    if (CURRENCY.test(c.text) && nx && /^\(?\d/.test(nx.text)) { cells.push({ ...nx, text: c.text + nx.text, start: c.start, x0: Math.min(c.x0, nx.x0) }); i += 1; } else cells.push(c);
+  }
+  return { ...L, cells };
+}
+
 /**
  * A line's cells with the merged ones cut apart, or the line itself. A cell is cut at the words that are figures (money,
  * a number with thousands, a decimal, a date, a percent), between a figure and text, and between two figures; a date range
  * ("01/01/21 - 12/31/30") and a figure with its unit ("2,000 SF") stay whole. A bare whole number ("650") counts as a
  * figure only next to one that is certain. With the PDF's positions, also where one fragment ends and the next starts at a
- * different header column's left edge (a suite number run into a name).
+ * different header column's left edge, after a suite number (a suite number run into a name).
  */
 function unmerge(L, cols) {
+  if (L.cells.some((c, i) => CURRENCY.test(c.text) && L.cells[i + 1] && /^\(?\d/.test(L.cells[i + 1].text))) L = joinCurrency(L);
   if (!L.cells.length || L.cells.every((c) => !/\s/.test(c.text))) return L;
   const cw = L.cw > 0 ? L.cw : 1;
   let changed = false; const out = [];
@@ -327,12 +351,12 @@ function unmerge(L, cols) {
       for (let k = 1; k < fr.length; k++) {
         const a = colOf(fr[k - 1]); const b = colOf(fr[k]);
         const wi = ws.findIndex((x) => c.start + x.s >= fr[k].s);
-        if (wi > 0 && a && b && a.q !== b.q && a.g <= 1.5 && b.g <= 1.5 && Math.abs(fr[k].x0 / cw - b.q.x0) <= 1.5 && kind[wi] !== 'u' && kind[wi] !== 'r') cut.add(wi);
+        if (wi > 0 && a && b && a.q !== b.q && a.g <= 1.5 && b.g <= 1.5 && Math.abs(fr[k].x0 / cw - b.q.x0) <= 1.5 && kind[wi] === 't' && ID_WORD.test(ws[wi - 1].w) && !ID_WORD.test(ws[wi].w)) cut.add(wi);
       }
     }
     // text only: a short id first in a cell that starts at the Suite column and runs into the Tenant column beside it
     const suiteCol = cols && cols.find((q) => q.kind === 'suite'); const tenantCol = cols && cols.find((q) => q.kind === 'tenant');
-    if (suiteCol && tenantCol && suiteCol.x0 < tenantCol.x0 && c === L.cells[0] && Math.abs(c.x0 - suiteCol.x0) <= TOL && /^[A-Z]?\d{1,4}[A-Z]?$/i.test(ws[0].w) && kind[1] === 't' && !cut.has(1)) cut.add(1);
+    if (suiteCol && tenantCol && suiteCol.x0 < tenantCol.x0 && c === L.cells[0] && Math.abs(c.x0 - suiteCol.x0) <= TOL && ID_WORD.test(ws[0].w) && kind[1] === 't' && !cut.has(1)) cut.add(1);
     if (!cut.size) { out.push(c); continue; }
     changed = true;
     let from = 0;
@@ -368,7 +392,7 @@ function phrasesOf(ws, text) {
 
 /** A header line whose labels are run together in one cell (a tight header; a whole header as one text run), cut into its labels, if that makes it a header. */
 function splitHeaderLine(L) {
-  if (!L.cells.some((c) => /\s/.test(c.text)) || hasFigure(L)) return L;
+  if (!L.cells.some((c) => /\s|[a-z][A-Z]/.test(c.text)) || hasFigure(L)) return L;
   const twoKinds = (c) => Object.values(kindScores(c.text)).filter((v) => v >= 8).length >= 2;
   if (assignKinds(L.cells) && !L.cells.some(twoKinds)) return L;
   const out = [];
@@ -504,6 +528,14 @@ export function headerAt(lines, i) {
 }
 
 /** Two headers with the same columns in the same order (a header repeated on the next page). */
+/** The keys that make a table the same roll: who or where (tenant or suite), the SF, and some rent or lease column. */
+const coreKinds = (cols) => new Set(cols.map((c) => c.kind).filter((k) => ['tenant', 'suite', 'sf', 'annual', 'monthly', 'rent', 'psf', 'mpsf', 'start', 'end'].includes(k)));
+/** A header that is the table's own with a column or two left out or added ("continued" on the next page): its key columns are the table's. */
+function continuedHeader(a, b) {
+  const ka = coreKinds(a); const kb = coreKinds(b);
+  const common = [...ka].filter((k) => kb.has(k)).length;
+  return common >= 4 && common / Math.max(ka.size, kb.size) >= 0.75 && [...(ka.size < kb.size ? ka : kb)].every((k) => (ka.size < kb.size ? kb : ka).has(k));
+}
 function sameHeader(a, b) {
   const ka = a.map((c) => c.kind).filter((k) => k !== 'other');
   const kb = b.map((c) => c.kind).filter((k) => k !== 'other');
@@ -661,6 +693,21 @@ function splitYear(L, lines, j, seg, t) {
   return 'join';
 }
 
+/** Whether, past the blank lines at j, the table carries on: the next line (or the one after a short heading) is a row of figures that lines up with the columns. */
+function rowsFollow(lines, j, t) {
+  let k = j; let heads = 0;
+  for (; k < lines.length && heads < 2; k++) {
+    const L = lines[k];
+    if (!L.cells.length) continue;
+    if (headerAt(lines, k)) return false;
+    const x = classify(L, t);
+    if (x.type === 'anchor' && !x.loose.length && x.figures.length >= 2) return true;
+    if (x.type === 'heading' || x.type === 'text') { heads += 1; continue; }
+    return false;
+  }
+  return false;
+}
+
 /** Read a table's body from (pi, li) to where it stops on that page. */
 function readBody(P, at, t) {
   const lines = P[at.pi];
@@ -672,6 +719,8 @@ function readBody(P, at, t) {
     if (!L.cells.length) {
       if (++blank > 2 && seg.items.some((x) => x.type === 'anchor')) {
         if (!afterTotal && onlyNoiseAfter(j)) { seg.soft = true; break; }
+        // whitespace between groups of rows (a section, a building) is not the end of the table: rows that line up with its columns follow
+        if (!afterTotal && rowsFollow(lines, j, t)) { blank = 0; seg.gaps = (seg.gaps || 0) + 1; continue; }
         seg.reason = afterTotal ? 'total' : 'gap'; seg.endLi = j; break;
       }
       continue;
@@ -967,11 +1016,26 @@ function checkTotals(t, rows, issues) {
       if (!Number.isFinite(v)) continue;
       const a = cover.reduce((s, r) => s + all(r), 0);
       const o = occ ? cover.reduce((s, r) => s + occ(r), 0) : null;
-      const pass = near(v, a) || (o !== null && near(v, o));
-      T.check[k] = { total: v, rows: a, occupied: o, ok: pass };
+      let pass = near(v, a) || (o !== null && near(v, o));
+      let how = '';
+      // like with like: a total that does not match the rows it sits under may be a running total (every row from the roll's start) or print the other period
+      if (!pass) {
+        const prior = rows.slice(0, T.to);
+        if (prior.length > cover.length) {
+          const ca = prior.reduce((s, r) => s + all(r), 0); const co = occ ? prior.reduce((s, r) => s + occ(r), 0) : null;
+          if (near(v, ca) || (co !== null && near(v, co))) { pass = true; how = `a running total: it adds up to all ${prior.length} rows read from the start of the roll (${fmtN(k, ca)}), not to the ${cover.length} above it`; }
+        }
+      }
+      const byRent = (k === 'annual' && T.cells.rent && !T.cells.annual) || (k === 'monthly' && T.cells.rent && !T.cells.monthly);
+      if (!pass && byRent && t.units && t.units.rent && t.units.rent.basis !== 'stated') {
+        // the rent column does not say its period, and the total may be printed in the other one: shown, never used to change a figure
+        const other = k === 'monthly' ? a * 12 : a / 12;
+        if (near(v, other)) { pass = true; how = `the rent column does not say monthly or annual: the Total ${fmtN(k, v)} equals the rows' ${k === 'monthly' ? 'monthly rent × 12 (a year)' : 'annual rent ÷ 12 (a month)'}, so it is printed ${k === 'monthly' ? 'as a year' : 'as a month'}`; }
+      }
+      T.check[k] = { total: v, rows: a, occupied: o, ok: pass, ...(how ? { how } : {}) };
       const cellK = k === 'annual' && !T.cells.annual ? 'rent' : k === 'monthly' && !T.cells.monthly ? 'rent' : k;
       issues.push({ kind: 'total', level: pass ? 'pass' : 'fail', field: k, total: T, page: T.page, line: T.line, col: T.cells[cellK] ? T.cells[cellK].col : null, cell: T.cells[cellK] || null, lineText: T.lineText,
-        text: pass ? `${T.kind === 'total' ? 'The Total row' : `The “${T.label}” row`} (page ${T.page}): ${word} ${fmtN(k, v)} equals the ${cover.length} row${cover.length === 1 ? '' : 's'} above it.`
+        text: pass ? `${T.kind === 'total' ? 'The Total row' : `The “${T.label}” row`} (page ${T.page}): ${word} ${fmtN(k, v)} ${how ? `is ${how}.` : `equals the ${cover.length} row${cover.length === 1 ? '' : 's'} above it.`}`
           : `${T.kind === 'total' ? 'The Total row' : `The “${T.label}” row`} (page ${T.page}) prints ${word} of ${fmtN(k, v)}; the ${cover.length} row${cover.length === 1 ? '' : 's'} read add up to ${fmtN(k, a)}. A row may be missing or misread.`,
         amount: Math.abs(v - a) });
       if (!pass) for (const r of cover) { r.score = Math.round((r.score - 0.3) * 100) / 100; r.why.push(`the ${word} of the rows doesn't add up to the ${T.kind === 'total' ? 'Total' : T.label} row`); }
@@ -1031,7 +1095,17 @@ export function rentRoll(pages, { layouts = null, periods = null, onRowLines = n
   if (!tables.length) return null;
   // the rent roll: the most rent-roll-like table, and any other whose header matches it
   const best = tables.reduce((a, b) => (tableScore(b, P) > tableScore(a, P) ? b : a));
+  const lastPage = (t) => t.segments[t.segments.length - 1].page;
   const chosen = tables.filter((t) => t === best || sameHeader(t.cols, best.cols));
+  // a table that picks up where a chosen one ended, with a header of its own that keeps the roll's key columns (a "continued" header with a column left out)
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const t of tables) {
+      if (chosen.includes(t) || !continuedHeader(t.cols, best.cols)) continue;
+      if (chosen.some((c) => t.page >= lastPage(c) && t.page <= lastPage(c) + 1 && t.page >= c.page)) { chosen.push(t); grew = true; }
+    }
+  }
+  chosen.sort((a, b) => a.page - b.page || a.line - b.line);
   const issues = [];
   best.scales = tableScales(best, P);
   const rows = []; const totals = []; const segments = []; const pageSet = new Set();

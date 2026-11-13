@@ -99,3 +99,41 @@ export function tightRows() {
     return it;
   })];
 }
+
+/* ---- a roll over several pages, in the ways it breaks ---- */
+const RETAIL_COLS = SUITE_COLS('Tenant');
+const RETAIL_ROWS = UNIT_ROWS.map((r, i) => [String(100 + i), 'Tenant ' + String.fromCharCode(65 + (i % 26)) + ' Shop', r[3], '01/01/2021', '12/31/2030', r[5]]);
+const num = (s) => Number(String(s).replace(/[$,]/g, ''));
+/** Groups of four rows with fifty points of white space between groups, on one page; `heading` puts "Building B" in each gap. */
+export function gapped({ heading = false, groups = 3 } = {}) {
+  const it = [{ x: 40, y: 730, s: 'Rent Roll', size: 14, bold: true }];
+  RETAIL_COLS.forEach((c) => it.push({ x: c[1], y: 700, s: c[0], right: !!c[2], bold: true, size: 7 }));
+  let y = 684;
+  for (let g = 0; g < groups; g++) {
+    if (g && heading) it.push({ x: 40, y: y - 20, s: 'Building ' + 'BCDEF'[g - 1], size: 7, bold: true });
+    for (let k = 0; k < 4; k++) { const r = RETAIL_ROWS[g * 4 + k]; RETAIL_COLS.forEach((c, ci) => it.push({ x: c[1], y, s: r[ci], right: !!c[2], size: 7 })); y -= 14; }
+    y -= 50;
+  }
+  return [summary(), it];
+}
+/** Four pages of six rows, the header on each, and a Total row at the foot of each: its own page's rows, or (running) every row so far. */
+export function pageTotals({ running = false, pages = 4 } = {}) {
+  const out = [summary()];
+  for (let p = 0; p < pages; p++) {
+    const rows = RETAIL_ROWS.slice(p * 6, p * 6 + 6);
+    const upto = running ? RETAIL_ROWS.slice(0, p * 6 + 6) : rows;
+    const sf = upto.reduce((s, r) => s + num(r[2]), 0); const rent = upto.reduce((s, r) => s + num(r[5]), 0);
+    out.push(grid({ cols: RETAIL_COLS, rows, y0: 730, title: '', total: ['', 'Total', fmt(sf), '', '', '$' + fmt(rent)] }));
+  }
+  return out;
+}
+/** Twelve rows over two pages, the second page's header with a column left out ("Rent Roll (continued)"). */
+export const continuedHeader = () => [summary(), grid({ cols: RETAIL_COLS, rows: RETAIL_ROWS.slice(0, 6) }),
+  grid({ cols: RETAIL_COLS.filter((c) => c[0] !== 'Lease Start'), rows: RETAIL_ROWS.slice(6, 12).map((r) => [r[0], r[1], r[2], r[4], r[5]]), title: 'Rent Roll (continued)', y0: 730 })];
+/** The same two pages with "$" in a cell of its own left of each rent (accounting style), the second page with no header. */
+export function accounting2() {
+  const dollars = (g) => g.flatMap((it) => (it.right && it.x === 430 && /^\$/.test(it.s) ? [{ x: 392, y: it.y, s: '$', size: 7 }, { ...it, s: it.s.replace('$', '') }] : [it]));
+  return [summary(), dollars(grid({ cols: RETAIL_COLS, rows: SUITE_ROWS.slice(0, 2) })), dollars(grid({ cols: RETAIL_COLS, rows: SUITE_ROWS.slice(2), header: false, title: '', y0: 740 }))];
+}
+/** The multifamily roll with a Total row whose rent is a year's, over a rent column that does not say its period. */
+export const mfTotal = (rent) => [grid({ cols: MF_COLS, rows: MF_ROWS, total: ['Total', '', '', '4,920', '', '', '', '', ''].map((v, i) => (i === 5 ? rent : v)) })];

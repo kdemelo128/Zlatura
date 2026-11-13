@@ -128,3 +128,57 @@ test('a whole header in one text item is not cut on its words: no columns to go 
   const { om } = await readPages(D.FIXTURES.merged());
   assert.equal(om.rentRoll, null);
 });
+
+test('whitespace between groups of rows (a building, a section) does not end the table: every group is read', async () => {
+  for (const heading of [false, true]) {
+    const r = await roll(F.gapped({ heading }));
+    assert.equal(r.rows.length, 12, `heading ${heading}`);
+    assert.equal(r.rows[11].suite, '111');
+    assert.ok(r.rows.every((x) => /^\d{3}$/.test(x.suite)), 'a heading is not a row');
+  }
+});
+
+test('a continuation page whose header leaves a column out is the same roll: its rows are read too', async () => {
+  const r = await roll(F.continuedHeader());
+  assert.equal(r.rows.length, 12);
+  assert.deepEqual(r.pages, [2, 3]);
+  assert.equal(r.rows[11].suite, '111');
+  assert.ok(r.rows.slice(6).every((x) => x.annual > 0 && x.sf > 0), 'the second page has its figures');
+});
+
+test('"$" in a cell of its own (accounting style) does not stop the table carrying on to a headerless page', async () => {
+  const r = await roll(F.accounting2());
+  assert.deepEqual(r.rows.map((x) => x.annual), [60000, 42000, 36000, 54000]);
+  assert.deepEqual(r.pages, [2, 3]);
+});
+
+test('page totals: each page\'s Total row is checked against its own rows, and a running total against every row so far', async () => {
+  const own = await roll(F.pageTotals());
+  assert.equal(own.rows.length, 24);
+  assert.ok(own.issues.filter((i) => i.kind === 'total').every((i) => i.level === 'pass'), own.issues.filter((i) => i.level === 'fail').map((i) => i.text).join(' | '));
+  const run = await roll(F.pageTotals({ running: true }));
+  assert.equal(run.rows.length, 24);
+  const checks = run.issues.filter((i) => i.kind === 'total');
+  assert.ok(checks.length >= 8 && checks.every((i) => i.level === 'pass'), checks.filter((i) => i.level !== 'pass').map((i) => i.text).join(' | '));
+  assert.ok(checks.some((i) => /running total: it adds up to all 12 rows read from the start of the roll/.test(i.text)), 'the note says which');
+});
+
+test('a running total that matches no run of rows still fails and holds the roll', async () => {
+  const pages = F.pageTotals({ running: true });
+  const page = pages[pages.length - 1];
+  const total = page.find((it) => it.s === 'Total');
+  page.find((it) => it.y === total.y && it.x === 430).s = '$999,999';
+  const r = await roll(pages);
+  assert.ok(r.issues.some((i) => i.kind === 'total' && i.level === 'fail'));
+});
+
+test('a rent column that does not say its period, under a Total printed as a year: the check says it compares the monthly rows ×12', async () => {
+  const r = await roll(F.mfTotal('$86,400'));
+  const t = r.issues.filter((i) => i.kind === 'total' && i.field === 'monthly');
+  assert.equal(t.length, 1);
+  assert.equal(t[0].level, 'pass');
+  assert.match(t[0].text, /monthly or annual: the Total \$86,400 equals the rows' monthly rent × 12 \(a year\)/);
+  assert.equal(r.rows[0].monthly, 1200, 'the rows keep the monthly figure; nothing was multiplied');
+  const bad = await roll(F.mfTotal('$99,000'));
+  assert.equal(bad.issues.filter((i) => i.kind === 'total' && i.field === 'monthly')[0].level, 'fail');
+});
