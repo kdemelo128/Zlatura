@@ -44,3 +44,5 @@ html[data-theme="dark"] .orbit-links a, html[data-theme="dark"] .orbit-caption b
 .accent-swatch.accent-follow { background: conic-gradient(#1961B3 0 25%, #78516C 0 50%, #2F6B4F 0 75%, #A24B2B 0); }
 .accent-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--ink); }
 .accent-swatch:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+html[data-theme="dark"] .monal-shop .shop-item { background: var(--field); color: var(--ink); border-color: var(--line); }
+html[data-theme="dark"] .monal-shop .shop-item[aria-pressed="true"] { border-color: var(--accent); }
