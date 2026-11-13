@@ -62,7 +62,7 @@ export function stage(plan, info, file, dd = null) {
     id: `f${++plan.seq}`, name: String(info.name ?? ''), file, kind: info.kind || 'other', size: info.size | 0, sha256: info.sha256 || null, pages: info.pages || null, textPages: /** @type {string[] | null} */ (info.textPages || null),
     type, typeBy: type ? 'reader' : null,
     confidence: type ? (ocrRead ? 'Read by OCR' : 'Read') : looks ? 'Looks like' : 'Not sure',
-    reason: type ? (REASONS[v.reader] || 'A reader on this device recognised it.') : looks ? `Its text reads like a ${typeLabel(looks).toLowerCase()}. Confirm it, or choose another type.` : v.scanned ? NO_TEXT : 'Nothing in it says what it is. Choose a type, or skip it.',
+    reason: type ? (v.route || REASONS[v.reader] || 'A reader on this device recognised it.') : looks ? `Its text reads like a ${typeLabel(looks).toLowerCase()}. Confirm it, or choose another type.` : v.scanned ? NO_TEXT : 'Nothing in it says what it is. Choose a type, or skip it.',
     // a PDF with almost no text keeps its bytes in memory so the broker can ask for OCR (readScan); they are never stored
     scanned: !type && !!v.scanned && !!info.bytes, bytes: /** @type {Uint8Array | null} */ (!type && v.scanned && info.bytes ? info.bytes : null), ocr: false,
     ask: type ? [] : [...new Set([...(looks ? [looks] : []), ...(v.ask || []).filter(isType)])],
@@ -87,6 +87,11 @@ export function stage(plan, info, file, dd = null) {
   /** One more item of the same file: a second use of it, with its own sheet or pages. Never "the same file twice". */
   const another = (over) => { item.pair = item.id; const x = { ...item, id: `f${++plan.seq}`, ask: [], factAnswers: {}, pair: item.id, ...over }; plan.items.push(x); return x; };
   const rs = Array.isArray(v.readers) ? v.readers : [];
+  const names = (l) => l.map((x) => `“${x}”`).join(', ');
+  const hiddenNote = Array.isArray(v.hiddenRoll) && v.hiddenRoll.length ? `Its rent roll is only on the hidden sheet${v.hiddenRoll.length === 1 ? '' : 's'} ${names(v.hiddenRoll)}, and the rent roll import skips hidden sheets: unhide it in the workbook and add the file again.` : '';
+  const askNote = Array.isArray(v.ambiguous) && v.ambiguous.length ? `Sheet${v.ambiguous.length === 1 ? '' : 's'} ${names(v.ambiguous)} read${v.ambiguous.length === 1 ? 's' : ''} as both a rent roll and an operating statement, so which it is has to come from you.` : '';
+  // a workbook no reader typed whose sheets are the reason: say which sheets, and offer the types
+  if (!type && !rs.length && (hiddenNote || askNote)) { item.reason = [askNote, hiddenNote].filter(Boolean).join(' '); item.sheets = [...(v.ambiguous || []), ...(v.hiddenRoll || [])]; return item; }
   // one workbook that both the rent roll and the T-12 readers accept: two uses of the one file, each on its own sheet, neither chosen
   // for the broker. Each goes through its own import (which asks which sheet); the second is not "the same file twice".
   if (!type && rs.includes('t12') && rs.includes('rrsheet')) {
@@ -94,19 +99,20 @@ export function stage(plan, info, file, dd = null) {
     const mate = another({});
     for (const [it, t] of [[item, 'rentroll'], [mate, 't12']]) {
       const p = parts.find((x) => x.type === t);
-      Object.assign(it, { type: t, typeBy: 'reader', confidence: 'Read', reason: `${both}${p ? ` ${sheetText(p, t)}` : ''}`, ask: [], use: useLabel(t), pair: item.id, ...(p ? { sheets: p.sheets } : {}) });
+      Object.assign(it, { type: t, typeBy: 'reader', confidence: 'Read', reason: [both, p ? sheetText(p, t) : '', hiddenNote].filter(Boolean).join(' '), ask: [], use: useLabel(t), pair: item.id, ...(p ? { sheets: p.sheets } : {}) });
     }
+    if (askNote) another({ type: null, typeBy: null, confidence: 'Not sure', reason: askNote, ask: ['rentroll', 't12'], use: null, sheets: v.ambiguous });
     return item;
   }
   // one use, with the sheet it came from (and a hidden sheet said to be hidden)
   const own = type ? parts.find((x) => x.type === type && x.sheets) : null;
   if (own) { item.reason = `${item.reason} ${sheetText(own, type)}`; item.sheets = own.sheets; }
-  // a sheet both readers accept went to the higher score: the other use is offered as a question, one tap
-  for (const o of Array.isArray(v.offered) ? v.offered : []) if (isType(o.type)) another({ type: null, typeBy: null, confidence: 'Not sure', reason: `Sheet “${o.sheet}” reads as ${typeLabel(o.type).toLowerCase()} too, but it went to the better match above. Tap if it is a ${typeLabel(o.type).toLowerCase()}.`, ask: [o.type], use: null, sheets: [o.sheet] });
-  // pages a specific reader accepts apart from the file's own route: offered by page range, never read in the file's place
+  if (type && hiddenNote) item.reason = `${item.reason} ${hiddenNote}`;
+  if (type && askNote) another({ type: null, typeBy: null, confidence: 'Not sure', reason: askNote, ask: ['rentroll', 't12'], use: null, sheets: v.ambiguous });
+  // pages a specific reader accepts apart from the file's own route: offered by page range. The import reads the whole file; the broker picks those pages there.
   for (const pg of parts.filter((x) => x.pages && isType(x.type) && x.type !== type)) {
     const range = pg.pages[0] === pg.pages[1] ? `Page ${pg.pages[0]}` : `Pages ${pg.pages[0]}-${pg.pages[1]}`;
-    another({ type: pg.type, typeBy: 'reader', confidence: 'Read', reason: `${range} read as ${typeLabel(pg.type).toLowerCase()}, apart from the rest of the file (${typeLabel(type).toLowerCase()}). Only those pages are offered under this type; use this or the file's own reading of them, not both.`, use: useLabel(pg.type), span: pg.pages });
+    another({ type: pg.type, typeBy: 'reader', confidence: 'Read', reason: `${range} read as ${typeLabel(pg.type).toLowerCase()}, apart from the rest of the file (${typeLabel(type).toLowerCase()}). The ${typeLabel(pg.type).toLowerCase()} import reads the whole file; you pick those pages there. Use this or the file’s own reading of them, not both.`, use: useLabel(pg.type), span: pg.pages });
   }
   return item;
 }
@@ -115,7 +121,7 @@ export function stage(plan, info, file, dd = null) {
 function sheetText(p, type) {
   const names = p.sheets.map((x) => `“${x}”`).join(', ');
   const kind = type === 'rentroll' ? 'a rent roll' : 'an operating statement';
-  const also = Array.isArray(p.alsoReads) && p.alsoReads.length ? ` It also reads as ${p.alsoReads.map((t) => typeLabel(t).toLowerCase()).join(' and ')}: that use is offered below.` : '';
+  const also = '';
   return p.hiddenOnly ? `Read from the hidden sheet${p.sheets.length === 1 ? '' : 's'} ${names}: no visible sheet reads as ${kind}.${also}` : `Sheet${p.sheets.length === 1 ? '' : 's'} ${names}.${also}`;
 }
 

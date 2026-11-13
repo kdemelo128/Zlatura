@@ -127,29 +127,27 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
     const t12 = choices.filter((c) => !c.error && !c.projection).flatMap((c) => { try { const n = layoutOf(grids[c.i].rows, { sheet: grids[c.i].sheet }).monthCols.length; return n >= 3 ? [{ i: c.i, sheet: c.sheet, hidden: c.hidden, score: n }] : []; } catch { return []; } });
     // the rent roll import's own test, sheet by sheet: a row of three or more recognised headings (its score is how many)
     const roll = grids.flatMap((g, i) => { try { const t = headerAndRows(g.rows.map((r) => r.cells), g.sheet); return t ? [{ i, sheet: g.sheet, hidden: !!g.hidden, score: Math.floor(t.score / 100) }] : []; } catch { return []; } });
-    // a sheet both readers accept goes to the one with the higher score (month columns, or recognised rent roll headings); the other is offered. A tie keeps both uses.
-    const offered = [];
-    for (const a of [...t12]) {
-      const b = roll.find((x) => x.i === a.i);
-      if (!b || a.score === b.score) continue;
-      const lose = a.score > b.score ? b : a;
-      (lose === b ? roll : t12).splice((lose === b ? roll : t12).indexOf(lose), 1);
-      offered.push({ type: lose === b ? 'rentroll' : 't12', sheet: a.sheet, win: a.score > b.score ? 't12' : 'rentroll', scores: [a.score, b.score] });
-    }
+    // a sheet both readers accept is never routed by score (recognised headings and month columns are not comparable): it is one question
+    const both = roll.filter((r) => t12.some((t) => t.i === r.i)).map((r) => r.i);
+    const ambiguous = both.map((i) => grids[i].sheet);
+    for (const list of [roll, t12]) for (const i of both) list.splice(list.findIndex((x) => x.i === i), 1);
+    // the rent roll import skips hidden sheets: a rent roll found only on hidden sheets is said, not offered as read (the T-12 import takes hidden sheets)
+    const hiddenRoll = roll.length && roll.every((x) => x.hidden) ? roll.splice(0).map((x) => x.sheet) : [];
     // hidden sheets count only when no visible sheet reads as that kind, and the part says so
     const part = (type, reader, list) => {
       const seen = list.filter((x) => !x.hidden);
       const use = seen.length ? seen : list;
-      return { type, reader, sheets: use.map((x) => x.sheet), hiddenOnly: !seen.length, ...(offered.some((o) => o.win === type) ? { alsoReads: offered.filter((o) => o.win === type).map((o) => o.type) } : {}) };
+      return { type, reader, sheets: use.map((x) => x.sheet), hiddenOnly: !seen.length };
     };
     const parts = [...(t12.length ? [part('t12', 't12', t12)] : []), ...(roll.length ? [part('rentroll', 'rrsheet', roll)] : [])];
-    const accepted = t12.length > 0;
-    const offers = offered.map((o) => ({ type: o.type, sheet: o.sheet }));
+    const more = { ...(ambiguous.length ? { ambiguous } : {}), ...(hiddenRoll.length ? { hiddenRoll } : {}) };
     // both readers accept it (one workbook holding a rent roll sheet and a statement sheet): no reader is chosen, so
     // `readers` names both and the screen offers a Use for each, each on its own sheet; each import then picks its own sheet by its own tests
-    if (accepted && roll.length) return { ...out, ask: ['t12', 'rentroll'], readers: ['t12', 'rrsheet'], parts };
-    if (accepted) return { ...out, type: 't12', typeBy: 'reader', reader: 't12', parts, ...(offers.length ? { offered: offers } : {}) };
-    if (roll.length) return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrsheet', parts, ...(offers.length ? { offered: offers } : {}) };
+    if (t12.length && roll.length) return { ...out, ask: ['t12', 'rentroll'], readers: ['t12', 'rrsheet'], parts, ...more };
+    if (t12.length) return { ...out, type: 't12', typeBy: 'reader', reader: 't12', parts, ...more };
+    if (roll.length) return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrsheet', parts, ...more };
+    if (ambiguous.length) return { ...out, ask: ['rentroll', 't12'], ...more };
+    if (hiddenRoll.length) return { ...out, ask: ['rentroll'], ...more };
     out.text = cellText(grids);
   }
   const c = classify(out.text, name);
@@ -159,7 +157,10 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
   // statement route (nothing is sent to the rent roll reader because a rent roll is also in the file).
   if (pages && dk && !omRead && !out.scanned && dk.kind !== 'om') {
     const named = c.type && READER_TYPES.includes(c.type) ? c.type : c.scores.length === 1 && READER_TYPES.includes(c.scores[0].id) ? c.scores[0].id : null;
-    if (named && (named === 't12' || dk.kind === 'unknown')) {
+    // a statement is in the file (the text scores a statement, a budget or prior-year type, or the PDF statement reader finds a table) when the
+    // text names a rent roll: never read the whole file as a rent roll then; its roll pages are offered by page where a title says so
+    const statementHere = named === 'rentroll' && (c.scores.some((x) => ['t12', 'priorStmt', 'budget'].includes(x.id)) || accepts(() => pdfStatementChoices(pages, { layouts }).length > 0));
+    if (named && !statementHere && (named === 't12' || dk.kind === 'unknown')) {
       const r = readerAccepts(named, dk, pages, layouts);
       if (r) return { ...out, type: named, typeBy: 'reader', reader: r.reader, route: r.why };
     }

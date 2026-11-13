@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
 import * as fflate from 'fflate';
 import { pdfOf } from './rr-fixtures.js';
-import { prose, omPage, rollPage, statementPage, narrative } from './tools/routepdfs.mjs';
+import { prose, omPage, rollPage, statementPage, annualPage, narrative } from './tools/routepdfs.mjs';
 import { docxFile } from './tools/docpdfs.mjs';
 
 globalThis.document ||= { createElement: () => ({}), addEventListener() {}, documentElement: { style: {} }, querySelector: () => null, body: {} };
@@ -167,41 +167,6 @@ test('two visible sheets: each use is staged on its own sheet, with the sheet na
   assert.equal(I.readyItems(p, null).length, 2);
 });
 
-test('a hidden sheet is read only when no visible sheet reads as that kind, and the item says so', async () => {
-  const hiddenOnly = await stageOf(await book((wb) => { addJunk(wb, 'Cover'); addT12(wb, 'T-12'); addRoll(wb, 'RR old', 'hidden'); }), 'a.xlsx');
-  const roll = hiddenOnly.items.find((x) => x.type === 'rentroll');
-  assert.deepEqual(roll.sheets, ['RR old']);
-  assert.match(roll.reason, /hidden sheet “RR old”: no visible sheet reads as a rent roll/);
-  assert.ok(!/hidden/.test(hiddenOnly.items.find((x) => x.type === 't12').reason));
-  const both = await stageOf(await book((wb) => { addT12(wb, 'T-12'); addRoll(wb, 'Rent Roll'); addRoll(wb, 'RR old', 'hidden'); }), 'a.xlsx');
-  const r2 = both.items.find((x) => x.type === 'rentroll');
-  assert.deepEqual(r2.sheets, ['Rent Roll'], 'the visible sheet is used and the hidden one is left');
-  assert.ok(!/hidden/.test(r2.reason));
-});
-
-test('a sheet both readers accept goes to the higher score; the other use is offered as a question', async () => {
-  // six rent roll headings and three month columns: the rent roll reader scores higher
-  const mixed = await book((wb) => { const ws = wb.addWorksheet('Roll'); ws.addRow(['Unit', 'Tenant', 'SF', 'Lease Start', 'Lease End', 'Monthly Rent', 'Jan 2025', 'Feb 2025', 'Mar 2025']); ws.addRow(['101', 'Invented Co', 1000, '2022-01-01', '2028-01-31', 2400, 2400, 2400, 2400]); ws.addRow(['102', 'Sample LLC', 1200, '2021-01-01', '2027-06-30', 2900, 2900, 2900, 2900]); ws.addRow(['103', 'Example Shop', 900, '2023-01-01', '2029-06-30', 2100, 2100, 2100, 2100]); });
-  const v = await verdictOf(mixed, 'a.xlsx');
-  assert.equal(v.type, 'rentroll'); assert.equal(v.reader, 'rrsheet');
-  assert.deepEqual(v.offered, [{ type: 't12', sheet: 'Roll' }]);
-  const p = await stageOf(mixed, 'a.xlsx');
-  assert.equal(p.items.length, 2);
-  const ask = p.items.find((x) => !x.type);
-  assert.deepEqual(ask.ask, ['t12']);
-  assert.match(ask.reason, /“Roll”.*operating statement too/);
-  assert.equal(I.readyItems(p, null).length, 1, 'only the better match can be used until the broker answers');
-  assert.ok(I.answer(p, ask.id, 't12'));
-});
-
-test('a sheet both readers accept with equal scores keeps both uses, each offered, neither chosen', async () => {
-  const tie = await book((wb) => { const ws = wb.addWorksheet('Both'); ws.addRow(['Unit', 'Tenant', 'SF', 'Jan 2025', 'Feb 2025', 'Mar 2025']); ws.addRow(['101', 'Invented Co', 1000, 2400, 2400, 2400]); ws.addRow(['102', 'Sample LLC', 1200, 2900, 2900, 2900]); ws.addRow(['103', 'Example Shop', 900, 2100, 2100, 2100]); });
-  const v = await verdictOf(tie, 'a.xlsx');
-  assert.equal(v.type, null);
-  assert.deepEqual(v.readers, ['t12', 'rrsheet']);
-  assert.equal(v.offered, undefined);
-});
-
 test('a rent roll workbook and a T-12 workbook alone are typed as before, with their sheet named', async () => {
   const r = await verdictOf(await book((wb) => addRoll(wb, 'Rent Roll')), 'a.xlsx');
   assert.equal(r.reader, 'rrsheet'); assert.equal(r.readers, undefined); assert.equal(r.offered, undefined);
@@ -209,4 +174,60 @@ test('a rent roll workbook and a T-12 workbook alone are typed as before, with t
   const p = await stageOf(await book((wb) => addT12(wb, 'T-12')), 'a.xlsx');
   assert.equal(p.items.length, 1);
   assert.match(p.items[0].reason, /Sheet “T-12”/);
+});
+
+/* ---- review fixes */
+
+test('an annual Statement of Operations with a titled rent roll on page 3 stays asked, never read whole as a rent roll', async () => {
+  const v = await verdictOf(pdfOf([annualPage('Statement of Operations'), narrative('Notes'), rollPage()]), 'a.pdf');
+  assert.notEqual(v.type, 'rentroll');
+  assert.notEqual(v.reader, 'rrpdf');
+  const u = await verdictOf(pdfOf([annualPage('Income and Expense Summary'), narrative('Notes'), rollPage({ title: false })]), 'a.pdf');
+  assert.notEqual(u.type, 'rentroll');
+});
+
+test('a sheet both readers accept is never routed by score: one question, no Use until answered', async () => {
+  // a rent roll with Jan-Mar charge columns reads as a statement too
+  const wbk = await book((wb) => { const ws = wb.addWorksheet('Roll'); ws.addRow(['Unit', 'Tenant', 'SF', 'Lease Start', 'Lease End', 'Monthly Rent', 'Jan 2025', 'Feb 2025', 'Mar 2025']); ws.addRow(['101', 'Invented Co', 1000, '2022-01-01', '2028-01-31', 2400, 2400, 2400, 2400]); ws.addRow(['102', 'Sample LLC', 1200, '2021-01-01', '2027-06-30', 2900, 2900, 2900, 2900]); ws.addRow(['103', 'Example Shop', 900, '2023-01-01', '2029-06-30', 2100, 2100, 2100, 2100]); });
+  const v = await verdictOf(wbk, 'a.xlsx');
+  assert.equal(v.type, null); assert.equal(v.reader, null);
+  assert.deepEqual(v.ask, ['rentroll', 't12']);
+  const p = await stageOf(wbk, 'a.xlsx');
+  assert.equal(p.items.length, 1);
+  assert.deepEqual(p.items[0].ask, ['rentroll', 't12']);
+  assert.equal(I.readyItems(p, null).length, 0);
+  assert.match(p.items[0].reason, /“Roll”/);
+});
+
+test('a rent roll only on a hidden sheet is a question, not Read: the rent roll import skips hidden sheets', async () => {
+  const p = await stageOf(await book((wb) => { addJunk(wb, 'Cover'); addT12(wb, 'T-12'); addRoll(wb, 'RR old', 'hidden'); }), 'a.xlsx');
+  assert.equal(p.items.filter((x) => x.type === 'rentroll').length, 0);
+  assert.match(p.items.find((x) => x.type === 't12').reason, /hidden sheet “RR old”.*skips hidden sheets/);
+  const only = await stageOf(await book((wb) => { addJunk(wb, 'Cover'); addRoll(wb, 'RR old', 'hidden'); }), 'a.xlsx');
+  assert.equal(only.items[0].type, null);
+  assert.match(only.items[0].reason, /hidden sheet “RR old”.*skips hidden sheets/);
+  assert.equal(I.readyItems(only, null).length, 0);
+  // a hidden statement is still read: the T-12 import takes hidden sheets
+  const hs = await stageOf(await book((wb) => { addJunk(wb, 'Cover'); addT12(wb, 'T-12 old', 'hidden'); }), 'a.xlsx');
+  assert.equal(hs.items[0].type, 't12');
+  assert.match(hs.items[0].reason, /hidden sheet “T-12 old”/);
+});
+
+test('a visible rent roll is used over a hidden one', async () => {
+  const both = await stageOf(await book((wb) => { addT12(wb, 'T-12'); addRoll(wb, 'Rent Roll'); addRoll(wb, 'RR old', 'hidden'); }), 'a.xlsx');
+  const r2 = both.items.find((x) => x.type === 'rentroll');
+  assert.deepEqual(r2.sheets, ['Rent Roll']);
+  assert.ok(!/hidden/.test(r2.reason));
+});
+
+test('a sheet named 2026 Plan or FY26 with month columns is a projection, not an actual statement', async () => {
+  assert.notEqual((await verdictOf(await book((wb) => addT12(wb, '2026 Plan')), 'a.xlsx')).type, 't12');
+  assert.notEqual((await verdictOf(await book((wb) => addT12(wb, 'FY26')), 'a.xlsx')).type, 't12');
+});
+
+test('an untitled rent roll says why it was chosen, and a page range says the import reads the whole file', async () => {
+  const p = await stageOf(pdfOf([rollPage({ title: false, plain: true }), narrative('Property notes')]), 'a.pdf');
+  assert.match(p.items[0].reason, /nothing on its first pages titles it/);
+  const q = await stageOf(pdfOf([WEAK_OM(), rollPage(), narrative('Market notes')]), 'a.pdf');
+  assert.match(q.items[1].reason, /reads the whole file; you pick those pages/);
 });

@@ -29,3 +29,11 @@ export function statementPage(title = 'Monthly Operating Statement - Actuals 202
 }
 /** A page of invented narrative long enough to count as a text layer, with `lines` first. */
 export const narrative = (...lines) => prose([...lines, ...Array.from({ length: 12 }, (_, i) => `Invented narrative sentence ${i + 1} about the sample property and its surroundings, written only for a test.`)]);
+/** An annual operating statement page (one actual year, no month columns), titled `title`. */
+export function annualPage(title = 'Statement of Operations') {
+  const it = [{ x: 40, y: 750, s: title, size: 12, bold: true }, { x: 40, y: 700, s: 'Line', size: 8, bold: true }, { x: 310, y: 700, s: 'Year Ended 12/31/2025 Actual', size: 8, bold: true, right: true }];
+  [['Rental income', '120,000'], ['Other income', '6,000'], ['Total income', '126,000'], ['Real estate taxes', '18,000'], ['Insurance', '4,800'], ['Total operating expenses', '22,800'], ['Net operating income', '103,200']].forEach(([l, v], k) => {
+    it.push({ x: 40, y: 684 - k * 14, s: l, size: 8 }, { x: 310, y: 684 - k * 14, s: v, size: 8, right: true });
+  });
+  return it;
+}

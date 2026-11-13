@@ -1,0 +1,8 @@
+# Start from documents reads more files instead of asking, and offers the parts of one file separately
+
+A file whose text names one type that has a reader is now read and shown as a preview when that reader accepts the content, and a workbook or an OM that holds more than one kind of document is staged once per kind, with where it came from. Nothing changes a deal before Use, and a type is never set from words alone.
+
+- **One candidate, or a title late in the file:** a PDF or Word text read as one type with a reader is read when the reader finds its table (a rent roll of three or more rows with a rent column and a suite or area column, or a statement the T-12 PDF import offers), and says why. Otherwise it is asked. A document with a statement in it (or a statement title, now including "Statement of Operations" and "P&L") is never read whole as a rent roll.
+- **Workbooks:** a rent roll sheet and a statement sheet are two staged uses, each naming its sheet. A hidden statement sheet is used only when no visible one exists. A rent roll only on a hidden sheet is asked about, with the reason (the rent roll import skips hidden sheets). A sheet both readers accept is one question and is never routed by score. A sheet named as a plan or a fiscal year ("2026 Plan", "FY26") is a projection, not an actual statement.
+- **An OM that also holds rent roll or statement pages:** the OM, and the pages a specific reader accepts, with the page range; the import reads the whole file and the broker picks those pages there. A broker opinion of value or an appraisal is still asked.
+- **Tested:** `tests/routing.test.js`, `tests/e2e/routing-flow.mjs` (phone and desktop). Saved results and the golden outputs did not change.

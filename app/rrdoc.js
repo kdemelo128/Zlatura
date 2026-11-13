@@ -13,7 +13,7 @@ import { omRollRecord } from './rentroll.js';
 export const ROLL_TITLE = /rent roll|tenant ledger|tenancy schedule|rent schedule|tenant roster|lease schedule|tenant schedule/i;
 const AS_OF = /\bas of:?\s*(?:\d{1,2}\/\d{1,2}\/\d{2,4}|[A-Za-z]+\.? \d{1,2},? \d{4})/i;
 const OM_WORDS = [/offering memorandum/i, /asking price/i, /cap(?:italization)? rate/i, /investment (?:highlights|summary|overview)/i, /executive summary/i, /confidentiality (?:agreement|notice)/i];
-export const T12_TITLE = /income statement|profit (?:and|&) loss|operating statement|\bt-?12\b|trailing (?:12|twelve)/i;
+export const T12_TITLE = /income statement|statement of operations|profit (?:and|&) (?:loss)|\bp ?& ?l\b|operating statement|\bt-?12\b|trailing (?:12|twelve)/i;
 const MONTH = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b\.?/gi;
 
 /** A line naming six or more different months: the column heads of a statement, not a rent roll. */

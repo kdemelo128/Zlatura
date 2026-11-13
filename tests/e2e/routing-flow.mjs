@@ -1,5 +1,5 @@
 /* Routing in "Start from documents" (docs/changelog/unreleased/routing.md), in a browser at phone and desktop size: one invented workbook
- * holding a rent roll on a hidden sheet and a statement on a visible one is staged as two uses of the one file, each naming its sheet
+ * holding a rent roll sheet and a statement sheet is staged as two uses of the one file, each naming its sheet
  * (the hidden one said to be hidden), and each is used on its own; one invented OM that also holds a rent roll page is staged as the OM
  * and, apart, that page, both used together and Undo takes the deal away; an untitled rent roll table shows its preview as a rent roll
  * instead of a question. Nothing is on a deal before Use. Invented files only.
@@ -22,8 +22,10 @@ const wb = new ExcelJS.Workbook();
 const cover = wb.addWorksheet('Cover'); cover.addRow(['Invented plaza']); cover.addRow(['Invented text']);
 const t = wb.addWorksheet('T-12'); t.addRow(['Operating Statement']); t.addRow(['Line', ...M, 'Total']);
 for (const [l, v] of [['Rental income', 10000], ['Other income', 500], ['Real estate taxes', 1500], ['Insurance', 400], ['Net operating income', 8600]]) t.addRow([l, ...M.map(() => v), v * 6]);
-const rr = wb.addWorksheet('RR old', { state: 'hidden' }); rr.addRow(['Unit', 'Tenant', 'SF', 'Monthly Rent', 'Lease End']); rr.addRow(['101', 'Invented Co', 1000, 2400, '2028-01-31']); rr.addRow(['102', 'Sample LLC', 1200, 2900, '2027-06-30']); rr.addRow(['103', 'Vacant', 900, 0, '']);
+const rr = wb.addWorksheet('Rent Roll'); rr.addRow(['Unit', 'Tenant', 'SF', 'Monthly Rent', 'Lease End']); rr.addRow(['101', 'Invented Co', 1000, 2400, '2028-01-31']); rr.addRow(['102', 'Sample LLC', 1200, 2900, '2027-06-30']); rr.addRow(['103', 'Vacant', 900, 0, '']);
 const book = { name: 'invented-workbook.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: Buffer.from(await wb.xlsx.writeBuffer()) };
+const hw = new ExcelJS.Workbook(); const hc = hw.addWorksheet('Cover'); hc.addRow(['Invented']); const hr = hw.addWorksheet('RR old', { state: 'hidden' }); hr.addRow(['Unit', 'Tenant', 'SF', 'Monthly Rent', 'Lease End']); hr.addRow(['101', 'Invented Co', 1000, 2400, '2028-01-31']); hr.addRow(['102', 'Sample LLC', 1200, 2900, '2027-06-30']); hr.addRow(['103', 'Vacant', 900, 0, '']);
+const hidden = { name: 'invented-hidden-roll.xlsx', mimeType: book.mimeType, buffer: Buffer.from(await hw.xlsx.writeBuffer()) };
 const om = { name: 'invented-om.pdf', mimeType: 'application/pdf', buffer: Buffer.from(pdfOf([narrative('Offering Memorandum', 'Cap Rate 6.5%'), rollPage(), narrative('Market notes')])) };
 const plain = { name: 'invented-untitled-roll.pdf', mimeType: 'application/pdf', buffer: Buffer.from(pdfOf([rollPage({ title: false, plain: true }), narrative('Property notes')])) };
 
@@ -51,7 +53,7 @@ for (const [size, vp] of [['phone size', { width: 390, height: 844 }], ['desktop
   let its = await items();
   const roll = its.find((x) => /^Rent roll/.test(x.text)); const stmt = its.find((x) => /^T-12 operating statement/.test(x.text));
   check(`${size}: one workbook is staged as two uses of the file, a rent roll and a T-12`, its.length === 2 && !!roll && !!stmt, its.map((x) => x.text.slice(0, 60)).join(' | '));
-  check(`${size}: each says which sheet it comes from, and the hidden one says it is hidden`, !!roll && !!stmt && /hidden sheet “RR old”: no visible sheet reads as a rent roll/.test(roll.text) && /Sheet “T-12”\./.test(stmt.text) && !/hidden/.test(stmt.text), its.map((x) => x.text).join(' | '));
+  check(`${size}: each says which sheet it comes from`, !!roll && !!stmt && /Sheet “Rent Roll”\./.test(roll.text) && /Sheet “T-12”\./.test(stmt.text) && !/hidden/.test(stmt.text + roll.text), its.map((x) => x.text).join(' | '));
   check(`${size}: nothing is on a deal before Use`, (await deals()).length === before);
   await axe(size);
   if (size === 'phone size') {
@@ -86,6 +88,13 @@ for (const [size, vp] of [['phone size', { width: 390, height: 844 }], ['desktop
   await page.getByRole('button', { name: 'Undo' }).click();
   await page.waitForTimeout(900);
   check(`${size}: Undo removes the deal and both uses are staged again`, (await deals()).length === n0 && (await page.locator('.uwi-staged').count()) === 2 && (await page.locator('#uwi-make').count()) === 1);
+  await clear();
+
+  /* ---- a rent roll only on a hidden sheet: a question, never "Read" (the rent roll import skips hidden sheets) */
+  await page.setInputFiles('#uwi-files', [hidden]);
+  await page.waitForFunction(() => document.querySelectorAll('.uwi-item').length >= 1);
+  its = await items();
+  check(`${size}: a rent roll only on a hidden sheet is asked about, says why, and has no Use`, its.length === 1 && /What is this/.test(its[0].text) && /hidden sheet “RR old”.*skips hidden sheets/.test(its[0].text) && (await page.locator('.uwi-item [data-use]').count()) === 0, its.map((x) => x.text.slice(0, 200)).join(' | '));
   await clear();
 
   /* ---- an untitled rent roll table: its preview, not a question */
