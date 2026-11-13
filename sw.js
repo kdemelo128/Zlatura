@@ -165,6 +165,7 @@ const ASSETS = [
   'app/settings.js',
   'app/connectors.js',
   'app/connectui.js',
+  'app/mydata.js',
   'app/command.js',
   'app/assistant.js',
   'app/assistantact.js',

@@ -88,6 +88,38 @@ for (const size of ['phone', 'desktop']) {
   check(`${size}: arrow keys move between the tabs`, (await page.getAttribute('#connect-tab-mydata', 'aria-selected')) === 'true' && await page.evaluate(() => document.activeElement.id) === 'connect-tab-mydata');
   await page.click('#connect-tab-connectors');
 
+  // My data: counts by kind match what was put there, space, last backup, the two buttons
+  await page.evaluate(() => new Promise((res) => {
+    const r = indexedDB.open('zlatura');
+    r.onsuccess = () => {
+      const t = r.result.transaction('kv', 'readwrite'); const s = t.objectStore('kv');
+      s.put([{ id: 'c1', name: 'Ann' }, { id: 'c2', name: 'Bo' }, { id: 'c3', name: 'Cy' }], 'crm.contacts');
+      s.put([{ id: 't1', title: 'a' }, { id: 't2', title: 'b' }], 'crm.tasks');
+      s.put([{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }, { id: 'p4' }], 'uw.scratch');
+      s.put({ loan: [{ id: 's1' }], yield: [{ id: 's2' }, { id: 's3' }] }, 'tools.scenarios');
+      s.put(1700000000000, 'backup.last');
+      t.oncomplete = res;
+    };
+  }));
+  await page.click('#connect-tab-mydata');
+  await page.waitForSelector('.md-kind');
+  const counts = await page.$$eval('.md-kind', (r) => Object.fromEntries(r.map((x) => [x.dataset.kind, x.querySelector('.md-count').textContent])));
+  check(`${size}: My data counts match the invented data`, counts.contacts === '3' && counts.tasks === '2' && counts.projects === '4' && counts.scenarios === '3' && counts.deals === '0' && counts.templates === '0', JSON.stringify(counts));
+  check(`${size}: one row per kind, in a list`, Object.keys(counts).length === 11 && (await page.$$('ul.md-kinds > li')).length === 11);
+  check(`${size}: space line is shown (estimate or its fallback)`, /used|does not say/.test(await page.textContent('#md-storage')), await page.textContent('#md-storage'));
+  check(`${size}: the last backup date is shown`, /Last backup: .*2023/.test(await page.textContent('#md-last')), await page.textContent('#md-last'));
+  check(`${size}: nothing-leaves sentence`, /Nothing leaves it unless you export a file or connect a service/.test(await page.textContent('#connect-panel')));
+  const small2 = await page.$$eval('#connect-panel button', (n) => n.filter((x) => { const r = x.getBoundingClientRect(); return r.height < 43.5 || r.width < 43.5; }).map((x) => x.textContent));
+  check(`${size}: My data buttons are 44 px`, small2.length === 0, small2.join('; '));
+  check(`${size}: the restore button is there and takes a file`, await page.$eval('#md-restore', (f) => f.type === 'file' && f.accept.includes('json')));
+  await page.waitForTimeout(700);
+  if (SHOT) await page.screenshot({ path: `${SHOT}/${size}-mydata.png`, fullPage: true });
+  await audit(page, `${size} my data`);
+  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#md-backup')]);
+  const bj = JSON.parse(fs.readFileSync(await dl.path(), 'utf8'));
+  check(`${size}: Back up everything makes the backup with the same counts`, bj.counts.contacts === 3 && bj.counts.tasks === 2, JSON.stringify(bj.counts));
+  await page.click('#connect-tab-connectors');
+
   // the command palette finds Connect and My data
   await page.keyboard.press('Control+k');
   await page.fill('#cmdk-input', 'connect');
