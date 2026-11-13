@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.163 (development branch; GitHub Pages deploys from main).
+- **Version:** 4.7.164 (development branch; GitHub Pages deploys from main).
 - **Current branch:** `codex/deals-new-look`: UI-only saved-deal search, stage filters, sorting and paging, phone cards and top-level New deal/Choose OM. Tested with synthetic fixtures only: 94 Chromium browser checks, 4 focused tests, 3 mutations, quick/type checks and 646 unchanged displayed figures. Full gate is running; this branch is not merged or deployed. Claude owns all readers, intake, OCR, assistant and the underwriting tool. Next UI item: Comps, then Tools and Documents as separate PRs.
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);
