@@ -90,7 +90,7 @@ async function use(items) {
   if (res.deal && !made) toast('Added to the deal.', { label: 'Open', run: () => showDeal(id) });
 }
 
-const asItem = (it) => ({ id: it.id, file: it.file, name: it.name, kind: it.kind, size: it.size, sha256: it.sha256, pages: it.pages, type: it.type, typeBy: it.typeBy });
+const asItem = (it) => ({ id: it.id, file: it.file, name: it.name, kind: it.kind, size: it.size, sha256: it.sha256, pages: it.pages, type: it.type, typeBy: it.typeBy, pair: it.pair, span: it.span });
 
 /** Draw the card into its box. */
 function fill(c = box()) {

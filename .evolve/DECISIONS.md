@@ -5,6 +5,10 @@ answers were approved unless noted. Add a row when a decision is made; for a
 change to saved figures or the data format, add a before/after table below
 the log (none logged yet under the 2026-11-10 working mode).
 
+## 2026-11-13: routing of workbook sheets (lead decision, reversible; not an owner decision)
+
+- A sheet that both the rent roll reader and the T-12 reader accept is never routed by score: it is staged as one question (rent roll or operating statement?) with no Use until the broker answers. Heading counts and month-column counts are not comparable. Source: designer review of `claude/routing`.
+
 ## PDF reader rules (owner approved in this chat; proposal #156)
 
 - Import only explicit full-year actual totals into annual basis; do not invent monthly values. Keep annualized, stabilized, pro-forma, budget, per-unit, per-SF and percent columns out of actual totals. Ambiguous periods or number formats require a choice.

@@ -407,3 +407,13 @@ the baseline; 32 flows are listed at 4.7.2).
 | Real OMs, rent rolls, T-12s, CoStar exports | Blocked (needs files the user is entitled to share) |
 | Live AI and speech providers | Blocked (credentials and a deployed server) |
 | Screen readers | Blocked |
+
+## Known gaps: document routing (claude/routing, 4.7.160)
+
+| Item | Status |
+|---|---|
+| A 12-month rent schedule headed only Suite and Tenant is read as a T-12 ("Read") by the sheet reader | Known gap (on main before routing) |
+| Unit-mix and lease-comp sheets pass the rent roll heading gate (three recognised headings) | Known gap |
+| An appraisal or a broker opinion of value with a titled rent roll on page 2 is read as a rent roll (the title is in the first two pages) | Known gap |
+| Loan and tax pages inside an OM have no reader, so an OM whose other pages are only those is still asked | Known gap |
+| Page and sheet fields on a staged use are labels: the imports read the whole file and the broker picks the pages or sheet there | Known gap |
