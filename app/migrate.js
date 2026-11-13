@@ -205,11 +205,15 @@ export const MIGRATIONS = [
 
 /**
  * Steps for records kept in kv (not deals), each { key, to, since, up(record) }: the record's own `v` rises to
- * `to`. None yet: every kv record starts at v 1 (uw.scratch). A later change of shape becomes a step here,
+ * `to`. Every kv record starts at v 1 (uw.scratch); a contact is v 2 once it can carry `sources`. A later change of shape becomes a step here,
  * with an old-backup fixture, as the deal steps above have.
  * @type {{ key: string, to: number, since: string, up: (rec: any) => void }[]}
  */
-export const KV_MIGRATIONS = [];
+export const KV_MIGRATIONS = [
+  // a contact filed from a document carries where each value came from (`sources`) and the values it lost to a typed
+  // one (`otherValues`): an older contact gets both, empty (inbox.js contactV2; tests/inbox.test.js has the old-backup fixture)
+  { key: 'crm.contacts', to: 2, since: '4.7.158', up: (rec) => { if (!Array.isArray(rec.sources)) rec.sources = []; if (!rec.otherValues || typeof rec.otherValues !== 'object' || Array.isArray(rec.otherValues)) rec.otherValues = {}; } },
+];
 /** The newest `v` this code writes for a kv key (1 when it has no steps). */
 export const kvVersion = (key) => KV_MIGRATIONS.filter((s) => s.key === key).reduce((v, s) => Math.max(v, s.to), 1);
 /** A kv record saved by a newer version: kept as it is, not shown, never rewritten (tooNew, for one record). */

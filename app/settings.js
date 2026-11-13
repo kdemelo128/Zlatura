@@ -8,6 +8,7 @@ import { getLook, getSolid, getMotion, getAccent, setAccent, TEXT_SIZES, getText
 import { SWATCHES } from './accent.js';
 import * as ai from './ai.js';
 import { renderDataCard } from './backupui.js';
+import { autoSwitch } from './inboxui.js';
 import { openAiSettings } from './aiui.js';
 import { openTemplates } from './dealui.js';
 import { editStages } from './home.js';
@@ -315,13 +316,17 @@ export async function renderSettings() {
   p.appendChild(k);
   p.appendChild(Object.assign(el('p', null, '© 2026 Kyle Alexander De Melo · MIT License'), { style: 'margin-top:8px' }));
   about.appendChild(p);
+  // the To file inbox's one switch: off unless chosen (inboxui.js)
+  const tofile = section('To file', 'settings-tofile', 'Records found in documents');
+  tofile.appendChild(el('p', 'hint data-hint', 'Documents you read add proposed records (people, companies, the property, dates) to To file under Connect. By default nothing is filed until you tap File.'));
+  tofile.appendChild(await autoSwitch('inbox-auto'));
   // a few clearly named groups; only Appearance is open at first. Every card and control is still here, under one of them.
   const groups = [
     group('appearance', 'Appearance', 'Theme, look, accent colour, text size', [cards.look], { open: true, solo: true }),
     group('work', 'Workspace and templates', 'Workspace, pipeline stages, template library', [cards.ws, cards.pipe, cards.tpl]),
     group('calc', 'Calculations', 'Calculation rules and the T-12 labels you filed', [cards.cv, cards.t12]),
     group('ai', 'Documents and AI', 'The AI connection and what is sent', [cards.ai], { solo: true }),
-    group('data', 'Data and backup', 'Backups, restore, storage', [data], { solo: true }),
+    group('data', 'Data and backup', 'Backups, restore, storage, To file', [data, tofile], { solo: true }),
     group('about', 'About', 'Version, name, shortcuts', [about], { solo: true }),
   ];
   for (const g of groups) {

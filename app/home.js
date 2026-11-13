@@ -13,6 +13,8 @@ import { $, el, statusChip, notice, toast, actionSheet, getXlsx, deliver, printe
 import { dateInput } from './dateinput.js';
 import { foldControl } from './fold.js';
 import { feesCsv } from './exporters.js';
+import { waitingCount } from './inboxui.js';
+import { openConnect } from './connectui.js';
 import { toolIndex, openToolById } from './toolsui.js';
 import { activeWorkspace, workspaceReady, workspaceBar, restoreTabFocus } from './workspaceui.js';
 
@@ -147,6 +149,8 @@ async function render() {
   const att = attention(deals, tasks);
   const dates = upcomingDates(deals, { days: 30 });
   for (const k of dates.filter((x) => x.daysLeft <= 7)) att.unshift({ kind: 'date', dealId: k.dealId, text: `${k.name}: ${k.label} ${k.daysLeft < 0 ? `was ${-k.daysLeft} day${k.daysLeft === -1 ? '' : 's'} ago` : k.daysLeft === 0 ? 'is today' : `in ${k.daysLeft} day${k.daysLeft === 1 ? '' : 's'}`}.` });
+  const waitingFile = await waitingCount();
+  if (waitingFile) att.push({ kind: 'file', text: `${waitingFile} record${waitingFile === 1 ? '' : 's'} found in your documents ${waitingFile === 1 ? 'is' : 'are'} waiting in To file.` });
   if (deals.length && (!lastBackup || Date.now() - lastBackup > 30 * 86400000)) att.push({ kind: 'backup', view: 'settings', text: lastBackup ? `No backup for ${Math.floor((Date.now() - lastBackup) / 86400000)} days: back up in Settings.` : 'No backup yet: everything is on this device only. Back up in Settings.' });
 
   const parts = {
@@ -289,10 +293,10 @@ function attentionCard(att) {
   const ul = el('ul', 'attn');
   for (const a of att.slice(0, 8)) {
     const li = el('li', `k-${a.kind}${a.kind === 'overdue' ? ' warn-text' : ''}`);
-    if (a.dealId || a.view) {
+    if (a.dealId || a.view || a.kind === 'file') {
       const bt = el('button', 'linkish', a.text);
       bt.type = 'button';
-      bt.addEventListener('click', () => { if (a.kind === 'backup') document.dispatchEvent(new CustomEvent('settingsgroup', { detail: 'data' })); return a.dealId ? showDeal(a.dealId) : api.showView(a.view); });
+      bt.addEventListener('click', () => { if (a.kind === 'backup') document.dispatchEvent(new CustomEvent('settingsgroup', { detail: 'data' })); if (a.kind === 'file') return openConnect('inbox'); return a.dealId ? showDeal(a.dealId) : api.showView(a.view); });
       li.appendChild(bt);
     } else li.textContent = a.text;
     ul.appendChild(li);
@@ -653,6 +657,7 @@ export function initHome(compsApi) {
   const refresh = () => { if (visible) render(); };
   document.addEventListener('viewchange', (e) => { view = e.detail; visible = e.detail === 'home'; refresh(); });
   document.addEventListener('crmchange', refresh);
+  document.addEventListener('inboxchange', refresh);
   document.addEventListener('dealchange', refresh);
   document.addEventListener('workspacechange', refresh);
   // every file saved or printed is listed, with the deal it was for when made from the Deal tab

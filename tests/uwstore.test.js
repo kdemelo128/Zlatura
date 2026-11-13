@@ -93,7 +93,7 @@ test('a record from a newer version is kept as it is, not shown, never rewritten
   await assert.rejects(saveScratch({ ...corner(), id: 'ufuture' }, s), /newer version/);
   const c = cleanScratch([future, corner()]);
   assert.deepEqual(c.list.find((x) => x.id === 'ufuture'), future);
-  assert.deepEqual(KV_MIGRATIONS, [], 'no kv migration step yet');
+  assert.deepEqual(KV_MIGRATIONS.filter((x) => x.key === KEY), [], 'no quick-underwriting migration step yet (the only step is for contacts: tests/inbox.test.js)');
 });
 
 test('the cap is 100: the 101st is refused, never trimmed; a backup list over it is cut and counted', async () => {

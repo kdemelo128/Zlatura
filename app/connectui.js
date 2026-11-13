@@ -6,6 +6,7 @@ import { el, icon, toast, niceDate } from './kit.js';
 import * as store from './store.js';
 import { KINDS, countKinds, storageLine, countText } from './mydata.js';
 import { makeBackup, restore } from './backupui.js';
+import { renderInbox, waitingCount } from './inboxui.js';
 import { PRODUCT } from './brand.js';
 import { filterCategories, monogram } from './connectors.js';
 import { openAssistant } from './assistantui.js';
@@ -15,10 +16,11 @@ let api = null;
 let tab = 'connectors';
 let query = '';
 let visible = false;
+let waiting = 0;   // items in To file, for the tab's label
 const $ = (id) => document.getElementById(id);
 /** Arrow keys on the tabs (the standard tab pattern): step to the next or previous tab, wrapping. */
 const STEP = { ArrowRight: 1, ArrowLeft: -1 };
-const TABS = [['connectors', 'Connectors'], ['mydata', 'My data']];
+const TABS = [['connectors', 'Connectors'], ['inbox', 'To file'], ['mydata', 'My data']];
 
 /** What each row's `opens` does. Each one goes to a feature that exists; none reaches the network. */
 const OPEN = {
@@ -46,7 +48,7 @@ function toDealCard(id, name, how) {
 
 /** Open the Connect page on a tab. */
 export function openConnect(which = 'connectors') {
-  tab = which === 'mydata' ? 'mydata' : 'connectors';
+  tab = which === 'mydata' || which === 'inbox' ? which : 'connectors';
   if (visible) render(); // already showing: draw the other tab
   else api.showView('connect');
 }
@@ -194,6 +196,21 @@ function myDataPanel() {
   return p;
 }
 
+function inboxPanel() {
+  const p = el('div', 'conn-panel');
+  const host = el('div', 'inbox-host');
+  host.setAttribute('aria-busy', 'true');
+  p.appendChild(host);
+  renderInbox(host, api, (n) => {
+    host.removeAttribute('aria-busy');
+    if (n === waiting) return;
+    waiting = n;
+    const t = $('connect-tab-inbox');
+    if (t) t.textContent = n ? `To file (${n})` : 'To file';
+  });
+  return p;
+}
+
 function render() {
   const root = $('connect-root');
   if (!root) return;
@@ -204,7 +221,7 @@ function render() {
   tabs.setAttribute('role', 'tablist');
   tabs.setAttribute('aria-label', 'Connect');
   for (const [id, label] of TABS) {
-    const b = el('button', 'conn-tab', label);
+    const b = el('button', 'conn-tab', id === 'inbox' && waiting ? `${label} (${waiting})` : label);
     b.type = 'button';
     b.id = `connect-tab-${id}`;
     b.setAttribute('role', 'tab');
@@ -226,11 +243,12 @@ function render() {
   panel.id = 'connect-panel';
   panel.setAttribute('role', 'tabpanel');
   panel.setAttribute('aria-labelledby', `connect-tab-${tab}`);
-  panel.appendChild(tab === 'mydata' ? myDataPanel() : connectorsPanel());
+  panel.appendChild(tab === 'mydata' ? myDataPanel() : tab === 'inbox' ? inboxPanel() : connectorsPanel());
   root.append(head, tabs, panel);
 }
 
 export function initConnect(compsApi) {
   api = compsApi;
-  document.addEventListener('viewchange', (e) => { visible = e.detail === 'connect'; if (visible) render(); });
+  document.addEventListener('viewchange', (e) => { visible = e.detail === 'connect'; if (visible) { render(); waitingCount().then((n) => { if (n !== waiting && visible) { waiting = n; const t = $('connect-tab-inbox'); if (t) t.textContent = n ? `To file (${n})` : 'To file'; } }); } });
+  document.addEventListener('inboxchange', () => { waitingCount().then((n) => { waiting = n; const t = $('connect-tab-inbox'); if (visible && t) t.textContent = n ? `To file (${n})` : 'To file'; if (visible && tab === 'inbox') render(); }); });
 }

@@ -47,6 +47,7 @@ import { renderDocsCard, recordFileRead } from './ddui.js';
 import { renderAbstractsCard, openAbstractForDoc } from './abstractui.js';
 import { ddOf, addDoc, markRead, setAsOf } from './dd.js';
 import { rememberDoc, indexFor } from './docsession.js';
+import { proposeFromDocument } from './inboxstore.js';
 import { docxText } from './convert.js';
 import { dropLeaseSessions } from './leasereadui.js';
 import { openLibrary } from './libraryui.js';
@@ -314,7 +315,11 @@ export const intakeDeps = () => ({
   ocrText: async (bytes, onProgress) => (await readScannedPage(await getPdfjs(), bytes.slice(), 1, { onProgress })).text,
 });
 /** Keep a read document's text for this session's document search (docsession.js): in memory, never stored. */
-const remember = (d, doc, pages) => rememberDoc(d.id, { name: doc.name, pages, role: doc.type || null, key: doc.sha256 || doc.name, id: doc.id || undefined });
+const remember = (d, doc, pages) => {
+  // every reader hands its text over here: what it names (people, the property, dates) is also proposed to the To file inbox, to be filed or not by a person (inbox.js)
+  proposeFromDocument({ deal: d, doc: { name: doc.name, sha256: doc.sha256 || null, type: doc.type || null }, pages });
+  return rememberDoc(d.id, { name: doc.name, pages, role: doc.type || null, key: doc.sha256 || doc.name, id: doc.id || undefined });
+};
 /**
  * "Use": attach staged documents to a deal through the deal's own paths. `dealId` null makes a new deal first (the same
  * path every deal takes). A T-12 goes through the T-12 import (which asks about its sheet and number format when the file

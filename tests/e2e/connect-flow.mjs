@@ -105,7 +105,7 @@ for (const size of ['phone', 'desktop']) {
   await page.waitForSelector('.md-kind');
   const counts = await page.$$eval('.md-kind', (r) => Object.fromEntries(r.map((x) => [x.dataset.kind, x.querySelector('.md-count').textContent])));
   check(`${size}: My data counts match the invented data`, counts.contacts === '3' && counts.tasks === '2' && counts.projects === '4' && counts.scenarios === '3' && counts.deals === '0' && counts.templates === '0', JSON.stringify(counts));
-  check(`${size}: one row per kind, in a list`, Object.keys(counts).length === 11 && (await page.$$('ul.md-kinds > li')).length === 11);
+  check(`${size}: one row per kind, in a list`, Object.keys(counts).length === 12 && (await page.$$('ul.md-kinds > li')).length === 12);
   check(`${size}: space line is shown (estimate or its fallback)`, /used|does not say/.test(await page.textContent('#md-storage')), await page.textContent('#md-storage'));
   check(`${size}: the last backup date is shown`, /Last backup: .*2023/.test(await page.textContent('#md-last')), await page.textContent('#md-last'));
   check(`${size}: nothing-leaves sentence`, /Nothing leaves it unless you export a file or connect a service/.test(await page.textContent('#connect-panel')));

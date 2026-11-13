@@ -20,7 +20,7 @@ test('counts match invented data, kind by kind', () => {
     },
     session: { manual: [{}, {}], docs: [] }, local: { 'uw-v3': '{}' },
   });
-  assert.deepEqual(n, { deals: 3, contacts: 4, tasks: 2, comps: 2, documents: 3, templates: 3, scenarios: 3, projects: 4, activity: 1, briefs: 1, settings: 2 });
+  assert.deepEqual(n, { deals: 3, contacts: 4, tasks: 2, comps: 2, documents: 3, templates: 3, scenarios: 3, projects: 4, activity: 1, inbox: 0, briefs: 1, settings: 2 });
 });
 
 test('nothing stored counts zero; wrong shapes count none; no session is no comps', () => {
