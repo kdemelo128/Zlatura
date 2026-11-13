@@ -88,10 +88,10 @@ for (const [size, opts] of SIZES) {
       // ---- the chart switch
       await load(page);
       await page.click('#home-pulse .pulse-pick:has-text("Deals")');
-      await page.waitForSelector('#home-pulse .pulse-col');
+      await page.waitForSelector('#home-pulse .pulse-pick[aria-pressed="true"]:has-text("Deals")');
       check(`${label}: Deals draws 12 weekly columns and the total from the person's deals`, (await page.locator('#home-pulse .pulse-col').count()) === 12 && /^30 deals added in 12 weeks/.test((await page.textContent('#home-pulse .pulse-big')).trim()));
       await page.click('#home-pulse .pulse-pick:has-text("Tasks")');
-      await page.waitForSelector('#home-pulse .pulse-col, #home-pulse .pulse-empty');
+      await page.waitForSelector('#home-pulse .pulse-pick[aria-pressed="true"]:has-text("Tasks")');
       check(`${label}: Tasks counts the 4 tasks finished in the last 12 weeks`, /^4 tasks done in 12 weeks/.test((await page.textContent('#home-pulse .pulse-big')).trim()), await page.textContent('#home-pulse .pulse-stage'));
       await load(page);
       check(`${label}: the chart choice is kept across a reload`, (await page.getAttribute('#home-pulse .pulse-pick:has-text("Tasks")', 'aria-pressed')) === 'true');
@@ -103,6 +103,7 @@ for (const [size, opts] of SIZES) {
       await page.waitForSelector('.cust-panel');
       const small2 = await page.evaluate(() => [...document.querySelectorAll('dialog[open] button, dialog[open] label.cust-row')].filter((b) => { const q = b.getBoundingClientRect(); return q.height < 43.5 && q.width > 0; }).map((b) => b.textContent.trim()));
       check(`${label}: the Customise Home controls are 44 px`, small2.length === 0, small2.join(','));
+      await page.waitForTimeout(500); // the sheet fades in; axe reads colours mid-fade otherwise
       await axe(page, `${label} customise sheet`);
       await page.click('[aria-label="Move up: Tasks"]');
       await page.locator('.cust-panel', { hasText: 'Pipeline' }).locator('input[type=checkbox]').uncheck();
@@ -147,4 +148,5 @@ for (const [size, opts] of SIZES) {
     await browser.close();
   }
 }
+for (const r of R) console.log(r.join(" | "));
 finish(R);
