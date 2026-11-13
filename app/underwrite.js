@@ -13,7 +13,7 @@ import { toolIndex, openToolById } from './toolsui.js';
 import { activeWorkspace, workspaceReady } from './workspaceui.js';
 import { intakeCard, initIntake } from './intakeui.js';
 import { fillerCard } from './uwfiller/ui.js';
-import { toolCard } from './uwfiller/tool.js';
+import { toolCard, coverTool } from './uwfiller/tool.js';
 import { planIn, applyIn, planOut, changedPaths, fillRecord } from './uwfiller/bridge.js';
 import { read, show, resultLines } from './uwfiller/quick.js';
 import { choose, diffTable, writeChanges } from './uwfiller/quickdeal.js';
@@ -388,6 +388,7 @@ async function bridgeDeal() {
       w.UWEditor.commit();   // the tool saves its own project; it reads it back when it loads
       filledFor.set(d.id, [...(filledFor.get(d.id) || []), ...plan.fill.map((x) => `${x.label}: ${x.shown}`)]);
       justReloaded = true;
+      coverTool();   // the reload's early paint (the old guide bird) must not show
       w.location.reload();   // its own load path draws the boxes; the load event comes back here
       return;
     }
@@ -444,7 +445,13 @@ function draw(force = false) {
   const root = $('underwrite-root');
   if (!root) return;
   if (!force && uwView === 'tool' && root.querySelector('#uwt-frame')) return;   // a redraw must not reload the tool under the broker's hands
-  root.textContent = '';
+  // the tool's card (and its frame) stays in the page between draws, hidden in the Quick view: moving or recreating an iframe
+  // reloads it, and reopening the tool must be a reveal, not a load
+  const keep = root.querySelector('#uw-tool');
+  for (const n of [...root.childNodes]) if (n !== keep) n.remove();
+  if (keep) keep.hidden = uwView !== 'tool';
+  // everything drawn goes in front of the kept card (append would move it)
+  const put = (...nodes) => { for (const n of nodes) root.insertBefore(n, keep); };
   // two views in the one tab: the built-in tool (inline, the default) and the quick underwrite
   const sw = el('div', 'uw-switch');
   sw.setAttribute('role', 'group');
@@ -460,7 +467,7 @@ function draw(force = false) {
     });
     sw.appendChild(b);
   }
-  if (uwView === 'tool') { const bar = slimBar(sw); root.append(bar, bar.noteEl, toolCard()); return; }
+  if (uwView === 'tool') { const bar = slimBar(sw); put(bar, bar.noteEl); if (!keep) root.appendChild(toolCard()); return; }
   const head = el('div', 'view-head');
   head.appendChild(el('h1', null, 'Quick underwrite'));
   head.appendChild(el('p', null, 'Type a price, NOI and loan terms and see the answer. It is not a deal until you save it as one.'));
@@ -475,7 +482,7 @@ function draw(force = false) {
   calc.id = 'uw-calc-card';
   fillCalculators(calc);
   stack.appendChild(calc);
-  root.append(sw, head, stack);
+  put(sw, head, stack);
   drawList();
   results();
 }
@@ -610,6 +617,8 @@ export function initUnderwrite(compsApi) {
     const d = e.detail?.document;
     // capture: this looks before the tool's own handlers have closed anything
     if (d) d.addEventListener('keydown', (k) => escapeLeaves(k, d), true);
+    // any other reload of the tool (its own Clear all) is covered the same way, from the moment the old page goes
+    d?.defaultView?.addEventListener('pagehide', () => coverTool());
     bridgeDeal();   // the tool has loaded: the open deal's figures go in
   });
   loadScratch().then((r) => {
