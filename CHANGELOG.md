@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.7.168: Unit mixes, lease comp tables, monthly rent schedules and appraisals are no longer read as rent rolls or T-12s (on the development branch; not merged or deployed)
+
+Four gaps the routing review listed. Each is a routing change: what a file is called when it is added to Start from documents. No saved deal, figure or format changes, and nothing changes a deal before Use.
+
+- **A unit mix workbook** (Unit Type, # Units, Avg SF, Avg Rent, Market Rent) went to the rent roll reader because it has three of its headings. It now "looks like" a unit mix, and the unit mix reader's figures are shown for checking. A sheet with a suite or unit number, a tenant, or lease dates is still a rent roll.
+- **A lease comparable table** (Tenant, Property or Address, Size, Rate/SF, Term, Commencement, Lease Type), as a workbook, CSV or PDF, was read as a rent roll. It is now asked, with the reason; there is no importer for lease comparables (the comps import takes sales), so nothing reads it and nothing is offered to use. The rent roll PDF import no longer takes it as a rent roll either.
+- **A rent schedule by month** (a Suite and a Tenant column, then Jan to Dec) was routed to the T-12 as "Read". It is now asked as a rent roll question and never a T-12. Its twelve months are not added up into an annual rent: nothing on the sheet says what period each figure covers, so the broker supplies a rent roll with a stated rent. A rent roll that also has a few month columns is still the one rent roll or T-12 question.
+- **An appraisal or a broker opinion of value** with a titled rent roll on page 2 was read as a rent roll. It is now asked (an appraisal, or a BOV with the OM choice), with no reader, and the rent roll pages are offered apart by page, as for an OM.
+- **Scans.** A PDF whose whole text is under 200 characters was a scan. It is now a scan only when what is there is not real short text: two or more table-like lines (a word and two figures), or a cover page (two or more lines and six or more words), after page numbers and scanner stamps are set aside. The OCR gate (`ocrpdf.js`), the document verdict and the lease reader share the one rule (`app/textlayer.js`).
+
+Tested: `tests/reader-gaps-3.test.js` (11 tests; each fails on the old code, and each new guard was broken once to see it caught), `tests/e2e/reader-gaps-flow.mjs` (27 checks at phone and desktop size, axe; 14 fail on the old code), and an invented corpus run through `node tests/tools/doc-local.mjs --reasons` before and after: 12 of 17 files changed outcome (lease comps 4 and unit mix sheets 2 from "rent roll, read" to asked or the unit mix reader; the 3 monthly schedules from "T-12, read" to asked; the appraisal and BOV from "rent roll, read" to asked; a cover page from "scan" to text); the 5 control files (rent roll, T-12, unit mix PDF, titled unit mix PDF, short table) did not change. Invented files only.
+
 ## 4.7.167: The search palette always opens again with Ctrl+K (on the development branch; not merged or deployed)
 
 - A closed search palette could stay in the page with the keyboard focus inside it, so the next Ctrl+K went nowhere. It happened when the palette was opened twice in quick succession: each palette now removes itself when it closes, and a closed one never lingers. Found by `workspace-flow`, whose wait now checks the palette really closed and reopened; it failed on the old code.
