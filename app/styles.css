@@ -1320,6 +1320,43 @@ dialog.cmdk[open] { animation: pop var(--d2) var(--ease); }
 .tool-group { font: 600 var(--t-11)/1.2 var(--ui); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin: var(--s8) 0 0; display: flex; align-items: center; gap: var(--s3); }
 .tool-group::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
 .tool-tag { display: inline-block; margin-left: 7px; padding: 1px 7px; border-radius: 99px; background: var(--brass-soft); color: var(--brass); font: 600 calc(11px * var(--ts, 100) / 100)/1.5 var(--ui); vertical-align: 2px; }
+
+/* New look tool discovery: native controls, opaque cards and the existing four quiet tones. */
+:root[data-look="new"] #tools-root .tools-browser { margin-bottom: var(--s5); padding: var(--s5); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+:root[data-look="new"] #tools-root .tools-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(14rem, .45fr); gap: var(--s4); }
+:root[data-look="new"] #tools-root .tools-filter { display: grid; align-content: start; gap: var(--s1); min-width: 0; }
+:root[data-look="new"] #tools-root .tools-filter label { color: var(--muted); font-size: .875rem; }
+:root[data-look="new"] #tools-root .tools-filter :is(input, select) { width: 100%; min-width: 0; max-width: none; min-height: 44px; margin: 0; padding: 10px 12px; border: 1px solid var(--edge); border-radius: var(--r-sm); background: var(--surface-2); color: var(--ink); font: inherit; }
+:root[data-look="new"] #tools-root .tools-summary { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s3); min-height: 44px; }
+:root[data-look="new"] #tools-root .tools-results { margin: 0; color: var(--muted); font-size: .875rem; }
+:root[data-look="new"] #tools-root .tool-group { margin-top: var(--s6); color: var(--ink); font-size: 1.125rem; line-height: 1.4; }
+:root[data-look="new"] #tools-root .tool-group::after { display: none; }
+:root[data-look="new"] #tools-root .tool-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: var(--s3); margin-top: var(--s3); }
+:root[data-look="new"] #tools-root .tool { --tile-tone: var(--tone-1); --tile-wash: var(--wash-1); padding: var(--s5); min-width: 0; border-radius: var(--r-lg); background: var(--surface); border-color: var(--line); box-shadow: none; transition: background-color var(--d1), border-color var(--d1); }
+:root[data-look="new"] #tools-root .tool:is([data-group="1"], [data-group="5"]) { --tile-tone: var(--tone-2); --tile-wash: var(--wash-2); }
+:root[data-look="new"] #tools-root .tool:is([data-group="2"], [data-group="6"]) { --tile-tone: var(--tone-3); --tile-wash: var(--wash-3); }
+:root[data-look="new"] #tools-root .tool:is([data-group="3"], [data-group="7"]) { --tile-tone: var(--tone-4); --tile-wash: var(--wash-4); }
+:root[data-look="new"] #tools-root .tool .tool-icon { width: 42px; height: 42px; border-radius: var(--r-md); background: var(--tile-wash); color: var(--tile-tone); }
+:root[data-look="new"] #tools-root .tool > span:last-child { min-width: 0; }
+:root[data-look="new"] #tools-root .tool h3 { margin: 0; color: var(--ink); font-size: 1.0625rem; line-height: 1.4; overflow-wrap: anywhere; }
+:root[data-look="new"] #tools-root .tool p { margin-top: var(--s2); font-size: .875rem; line-height: 1.5; overflow-wrap: anywhere; }
+:root[data-look="new"] #tools-root .tool .tool-tag { font-size: .8125rem; font-weight: 500; line-height: 1.4; vertical-align: baseline; }
+:root[data-look="new"] #tools-root .tool:hover { background: var(--surface-2); border-color: var(--edge); box-shadow: none; transform: none; }
+:root[data-look="new"] #tools-root .tool:active { transform: none; }
+:root[data-look="new"] #tools-root .tools-empty { margin-top: var(--s5); padding: var(--s6); border: 1px dashed var(--edge); border-radius: var(--r-lg); background: var(--surface); }
+:root[data-look="new"] #tools-root .tools-empty h2 { font-size: 1.1875rem; margin: 0 0 var(--s2); }
+:root[data-look="new"] #tools-root .tools-empty p { margin: 0; }
+@media (max-width: 700px) {
+  :root[data-look="new"] #tools-root .tools-filters { grid-template-columns: minmax(0, 1fr); }
+  :root[data-look="new"] #tools-root :is(.tools-browser, .tool, .tools-empty) { padding: var(--s4); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-look="new"]:not([data-motion="off"]) #tools-root .tool { transition: background-color var(--d1), border-color var(--d1), transform 160ms var(--ease); }
+  :root[data-look="new"]:not([data-motion="off"]) #tools-root .tool:hover { transform: translateY(-2px); }
+  :root[data-look="new"]:not([data-motion="off"]) #tools-root .tool:active { transform: translateY(0) scale(.99); }
+}
+:root[data-look="new"][data-motion="off"] #tools-root .tool { transition: none; }
+
 .tool-bar { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .tool-warn:empty { display: none; }
 .tool-warn .warn-text { margin: 4px 0; }
