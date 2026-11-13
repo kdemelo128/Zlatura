@@ -4,7 +4,7 @@
 
 import { kvGet, kvSet } from './store.js';
 import { applyStageConfig } from './pipeline.js';
-import { migrateKvRecord, kvVersion } from './migrate.js';
+import { migrateKvRecord, kvVersion, kvTooNew } from './migrate.js';
 
 const K = { tasks: 'crm.tasks', contacts: 'crm.contacts', activity: 'crm.activity' };
 const MAX_ACTIVITY = 500;
@@ -57,6 +57,8 @@ export async function saveContact(c) {
   const rec = { id: c.id || id('c'), name: String(c.name || '').trim(), company: c.company || '', role: c.role || 'Other', phone: c.phone || '', email: c.email || '', notes: c.notes || '', dealIds: [...new Set(c.dealIds || [])], createdAt: c.createdAt || now, updatedAt: now, v: kvVersion(K.contacts), sources: Array.isArray(c.sources) ? c.sources : [], otherValues: c.otherValues && typeof c.otherValues === 'object' ? c.otherValues : {} };
   if (!rec.name) throw new Error('A contact needs a name.');
   const i = all.findIndex((x) => x.id === rec.id);
+  // a contact a newer version saved is left exactly as it is: this version would drop what it does not know
+  if (i >= 0 && kvTooNew(K.contacts, all[i])) throw new Error('That contact was saved by a newer version of the app, so this version will not change it.');
   if (i >= 0) all[i] = rec; else all.push(rec);
   await put(K.contacts, all);
   if (i < 0) await log('contact', `Contact added: ${rec.name}${rec.company ? `, ${rec.company}` : ''}`, rec.dealIds[0] || null);

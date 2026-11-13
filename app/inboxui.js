@@ -6,7 +6,7 @@ import { el, toast, niceDate } from './kit.js';
 import { listContacts } from './crm.js';
 import * as store from './store.js';
 import { loadItems, fileItem, mergeItem, dismissItem, undoItem, autoOn, setAuto } from './inboxstore.js';
-import { matchContacts, matchScope, mergePreview, visible, publicCount } from './inbox.js';
+import { matchContacts, matchScope, mergePreview, visible, publicCount, dealScope } from './inbox.js';
 import { updateDeal, currentDealId } from './dealui.js';
 
 const FIELD_LABEL = { name: 'Name', company: 'Company', role: 'Role', email: 'Email', phone: 'Phone' };
@@ -14,7 +14,7 @@ const KIND_LABEL = { contact: 'Contact', task: 'Task', property: 'Property' };
 const deps = () => ({ updateDeal });
 
 /** How many items wait, as Home and the Connect tab show it (never an item of a confidential deal). */
-export async function waitingCount() { return publicCount(await loadItems()); }
+export async function waitingCount() { const [items, deals] = await Promise.all([loadItems(), store.listDeals()]); return publicCount(items, dealScope(deals)); }
 
 /** The auto-file switch, for Settings and for the tab: one control, the same setting. */
 export async function autoSwitch(id = 'inbox-auto') {
@@ -40,7 +40,7 @@ function summary(it) {
 function chips(it) {
   const row = el('div', 'inbox-chips');
   row.appendChild(el('span', 'chip chip-plain', KIND_LABEL[it.data.kind] || 'Record'));
-  if (it.confidential) row.appendChild(el('span', 'chip chip-warn', 'Confidential deal'));
+  if (it.secret) row.appendChild(el('span', 'chip chip-warn', 'Confidential deal'));
   if (it.data.suspicious) row.appendChild(el('span', 'chip chip-warn', 'Reads like an instruction: kept as text'));
   return row;
 }
@@ -66,9 +66,9 @@ function card(it, ctx) {
   }
   const filable = !(it.data.kind === 'property' && (() => { const d = ctx.deals.find((x) => x.id === it.dealId); return !d || String((d.figures && d.figures.address) || '').trim(); })());
   const act = (label, cls, fn) => { const b = el('button', `btn btn-sm conn-btn ${cls}`, label); b.type = 'button'; b.addEventListener('click', async () => { b.disabled = true; try { await fn(); } catch (e) { toast(e.message); } ctx.refresh(); }); return b; };
-  if (filable) acts.appendChild(act(matches.length ? 'File as new' : 'File', 'btn-primary', async () => { await fileItem(it.id, deps()); toast('Filed.', { label: 'Undo', run: () => undoItem(it.id, deps()).then(ctx.refresh) }); }));
+  if (filable) acts.appendChild(act(matches.length ? 'File as new' : 'File', 'btn-primary', async () => { await fileItem(it.id, deps()); toast('Filed.', { label: 'Undo', run: () => undoItem(it.id, deps()).then(ctx.refresh, (e) => { toast(e.message); ctx.refresh(); }) }); }));
   if (matches.length) acts.appendChild(act('Merge…', 'btn-gray', async () => { openMerge(it, matches, ctx); }));
-  acts.appendChild(act('Dismiss', 'btn-plain', async () => { await dismissItem(it.id); toast('Dismissed.', { label: 'Undo', run: () => undoItem(it.id, deps()).then(ctx.refresh) }); }));
+  acts.appendChild(act('Dismiss', 'btn-plain', async () => { await dismissItem(it.id); toast('Dismissed.', { label: 'Undo', run: () => undoItem(it.id, deps()).then(ctx.refresh, (e) => { toast(e.message); ctx.refresh(); }) }); }));
   li.append(t, acts);
   return li;
 }
@@ -109,7 +109,7 @@ function openMerge(it, matches, ctx) {
         const r = await mergeItem(it.id, target, choice);
         if (!r.ok) { toast(`Choose for: ${r.missing.map((m) => FIELD_LABEL[m]).join(', ')}.`); return; }
         ctx.api.sheetClose();
-        toast('Merged.', { label: 'Undo', run: () => undoItem(it.id, deps()).then(ctx.refresh) });
+        toast('Merged.', { label: 'Undo', run: () => undoItem(it.id, deps()).then(ctx.refresh, (e) => { toast(e.message); ctx.refresh(); }) });
         ctx.refresh();
       } catch (e) { toast(e.message); }
     });
@@ -140,20 +140,21 @@ export async function renderInbox(host, api, onCount = () => {}) {
     ctx.contacts = contacts;
     ctx.deals = deals;
     const open = currentDealId();
-    const wait = visible(items, open);
-    onCount(publicCount(items));
+    const scope = dealScope(deals);
+    const wait = visible(items, open, scope).map((x) => ({ ...x, secret: scope.secret.has(x.dealId) }));
+    onCount(publicCount(items, scope));
     if (!host.isConnected) return;
     host.textContent = '';
     host.appendChild(el('p', 'conn-lede', 'People, companies, the property and dates found in the documents you read. Nothing is filed until you tap File; a value you typed is never overwritten.'));
     host.appendChild(await autoSwitch('inbox-auto-tab'));
-    const hiddenSecret = items.some((x) => x.status === 'pending' && x.confidential && x.dealId !== open);
+    const hiddenSecret = items.some((x) => x.status === 'pending' && scope.secret.has(x.dealId) && x.dealId !== open);
     if (hiddenSecret) host.appendChild(el('p', 'hint-sm', 'Records from a confidential deal show here only while that deal is open.'));
     const ul = el('ul', 'inbox-list');
     ul.setAttribute('aria-label', 'Records waiting to be filed');
     for (const it of wait) ul.appendChild(card(it, ctx));
     if (!wait.length) host.appendChild(el('p', 'conn-lede inbox-empty', 'Nothing is waiting. Read an offering memorandum, a lease or a rent roll, and what it names appears here.'));
     else host.appendChild(ul);
-    const done = items.filter((x) => x.status !== 'pending' && (!x.confidential || x.dealId === open)).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 15);
+    const done = items.filter((x) => x.status !== 'pending' && scope.known.has(x.dealId) && (!scope.secret.has(x.dealId) || x.dealId === open)).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 15);
     if (done.length) {
       host.appendChild(el('h2', 'inbox-h', 'Done'));
       const dl = el('ul', 'inbox-list inbox-done');

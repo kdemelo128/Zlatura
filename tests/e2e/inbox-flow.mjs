@@ -130,18 +130,21 @@ for (const size of ['phone', 'desktop']) {
   await page.waitForTimeout(300);
 
   // a confidential deal's records stay out of the counts and the list until that deal is open
+  // the deal is a real stored one, marked confidential: that is read from the deal each time, not copied onto its items
+  await page.evaluate(() => new Promise((res) => { const r = indexedDB.open('zlatura'); r.onsuccess = () => { const t = r.result.transaction('deals', 'readwrite'); t.objectStore('deals').put({ id: 'dsecret', name: 'Hidden deal', confidential: true, figures: {}, createdAt: 1, updatedAt: 1 }, 'dsecret'); t.oncomplete = res; }; }));
   await page.evaluate(async () => {
     const m = await import('./app/inboxstore.js');
     await m.proposeFromDocument({ deal: { id: 'dsecret', figures: {}, confidential: true }, doc: { name: 'secret.pdf', type: 'om' }, pages: ['Seller: Hidden Seller Trust'] });
   });
   const sec = (await kv('inbox.items')).find((x) => x.data.name === 'Hidden Seller Trust');
-  check(`${size}: a confidential deal's item is stored marked confidential`, !!sec && sec.confidential === true && sec.dealId === 'dsecret');
+  check(`${size}: a confidential deal's item is stored with its deal's id and no copy of the flag`, !!sec && !('confidential' in sec) && sec.dealId === 'dsecret');
   await page.evaluate(() => { location.hash = '#connect'; });
   await page.click('#connect-tab-inbox');
   await page.waitForSelector('.inbox-item');
   const listText = await page.textContent('#connect-panel');
   check(`${size}: it is not shown, nor counted, while that deal is not open`, !/Hidden Seller Trust/.test(listText) && /confidential deal show here only while that deal is open/.test(listText));
-  const pending = (await kv('inbox.items')).filter((x) => x.status === 'pending' && !x.confidential).length;
+  const omDealId = items[0].dealId;
+  const pending = (await kv('inbox.items')).filter((x) => x.status === 'pending' && x.dealId === omDealId).length;
   check(`${size}: the tab count is the public items only`, (await page.textContent('#connect-tab-inbox')) === `To file (${pending})`, await page.textContent('#connect-tab-inbox'));
 
   // a backup carries the items

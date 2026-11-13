@@ -170,9 +170,10 @@ test('items: reading a document twice proposes once, a dismissed item is not pro
   assert.deepEqual(kept.map((x) => x.id), ['new', 'done']);
   const big = Array.from({ length: 520 }, (_, i) => ({ id: `x${i}`, status: i < 30 ? 'filed' : 'pending', createdAt: now - i, doneAt: i }));
   assert.equal(I.trim(big, now).length, 500);
-  assert.equal(I.visible([{ status: 'pending', confidential: true, dealId: 'dc' }, { status: 'pending' }, { status: 'filed' }], null).length, 1);
-  assert.equal(I.visible([{ status: 'pending', confidential: true, dealId: 'dc' }], 'dc').length, 1);
-  assert.equal(I.publicCount([{ status: 'pending', confidential: true }, { status: 'pending' }]), 1);
+  const scope = I.dealScope([{ id: 'dc', confidential: true }, { id: 'dp' }]);
+  assert.equal(I.visible([{ status: 'pending', dealId: 'dc' }, { status: 'pending', dealId: 'dp' }, { status: 'filed', dealId: 'dp' }], null, scope).length, 1);
+  assert.equal(I.visible([{ status: 'pending', dealId: 'dc' }], 'dc', scope).length, 1);
+  assert.equal(I.publicCount([{ status: 'pending', dealId: 'dc' }, { status: 'pending', dealId: 'dp' }], scope), 1);
   assert.deepEqual(I.readItems([{ id: 'a', data: {}, v: 1 }, { id: 'b', data: {}, v: 9 }, null, 'x', { data: {} }]).map((x) => x.id), ['a']);
 });
 

@@ -212,7 +212,7 @@ export const MIGRATIONS = [
 export const KV_MIGRATIONS = [
   // a contact filed from a document carries where each value came from (`sources`) and the values it lost to a typed
   // one (`otherValues`): an older contact gets both, empty (inbox.js contactV2; tests/inbox.test.js has the old-backup fixture)
-  { key: 'crm.contacts', to: 2, since: '4.7.158', up: (rec) => { if (!Array.isArray(rec.sources)) rec.sources = []; if (!rec.otherValues || typeof rec.otherValues !== 'object' || Array.isArray(rec.otherValues)) rec.otherValues = {}; } },
+  { key: 'crm.contacts', to: 2, since: '4.7.159', up: (rec) => { if (!Array.isArray(rec.sources)) rec.sources = []; if (!rec.otherValues || typeof rec.otherValues !== 'object' || Array.isArray(rec.otherValues)) rec.otherValues = {}; } },
 ];
 /** The newest `v` this code writes for a kv key (1 when it has no steps). */
 export const kvVersion = (key) => KV_MIGRATIONS.filter((s) => s.key === key).reduce((v, s) => Math.max(v, s.to), 1);
