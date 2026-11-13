@@ -39,14 +39,14 @@ const present = (v) => (v === null || v === undefined ? 0 : 1);
  * ({ docs, manual, ... } or null) and `local` the browser-storage values by key (the Underwrite tool's project is 'uw-v3').
  * A count is of records, never of bytes; a value of the wrong shape counts as none.
  */
-export function countKinds({ deals = [], kv = {}, session = null, local = {} } = {}) {
+export function countKinds({ deals = [], kv = /** @type {Record<string, any>} */ ({}), session = null, local = /** @type {Record<string, string>} */ ({}) } = {}) {
   const n = Object.fromEntries(KINDS.map((k) => [k.id, 0]));
   n.deals = len(deals);
   n.contacts = len(kv['crm.contacts']);
   n.tasks = len(kv['crm.tasks']);
   n.activity = len(kv['crm.activity']);
   n.briefs = len(kv['research.briefs']);
-  n.templates = len(kv['tpl.library']) + present(kv.template);
+  n.templates = len(kv['tpl.library']) + present(kv['template']);
   const sc = kv['tools.scenarios'];
   n.scenarios = sc && typeof sc === 'object' && !Array.isArray(sc) ? Object.values(sc).reduce((a, l) => a + len(l), 0) : 0;
   n.projects = len(kv['uw.scratch']) + (local['uw-v3'] ? 1 : 0);

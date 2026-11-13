@@ -135,6 +135,7 @@ function connectorsPanel() {
 /** Everything the tab reads, from this device only. */
 async function readDevice() {
   const [deals, kv, session, info] = await Promise.all([store.listDeals(), store.kvAll(), store.loadSession(), store.storageInfo()]);
+  /** @type {Record<string, string>} */
   const local = {};
   try { const v = localStorage.getItem('uw-v3'); if (v) local['uw-v3'] = v; } catch { /* blocked: none counted */ }
   return { counts: countKinds({ deals, kv, session, local }), last: kv['backup.last'] || null, info };
