@@ -12,7 +12,7 @@ import { el, openSheet, closeSheet, backdropCloses } from './kit.js';
 import { PRODUCT, installBrand } from './brand.js';
 import { understand, suggestions } from './assistant.js';
 import { answer } from './assistantanswer.js';
-import { dealForAssistant, assistantGo, assistantApply } from './dealui.js';
+import { dealForAssistant, assistantGo, assistantApply, warmDealDocs } from './dealui.js';
 import { pageText } from './docsession.js';
 import { splitTips } from './assistanttips.js';
 import { addTask, deleteTask, updateTask, saveContact, deleteContact, listTasks, listContacts, log as crmLog } from './crm.js';
@@ -24,6 +24,7 @@ let log = null;
 let input = null;
 let chips = null;
 let live = null;
+let reading = null;   // the quiet "Reading your documents…" line
 /** The Underwrite tool's step and nest tips while the tool's bird has the panel open: { step, tips, run } (assistanttips.js); null otherwise. */
 let toolCtx = null;
 
@@ -235,6 +236,11 @@ function say(node) {
   node.scrollIntoView({ block: 'nearest' });
 }
 
+/** Bring the open deal's stored document text into the search (docmem.js), saying so quietly while it is read. Never throws; typing carries on. */
+async function warmDocs() {
+  try { return await warmDealDocs((on) => { if (reading) { reading.hidden = !on; reading.textContent = on ? 'Reading your documents…' : ''; } }); } catch { return 0; }
+}
+
 /** Ask one question: show it, answer it, and act when the answer is an "open". */
 export async function ask(text) {
   const q = String(text || '').trim();
@@ -243,6 +249,7 @@ export async function ask(text) {
   input.value = '';
   let r;
   try {
+    await warmDocs();   // the deal's documents kept from an earlier session, read once and then held (docmem.js)
     const snap = dealForAssistant();
     /** @type {any} */
     const ctx = snap || { deal: null, input: null, m: {}, rrSum: null, comps: null, today: new Date(), hasDeal: false };
@@ -295,7 +302,7 @@ function build() {
   const h = el('h2', null, `Ask ${PRODUCT}`);
   h.id = 'assist-h';
   hd.appendChild(h);
-  hd.appendChild(el('p', 'sub', 'From your deal, its documents read this session, and the app’s own calculations. Nothing leaves this device.'));
+  hd.appendChild(el('p', 'sub', 'From your deal, its documents (their text is kept on this device), and the app’s own calculations. Nothing leaves this device.'));
   const close = btn('btn-plain', 'Close', () => closeSheet(dlg));
   close.setAttribute('aria-label', `Close Ask ${PRODUCT}`);
   head.append(hd, close);
@@ -311,7 +318,10 @@ function build() {
   chips = el('div', 'assist-chips');
   chips.setAttribute('aria-label', 'Suggested questions');
   chips.setAttribute('role', 'group');
-  body.append(log, live);
+  reading = el('p', 'hint-sm assist-reading');
+  reading.setAttribute('role', 'status');
+  reading.hidden = true;
+  body.append(log, reading, live);
   const tray = el('div', 'assist-tray');
   tray.appendChild(chips);
   const foot = el('form', 'sheet-foot assist-foot');
@@ -355,6 +365,7 @@ export function openAssistant(opts) {
   drawChips();
   openSheet(dlg);
   input.focus();
+  warmDocs().then((n) => { if (n && dlg && dlg.open) drawChips(); });   // the suggested questions then know the documents are there
 }
 
 export function initAssistant() {

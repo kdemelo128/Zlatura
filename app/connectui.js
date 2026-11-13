@@ -2,9 +2,10 @@
  * and "My data", what is stored on this device (mydata.js). Nothing here makes a network request: a row opens
  * something Monal already has, or says plainly what it waits for. */
 
-import { el, icon, toast, niceDate } from './kit.js';
+import { el, icon, toast, niceDate, actionSheet } from './kit.js';
 import * as store from './store.js';
-import { KINDS, countKinds, storageLine, countText } from './mydata.js';
+import { KINDS, countKinds, storageLine, countText, docTextLine } from './mydata.js';
+import { docTextSummary, forgetDealText, forgetAllText } from './docmem.js';
 import { makeBackup, restore } from './backupui.js';
 import { renderInbox, waitingCount } from './inboxui.js';
 import { PRODUCT } from './brand.js';
@@ -178,7 +179,58 @@ async function readDevice() {
   /** @type {Record<string, string>} */
   const local = {};
   try { const v = localStorage.getItem('uw-v3'); if (v) local['uw-v3'] = v; } catch { /* blocked: none counted */ }
-  return { counts: countKinds({ deals, kv, session, local }), last: kv['backup.last'] || null, info };
+  return { deals, counts: countKinds({ deals, kv, session, local }), last: kv['backup.last'] || null, info };
+}
+
+/** The text of documents kept for Ask Monal (docmem.js): how much, per deal, and Forget. Filled in once it has been counted. */
+function docTextBox(deals) {
+  const box = el('section', 'md-doctext');
+  box.id = 'md-doctext';
+  box.setAttribute('aria-labelledby', 'md-doctext-h');
+  const h = el('b', null, 'Document text');
+  h.id = 'md-doctext-h';
+  const note = el('p', 'conn-desc', 'The text of documents added to a deal, kept on this device so Ask Monal can search it next time. The files themselves are never kept, and a backup does not carry this text.');
+  const list = el('ul', 'md-doctext-list');
+  box.append(h, note, list);
+  const names = new Map((deals || []).map((d) => [d.id, d.name || (d.figures && d.figures.address) || 'Untitled deal']));
+  const draw = async () => {
+    const sum = await docTextSummary().catch(() => ({ docs: 0, bytes: 0, deals: {} }));
+    if (!box.isConnected) return;
+    list.textContent = '';
+    box.querySelector('#md-forget-all')?.remove();
+    const status = box.querySelector('.md-doctext-total') || note.insertAdjacentElement('afterend', el('p', 'md-doctext-total'));
+    status.textContent = `Kept now: ${docTextLine(sum)}.`;
+    for (const [id, t] of Object.entries(sum.deals)) {
+      const li = el('li', 'md-kind md-doctext-row');
+      const name = names.get(id);
+      const t1 = el('div', 'conn-text');
+      t1.append(el('span', 'conn-name', name || 'A deal no longer on this device'), el('span', 'conn-desc', docTextLine(t)));
+      const b = el('button', 'btn btn-sm conn-btn btn-gray', 'Forget');
+      b.type = 'button';
+      b.setAttribute('aria-label', `Forget document text of ${name || 'this deal'}`);
+      b.addEventListener('click', async () => {
+        const v = await actionSheet(`Forget the document text of ${name || 'this deal'}?`, [{ label: 'Forget it', sub: 'Ask Monal will not find anything in these documents until you add the files again. This cannot be undone.', value: 'yes', danger: true }]);
+        if (v !== 'yes') return;
+        toast(await forgetDealText(id) ? 'Document text forgotten.' : 'It could not be forgotten. Try again.');
+        draw();
+      });
+      li.append(t1, b);
+      list.appendChild(li);
+    }
+    if (sum.docs) {
+      const all = el('button', 'btn btn-sm conn-btn btn-gray', 'Forget all document text');
+      all.type = 'button'; all.id = 'md-forget-all';
+      all.addEventListener('click', async () => {
+        const v = await actionSheet('Forget all document text on this device?', [{ label: 'Forget all of it', sub: 'Ask Monal will not find anything in any deal’s documents until you add the files again. Your deals and their document lists stay. This cannot be undone.', value: 'yes', danger: true }]);
+        if (v !== 'yes') return;
+        toast(await forgetAllText() ? 'All document text was forgotten.' : 'It could not be forgotten. Try again.');
+        draw();
+      });
+      box.appendChild(all);
+    }
+  };
+  draw();
+  return box;
 }
 
 function myDataPanel() {
@@ -188,7 +240,7 @@ function myDataPanel() {
   body.setAttribute('aria-busy', 'true');
   p.appendChild(body);
   const mine = tab;
-  readDevice().then(({ counts, last, info }) => {
+  readDevice().then(({ deals, counts, last, info }) => {
     if (tab !== mine || !body.isConnected) return;
     body.removeAttribute('aria-busy');
     const ul = el('ul', 'md-kinds');
@@ -229,7 +281,7 @@ function myDataPanel() {
     rs.addEventListener('click', () => fi.click());
     fi.addEventListener('change', () => { const f = fi.files[0]; fi.value = ''; if (f) restore(f, api); });
     acts.append(bk, rs, fi);
-    body.append(ul, sbox, lbox, acts);
+    body.append(ul, docTextBox(deals), sbox, lbox, acts);
   });
   return p;
 }

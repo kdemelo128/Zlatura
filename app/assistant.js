@@ -30,7 +30,7 @@ export const QUESTIONS = [
   { id: 'metric', title: 'A figure of the deal: price, NOI, cap rate, price per SF, occupancy, equity, cash-on-cash', example: 'What is the price per SF?', needsDeal: true },
   { id: 'summary', title: 'A summary of the deal', example: 'Summarize this deal', needsDeal: true },
   { id: 'notes', title: 'Show my site visit notes', example: 'What do my notes say?', needsDeal: true },
-  { id: 'doc_ask', title: 'Search the deal’s documents and quote the page (OM, leases, T-12, Word, scans read this session)', example: 'What does the OM say about the roof?', needsDeal: true },
+  { id: 'doc_ask', title: 'Search the deal’s documents and quote the page (OM, leases, T-12, Word, scans you have added)', example: 'What does the OM say about the roof?', needsDeal: true },
   { id: 'glossary', title: 'Explain a term', example: 'Explain DSCR', needsDeal: false },
   { id: 'task', title: 'Add a follow-up task (asks first, with Undo)', example: 'Add a task to call the lender on Friday', needsDeal: false },
   { id: 'set_figure', title: 'Set a deal figure you state (asks first, with Undo)', example: 'Set the asking price to $4.6M', needsDeal: true },

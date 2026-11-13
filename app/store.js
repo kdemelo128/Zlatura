@@ -42,8 +42,11 @@ export const KEEP_OLD_MS = 30 * 86400000;
  * and a save made as the app leaves the screen (pagehide) has to start its
  * transaction straight away, before the page is frozen, or it is lost. */
 let dbP = null;
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 const HISTORY_STORES = ['history', 'snapshots', 'trash'];
+/** Version 3 (document memory) adds `doctext`: the compressed page text of documents attached to a deal, keyed
+ * [dealId, sha256] (doctext.js, docmem.js). Never part of a backup, and the other stores are untouched. */
+const DOC_STORES = ['doctext'];
 
 /* Another tab can hold the database at an older version (an upgrade waits for
  * it to let go), or open it at a newer one (this tab is then out of date).
@@ -68,7 +71,7 @@ function open() {
     req.onupgradeneeded = () => {
       // only adds what is missing: nothing already stored is touched
       const db = req.result;
-      for (const name of [...DATA_STORES, 'meta', ...HISTORY_STORES]) if (!db.objectStoreNames.contains(name)) db.createObjectStore(name);
+      for (const name of [...DATA_STORES, 'meta', ...HISTORY_STORES, ...DOC_STORES]) if (!db.objectStoreNames.contains(name)) db.createObjectStore(name);
     };
     req.onsuccess = () => {
       const db = req.result;
@@ -664,13 +667,67 @@ export async function loadDeal(id) {
 export async function deleteDeal(id) {
   try {
     const db = await open();
-    const t = db.transaction(['deals', 'trash'], 'readwrite');
+    const t = db.transaction(['deals', 'trash', 'doctext'], 'readwrite');
     t.objectStore('deals').delete(id);
+    t.objectStore('doctext').delete(docRange(id));   // a deleted deal's document text goes with it; the files were never kept
     t.objectStore('trash').put({ kind: 'deal', dealId: id, removedAt: Date.now() }, `deal:${id}`);
     await doneP(t);
     return true;
   } catch { return false; }
 }
+/* ------------------------------------------- document text (document memory) */
+
+const docRange = (dealId) => IDBKeyRange.bound([dealId, ''], [dealId, '\uffff']);
+
+/** Keep one document's packed text: { ok: true }, or { ok: false, reason: 'quota' | 'error' } (nothing is half written; a deal's save is never affected). */
+export async function putDocText(rec) {
+  try {
+    const db = await open();
+    const t = db.transaction('doctext', 'readwrite');
+    t.objectStore('doctext').put(rec, [rec.dealId, rec.sha256]);
+    await doneP(t);
+    return { ok: true };
+  } catch (e) { return { ok: false, reason: e && (e.name === 'QuotaExceededError' || /quota/i.test(String(e.message))) ? 'quota' : 'error' }; }
+}
+/** A deal's packed document texts (damaged ones are for the caller to skip). */
+export async function docTextOf(dealId) {
+  try { const db = await open(); return (await reqP(db.transaction('doctext').objectStore('doctext').getAll(docRange(dealId)))) || []; } catch { return []; }
+}
+/** Every stored document text, counted: { docs, bytes, deals: { dealId: { docs, bytes } } }. `bytes` is read from each record (sizeOf). */
+export async function docTextStats(/** @type {(r: any) => number} */ sizeOf = () => 0) {
+  const out = { docs: 0, bytes: 0, deals: /** @type {Record<string, { docs: number, bytes: number }>} */ ({}) };
+  try {
+    const db = await open();
+    await eachCursor(db.transaction('doctext').objectStore('doctext').openCursor(), (c) => {
+      const d = out.deals[c.key[0]] || (out.deals[c.key[0]] = { docs: 0, bytes: 0 });
+      const b = sizeOf(c.value);
+      d.docs += 1; d.bytes += b; out.docs += 1; out.bytes += b;
+      return true;
+    });
+  } catch { /* none */ }
+  return out;
+}
+/** Forget a deal's document text, or one document's of it (`sha256`). Resolves whether it worked. */
+export async function forgetDocText(dealId, sha256 = null) {
+  try {
+    const db = await open();
+    const t = db.transaction('doctext', 'readwrite');
+    t.objectStore('doctext').delete(sha256 ? [dealId, sha256] : docRange(dealId));
+    await doneP(t);
+    return true;
+  } catch { return false; }
+}
+/** Forget every document text on this device. */
+export async function forgetAllDocText() {
+  try {
+    const db = await open();
+    const t = db.transaction('doctext', 'readwrite');
+    t.objectStore('doctext').clear();
+    await doneP(t);
+    return true;
+  } catch { return false; }
+}
+
 /** Every saved deal, newest first, without loading photos into the list's memory twice. */
 export async function listDealsStrict() {
   const all = (await tx('readonly', (s) => s.getAll(), 'deals')) || [];

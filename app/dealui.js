@@ -46,7 +46,8 @@ import { renderCreditCard } from './creditui.js';
 import { renderDocsCard, recordFileRead } from './ddui.js';
 import { renderAbstractsCard, openAbstractForDoc } from './abstractui.js';
 import { ddOf, addDoc, markRead, setAsOf } from './dd.js';
-import { rememberDoc, indexFor } from './docsession.js';
+import { rememberDoc, indexFor, forgetDeal as forgetDealSession } from './docsession.js';
+import { saveDocText, warmDeal, forgetDealText, docTextSummary } from './docmem.js';
 import { proposeFromDocument } from './inboxstore.js';
 import { docxText } from './convert.js';
 import { dropLeaseSessions } from './leasereadui.js';
@@ -299,11 +300,14 @@ export async function discardDeal(id) {
   opened.delete(id);
   deleted.add(id);
   const done = await store.deleteDeal(id);
+  forgetDealSession(id);   // its document text went with it (store.deleteDeal); this page's copy too
   if (deal && deal.id === id) { deal = null; closeDeal(); }
   return done;
 }
 /** A PDF's text, then OCR on this device when it has none (ocrpdf.js): the readPdf of Start from documents and of the Documents card. */
 const readPdfWithOcr = async (bytes) => { const pdfjs = await getPdfjs(); return readPdfOcr(pdfjs, bytes, async (b) => { const layouts = []; const pages = await pdfPagesText(pdfjs, b.slice(), { layouts }); return { pages, layouts }; }, startOcrProgress); };
+/** Bring the open deal's stored document text into this session for Ask Monal (docmem.js); `onReading(on)` brackets the work. Resolves how many documents were read. */
+export const warmDealDocs = (onReading) => (deal ? warmDeal(deal.id, { onReading }) : Promise.resolve(0));
 /** What the Start from documents card (intake.js) needs to look at a file: the same readers the Documents card uses. */
 export const intakeDeps = () => ({
   getFflate, getXlsx,
@@ -314,11 +318,19 @@ export const intakeDeps = () => ({
   // OCR of a PDF's first page, only when the broker taps "Read it with OCR"; on this device, nothing is sent (ocr.js)
   ocrText: async (bytes, onProgress) => (await readScannedPage(await getPdfjs(), bytes.slice(), 1, { onProgress })).text,
 });
-/** Keep a read document's text for this session's document search (docsession.js): in memory, never stored. */
+/** Keep a read document's text: in memory for this session's document search (docsession.js), and compressed on this device
+ * for the next session (docmem.js), for a document with a fingerprint. OCR'd text only arrives here when OCR already ran
+ * (ocrpdf.js); nothing here starts OCR. A full device keeps nothing and says so; reading carries on. */
 const remember = (d, doc, pages) => {
   // every reader hands its text over here: what it names (people, the property, dates) is also proposed to the To file inbox, to be filed or not by a person (inbox.js)
   proposeFromDocument({ deal: d, doc: { name: doc.name, sha256: doc.sha256 || null, type: doc.type || null }, pages });
-  return rememberDoc(d.id, { name: doc.name, pages, role: doc.type || null, key: doc.sha256 || doc.name, id: doc.id || undefined });
+  const kept = rememberDoc(d.id, { name: doc.name, pages, role: doc.type || null, key: doc.sha256 || doc.name, id: doc.id || undefined });
+  if (kept && doc.sha256) {
+    const o = ocrOf(doc.sha256);
+    saveDocText(d, doc, pages, { readBy: o && o.read && o.read.length ? 'ocr' : 'text', ocrPages: o && o.read ? o.read : [] })
+      .then((r) => { if (!r.ok && r.reason === 'quota') toast(`This device is full, so ${doc.name}’s text was not kept for next time. You can still ask about it until you leave.`, null, 8000); });
+  }
+  return kept;
 };
 /**
  * "Use": attach staged documents to a deal through the deal's own paths. `dealId` null makes a new deal first (the same
@@ -1102,6 +1114,9 @@ function docsHost(d) {
     ocrOf,
     ocrText: async (bytes) => (await readScannedPage(await getPdfjs(), bytes.slice(), 1)).text,
     remember: (doc, pages) => remember(d, doc, pages),
+    // the document text kept for this deal (docmem.js): what there is, forgetting one document's (removed from the list) or all of it
+    textInfo: async () => (await docTextSummary()).deals[d.id] || { docs: 0, bytes: 0 },
+    forgetText: (sha) => forgetDealText(d.id, sha || null),
     docText: async (file) => docxText(new Uint8Array(await file.arrayBuffer()), await getFflate(), file.name),
     // other deals holding a file with this fingerprint, by name: shown on this device only
     otherDeals: async (sha) => (await listAllDeals()).filter((x) => x.id !== d.id && x.dd && Array.isArray(x.dd.docs) && x.dd.docs.some((y) => y && y.sha256 === sha)).map((x) => x.name || (x.figures && x.figures.address) || 'Untitled deal'),

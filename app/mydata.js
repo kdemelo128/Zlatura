@@ -64,7 +64,7 @@ export function countKinds({ deals = [], kv = /** @type {Record<string, any>} */
   return n;
 }
 
-const mb = (b) => (b >= 1073741824 ? `${(b / 1073741824).toFixed(1)} GB` : b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+export const mb = (b) => (b >= 1073741824 ? `${(b / 1073741824).toFixed(1)} GB` : b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
 /**
  * What to say about space, from navigator.storage.estimate() ({ usage, quota } or nulls). Without an estimate the
@@ -80,3 +80,6 @@ export function storageLine({ usage = null, quota = null, persisted = null } = {
 
 /** "3 deals", "1 deal". */
 export const countText = (kind, n) => `${n} ${kind.noun[n === 1 ? 0 : 1]}`;
+
+/** What document text is kept: "3 documents, 1.2 MB", or none. `stats` is { docs, bytes } (docmem.js). */
+export const docTextLine = ({ docs = 0, bytes = 0 } = {}) => (docs ? `${docs} ${docs === 1 ? 'document' : 'documents'}, ${mb(bytes)}` : 'none kept');
