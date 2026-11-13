@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.7.157: A new Monal: a hand-drawn vector bird replaces the voxel bird in the underwriting tool (on the development branch; not merged or deployed)
+
+- The tool's bird (the guide, Monal's nest, the wardrobe, the flight) is now a hand-drawn SVG Himalayan monal: a metallic green crest with feathered tips, a copper-to-violet neck, an iridescent blue-violet wing with the white rump patch, a rust tail and a black body. It replaces the voxel model (`monal-3d.js`, `monal-natural.js`) with `app/uwtool/monal-vector.js` and `monal-vector.css`.
+- Same poses as before (standing, blink, hop, doze, flight seen from above with flapping wings) and all eight shop items as layers or palettes; crisp from 24 px to 240 px, in light and dark; motion stops under reduced motion. Coins and accessories still never touch the model.
+- Tested: `uwtool-bird-flow` (24 checks, phone and desktop); the tool's other flows pass. Not tried on a real phone.
+
 ## 4.7.156: My data tab (K2) (on the development branch; not merged or deployed)
 
 The Connect page's My data tab shows what is stored on this device as counts by kind (deals, contacts, tasks, comps, documents, templates, scenarios, tool projects, activity, research briefs, settings), the space used and the browser's allowance (a plain sentence when the browser gives no estimate), the last backup date, and buttons for the existing backup and restore. A test fails if a stored key has no kind. Nothing leaves the device. Tested by `tests/mydata.test.js` and `tests/e2e/connect-flow.mjs`.
