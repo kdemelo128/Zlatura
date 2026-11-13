@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.7.155: My data tab (K2) (on the development branch; not merged or deployed)
+
+The Connect page's My data tab shows what is stored on this device as counts by kind (deals, contacts, tasks, comps, documents, templates, scenarios, tool projects, activity, research briefs, settings), the space used and the browser's allowance (a plain sentence when the browser gives no estimate), the last backup date, and buttons for the existing backup and restore. A test fails if a stored key has no kind. Nothing leaves the device. Tested by `tests/mydata.test.js` and `tests/e2e/connect-flow.mjs`.
+
 ## 4.7.154: Connect page (K1) (on the development branch; not merged or deployed)
 
 A new Connect page, in the navigation (sidebar on a desktop, the top bar on a phone) and the command palette. It lists, from one static list (`app/connectors.js`), what Monal takes in or sends out, in nine categories: assistants, CRM and contacts, deal management, property management, market and property data, public data, files and productivity, automation and API. Each row has a plain-text name, a one-line description, a neutral initials tile (no logos) and one of four states: Built in, Import file, Coming soon, Needs your approval. Built in and Import file open the real feature (the assistant, the comps importer, the OM reader, the rent roll and T-12 cards); the other two say what they wait for. A search box filters rows. The page makes no network request. Tabs: Connectors and My data (the latter filled in the next release). Tested by `tests/connectors.test.js` and `tests/e2e/connect-flow.mjs`.
