@@ -192,7 +192,7 @@ const ALLOW = [
   { file: 'app/rentrollui.js', re: /^n\.setAttribute\(k, v\);$/, n: 1, why: 'mk(tag, attrs): every call passes fixed geometry and class names; labels are set with textContent' },
   { file: 'app/icons.js', re: /^s\.setAttribute\(k, v\);$/, n: 1, why: 'the pairs come from a literal object of presentation attributes in the for header just above' },
   { file: 'app/pulseui.js', re: /^n\.setAttribute\(k, v\);$/, n: 1, why: 'sv(tag, attrs): every call passes fixed geometry and class names; the labels are text nodes' },
-  { file: 'app/monal/art.js', re: /parseFromString\(art\.svg\(prefix\), 'image\/svg\+xml'\)/, n: 1, why: 'parses our own bird drawing as XML, never as HTML; the node is imported, no HTML sink' },
+  { file: 'app/monal/art.js', re: /parseFromString\(art\.svg\(prefix\)\.replace/, n: 1, why: 'parses our own bird drawing as XML, never as HTML; the node is imported, no HTML sink' },
   // ---- data fields that merely are called src: not DOM
   { file: 'app/abstracts.js', re: /^rec\.src = list;/, n: 1, why: 'a record field (source quotes), not an element' },
   { file: 'app/leasestage.js', re: /^(rec|had)\.src = mergeSrc\(/, n: 2, why: 'a record field (the sources a lease reader found), not an element' },

@@ -66,7 +66,7 @@ for (const [size, opts] of SIZES) {
       await axe(page, `${label} with deals`);
 
       // ---- the bird takes no click
-      const bird = await page.evaluate(() => { const b = document.querySelector('#home-pulse .pulse-bird'); const q = b.getBoundingClientRect(); const top = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2); return { pe: getComputedStyle(b).pointerEvents, hit: top ? top.closest('.pulse-bird') !== null : false, hasSvg: !!b.querySelector('svg.monal-art'), hidden: b.getAttribute('aria-hidden') }; });
+      const bird = await page.evaluate(() => { const b = document.querySelector('#home-pulse .pulse-bird'); const q = b.getBoundingClientRect(); const top = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2); return { pe: getComputedStyle(b).pointerEvents, hit: top ? top.closest('.pulse-bird') !== null : false, hasSvg: b.querySelector('svg.monal-art')?.namespaceURI === 'http://www.w3.org/2000/svg' && b.querySelectorAll('.mn-lid')[0]?.namespaceURI === 'http://www.w3.org/2000/svg', hidden: b.getAttribute('aria-hidden') }; });
       check(`${label}: the bird is drawn from the shared monal artwork and takes no pointer`, bird.hasSvg && bird.pe === 'none' && !bird.hit && bird.hidden === 'true', JSON.stringify(bird));
 
       // ---- a stage change shows in the bars
