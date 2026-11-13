@@ -107,7 +107,7 @@ export async function intake(file, { getFflate, getXlsx, readPdf, problem = (e) 
 }
 
 /** The deepest a zip may sit inside zips: a zip in the dropped zip is opened, a zip in that one is not. */
-export const ZIP_DEPTH = 1;
+export const ZIP_DEPTH = 2;
 
 const baseName = (p) => p.split(/[\\/]/).pop() || p;
 /** A File for a part of a zip, held in memory only; a File-like where the platform has no File. */
@@ -153,7 +153,7 @@ export async function zipMembers(file, info, deps, { from = null, depth = 0, bud
 async function zipMembersOf(inner, deps, { from, depth, budget }) {
   const up = await checkUpload(inner, { getFflate: deps.getFflate, bundle: true });
   if (!up.plainZip) return null;
-  if (depth >= ZIP_DEPTH) return [{ file: null, name: inner.name, from, refuse: 'This is a zip inside a zip inside a zip; only one zip inside the dropped one is opened, so it was not opened.' }];
+  if (depth >= ZIP_DEPTH) return [{ file: null, name: inner.name, from, refuse: 'This is a zip inside a zip inside a zip inside a zip; only two levels of zip inside the dropped one are opened, so it was not opened.' }];
   const z = await zipMembers(inner, { plainZip: true }, deps, { from, depth: depth + 1, budget });
   return z.refuse ? [{ file: null, name: inner.name, from, refuse: z.refuse }] : z.members;
 }

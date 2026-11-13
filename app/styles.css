@@ -1710,6 +1710,9 @@ input.ci44, select.ci44 { height: 44px; }
 .uw-switch .btn { min-height: 44px; }
 .uwt-frame { display: block; width: 100%; height: 100%; min-height: 0; border: 0; background: #fff; }
 .uwf-frame { width: 100%; height: 78vh; min-height: 480px; border: 1px solid var(--line-strong); border-radius: 0; background: #fff; }
+.uwi-facts { display: grid; gap: var(--s1); margin: var(--s2) 0 0; min-width: 0; }
+.uwi-fact-list { margin: 0; padding-left: var(--s4); display: grid; gap: 2px; overflow-wrap: anywhere; }
+.uwi-fact-ask { display: grid; gap: var(--s1); }
 .uwi-body { padding: 0 var(--s5) var(--s4); display: grid; gap: var(--s3); }
 .uwi-step { display: grid; gap: var(--s2); min-width: 0; }
 .uwi-step h3 { font: 600 var(--t-13)/1.3 var(--ui); margin: var(--s2) 0 0; }
@@ -1875,6 +1878,67 @@ body.uw-full .uwt { flex: 1 1 auto; min-height: 0; padding: 0 env(safe-area-inse
 :root[data-look="new"] .bento { gap: var(--s5); }
 :root[data-look="new"] .home-sec .card-head { padding: var(--s5) var(--s6) var(--s3); }
 :root[data-look="new"] .home-sec .card-head h2 { letter-spacing: -.02em; }
+
+/* Deals library: stored figures only, with the same controls in a compact phone layout. */
+:root[data-look="new"] .deals-library { padding: 0; overflow: hidden; }
+:root[data-look="new"] .dl-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); padding: var(--s5) var(--s5) var(--s3); }
+:root[data-look="new"] .dl-start-actions { display: flex; flex-wrap: wrap; gap: var(--s2); margin-left: auto; }
+:root[data-look="new"] .dl-head h2 { margin: 0; font-size: 1.25rem; letter-spacing: -.02em; }
+:root[data-look="new"] .dl-tools { display: grid; grid-template-columns: minmax(10rem, 1fr) minmax(8rem, .4fr) minmax(8rem, .4fr); gap: var(--s3); padding: 0 var(--s5) var(--s4); }
+:root[data-look="new"] .dl-control { display: grid; align-content: start; gap: var(--s1); min-width: 0; color: var(--muted); font-size: .875rem; }
+:root[data-look="new"] .dl-tools :is(input, select) { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--edge); border-radius: var(--r-sm); background: var(--surface-2); color: var(--ink); font: inherit; }
+:root[data-look="new"] :is(.dl-grid-head, .dl-row) { display: grid; grid-template-columns: minmax(11rem, 1.7fr) minmax(6rem, .8fr) minmax(5rem, .65fr) minmax(4rem, .5fr) minmax(5rem, .6fr) minmax(5.5rem, .65fr) 14px; gap: var(--s3); align-items: center; }
+:root[data-look="new"] .dl-grid-head { padding: var(--s3) var(--s5); border-block: 1px solid var(--line); background: var(--surface-2); color: var(--muted); font-size: .8125rem; }
+:root[data-look="new"] .dl-grid-head > :nth-child(n+3) { text-align: right; }
+:root[data-look="new"] .dl-row { position: relative; width: 100%; min-height: 90px; padding: var(--s4) var(--s5); border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--surface); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+:root[data-look="new"] .dl-row:last-child { border-bottom: 0; }
+:root[data-look="new"] .dl-row:hover { background: var(--surface-2); }
+:root[data-look="new"] .dl-row:focus-visible { outline-offset: -4px; }
+:root[data-look="new"] .dl-property { min-width: 0; }
+:root[data-look="new"] .dl-name { display: block; overflow-wrap: anywhere; font-weight: 600; font-size: 1rem; line-height: 1.4; }
+:root[data-look="new"] .dl-detail { display: block; margin-top: var(--s1); color: var(--muted); font-size: .8125rem; overflow-wrap: anywhere; }
+:root[data-look="new"] .dl-stage { min-width: 0; }
+:root[data-look="new"] .dl-stage .chip { white-space: normal; text-align: center; }
+:root[data-look="new"] .dl-metric { min-width: 0; text-align: right; font-size: .9375rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+:root[data-look="new"] .dl-price { font-weight: 600; }
+:root[data-look="new"] .dl-updated { color: var(--muted); font-size: .8125rem; }
+:root[data-look="new"] .dl-metric-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+:root[data-look="new"] .dl-result-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s2); padding: 0 var(--s5) var(--s3); }
+:root[data-look="new"] .dl-results { margin: 0; color: var(--muted); font-size: .8125rem; }
+:root[data-look="new"] .dl-status { margin: 0; padding: var(--s3) var(--s5); border-top: 1px solid var(--line); color: var(--muted); font-size: .8125rem; }
+:root[data-look="new"] .dl-more { margin: 0 var(--s5) var(--s4); }
+:root[data-look="new"] .dl-empty { padding: var(--s5); }
+:root[data-look="new"] .dl-empty p { color: var(--muted); }
+:root[data-look="new"] .dl-confidential { display: inline-block; margin-top: var(--s1); color: var(--muted); font-size: .8125rem; font-weight: 500; }
+:root[data-look="new"] .deals-start { padding: var(--s5); text-align: left; border: 1px dashed var(--edge); border-radius: var(--r-lg); background: var(--surface-2); }
+:root[data-look="new"] .deals-start .hero-icon { display: none; }
+:root[data-look="new"] .deals-start h2 { font-size: 1.25rem; margin-top: 0; }
+:root[data-look="new"] .deals-start :is(p, .trust) { max-width: 65ch; }
+:root[data-look="new"] .deals-start .hero-actions { justify-content: flex-start; }
+:root[data-look="new"] .deals-help .list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--s5); }
+@media (max-width: 1100px) {
+  :root[data-look="new"] .dl-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :root[data-look="new"] .dl-tools > :first-child { grid-column: 1 / -1; }
+  :root[data-look="new"] .dl-grid-head { display: none; }
+  :root[data-look="new"] .dl-rows { padding: 0 var(--s3); }
+  :root[data-look="new"] .dl-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3) var(--s2); padding: var(--s4) var(--s2); }
+  :root[data-look="new"] :is(.dl-property, .dl-stage, .dl-updated) { grid-column: 1 / -1; }
+  :root[data-look="new"] .dl-property { padding-right: var(--s5); }
+  :root[data-look="new"] .dl-chevron { position: absolute; top: var(--s5); right: var(--s2); color: var(--muted); }
+  :root[data-look="new"] .dl-stage { margin-top: calc(-1 * var(--s1)); }
+  :root[data-look="new"] .dl-metric { text-align: left; }
+  :root[data-look="new"] .dl-metric-label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; display: block; margin-bottom: var(--s1); color: var(--muted); font-size: .8125rem; font-weight: 400; }
+  :root[data-look="new"] .dl-updated .dl-metric-label { display: inline; margin-right: var(--s1); }
+  :root[data-look="new"] .deals-help .list { grid-template-columns: 1fr; }
+}
+@media (max-width: 400px) {
+  :root[data-look="new"] :is(.dl-head, .dl-grid-head, .dl-row, .dl-status, .dl-empty, .deals-start) { padding-inline: var(--s3); }
+  :root[data-look="new"] :is(.dl-tools, .dl-result-bar) { padding-inline: var(--s3); }
+  :root[data-look="new"] .dl-rows { padding: 0; }
+}
+@media (max-width: 600px) {
+  :root[data-look="new"] .dl-start-actions { flex-basis: 100%; margin-left: 0; }
+}
 :root[data-look="new"] .cont-row { padding: var(--s4) var(--s6); }
 :root[data-look="new"] .cont li + li { border-top-color: var(--line); }
 :root[data-look="new"] .pipe-card { border-radius: var(--r-md); box-shadow: var(--shadow-soft); }
