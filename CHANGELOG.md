@@ -14,6 +14,8 @@ A calendar (.ics) or email (.eml) file, dropped anywhere on the page or chosen o
 
 Tested with invented files only: 27 new unit tests (zones and daylight saving, folded lines, encoded words, quoted-printable and base64, non-ASCII names, repeats, injection, confidential, undo) with 22 mutation checks, and a phone and desktop browser flow with axe. Saved deal results and displayed figures are unchanged.
 
+- **Review fixes (both releases):** undoing a deal update keeps a closing date edited or ticked done since, and says so; filing never trims the activity log (a full log refuses and the item stays, with the reason); an id from a file counts only with that file and kind, and as the same record only when the name or address agrees; a meeting with no usable zone is logged at local noon of its date marked "time not stated", and an email with no readable date asks for one; exports no longer name a confidential deal's contact on a task and refuse when deals cannot be read; UTC EXDATE/RECURRENCE-ID are compared in the series' zone; repeat expansion has a per-file work cap; a drop never closes an open sheet.
+
 ## 4.7.163: Bring in your CRM, deal and tenant exports, and send your contacts, deals and tasks back out (on the development branch; not merged or deployed)
 
 Connect now has working rows for the files brokers already have: a contacts or companies export from a CRM (Salesforce, HubSpot, Dynamics, Zoho, Pipedrive, Apto, Buildout and the like), a pipeline export, and a tenant list from a property-management system. They are matched by the common column names, not by any vendor's layout.
