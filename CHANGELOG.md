@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.7.167: The search palette always opens again with Ctrl+K (on the development branch; not merged or deployed)
+
+- A closed search palette could stay in the page with the keyboard focus inside it, so the next Ctrl+K went nowhere. It happened when the palette was opened twice in quick succession: each palette now removes itself when it closes, and a closed one never lingers. Found by `workspace-flow`, whose wait now checks the palette really closed and reopened; it failed on the old code.
+
 ## 4.7.166: One bird: the Underwrite tool's Monal opens Ask Monal (on the development branch; not merged or deployed)
 
 Clicking Monal (or the nest) inside the Underwrite tool now opens Ask Monal over the tool, with the tool's current step (Files, Read & review, Model or Export) and the nest's tips as suggested questions. This step's tips come first; "More tips from the nest" adds the rest, so all 16 tips stay reachable, and each answer keeps its "Take me there" button, which runs the route in the tool. The tool's coins, shop and wardrobe work as before. The step and tips cross the existing same-origin frame bridge as plain text, cleaned and capped in the app; the tool opened on its own page keeps its own tip card. No figures, no saved data and no network request change.
