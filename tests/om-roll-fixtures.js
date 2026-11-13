@@ -173,8 +173,8 @@ export const leaseCompsLocation = () => [summary(), grid({ title: 'Lease Compara
 export const availability = () => [summary(), grid({ title: 'Available Space', cols: [['Suite', 40, 0], ['SF', 250, 1], ['Status', 265, 0], ['Asking Rate', 420, 1]],
   rows: [['110', '2,400', 'Available', '$28.00'], ['120', '1,800', 'Available', '$26.50'], ['130', '3,100', 'Under LOI', '$24.75']] })];
 /** A roll with a Total, then a Lease Expiration Schedule listing the same tenants (next page, or the same page). */
-export function withExpiry({ samePage = false } = {}) {
-  const rollPg = grid({ cols: [['Suite', 40, 0], ['Tenant', 80, 0], ['SF', 250, 1], ['Lease End', 265, 0], ['Annual Rent', 430, 1]], rows: SUITE_ROWS.map((r) => [r[0], r[1], r[2], r[4], r[5]]), total: ['Total', '', '6,500', '', '$192,000'] });
+export function withExpiry({ samePage = false, total = true } = {}) {
+  const rollPg = grid({ cols: [['Suite', 40, 0], ['Tenant', 80, 0], ['SF', 250, 1], ['Lease End', 265, 0], ['Annual Rent', 430, 1]], rows: SUITE_ROWS.map((r) => [r[0], r[1], r[2], r[4], r[5]]), total: total ? ['Total', '', '6,500', '', '$192,000'] : null });
   const exp = grid({ title: 'Lease Expiration Schedule', cols: [['Tenant', 40, 0], ['SF', 250, 1], ['Expiration', 265, 0], ['Annual Rent', 430, 1], ['% of GLA', 500, 1]], rows: SUITE_ROWS.map((r) => [r[1], r[2], r[4], r[5], '25%']) });
   return samePage ? [summary(), [...rollPg, ...exp.map((it) => ({ ...it, y: it.y - 300 }))]] : [summary(), rollPg, exp];
 }
@@ -184,3 +184,11 @@ export function sfBeforeRent() {
   const rows = SUITE_ROWS.map((r) => [r[0], r[1], r[2], r[5]]);
   return [summary(), grid({ cols, rows }).map((it) => (it.y < 700 && it.x === 262 ? { ...it, x: 380, right: true } : it.y < 700 && it.x === 150 ? { ...it, x: 255, right: true } : it))];
 }
+
+/** A Location-keyed list with SF, lease end, status and rent: the key is not a unit or a suite. */
+export const locationKeyed = () => [summary(), prose(), grid({ cols: [['Location', 40, 0], ['SF', 200, 1], ['Lease End', 215, 0], ['Status', 290, 0], ['Annual Rent', 430, 1]], rows: [['Oak Terrace', '2,400', '03/2030', 'Leased', '$67,200'], ['Pine Row', '1,800', '07/2029', 'Leased', '$47,700'], ['Birch Commons', '3,100', '01/2031', 'Leased', '$76,725']] })];
+/** A Unit-keyed table with lease start and term only (no lease end, no status). */
+export const unitStartTerm = () => [summary(), prose(), grid({ cols: [['Unit', 40, 0], ['SF', 150, 1], ['Lease Start', 165, 0], ['Term', 250, 0], ['Annual Rent', 430, 1]], rows: [['101', '2,400', '03/01/2025', '60 mo', '$67,200'], ['102', '1,800', '07/01/2025', '36 mo', '$47,700'], ['103', '3,100', '01/01/2026', '120 mo', '$76,725']] })];
+/** A roll with a Total, then on the next page a table with a header leaving a column out and other tenants. */
+export const totalThenOther = () => [summary(), grid({ cols: [['Suite', 40, 0], ['Tenant', 80, 0], ['SF', 250, 1], ['Lease End', 265, 0], ['Annual Rent', 430, 1]], rows: SUITE_ROWS.map((r) => [r[0], r[1], r[2], r[4], r[5]]), total: ['Total', '', '6,500', '', '$192,000'] }),
+  grid({ cols: [['Suite', 40, 0], ['Tenant', 80, 0], ['SF', 250, 1], ['Annual Rent', 430, 1]], rows: [['201', 'Harrow Tailors', '1,000', '$32,000'], ['202', 'Dune Pharmacy', '1,500', '$45,000'], ['203', 'Elm Street Cafe', '900', '$27,000']], title: '', y0: 730 })];

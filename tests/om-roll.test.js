@@ -271,3 +271,12 @@ test('review n: right-aligned SF ending before a left-aligned rent label is not 
   assert.ok(r.rows.every((x) => x.annual === null || x.annual > 10000), JSON.stringify(r.rows.map((x) => [x.sf, x.annual])));
   assert.deepEqual(r.rows.map((x) => x.sf), [2000, 1500, 1200, 1800]);
 });
+
+test('review 2b: a Location key, or a Unit table with start and term only, is not a roll', async () => {
+  assert.equal(await roll(F.locationKeyed()), null);
+  assert.equal(await roll(F.unitStartTerm()), null);
+});
+test('review 3c: a schedule repeating the roll\'s tenants is not joined even when the roll has no Total; a table after a Total is not joined', async () => {
+  assert.equal((await roll(F.withExpiry({ total: false }))).rows.length, 4);
+  assert.equal((await roll(F.totalThenOther())).rows.length, 4);
+});

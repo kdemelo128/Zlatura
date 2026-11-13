@@ -1124,7 +1124,7 @@ export function rentRoll(pages, { layouts = null, periods = null, onRowLines = n
       // only a table that ran to the end of its page (no Total, no gap), with the new header at the top of the next page and none of its tenants or suites already read
       const seen = new Set(chosen.flatMap((c) => c.rows.flatMap((r) => [r.raw.tenant, r.raw.suite])).filter(Boolean).map((x) => String(x).toLowerCase()));
       const repeats = t.rows.some((r) => [r.raw.tenant, r.raw.suite].some((x) => x && seen.has(String(x).toLowerCase())));
-      if (!repeats && t.line <= 10 && chosen.some((c) => t.page === lastPage(c) + 1 && !c.totals.length && c.segments[c.segments.length - 1].reason === 'page-end')) { chosen.push(t); grew = true; }
+      if (!repeats && t.line <= 10 && chosen.some((c) => t.page === lastPage(c) + 1 && c.segments[c.segments.length - 1].reason === 'page-end')) { chosen.push(t); grew = true; }
     }
   }
   chosen.sort((a, b) => a.page - b.page || a.line - b.line);
