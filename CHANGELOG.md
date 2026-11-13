@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.7.162: Drop a calendar or email file and it becomes activity, tasks and people to file (on the development branch; not merged or deployed)
+## 4.7.164: Drop a calendar or email file and it becomes activity, tasks and people to file (on the development branch; not merged or deployed)
 
 A calendar (.ics) or email (.eml) file, dropped anywhere on the page or chosen on Connect, is read on this device. Everything it names goes to To file; nothing is filed until you tap.
 
@@ -14,7 +14,7 @@ A calendar (.ics) or email (.eml) file, dropped anywhere on the page or chosen o
 
 Tested with invented files only: 27 new unit tests (zones and daylight saving, folded lines, encoded words, quoted-printable and base64, non-ASCII names, repeats, injection, confidential, undo) with 22 mutation checks, and a phone and desktop browser flow with axe. Saved deal results and displayed figures are unchanged.
 
-## 4.7.161: Bring in your CRM, deal and tenant exports, and send your contacts, deals and tasks back out (on the development branch; not merged or deployed)
+## 4.7.163: Bring in your CRM, deal and tenant exports, and send your contacts, deals and tasks back out (on the development branch; not merged or deployed)
 
 Connect now has working rows for the files brokers already have: a contacts or companies export from a CRM (Salesforce, HubSpot, Dynamics, Zoho, Pipedrive, Apto, Buildout and the like), a pipeline export, and a tenant list from a property-management system. They are matched by the common column names, not by any vendor's layout.
 
@@ -27,6 +27,21 @@ Connect now has working rows for the files brokers already have: a contacts or c
 - Names with accents are now treated as names (they were never auto-filed before).
 
 Tested with invented files only: 17 new unit tests (columns, dates not guessed, injection kept as text, re-import, batch undo, confidential, round trip of each export) with 13 mutation checks, and a phone and desktop browser flow with axe. Saved deal results and displayed figures are unchanged.
+
+## 4.7.162: Clearer PDF-page and file-conversion sheets (on the development branch; not merged or deployed)
+
+The New look groups the existing Documents controls into file entry, page arrangement or format choice, and saving. File names wrap, controls keep their large targets, and quiet cards show which actions belong together. Classic and every existing operation remain available. Reduced motion and the app's motion switch are respected.
+
+No reader, conversion, worker, financial or saved-data logic changes. Implementation is not fully tested: static source-boundary and syntax checks precede browser/type/golden/full checks. No merge or deployment; real files, Safari, a physical phone and Excel have not been tested here.
+
+## 4.7.161: Find calculators and document tools in the New look (on the development branch; not merged or deployed)
+
+The Tools catalog adds labeled search, categories, unique result counts and Clear filters. Workspace shortcuts remain first, every existing tool remains reachable, and quiet cards use the existing four tones and reduced-motion-aware interactive states. The catalog follows look changes without needing a reload; Classic retains its current presentation.
+
+Only list/card presentation changes. Existing tool definitions, input readers, financial calculations, tool actions, scenarios and exports remain byte-for-byte unchanged. No new storage, dependency, reader or remote connection.
+
+Implemented, not fully tested: syntax, diff and source-boundary checks pass. The new browser flow is written but has not run; type/golden checks, old-code comparison and the full release gate remain pending. No Safari or physical-phone testing. Not merged or deployed.
+
 
 ## 4.7.160: Start from documents reads more files instead of asking, and offers the parts of one file separately (on the development branch; not merged or deployed)
 
