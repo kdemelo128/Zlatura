@@ -131,3 +131,15 @@ Releases 4 (Chrome built-in model) and 5 (WebLLM download, a new library) still 
 ## 2026-11-12: macro workbooks read as values (reader gaps 1, 4.7.147)
 
 The owner approved in the session chat ("yes approve all recommendations"): a macro-enabled workbook (.xlsm) is read in Start from documents as its saved cell values only. Macros are never run or kept, and the review shows "macros were not run; values as last saved". Anything that is not a real workbook is still refused. The rent roll and comps screens keep refusing .xlsm by name for now. Reason: 9 of 1,005 owner files were refused only for this, and reading saved values carries no macro risk (the app has no way to run them). To reverse: restore the macro-flag refusal in the reader commit of 4.7.147.
+
+## 2026-11-13: connectivity and market data (`docs/proposals/connectivity-and-market-data.md`)
+
+The owner approved all five recommendations in the session chat ("approve all"):
+
+| # | Decision |
+|---|---|
+| 1 | Plain-text names of third-party services (no logos) on the Connect page and import/export presets; `docs/working-rules.md` and `CLAUDE.md` amended accordingly |
+| 2 | Releases K1-K5 (Connect page, My data, the To file inbox, CRM/deal/PM file presets, calendar and email files) go ahead; K3 changes the stored data format and is approved |
+| 3 | Filing suggests only, with an opt-in switch that files clean new records automatically; a typed value is never overwritten; every filing can be undone |
+| 4 | A read-only local AI connector, confidential deals always left out, no write tools |
+| 5 | The server (relay), automation services and licensed data stay parked until K1-K8 ship; then a written quote |
