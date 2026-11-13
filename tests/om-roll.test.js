@@ -182,3 +182,18 @@ test('a rent column that does not say its period, under a Total printed as a yea
   const bad = await roll(F.mfTotal('$99,000'));
   assert.equal(bad.issues.filter((i) => i.kind === 'total' && i.field === 'monthly')[0].level, 'fail');
 });
+
+test('a sidebar of text beside the table, on lines between its rows, is neither a row nor the end of the table', async () => {
+  for (const [heading, numbers] of [[true, false], [false, false], [true, true], [false, true]]) {
+    const r = await roll(F.sidebar({ heading, numbers }));
+    assert.ok(r, `heading ${heading}, numbers ${numbers}`);
+    assert.deepEqual(r.rows.map((x) => [x.suite, x.tenant, x.sf, x.annual]), [['101', 'Maple Leaf Bakery', 2000, 60000], ['102', 'Quillfeather Books', 1500, 42000], ['103', 'Copperline Yoga', 1200, 36000], ['104', 'Bluefin Sushi Bar', 1800, 54000]], `heading ${heading}, numbers ${numbers}`);
+  }
+});
+
+test('text under the table in its own columns still ends it (a sidebar rule is not "any text ends nothing")', async () => {
+  const pages = F.sidebar({ heading: false });
+  pages[1].push({ x: 80, y: 600, s: 'Prospective buyers should verify all information independently.', size: 7 }, { x: 80, y: 590, s: 'Maple Row Plaza 999 and nearby retail lease 2,500 SF $70,000', size: 7 });
+  const r = await roll(pages);
+  assert.equal(r.rows.length, 4);
+});

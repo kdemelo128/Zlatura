@@ -570,7 +570,12 @@ function classify(L, t) {
     if (!figures.length && !vacant && lone) return { ...base, type: 'mismatch' };
     return { ...base, type: 'anchor', weak: !figures.length && !vacant, unitLabel: unitCount };
   }
-  // text only: a wrapped name, a section heading, or something else (the table has ended)
+  // text only: beside the table, not in it (a sidebar of highlights): in a column the reader has no use for, or past the last column
+  const known = t.cols.filter((c) => c.kind !== 'other');
+  const right = Math.max(...known.map((c) => c.x1)); const left = Math.min(...known.map((c) => c.x0));
+  if (!figures.length && L.cells.length && cells.every((a) => a.col.kind === 'other') && loose.every((c) => c.x0 > right + TOL || c.x1 < left - TOL)
+    && !(cells.length === 0 && !loose.length)) return { ...base, type: 'aside' };
+  // a wrapped name, a section heading, or something else (the table has ended)
   const txt = L.cells.map((c) => c.text).join(' ').trim();
   if (FOOTNOTE.test(txt) || txt.length > 60 || loose.length) return { ...base, type: 'mismatch' };
   const nameCols = textCells.filter((a) => ['tenant', 'suite', 'bumps', 'notes', 'type', 'beds', 'status'].includes(a.col.kind));
@@ -655,6 +660,7 @@ function carryOn(P, pi, t) {
     if (x.type === 'anchor' && !x.loose.length && x.figures.length >= 2) return { pi, li: weakAt ?? firstText ?? j, how: 'carried' };
     if (x.type === 'anchor' && !x.loose.length && x.figures.length === 1 && weakAt === null) { weakAt = firstText ?? j; continue; }
     if (x.type === 'text') { firstText = firstText ?? j; continue; }
+    if (x.type === 'aside') continue;
     return null;
   }
   return null;
@@ -735,6 +741,7 @@ function readBody(P, at, t) {
     }
     if (splitYear(L, lines, j, seg, t)) continue;
     const x = classify(L, t);
+    if (x.type === 'aside') continue;                                   // a sidebar beside the table: not a row, not the end of it
     if (afterTotal && x.type !== 'total') { seg.reason = 'total'; seg.endLi = j; break; }
     if (x.type === 'mismatch') {
       if (onlyNoiseAfter(j + 1) && !seg.items.some((y) => y.type === 'total')) { seg.soft = true; break; }

@@ -137,3 +137,12 @@ export function accounting2() {
 }
 /** The multifamily roll with a Total row whose rent is a year's, over a rent column that does not say its period. */
 export const mfTotal = (rent) => [grid({ cols: MF_COLS, rows: MF_ROWS, total: ['Total', '', '', '4,920', '', '', '', '', ''].map((v, i) => (i === 5 ? rent : v)) })];
+
+/* ---- a table with a sidebar of text beside it, on lines of its own between the rows ---- */
+const HALF = [['Suite', 40, 0], ['Tenant', 75, 0], ['SF', 215, 1], ['Lease End', 225, 0], ['Annual Rent', 355, 1]];
+/** `heading`: the sidebar's title sits on the header's line (a header cell the reader has no use for); else it starts below the header. */
+export function sidebar({ heading = true, numbers = false } = {}) {
+  const t = grid({ cols: HALF, rows: SUITE_ROWS.map((r) => [r[0], r[1], r[2], r[4], r[5]]) });
+  const words = numbers ? ['Built 1998', 'Parking 4.1 per 1,000', 'Zoning C2', 'Lot 1.2 acres', 'Taxes $12,400', 'Year 3'] : ['Highlights', 'Leased 90 percent to local tenants', 'Long weighted average term', 'Strong in place rents', 'Corner location', 'Recent roof'];
+  return [summary(), [...t, ...words.slice(heading ? 0 : 1).map((s, i) => ({ x: 385, y: (heading ? 700 : 686) - i * 14, s, size: 7 }))]];
+}
