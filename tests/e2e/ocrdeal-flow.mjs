@@ -15,7 +15,7 @@ const dealOf = (page) => page.evaluate(async () => {
   const all = await new Promise((r) => { const q = db.transaction('deals').objectStore('deals').getAll(); q.onsuccess = () => r(q.result); });
   all.sort((a, b) => b.updatedAt - a.updatedAt);
   const d = all[0]; db.close();
-  return d ? { name: d.name, figures: d.figures || {}, rows: (d.rentRoll || []).length, ocrRows: (d.rentRoll || []).filter((r) => r.ocr).length, leases: d.rr ? d.rr.leases.length : 0, t12: !!d.t12, docs: (d.dd && d.dd.docs || []).map((x) => ({ name: x.name, type: x.type })) } : null;
+  return d ? { name: d.name, figures: d.figures || {}, rows: (d.rentRoll || []).length, ocrRows: (d.rr && d.rr.leases ? d.rr.leases : []).filter((L) => L.source && L.source.ocr).length, offered: d.rrQc ? (d.rrQc.ocr || []).map((o) => [o.page, o.rows.length, o.added]) : [], leases: d.rr ? d.rr.leases.length : 0, t12: !!d.t12, docs: (d.dd && d.dd.docs || []).map((x) => ({ name: x.name, type: x.type })) } : null;
 });
 
 /** After a file is added to the Documents card: answer the what-is-this question when it is asked (add with no type), then let the save finish. */
@@ -53,9 +53,12 @@ for (const [size, opts] of SIZES) {
   check(`${size}: it says which page was read by OCR and to check the figures`, /Read by OCR on this device \(page 5 of 6\): check every figure against the page/.test(said), said.slice(0, 300));
   await page.waitForTimeout(1000);
   const d1 = await dealOf(page);
-  check(`${size}: the scanned rent roll page was read before the OM reader ran: the six units are on the deal`, d1 && d1.rows === 6, JSON.stringify(d1 && d1.rows));
+  check(`${size}: the scanned rent roll page was read at the upload, but its six units are an offer, not on the deal yet`, d1 && d1.rows === 0 && JSON.stringify(d1.offered) === '[[5,6,false]]', JSON.stringify(d1 && [d1.rows, d1.offered]));
   check(`${size}: the figures from the text pages were read as before`, d1 && d1.figures.price > 0, JSON.stringify(d1 && d1.figures.price));
-  check(`${size}: the rows read by OCR are marked as such`, d1 && d1.ocrRows === 6, String(d1 && d1.ocrRows));
+  await page.locator('#deal-qc .qc-item[data-check="ocr:5"] button', { hasText: 'Accept as read' }).click();
+  await page.waitForTimeout(1000);
+  const dAcc = await dealOf(page);
+  check(`${size}: Accept adds the six units, marked as read by OCR`, dAcc && dAcc.rows === 6 && dAcc.ocrRows === 6, JSON.stringify(dAcc && [dAcc.rows, dAcc.ocrRows]));
   check(`${size}: the OCR files came from this site, and nothing went to another`, requests.filter((u) => /vendor\/ocr\//.test(u)).length >= 3 && requests.every((u) => u.startsWith(BASE) || /^(data|blob):/.test(u)));
   await barClean();
   await page.screenshot({ path: `${SHOTS}ocrdeal-om-${size}.png` });

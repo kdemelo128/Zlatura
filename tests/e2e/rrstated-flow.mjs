@@ -54,9 +54,9 @@ const afterAccept = await page.evaluate(async () => {
   const db = await new Promise((r) => { const q = indexedDB.open('zlatura'); q.onsuccess = () => r(q.result); });
   const all = await new Promise((r) => { const q = db.transaction('deals').objectStore('deals').getAll(); q.onsuccess = () => r(q.result); });
   const d = all.find((x) => x.rrQc);
-  return d && d.rr ? d.rr.leases.map((L) => !!(L.source && L.source.ocr)) : null;
+  return d ? { held: d.rrQc.held ? d.rrQc.held.length : 0, heldOcr: d.rrQc.held ? d.rrQc.held.filter((r) => r.ocr).length : 0, units: d.rr ? d.rr.leases.length : 0 } : null;
 });
-check('after Accept the two page-4 rows are in, marked OCR', afterAccept && afterAccept.length === 8 && afterAccept.filter(Boolean).length === 2, JSON.stringify(afterAccept));
+check('after Accept the two page-4 rows join the 6 held rows (marked OCR); no roll is made of them alone', afterAccept && afterAccept.held === 8 && afterAccept.heldOcr === 2 && afterAccept.units === 0, JSON.stringify(afterAccept));
 const a = await savedDeal();
 check('no in-place rent figure is stored, and the deal has no box for it', a && !('rent_inplace' in a.figures) && !('rent_inplace' in a.sources) && (await page.locator('#fig-rent_inplace').count()) === 0, JSON.stringify(a && Object.keys(a.figures)));
 

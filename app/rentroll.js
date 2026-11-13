@@ -361,6 +361,12 @@ export function addOcrRows(d, page, today) {
   const qc = d && d.rrQc;
   const o = qc && (qc.ocr || []).find((x) => x.page === page);
   if (!o || o.added || !o.rows.length) return 0;
+  if (qc.held && qc.held.length && !(d.rr && Array.isArray(d.rr.leases) && d.rr.leases.length)) {
+    // the text pages' rows are still held back by a check: the OCR rows join them there, and go onto the deal with them, so accepting this page never makes a roll of its own rows alone
+    qc.held = [...qc.held, ...o.rows];
+    o.added = true;
+    return o.rows.length;
+  }
   if (d.rr && Array.isArray(d.rr.leases) && d.rr.leases.length) {
     const more = fromOmRows(o.rows, { asOf: d.rr.settings.asOf || today, page }).leases;
     d.rr.leases.push(...more);
