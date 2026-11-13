@@ -54,6 +54,7 @@ import { getSettings as getAiSettings, isReady } from './ai.js';
 import { openAiSettings, readWithAi, openAssistant, transcribeNote, openTranscript } from './aiui.js';
 import { crossChecks } from './reconcile.js';
 import { STAGE_LABEL, stageOf } from './pipeline.js';
+import { renderDealsList } from './dealslist.js';
 import { renderDealCrm } from './dealcrm.js';
 import * as crm from './crm.js';
 import { sweepResearch } from './research.js';
@@ -788,24 +789,29 @@ function renderReading(r) {
 
 async function renderLanding(r) {
   const seq = renderSeq;
-  r.appendChild(viewHead('Deals', 'Read an offering memorandum on the spot: the key figures, checked against each other and against your comps, run through a loan, with the questions to ask before you leave.'));
+  const modern = document.documentElement.dataset.look === 'new';
+  r.appendChild(viewHead('Deals', modern ? 'Pick up where you left off, or start a new deal.' : 'Read an offering memorandum on the spot: the key figures, checked against each other and against your comps, run through a loan, with the questions to ask before you leave.'));
   const stack = el('div', 'stack');
   const hero = el('div', 'hero drop');
+  if (modern) hero.classList.add('deals-start');
   hero.appendChild(Object.assign(el('div', 'hero-icon'), { innerHTML: icon('scan', 28) }));
   hero.appendChild(el('h2', null, 'Scan an offering memorandum'));
   hero.appendChild(el('p', null, 'Choose the OM’s PDF, from Mail, Files or a download. Price, NOI, cap rate, size, occupancy, the rent roll and the lease terms are read straight from it.'));
   const acts = el('div', 'hero-actions');
   const pick = el('label', 'btn btn-primary btn-lg', 'Choose OM');
+  if (modern) pick.classList.remove('btn-primary');
   pick.htmlFor = 'om-file';
   pick.addEventListener('pointerdown', () => getPdfjs().catch(() => {}), { once: true });
   acts.appendChild(pick);
   acts.appendChild(button('btn-plain', 'Try a fictional example deal', () => { flushDeal(); deal = exampleDeal(); try { localStorage.setItem(CUR_KEY, deal.id); } catch { /* fine */ } render(); touch(); }));
-  acts.appendChild(button('btn-lg', 'Enter figures by hand', () => { flushDeal(); deal = newDeal(); try { localStorage.setItem(CUR_KEY, deal.id); } catch { /* fine */ } render(); touch(); }));
+  const byHand = button('btn-lg', 'Enter figures by hand', () => { flushDeal(); deal = newDeal(); try { localStorage.setItem(CUR_KEY, deal.id); } catch { /* fine */ } render(); touch(); });
+  acts.appendChild(byHand);
   hero.appendChild(acts);
   hero.appendChild(Object.assign(el('div', 'trust'), { innerHTML: `${icon('shield', 14)}Read on this device. The OM is never uploaded.` }));
   stack.appendChild(hero);
 
   const what = card('What you get');
+  if (modern) what.classList.add('deals-help');
   const ul = el('ul', 'list');
   for (const [t, s, p] of [
     ['Every figure with its page', 'tap a tag to see the line it came from, or pick another reading', 'menu'],
@@ -828,9 +834,11 @@ async function renderLanding(r) {
   }
   what.appendChild(ul);
 
-  const deals = await store.listDeals();
+  const [deals] = await Promise.all([store.listDeals(), modern ? crm.loadStages() : Promise.resolve()]);
   if (seq !== renderSeq || root() !== r || deal || reading) return;   // something else drew while the list loaded
-  if (deals.length) {
+  if (modern) {
+    stack.prepend(renderDealsList(deals, { openDeal, newDeal: () => byHand.click(), readOm: () => $('om-file').click() }));
+  } else if (deals.length) {
     const saved = card('Your deals', el('span', 'count', `${deals.length}`));
     const list = el('div', 'list');
     for (const d of deals.slice(0, 30)) {
