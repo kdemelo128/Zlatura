@@ -19,6 +19,7 @@
  */
 
 import { classify } from './ddtypes.js';
+import { pageNeedsOcr } from './textlayer.js';
 import { verifyQuote } from './reconcile.js';
 import { parseDateText } from './dateinput.js';
 import { toCents, toRate } from './engine/money.js';
@@ -34,7 +35,7 @@ const trimEnd = (s) => s.replace(/[\s,;:]+$/, '');
 const sq = (s) => flat(s).toLowerCase().replace(/[^a-z0-9]/g, '');
 
 /** Does a page's own text hold too little to be a text page (so the broker may offer OCR for it)? */
-export const needsOcr = (text) => String(text ?? '').replace(/\s+/g, '').length < NEEDS_OCR_CHARS;
+export const needsOcr = (text) => pageNeedsOcr(text);
 
 /* ------------------------------------------------------------ the page model */
 

@@ -12,12 +12,12 @@
 import { openScanReader, ocrSupported } from './ocr.js';
 import { sha256Hex } from './filehash.js';
 import { pdfPages } from './pdftext.js';
+import { pagesAreScan } from './textlayer.js';
 
 export const OCR_LIMITS = { pages: 12, totalMs: 240000, pageMs: 90000, textChars: 200, blankBelow: 70, blankPage: 20 };
 
-const charCount = (pages) => pages.join('').replace(/\s/g, '').length;
 /** True for a PDF whose pages hold almost no text: the same line rrdoc.js docKind draws for a scan. */
-export const hasNoTextLayer = (pages) => Array.isArray(pages) && pages.length > 0 && charCount(pages) < OCR_LIMITS.textChars;
+export const hasNoTextLayer = (pages) => pagesAreScan(pages);
 /** The pages (1-based) of a document that has text but whose own text layer is empty on some pages: the scanned rent roll
  * page inside an OM. Nothing for a document with no text at all (that is hasNoTextLayer: read whole) or with no empty page. */
 export const blankPageList = (pages, floor = OCR_LIMITS.blankPage) => {

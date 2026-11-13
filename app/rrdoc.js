@@ -9,6 +9,7 @@
 import { rentRoll } from './omroll.js';
 import { READING_NAME } from './units.js';
 import { omRollRecord } from './rentroll.js';
+import { pagesAreScan } from './textlayer.js';
 
 export const ROLL_TITLE = /rent roll|tenant ledger|tenancy schedule|rent schedule|tenant roster|lease schedule|tenant schedule/i;
 const AS_OF = /\bas of:?\s*(?:\d{1,2}\/\d{1,2}\/\d{2,4}|[A-Za-z]+\.? \d{1,2},? \d{4})/i;
@@ -35,7 +36,7 @@ function monthLine(pages) {
  */
 export function docKind(pages, layouts = null) {
   const text = pages.join('\n');
-  if (text.replace(/\s/g, '').length < 200) return { kind: 'scanned', why: ['The PDF has almost no text: it is a scan or a picture.'], roll: null };
+  if (pagesAreScan(pages)) return { kind: 'scanned', why: ['The PDF has almost no text: it is a scan or a picture.'], roll: null };
   const head = pages.slice(0, 2).join('\n');
   const { roll, summary, rowLines } = readRoll(pages, layouts, null);
   const om = OM_WORDS.filter((re) => re.test(text)).length >= 2;
