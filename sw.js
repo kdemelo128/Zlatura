@@ -183,6 +183,7 @@ const ASSETS = [
   'app/mailui.js',
   'app/assistant.js',
   'app/assistantact.js',
+  'app/assistanttips.js',
   'app/assistantanswer.js',
   'app/assistantui.js',
   'app/docfacts.js',
