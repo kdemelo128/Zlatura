@@ -24,6 +24,23 @@ const cellText = (grids) => grids.flatMap((g) => g.rows.slice(0, 60).map((r) => 
 const READER_TYPES = ['om', 'rentroll', 't12'];
 
 /**
+ * Does the reader of `type` accept this PDF's own content? Only a rent roll's table or an operating statement's
+ * month or year columns count: the words alone never do. { reader, why } or null. A rent roll needs three rows, a rent column
+ * and a suite or area column; a statement must be one the T-12 PDF import would offer (an actual, complete period). The OM
+ * reader is not asked here: an OM is typed by its own words (docKind).
+ */
+function readerAccepts(type, dk, pages, layouts) {
+  if (type === 'rentroll') {
+    const roll = dk.roll;
+    const kinds = new Set(roll ? (roll.columns || []).map((c) => c.kind) : []);
+    if (roll && roll.rows.length >= 3 && ['monthly', 'annual', 'psf'].some((k) => kinds.has(k)) && (kinds.has('sf') || kinds.has('suite'))) return { reader: 'rrpdf', why: `A rent roll table of ${roll.rows.length} rows was read from it, though nothing on its first pages titles it as one.` };
+  } else if (type === 't12') {
+    if (accepts(() => pdfStatementChoices(pages, { layouts }).some((c) => c.eligible))) return { reader: 't12pdf', why: 'An operating statement table with actual months or an actual year was read from it, though nothing on its first pages titles it as one.' };
+  }
+  return null;
+}
+
+/**
  * What a file is, from what was read of it. Input: { name, pages (a PDF's text per page), layouts, grids (a workbook's
  * or CSV's sheets: [{ sheet, rows: [{ r, cells }] }]) }. Output: { type, typeBy ('reader'|null), reader, looks (a type
  * the text clearly reads as, to be confirmed with a tap: never set by itself), readers (only when two readers both accept a workbook: ['t12', 'rrsheet']), ask (the types to offer, best first),
@@ -34,9 +51,10 @@ const READER_TYPES = ['om', 'rentroll', 't12'];
 export function identify({ name = '', pages = null, layouts = null, grids = null }) {
   const out = { type: /** @type {string | null} */ (null), typeBy: /** @type {'reader'|null} */ (null), reader: /** @type {string | null} */ (null), looks: /** @type {string | null} */ (null), ask: /** @type {string[]} */ ([]), suggest: suggestFromName(name), scanned: false, text: '' };
   let omRead = false;
+  let dk = /** @type {any} */ (null);
   if (pages) {
     out.text = pages.slice(0, 3).join('\n');
-    const dk = docKind(pages, layouts);
+    dk = docKind(pages, layouts);
     out.scanned = dk.kind === 'scanned';
     if (dk.kind === 'rentroll') return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrpdf' };
     if (dk.kind === 't12' && pdfStatementChoices(pages, { layouts }).some((c) => c.eligible)) return { ...out, type: 't12', typeBy: 'reader', reader: 't12pdf' };
@@ -66,6 +84,16 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
   }
   const c = classify(out.text, name);
   const top = c.scores.slice(0, 3).map((x) => x.id);
+  // the text names one type that has a reader (the classifier is sure of it, or it is the only type the text scores), the file has
+  // no title the readers know, and that reader accepts the content: show its preview, never ask. A statement title keeps the
+  // statement route (nothing is sent to the rent roll reader because a rent roll is also in the file).
+  if (pages && dk && !omRead && !out.scanned && dk.kind !== 'om') {
+    const named = c.type && READER_TYPES.includes(c.type) ? c.type : c.scores.length === 1 && READER_TYPES.includes(c.scores[0].id) ? c.scores[0].id : null;
+    if (named && (named === 't12' || dk.kind === 'unknown')) {
+      const r = readerAccepts(named, dk, pages, layouts);
+      if (r) return { ...out, type: named, typeBy: 'reader', reader: r.reader, route: r.why };
+    }
+  }
   if (omRead) return { ...out, ask: [...new Set([...top.filter((x) => x !== 'om'), 'om', 'appraisal'])].slice(0, 3) };
   if (c.type && READER_TYPES.includes(c.type)) return { ...out, ask: c.type === 't12' ? ['t12', 'priorStmt', 'budget'] : c.ask.length ? c.ask : top };
   if (c.type) return { ...out, looks: c.type, ask: [c.type] };
