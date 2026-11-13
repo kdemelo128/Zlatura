@@ -28,7 +28,7 @@ const REASONS = {
   rrpdf: 'Its pages read as a rent roll.',
   rrsheet: 'Its columns read as a rent roll (unit, tenant, area and rent).',
   t12: 'It has the month columns of an operating statement.',
-  t12pdf: 'It has an explicit full-year actual operating-statement column. Review its period and numbers before importing.',
+  t12pdf: 'It has annual actual totals or twelve dated actual months. Review its period and numbers before importing.',
   om: 'Its pages read as an offering memorandum.',
 };
 

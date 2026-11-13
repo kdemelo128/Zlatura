@@ -49,7 +49,7 @@ import { RENT_KINDS, plausible, median, readings, competing, READING_NAME as REA
 /* ------------------------------------------------------------ the lines */
 
 /** Where a cell's characters sit on the page, from the fragments layout.js recorded. */
-function spanOf(frags, start, end) {
+export function spanOf(frags, start, end) {
   let x0 = Infinity; let x1 = -Infinity;
   for (const f of frags) {
     if (f.e <= start || f.s >= end) continue;
@@ -829,8 +829,12 @@ function tableScore(t, P) {
  * each page's geometry from layout.js (optional); `periods`: { column kind: reading } the broker chose for a column
  * that does not say monthly or annual. Returns { rows, totals,
  * columns, units, pages, page, segments, confidence, issues }.
+ * `onRowLines(row, [{ page, line }])` is told the exact lines each row was read from (its anchor and its wrapped lines),
+ * so a caller can tell a table's own lines from the report's headings; it adds no saved field.
+ * @param {string[]} pages
+ * @param {{ layouts?: any, periods?: any, onRowLines?: ((row: any, lines: { page: number, line: number }[]) => void) | null }} [options]
  */
-export function rentRoll(pages, { layouts = null, periods = null } = {}) {
+export function rentRoll(pages, { layouts = null, periods = null, onRowLines = null } = {}) {
   const P = pages.map((p, pi) => pageLines(p, layouts && layouts[pi]));
   const geo = !!(layouts && layouts.some((g) => g && g.lines));
   const tables = [];
@@ -882,6 +886,7 @@ export function rentRoll(pages, { layouts = null, periods = null } = {}) {
       if (row.sf !== null && row.sf < 100 && !row.annual && !row.tenant && !row.suite) continue;
       index.set(r, base + mine.length);
       mine.push(row);
+      if (onRowLines) onRowLines(row, [{ page: r.page, line: r.line }, ...[...r.parts.before, ...r.parts.after].map((x) => ({ page: r.page, line: x.L.i + 1 }))]);
       pageSet.add(r.page);
     }
     if (doubt) {
