@@ -87,6 +87,7 @@ const REASONS = flag('--reasons');
 // for an unexplained zip refusal, the message's shape. Quoted text longer than a code name and every digit are blanked,
 // so no name, figure or path from a document is printed.
 const WHERE = REASONS && flag('--where');
+const sizeBucket = (n) => (n <= 25e6 ? 'up-to-25MB' : n <= 100e6 ? '25-100MB' : n <= 250e6 ? '100-250MB' : n <= 500e6 ? '250-500MB' : 'over-500MB');
 const shape = (m) => String(m || '').replace(/"[^"]*"|'[^']*'|“[^”]*”|‘[^’]*’/g, (q) => (/^.[A-Za-z_$][\w$]{0,30}.$/.test(q) ? q : '"…"')).replace(/\S*[\/\\]\S*|\S+\.[A-Za-z]{2,5}\b/g, '…').replace(/\b[A-Z][\w’'-]*/g, (w) => (/^(That|The|This|It|Its|A|An|No|Not|Cannot|Can|Could|Error|TypeError|RangeError|SyntaxError|Invalid|Unexpected|End|Bad|Zip|ZIP|PDF|XML|File|Sheet|Workbook|Unsupported|Unknown|Missing|Undefined|Null|NaN|N)$/.test(w) ? w : '…')).replace(/\d+/g, 'N').replace(/[|\n\r]/g, ' ').slice(0, 90);
 
 /** An error's class name and nothing else (a message could hold document content). */
@@ -174,14 +175,14 @@ async function reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridE
   const k = upRes.kind;
   if (k === 'docx') out.push('docx-later');
   else if (k === 'image') out.push('no-reader-for-type:image');
-  else if (k === 'zip') { const plain = /^That is a zip file/.test(upRes.refuse || ''); out.push(plain ? 'zip-not-workbook' : 'zip-not-opened'); if (!plain) out.push(`zip-cause:${zipCause(upRes.refuse || '')}`); if (WHERE && !plain && zipCause(upRes.refuse || '') === 'other') out.push(`message-shape:${shape(upRes.refuse)}`); }
+  else if (k === 'zip') { const plain = /^That is a zip file/.test(upRes.refuse || ''); out.push(plain ? 'zip-not-workbook' : 'zip-not-opened'); if (!plain) out.push(`zip-cause:${zipCause(upRes.refuse || '')}`); if (WHERE && !plain && zipCause(upRes.refuse || '') === 'other') out.push(`message-shape:${shape(upRes.refuse)}`, `zip-size:${sizeBucket(file.size)}`); }
   else if (k === 'xls') out.push('old-xls');
   else if (k === 'doc') out.push('old-doc');
   else if (k === 'encrypted') out.push('encrypted');
   else if (k === 'ole') out.push('ole-unknown');
   else if (k === 'unknown') out.push('binary-unknown');
   else if (upRes.refuse && /^That file is \d/.test(upRes.refuse)) out.push('too-big');
-  else if (intakeErr) out.push(`${k === 'pdf' ? 'pdf' : 'sheet'}-read-failed:${k === 'pdf' ? errClass(intakeErr) : readWhy(intakeErr)}`);
+  else if (intakeErr) out.push(`${k === 'pdf' ? 'pdf' : 'sheet'}-read-failed:${k === 'pdf' ? errClass(intakeErr) : readWhy(intakeErr)}`, ...(WHERE ? [`where:${intakeErr.at || 'unknown'}`, `message-shape:${shape(intakeErr.message)}`] : []));
   else if (k === 'pdf' && !pages) out.push(`pdf-read-failed:${errClass(pdfErr)}`);
   else if ((k === 'xlsx' || k === 'text') && !grids && gridErr) out.push(`sheet-read-failed:${readWhy(gridErr)}`, ...(WHERE ? [`where:${gridErr.at || 'unknown'}`, `message-shape:${shape(gridErr.message)}`] : []));
   else if (v.scanned) out.push(`no-text-layer:${bucket((pages ? pages.pages.join('') : '').replace(/\s/g, '').length, CHAR_BUCKETS)}`);
