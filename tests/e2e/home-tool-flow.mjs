@@ -20,7 +20,7 @@ async function axe(page, label) {
   check(`${label}: axe finds nothing`, res.length === 0, res.join('\n    '));
 }
 /** Visible Home buttons by name, as a person sees them (no tap needed to reveal any). */
-const shown = (page) => page.evaluate(() => [...document.querySelectorAll('#view-home .home-head label.btn, #view-home .home-head button')].filter((e) => e.getBoundingClientRect().width > 0 && getComputedStyle(e).visibility !== 'hidden').map((e) => e.textContent.trim()));
+const shown = (page) => page.evaluate(() => [...document.querySelectorAll('#view-home .home-head label.btn, #view-home .home-head button')].filter((e) => !e.closest('.pulse') && e.getBoundingClientRect().width > 0 && getComputedStyle(e).visibility !== 'hidden').map((e) => e.textContent.trim()));
 
 for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false, userAgent: undefined, deviceScaleFactor: 1 }]]) {
   const { browser, page, errors } = await phone(opts);
@@ -29,7 +29,7 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
   await page.waitForTimeout(400);
 
   // ---- Classic is untouched: three inline buttons, no floating one
-  check(`${size}: Classic Home keeps its three inline actions`, (await shown(page)).join('|') === 'Read an OM|Add comps|New task' && (await page.locator('.home-primary, .home-quiet').count()) === 0);
+  check(`${size}: Classic Home keeps its three inline actions (and Customise Home beside them)`, (await shown(page)).join('|') === 'Read an OM|Add comps|New task|Customise Home' && (await page.locator('.home-primary, .home-quiet').count()) === 0);
 
   // ---- New look
   await look(page, 'new');
@@ -37,7 +37,7 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
   const acts = await shown(page);
   check(`${size}: every former Home action is still on screen at once (no extra tap)`, ['Read an OM', 'Add comps', 'New task'].every((n) => acts.includes(n)), acts.join('|'));
   check(`${size}: exactly one primary button, and it is the OM reader`, (await page.locator('#view-home .btn-primary').count()) === 1 && (await page.locator('#view-home .home-primary').textContent()).trim() === 'Read an OM');
-  check(`${size}: the other two actions sit in one quiet row of text buttons`, (await page.locator('#view-home .home-quiet .btn-plain').count()) === 2);
+  check(`${size}: the other two actions, and Customise Home, sit in one quiet row of text buttons`, (await page.locator('#view-home .home-quiet .btn-plain').count()) === 3);
   const fab = () => page.evaluate(() => { const e = document.querySelector('.home-primary'), r = e.getBoundingClientRect(), tb = document.querySelector('.tabbar'); return { pos: getComputedStyle(e).position, w: r.width, h: r.height, top: r.top, bottom: r.bottom, left: r.left, right: r.right, tabTop: tb && getComputedStyle(tb).display !== 'none' ? tb.getBoundingClientRect().top : null, vw: innerWidth }; });
   const f = await fab();
   if (size === 'phone') {

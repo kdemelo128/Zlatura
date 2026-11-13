@@ -52,6 +52,8 @@ for (const [size, opts] of SIZES) {
       const chips = await page.$$eval('#home-pulse .pulse-chip', (c) => c.map((x) => x.textContent.trim()));
       check(`${label}: the chips count the person's own tasks (2 overdue, none due today, none in the next 7 days, nothing to file)`, chips.join(',') === '0 due today,2 overdue,0 next 7 days,0 to file', chips.join(','));
       check(`${label}: the unpriced deals are said to be counted, not sized`, /6 unpriced deals are counted, not sized/.test(await page.textContent('#home-pulse .pulse-note')));
+      const ids = await page.$$eval('#home-root section[id^="home-"]', (x) => x.map((e) => e.id));
+      check(`${label}: Home is drawn once (overlapping draws must not append twice)`, new Set(ids).size === ids.length && (await page.locator('#home-pulse').count()) === 1, ids.join(','));
       const lab = await page.getAttribute('#home-pulse .pulse-stage', 'aria-label');
       check(`${label}: the chart has a text equivalent`, /Active deals by stage: Prospect 4 deals/.test(lab), lab);
 

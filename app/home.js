@@ -73,7 +73,8 @@ async function render() {
   const root = $('home-root');
   if (!root) return;
   const [deals, tasks, contacts, activity] = await Promise.all([listAllDeals(), crm.listTasks(), crm.listContacts(), crm.listActivity(), crm.loadStages()]);
-  const lastBackup = await kvGet('backup.last');
+  // everything that waits is read before the screen is touched: two draws that overlap must not both be appending to it
+  const [lastBackup, waitingFile] = await Promise.all([kvGet('backup.last'), waitingCount()]);
   await workspaceReady();
   const ws = activeWorkspace();
   const scrollY = window.scrollY;
@@ -129,7 +130,6 @@ async function render() {
   head.appendChild(quick);
   // the pulse panel: the pipeline or a 12-week sparkline from the person's own deals and tasks, and this week's chips
   const prefs = loadPrefs();
-  const waitingFile = await waitingCount();
   if (prefs.pulse) {
     const toTasks = () => { const t = $('home-tasks'); if (t) t.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
     head.classList.add('has-pulse');
