@@ -105,8 +105,7 @@ test('figures right-aligned far from their left-aligned labels are placed by ord
 test('figures far from their labels are NOT placed when the order does not decide it (a blank cell in the row)', async () => {
   // dates absent: the SF figure could sit under SF, Lease End or Annual Rent; the rent is then the only one placed by order
   const r = await roll(F.wideFigures({ blankDates: true }));
-  assert.ok(r.rows.every((x) => x.sf === null || x.sf === undefined || x.sf > 0));
-  assert.ok(r.rows.every((x) => x.annual !== 2000 && x.annual !== 1500 && x.annual !== 1200 && x.annual !== 1800), 'an SF figure is never the rent');
+  assert.deepEqual(r.rows.map((x) => [x.sf, x.annual]), [[null, null], [null, null], [null, null], [null, null]]);
 });
 
 test('a header whose "Lease Start" and "Lease End" sit a hair apart (one cell in the text) is cut into its two columns: the lease ends are read', async () => {
@@ -243,4 +242,32 @@ test('a column the broker chose the period of (basis stated) under a Total print
   const { rentRoll } = await import('../app/omroll.js');
   const r = rentRoll(text, { layouts, periods: { rent: 'monthly' } });
   assert.equal(r.issues.find((i) => i.kind === 'total' && i.field === 'monthly').level, 'fail');
+});
+
+test('review 1: a balance far right is never placed under the rent when the rent is blank', async () => {
+  for (const label of ['Balance', 'Mkt', 'Budget']) {
+    const r = await roll(F.otherLast(label));
+    assert.deepEqual(r.rows.map((x) => x.annual), [60000, null, 36000], label);
+  }
+});
+test('review 2: lease comparables and an availability list are not rent rolls', async () => {
+  assert.equal(await roll(F.leaseComps()), null);
+  assert.equal(await roll(F.leaseCompsLocation()), null);
+  assert.equal(await roll(F.availability()), null);
+});
+test('review 3: a lease expiration schedule after the roll is not more of the roll', async () => {
+  for (const samePage of [false, true]) {
+    const r = await roll(F.withExpiry({ samePage }));
+    assert.equal(r.rows.length, 4, `samePage ${samePage}`);
+    assert.equal(new Set(r.rows.map((x) => x.tenant)).size, 4);
+  }
+});
+test('review 3b: a continued header on the next page still joins when the table ran to the page end', async () => {
+  const r = await roll(F.continuedHeader());
+  assert.equal(r.rows.length, 12);
+});
+test('review n: right-aligned SF ending before a left-aligned rent label is not read as rent', async () => {
+  const r = await roll(F.sfBeforeRent());
+  assert.ok(r.rows.every((x) => x.annual === null || x.annual > 10000), JSON.stringify(r.rows.map((x) => [x.sf, x.annual])));
+  assert.deepEqual(r.rows.map((x) => x.sf), [2000, 1500, 1200, 1800]);
 });

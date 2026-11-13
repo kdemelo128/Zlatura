@@ -158,3 +158,29 @@ export const mfStatedTotal = (rent) => [grid({ cols: MF_COLS.map((c) => (c[0] ==
 export const unitNoSf = () => [summary(), prose(), grid({ cols: [['Unit', 40, 0], ['Lease Start', 120, 0], ['Lease End', 200, 0], ['Status', 280, 0], ['Monthly Rent', 380, 1]], rows: MF_ROWS.map((r) => [r[0], r[6], r[7], r[8], r[5]]) })];
 /** Only a unit, its SF and its status: a listing of units, not a rent roll. */
 export const unitSfStatus = () => [summary(), prose(), grid({ cols: [['Unit', 40, 0], ['SF', 150, 1], ['Status', 200, 0]], rows: MF_ROWS.map((r) => [r[0], r[3], r[8]]) })];
+
+/* ---- designer review: tables that look like a roll ---- */
+/** A roll whose last column ("Balance", "Budget"...) is one the reader has no kind for, right-aligned far from its label; suite 102's rent is blank. */
+export function otherLast(label) {
+  const cols = [['Suite', 40, 0], ['Tenant', 80, 0], ['SF', 220, 1], ['Lease End', 240, 0], ['Annual Rent', 360, 1], [label, 380, 0]];
+  const rows = [['101', 'Maple Leaf Bakery', '2,000', '12/31/2030', '$60,000', '$1,500'], ['102', 'Quillfeather Books', '1,500', '05/31/2027', '', '$4,200'], ['103', 'Copperline Yoga', '1,200', '02/28/2033', '$36,000', '$900']];
+  return [summary(), grid({ cols, rows }).map((it) => (it.y < 700 && it.x === 380 ? { ...it, x: 560, right: true } : it))];
+}
+export const leaseComps = () => [summary(), grid({ title: 'Lease Comparables', cols: [['#', 40, 0], ['Property', 60, 0], ['Size (SF)', 250, 1], ['Commencement', 265, 0], ['Term', 340, 0], ['Rate/SF', 420, 1]],
+  rows: [['1', 'Oak Terrace Center', '2,400', '03/01/2025', '60 mo', '$28.00'], ['2', 'Pine Row Plaza', '1,800', '07/01/2025', '36 mo', '$26.50'], ['3', 'Birch Commons', '3,100', '01/01/2026', '120 mo', '$24.75']] })];
+export const leaseCompsLocation = () => [summary(), grid({ title: 'Lease Comparables', cols: [['Location', 40, 0], ['SF', 250, 1], ['Lease Date', 265, 0], ['Term', 340, 0], ['Rate', 420, 1]],
+  rows: [['Oak Terrace Center', '2,400', '03/2025', '60', '$28.00'], ['Pine Row Plaza', '1,800', '07/2025', '36', '$26.50'], ['Birch Commons', '3,100', '01/2026', '120', '$24.75']] })];
+export const availability = () => [summary(), grid({ title: 'Available Space', cols: [['Suite', 40, 0], ['SF', 250, 1], ['Status', 265, 0], ['Asking Rate', 420, 1]],
+  rows: [['110', '2,400', 'Available', '$28.00'], ['120', '1,800', 'Available', '$26.50'], ['130', '3,100', 'Under LOI', '$24.75']] })];
+/** A roll with a Total, then a Lease Expiration Schedule listing the same tenants (next page, or the same page). */
+export function withExpiry({ samePage = false } = {}) {
+  const rollPg = grid({ cols: [['Suite', 40, 0], ['Tenant', 80, 0], ['SF', 250, 1], ['Lease End', 265, 0], ['Annual Rent', 430, 1]], rows: SUITE_ROWS.map((r) => [r[0], r[1], r[2], r[4], r[5]]), total: ['Total', '', '6,500', '', '$192,000'] });
+  const exp = grid({ title: 'Lease Expiration Schedule', cols: [['Tenant', 40, 0], ['SF', 250, 1], ['Expiration', 265, 0], ['Annual Rent', 430, 1], ['% of GLA', 500, 1]], rows: SUITE_ROWS.map((r) => [r[1], r[2], r[4], r[5], '25%']) });
+  return samePage ? [summary(), [...rollPg, ...exp.map((it) => ({ ...it, y: it.y - 300 }))]] : [summary(), rollPg, exp];
+}
+/** Right-aligned SF figures ending just before a left-aligned "Annual Rent" label, the rents under that label further right. */
+export function sfBeforeRent() {
+  const cols = [['Suite', 40, 0], ['Tenant', 80, 0], ['SF', 150, 0], ['Annual Rent', 262, 0]];
+  const rows = SUITE_ROWS.map((r) => [r[0], r[1], r[2], r[5]]);
+  return [summary(), grid({ cols, rows }).map((it) => (it.y < 700 && it.x === 262 ? { ...it, x: 380, right: true } : it.y < 700 && it.x === 150 ? { ...it, x: 255, right: true } : it))];
+}

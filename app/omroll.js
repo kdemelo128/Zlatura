@@ -174,7 +174,10 @@ const TEXT_KINDS = new Set(['tenant', 'suite', 'status', 'type', 'beds', 'notes'
  */
 function unitKeyed(cols, used) {
   const key = cols.find((c) => c.kind === 'suite');
-  return !!key && key.score >= 8 && used.has('sf') && ['start', 'end', 'term', 'status'].some((k) => used.has(k)) && cols.filter((c) => c.kind !== 'other').length >= 4;
+  // the key says Unit, Suite, Ste, Apt or Space (not "#", Location, Building or Floor, which key a comparable or a list of spaces); it gives a lease end
+  // or a status, and a contract rent (not a market or asking one): lease comparables and availability lists have none of these together
+  return !!key && key.score >= 8 && /\b(unit|suite|ste|apt|apartment|space)\b/i.test(key.label) && used.has('sf') && ['end', 'status'].some((k) => used.has(k))
+    && RENT_KINDS.some((k) => used.has(k)) && cols.filter((c) => c.kind !== 'other').length >= 4;
 }
 
 /** The best assignment of kinds to header cells, or null if it isn't a rent roll header. */
@@ -442,16 +445,19 @@ function assignCells(cells, cols) {
   }).sort((a, b) => a.opts[0].d - b.opts[0].d);
   const taken = new Map();
   const out = []; const loose = [];
+  // a figure that ends before a label starts belongs under an earlier figure column's label, if one is free (SF figures printed just left of "Annual Rent")
+  const behind = (cell, col) => !TEXT_KINDS.has(col.kind) && cell.x1 <= col.x0 + 0.5 && cols.some((c) => c.idx < col.idx && c.x0 <= cell.x0 && !TEXT_KINDS.has(c.kind) && c.kind !== 'other' && !taken.has(c) && accepts(c.kind, cell.text));
   for (const { cell, opts } of order) {
     let pick = null;
     for (const o of opts) {
       if (gapOf(cell, o.col) > FAR) continue;
       if (!accepts(o.col.kind, cell.text)) continue;
+      if (behind(cell, o.col)) continue;
       const prev = taken.get(o.col);
       if (prev && !TEXT_KINDS.has(o.col.kind)) continue;
       pick = o; break;
     }
-    if (!pick && opts[0] && gapOf(cell, opts[0].col) <= TOL && !taken.has(opts[0].col)) pick = opts[0];
+    if (!pick && opts[0] && gapOf(cell, opts[0].col) <= TOL && !taken.has(opts[0].col) && !behind(cell, opts[0].col)) pick = opts[0];
     if (!pick) { loose.push(cell); continue; }
     const prev = taken.get(pick.col);
     if (prev) { prev.parts.push(cell); continue; }
@@ -484,6 +490,8 @@ function orderFill(out, loose, cols, taken) {
   for (const [k, cells] of groups) {
     const left = k > 0 ? placed[k - 1].col.idx : -1;
     const right = k < placed.length ? placed[k].col.idx : Infinity;
+    // a column the reader has no kind for between them (a balance, a budget) could be what the figure belongs to: the order says nothing
+    if (cols.some((c) => c.idx > left && c.idx < right && c.kind === 'other' && !taken.has(c))) continue;
     const free = cols.filter((c) => c.idx > left && c.idx < right && !taken.has(c) && c.kind !== 'other' && !TEXT_KINDS.has(c.kind));
     if (free.length !== cells.length || cells.some((c, i) => !accepts(free[i].kind, c.text))) continue;
     cells.forEach((cell, i) => {
@@ -1113,7 +1121,10 @@ export function rentRoll(pages, { layouts = null, periods = null, onRowLines = n
     grew = false;
     for (const t of tables) {
       if (chosen.includes(t) || !continuedHeader(t.cols, best.cols)) continue;
-      if (chosen.some((c) => t.page >= lastPage(c) && t.page <= lastPage(c) + 1 && t.page >= c.page)) { chosen.push(t); grew = true; }
+      // only a table that ran to the end of its page (no Total, no gap), with the new header at the top of the next page and none of its tenants or suites already read
+      const seen = new Set(chosen.flatMap((c) => c.rows.flatMap((r) => [r.raw.tenant, r.raw.suite])).filter(Boolean).map((x) => String(x).toLowerCase()));
+      const repeats = t.rows.some((r) => [r.raw.tenant, r.raw.suite].some((x) => x && seen.has(String(x).toLowerCase())));
+      if (!repeats && t.line <= 10 && chosen.some((c) => t.page === lastPage(c) + 1 && !c.totals.length && c.segments[c.segments.length - 1].reason === 'page-end')) { chosen.push(t); grew = true; }
     }
   }
   chosen.sort((a, b) => a.page - b.page || a.line - b.line);
