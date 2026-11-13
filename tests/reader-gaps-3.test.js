@@ -104,3 +104,113 @@ test('gap 3: a broker opinion of value with a rent roll page is asked, and a pla
   const titledFirst = await verdictOf(pdfOf([[...rollPage({ title: true }), ...prose(['Appraisal Report', 'USPAP'], { y: 120 })], narrative('Notes')]), 'b.pdf');
   assert.equal(titledFirst.type, 'rentroll', 'a page that is itself a titled rent roll stays one');
 });
+
+/* ---- 1: a unit mix and a lease comparable table are not rent rolls */
+
+const MIX_HEAD = ['Unit Type', '# Units', 'Avg SF', 'Avg Rent', 'Market Rent'];
+const MIX_ROWS = [['Studio', 10, 450, 1100, 1200], ['1 Bed / 1 Bath', 24, 650, 1350, 1425], ['2 Bed / 2 Bath', 16, 900, 1700, 1800]];
+const COMP_HEAD = ['Tenant', 'Property', 'Address', 'Size (SF)', 'Rate/SF', 'Term (months)', 'Commencement', 'Lease Type'];
+const COMP_ROWS = [['Alder Foods', 'Sample Plaza', '1 Invented Way', 2400, 28.5, 60, '2025-03-01', 'NNN'], ['Birch Dental', 'Example Center', '9 Sample Rd', 1800, 31, 84, '2025-06-01', 'Modified Gross'], ['Cedar Fitness', 'Test Commons', '5 Fake St', 5200, 22, 120, '2024-11-01', 'NNN']];
+
+test('gap 1: a unit mix workbook goes to the unit mix reader (it looks like one, asked to confirm), never the rent roll', async () => {
+  for (const head of [MIX_HEAD, ['Floor Plan', 'Unit Count', 'Average SF', 'In-Place Rent', 'Market Rent']]) {
+    const bytes = await book([head, ...MIX_ROWS]);
+    const v = await verdictOf(bytes, 'a.xlsx');
+    assert.equal(v.type, null); assert.equal(v.reader, null); assert.equal(v.typeBy, null);
+    assert.equal(v.looks, 'unitMix'); assert.deepEqual(v.ask, ['unitMix']);
+    const p = await stageOf(bytes, 'a.xlsx');
+    assert.equal(p.items.length, 1);
+    assert.equal(p.items[0].type, null, 'not typed by a reader: the broker confirms');
+    assert.equal(p.items[0].confidence, 'Looks like');
+    assert.ok(p.items[0].facts && p.items[0].facts.type === 'unitMix', 'the unit mix reader read it');
+    assert.equal(I.readyItems(p, null).length, 0, 'nothing is ready to use until it is confirmed');
+  }
+});
+
+test('gap 1: a lease comparable table is asked, with no reader and no rent roll Use, in a workbook, a CSV and a PDF', async () => {
+  const csv = Buffer.from([COMP_HEAD, ...COMP_ROWS].map((r) => r.join(',')).join('\n'));
+  const noAddress = [['Lease Comparables'], ['Tenant', 'Address', 'SF', 'Rent/SF', 'Term', 'Commencement Date', 'Lease Type'], ...COMP_ROWS.map((c) => [c[0], c[2], c[3], c[4], c[5], c[6], c[7]])];
+  for (const [bytes, name] of [[await book([COMP_HEAD, ...COMP_ROWS]), 'a.xlsx'], [csv, 'b.csv'], [await book(noAddress), 'c.xlsx']]) {
+    const v = await verdictOf(bytes, name);
+    assert.equal(v.type, null, name); assert.equal(v.reader, null, name);
+    assert.deepEqual(v.ask, [], name);
+    assert.equal(v.shape, 'leasecomp', name);
+    assert.match(v.why, /lease comparables/);
+    const p = await stageOf(bytes, name);
+    assert.equal(p.items[0].type, null); assert.equal(p.items[0].use, null);
+    assert.match(p.items[0].reason, /no importer for lease comparables/);
+    assert.equal(I.readyItems(p, null).length, 0);
+  }
+  const { gridPage } = await import('./facts-fixtures.js');
+  const pdf = pdfOf([[...gridPage('Lease Comparables', ['Tenant', 'Property', 'Size', 'Rate/SF', 'Term', 'Commencement', 'Lease Type'], COMP_ROWS.map((c) => [c[0], c[1], c[3], c[4], c[5], c[6], c[7]].map(String)), { widths: [80, 80, 50, 55, 40, 90, 100] }), ...prose(['Prepared for review. Figures are invented for a test only. As of 10/01/2026. Rents are annual.'], { y: 200 })]]);
+  const pv = await verdictOf(pdf, 'd.pdf');
+  assert.equal(pv.type, null); assert.equal(pv.reader, null); assert.equal(pv.shape, 'leasecomp');
+  const { docKind } = await import('../app/rrdoc.js');
+  const { pages, layouts } = await readPdf(pdf);
+  assert.equal(docKind(pages, layouts).kind, 'unknown', 'the rent roll PDF import is not offered it as one either');
+});
+
+test('gap 1: a real rent roll with the same kind of columns is still read, and a rent roll beside a unit mix sheet is still routed', async () => {
+  const roll = await book([['Suite', 'Tenant', 'SF', 'Monthly Rent', 'Lease End'], ['101', 'Alder Foods', 2400, 5700, '2028-12-31'], ['102', 'Birch Dental', 1800, 4650, '2027-06-30']]);
+  const v = await verdictOf(roll, 'a.xlsx');
+  assert.equal(v.type, 'rentroll'); assert.equal(v.reader, 'rrsheet');
+  // a rent roll that also has a Property column and lease dates keeps its suite: not a comparable
+  const withProperty = await book([['Property', 'Suite', 'Tenant', 'SF', 'Rent/SF', 'Term', 'Commencement', 'Lease Type', 'Annual Rent'], ['Sample Plaza', '101', 'Alder Foods', 2400, 28.5, 60, '2025-03-01', 'NNN', 68400], ['Sample Plaza', '102', 'Birch Dental', 1800, 31, 84, '2025-06-01', 'NNN', 55800]]);
+  assert.equal((await verdictOf(withProperty, 'b.xlsx')).type, 'rentroll');
+  const wb = new ExcelJS.Workbook();
+  for (const [name, rows] of [['Roll', [['Suite', 'Tenant', 'SF', 'Monthly Rent', 'Lease End'], ['101', 'Alder Foods', 2400, 5700, '2028-12-31'], ['102', 'Birch Dental', 1800, 4650, '2027-06-30']]], ['Mix', [MIX_HEAD, ...MIX_ROWS]]]) { const ws = wb.addWorksheet(name); rows.forEach((r) => ws.addRow(r)); }
+  const both = await verdictOf(Buffer.from(await wb.xlsx.writeBuffer()), 'c.xlsx');
+  assert.equal(both.type, 'rentroll');
+  assert.deepEqual(both.parts.find((x) => x.type === 'rentroll').sheets, ['Roll']);
+});
+
+/* ---- 2: a rent schedule by month is not an operating statement */
+
+const MO = ['Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026', 'Jun 2026', 'Jul 2026', 'Aug 2026', 'Sep 2026', 'Oct 2026', 'Nov 2026', 'Dec 2026'];
+const SCHED = (head = ['Suite', 'Tenant']) => [[...head, ...MO], ['101', 'Alder Foods', ...MO.map(() => 5700)], ['102', 'Birch Dental', ...MO.map(() => 4650)], ['103', 'Cedar Fitness', ...MO.map(() => 9500)]];
+
+test('gap 2: a rent schedule headed Suite and Tenant with twelve months is never a T-12: it is asked, with nothing added up', async () => {
+  for (const rows of [SCHED(), SCHED(['Unit', 'Tenant']), SCHED(['Occupant']), [['Rent schedule 2026, monthly rent'], ...SCHED()], SCHED().map((r, i) => (i === 1 ? r.map((c, j) => (j === 6 ? null : c)) : r))]) {
+    const bytes = await book(rows);
+    const v = await verdictOf(bytes, 'a.xlsx');
+    assert.notEqual(v.type, 't12'); assert.notEqual(v.reader, 't12');
+    assert.equal(v.type, null); assert.equal(v.reader, null);
+    assert.deepEqual(v.ask, ['rentroll']);
+    assert.equal(v.shape, 'schedule');
+    assert.match(v.why, /rent schedule by month/);
+    const p = await stageOf(bytes, 'a.xlsx');
+    assert.equal(p.items.length, 1);
+    assert.equal(p.items[0].type, null); assert.equal(p.items[0].use, null);
+    assert.equal(I.readyItems(p, null).length, 0);
+  }
+});
+
+test('gap 2: an operating statement with month columns is still a T-12, and a rent roll with a month charge column is still the one question', async () => {
+  const stmt = await book([['Line', ...MO, 'Total'], ['Rental income', ...MO.map(() => 10000), 120000], ['Other income', ...MO.map(() => 500), 6000], ['Real estate taxes', ...MO.map(() => 1500), 18000], ['Insurance', ...MO.map(() => 400), 4800], ['Net operating income', ...MO.map(() => 8600), 103200]]);
+  const v = await verdictOf(stmt, 'a.xlsx');
+  assert.equal(v.type, 't12'); assert.equal(v.reader, 't12');
+  const acct = await book([['Account', 'Description', ...MO.slice(0, 6)], ['4000', 'Rental income', ...MO.slice(0, 6).map(() => 10000)], ['4100', 'Other income', ...MO.slice(0, 6).map(() => 500)], ['5000', 'Real estate taxes', ...MO.slice(0, 6).map(() => 1500)], ['9000', 'Net operating income', ...MO.slice(0, 6).map(() => 9000)]]);
+  assert.equal((await verdictOf(acct, 'b.xlsx')).type, 't12');
+});
+
+test('gap 1: the heading rules, one at a time', async () => {
+  const { tableShape, isRentSchedule } = await import('../app/tableshape.js');
+  assert.equal(tableShape(MIX_HEAD), 'unitmix');
+  assert.equal(tableShape(COMP_HEAD), 'leasecomp');
+  // a count of units beside a tenant, or beside lease dates, is a rent roll with a units column (a tenant with several units)
+  assert.equal(tableShape(['Tenant', '# Units', 'SF', 'Monthly Rent']), null);
+  assert.equal(tableShape(['Unit Type', '# Units', 'SF', 'Monthly Rent', 'Lease End']), null);
+  // a unit number is what a rent roll has and neither shape does
+  assert.equal(tableShape(['Suite', ...COMP_HEAD]), null);
+  assert.equal(tableShape(['Unit', '# Units', 'Avg SF', 'Avg Rent']), null);
+  // a comparable needs an address or property, a term or start date, and three of size, rate per SF, term, start and lease type
+  assert.equal(tableShape(['Tenant', 'Size', 'Rate/SF', 'Term', 'Commencement', 'Lease Type']), null, 'no address or property');
+  assert.equal(tableShape(['Tenant', 'Address', 'Size', 'Rate/SF', 'Lease Type']), null, 'no term or start date');
+  assert.equal(tableShape(['Tenant', 'Address', 'Size', 'Term']), null, 'only two of the five');
+  assert.equal(tableShape(['Tenant', 'Address', 'Size', 'Rate/SF', 'Term']), 'leasecomp');
+  // the schedule test reads the month row's other headings
+  const months = [false, false, true, true, true];
+  assert.equal(isRentSchedule(['Suite', 'Tenant', 'Jan', 'Feb', 'Mar'], months), true);
+  assert.equal(isRentSchedule(['Line', 'Account', 'Jan', 'Feb', 'Mar'], months), false);
+  assert.equal(isRentSchedule(['Tenant', null, 'Jan', 'Feb', 'Mar'], [false, false, true, true, true]), true);
+});

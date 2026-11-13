@@ -13,6 +13,7 @@ import { docKind, ROLL_TITLE, T12_TITLE } from './rrdoc.js';
 import { pdfStatementChoices } from './pdfstatement.js';
 import { layoutOf, sheetChoices } from './t12.js';
 import { headerAndRows } from './rentrollui.js';
+import { sheetShape, tableShape, isRentSchedule } from './tableshape.js';
 import { classify, scoreText, suggestFromName } from './ddtypes.js';
 import { kindOf } from './dd.js';
 import { sha256Hex } from './filehash.js';
@@ -104,6 +105,11 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
     out.text = pages.slice(0, 3).join('\n');
     dk = docKind(pages, layouts);
     out.scanned = dk.kind === 'scanned';
+    // a table with a rent roll's columns that is a unit mix or a lease comparable table (rrdoc.js docKind says so): never read as a rent roll
+    if (dk.shape) {
+      const lc = dk.shape === 'leasecomp';
+      return { ...out, ...(lc ? {} : { looks: 'unitMix' }), ask: lc ? [] : ['unitMix'], why: lc ? 'This is a table of lease comparables (an address, a size, a rate, a term and a start date for each). It is not a rent roll, and there is no importer for lease comparables, so it is not read.' : 'This is a unit mix (a count of units for each type), not a rent roll. Confirm it, and its figures are read for you to check.', shape: dk.shape };
+    }
     if (dk.kind === 'rentroll') {
       // an appraisal or a broker opinion of value that carries a titled rent roll page is that document, not a rent roll: asked, with no reader, and its roll pages offered apart
       const heldBy = appraisalFirst(pages);
@@ -139,9 +145,12 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
   } else if (grids) {
     // the T-12 import's own test, sheet by sheet: a sheet it would read as an actual statement (not a budget or projection), with month columns
     const choices = sheetChoices(grids, { file: name });
-    const t12 = choices.filter((c) => !c.error && !c.projection).flatMap((c) => { try { const n = layoutOf(grids[c.i].rows, { sheet: grids[c.i].sheet }).monthCols.length; return n >= 3 ? [{ i: c.i, sheet: c.sheet, hidden: c.hidden, score: n }] : []; } catch { return []; } });
+    // a rent schedule (a tenant or suite beside month columns, and too few headings for the rent roll import: a rent roll with month columns is the one question below), a unit mix or a lease comparable table has the columns of a statement or a rent roll
+    // but is neither: it is set aside here and asked below, never read as one
+    const schedule = new Set(); const shaped = new Map();
+    const t12 = choices.filter((c) => !c.error && !c.projection).flatMap((c) => { try { const L = layoutOf(grids[c.i].rows, { sheet: grids[c.i].sheet }); const n = L.monthCols.length; if (n >= 3 && isRentSchedule(L.head.row.cells, L.head.ms) && !accepts(() => headerAndRows(grids[c.i].rows.map((r) => r.cells), grids[c.i].sheet))) { schedule.add(c.i); return []; } return n >= 3 ? [{ i: c.i, sheet: c.sheet, hidden: c.hidden, score: n }] : []; } catch { return []; } });
     // the rent roll import's own test, sheet by sheet: a row of three or more recognised headings (its score is how many)
-    const roll = grids.flatMap((g, i) => { try { const t = headerAndRows(g.rows.map((r) => r.cells), g.sheet); return t ? [{ i, sheet: g.sheet, hidden: !!g.hidden, score: Math.floor(t.score / 100) }] : []; } catch { return []; } });
+    const roll = grids.flatMap((g, i) => { try { const sh = sheetShape(g.rows); if (sh) { shaped.set(i, sh); return []; } if (schedule.has(i)) return []; const t = headerAndRows(g.rows.map((r) => r.cells), g.sheet); return t ? [{ i, sheet: g.sheet, hidden: !!g.hidden, score: Math.floor(t.score / 100) }] : []; } catch { return []; } });
     // a sheet both readers accept is never routed by score (recognised headings and month columns are not comparable): it is one question
     const both = roll.filter((r) => t12.some((t) => t.i === r.i)).map((r) => r.i);
     const ambiguous = both.map((i) => grids[i].sheet);
@@ -163,6 +172,20 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
     if (roll.length) return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrsheet', parts, ...more };
     if (ambiguous.length) return { ...out, ask: ['rentroll', 't12'], ...more };
     if (hiddenRoll.length) return { ...out, ask: ['rentroll'], ...more };
+    const sheetsOf = (pick) => [...pick].map((i) => `“${grids[i].sheet}”`).join(', ');
+    const comps = [...shaped].filter(([, v]) => v === 'leasecomp').map(([i]) => i);
+    const mixes = [...shaped].filter(([, v]) => v === 'unitmix').map(([i]) => i);
+    if (comps.length || mixes.length || schedule.size) {
+      out.text = cellText(grids);
+      const why = [
+        comps.length ? `Sheet ${sheetsOf(comps)} is a table of lease comparables (an address, a size, a rate, a term and a start date for each). It is not a rent roll, and there is no importer for lease comparables, so it is not read.` : '',
+        mixes.length ? `Sheet ${sheetsOf(mixes)} is a unit mix (a count of units for each type), not a rent roll. Confirm it, and its figures are read for you to check.` : '',
+        schedule.size ? `Sheet ${sheetsOf(schedule)} is a rent schedule by month for each tenant. It is not an operating statement, and its months are not added up into one rent, because nothing here says what period each figure covers. Import a rent roll with a stated rent, or enter the rents by hand.` : '',
+      ].filter(Boolean).join(' ');
+      // a unit mix alone is the unit mix reader's (its figures are checked and asked about); the others have no reader
+      if (mixes.length && !comps.length && !schedule.size) return { ...out, looks: 'unitMix', ask: ['unitMix'], why, shape: 'unitmix', ...more };
+      return { ...out, ask: schedule.size && !comps.length ? ['rentroll'] : [], why, shape: comps.length ? 'leasecomp' : 'schedule', ...more };
+    }
     out.text = cellText(grids);
   }
   const c = classify(out.text, name);
