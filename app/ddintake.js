@@ -9,9 +9,9 @@
 
 import { checkUpload, LIMITS, unpackBundle } from './filekind.js';
 import { readGrids } from './sheetread.js';
-import { docKind } from './rrdoc.js';
+import { docKind, ROLL_TITLE, T12_TITLE } from './rrdoc.js';
 import { pdfStatementChoices } from './pdfstatement.js';
-import { layoutOf, sheetChoices, pickSheet } from './t12.js';
+import { layoutOf, sheetChoices } from './t12.js';
 import { headerAndRows } from './rentrollui.js';
 import { classify, scoreText, suggestFromName } from './ddtypes.js';
 import { kindOf } from './dd.js';
@@ -22,6 +22,62 @@ const cellText = (grids) => grids.flatMap((g) => g.rows.slice(0, 60).map((r) => 
 
 /** Types only a reader may set: the text can look like one, but then the broker is asked. */
 const READER_TYPES = ['om', 'rentroll', 't12'];
+
+/** The first lines of a page: where a title sits. */
+const topOf = (page) => String(page).split('\n').filter((l) => l.trim()).slice(0, 8).join('\n');
+
+/**
+ * Does the reader of `type` accept this PDF's own content? Only a rent roll's table or an operating statement's
+ * month or year columns count: the words alone never do. { reader, why } or null. A rent roll needs three rows, a rent column
+ * and a suite or area column; a statement must be one the T-12 PDF import would offer (an actual, complete period). The OM
+ * reader is not asked here: an OM is typed by its own words (docKind).
+ */
+function readerAccepts(type, dk, pages, layouts) {
+  if (type === 'rentroll') {
+    const roll = dk.roll;
+    const kinds = new Set(roll ? (roll.columns || []).map((c) => c.kind) : []);
+    if (roll && roll.rows.length >= 3 && ['monthly', 'annual', 'psf'].some((k) => kinds.has(k)) && (kinds.has('sf') || kinds.has('suite'))) return { reader: 'rrpdf', why: `A rent roll table of ${roll.rows.length} rows was read from it, though nothing on its first pages titles it as one.` };
+  } else if (type === 't12') {
+    if (accepts(() => pdfStatementChoices(pages, { layouts }).some((c) => c.eligible))) return { reader: 't12pdf', why: 'An operating statement table with actual months or an actual year was read from it, though nothing on its first pages titles it as one.' };
+  }
+  return null;
+}
+
+/**
+ * The page runs of a PDF that a specific reader accepts on their own: [{ type, reader, pages: [from, to] }] (1-based).
+ * A rent roll run starts on a page titled as one whose own pages read as a rent roll (docKind, with no OM wording
+ * there) and runs on while the next page makes the table longer; a statement is one page titled as one that the T-12
+ * PDF import would offer. A run overlapping another is dropped. Pages no reader accepts are not listed (loan or tax pages have no reader).
+ * @param {string[]} pages @param {any[] | null} layouts @param {string[]} kinds the types to look for
+ */
+function pageParts(pages, layouts, kinds) {
+  const out = [];
+  const sub = (a, b) => ({ pages: pages.slice(a, b), layouts: layouts ? layouts.slice(a, b) : null });
+  for (let i = 0; i < pages.length; i++) {
+    if (out.length && out[out.length - 1].pages[1] > i) continue;
+    const top = topOf(pages[i]);
+    if (kinds.includes('rentroll') && ROLL_TITLE.test(top)) {
+      const one = sub(i, i + 1);
+      let dk; try { dk = docKind(one.pages, one.layouts); } catch { dk = null; }
+      if (dk && dk.kind === 'rentroll' && dk.roll) {
+        let end = i + 1; let rows = dk.roll.rows.length;
+        while (end < pages.length && !ROLL_TITLE.test(topOf(pages[end])) && !T12_TITLE.test(topOf(pages[end]))) {
+          const more = sub(i, end + 1);
+          let d2; try { d2 = docKind(more.pages, more.layouts); } catch { d2 = null; }
+          if (!d2 || d2.kind !== 'rentroll' || !d2.roll || d2.roll.rows.length <= rows) break;
+          rows = d2.roll.rows.length; end += 1;
+        }
+        out.push({ type: 'rentroll', reader: 'rrpdf', pages: [i + 1, end] });
+        continue;
+      }
+    }
+    if (kinds.includes('t12') && T12_TITLE.test(top)) {
+      const one = sub(i, i + 1);
+      if (accepts(() => pdfStatementChoices(one.pages, { layouts: one.layouts }).some((c) => c.eligible))) out.push({ type: 't12', reader: 't12pdf', pages: [i + 1, i + 1] });
+    }
+  }
+  return out;
+}
 
 /**
  * What a file is, from what was read of it. Input: { name, pages (a PDF's text per page), layouts, grids (a workbook's
@@ -34,12 +90,17 @@ const READER_TYPES = ['om', 'rentroll', 't12'];
 export function identify({ name = '', pages = null, layouts = null, grids = null }) {
   const out = { type: /** @type {string | null} */ (null), typeBy: /** @type {'reader'|null} */ (null), reader: /** @type {string | null} */ (null), looks: /** @type {string | null} */ (null), ask: /** @type {string[]} */ ([]), suggest: suggestFromName(name), scanned: false, text: '' };
   let omRead = false;
+  let dk = /** @type {any} */ (null);
   if (pages) {
     out.text = pages.slice(0, 3).join('\n');
-    const dk = docKind(pages, layouts);
+    dk = docKind(pages, layouts);
     out.scanned = dk.kind === 'scanned';
     if (dk.kind === 'rentroll') return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrpdf' };
-    if (dk.kind === 't12' && pdfStatementChoices(pages, { layouts }).some((c) => c.eligible)) return { ...out, type: 't12', typeBy: 'reader', reader: 't12pdf' };
+    if (dk.kind === 't12' && pdfStatementChoices(pages, { layouts }).some((c) => c.eligible)) {
+      // a title that says operating statement keeps the statement route; a rent roll on another page is offered by its pages, never read in its place
+      const parts = pageParts(pages, layouts, ['rentroll']);
+      return { ...out, type: 't12', typeBy: 'reader', reader: 't12pdf', ...(parts.length ? { parts } : {}) };
+    }
     // "any two OM words" also reads an appraisal or a broker opinion of value: when the text says another type at least as loudly, ask
     if (dk.kind === 'om') {
       const sc = scoreText(out.text);
@@ -49,23 +110,61 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
       const bov = /broker'?s?\s+opinion\s+of\s+value|\bBOV\b/i.test(out.text);
       if (!bov && !(other && other.score >= 2 && other.score >= (om ? om.score : 0))) return { ...out, type: 'om', typeBy: 'reader', reader: 'om' };
       omRead = true;
+      // an OM that also holds rent roll or statement pages: the OM, and apart from it the pages a specific reader accepts. Not for a broker
+      // opinion of value or an appraisal (they stay asked), and a statement title on the document keeps the statement route.
+      if (!bov && other.id !== 'appraisal') {
+        if (T12_TITLE.test(pages.slice(0, 2).join('\n'))) {
+          if (accepts(() => pdfStatementChoices(pages, { layouts }).some((c) => c.eligible))) return { ...out, type: 't12', typeBy: 'reader', reader: 't12pdf', parts: pageParts(pages, layouts, ['rentroll']) };
+        } else {
+          const parts = pageParts(pages, layouts, ['rentroll', 't12']);
+          if (parts.length) return { ...out, type: 'om', typeBy: 'reader', reader: 'om', parts };
+        }
+      }
     }
   } else if (grids) {
-    // the T-12 import's own test: a sheet it would read as an actual statement (not a budget or projection), with month columns
-    const picked = pickSheet(sheetChoices(grids, { file: name }));
-    // the month columns must be on the sheet the import would read, not on some other sheet of the workbook
-    const candidates = picked.refuse ? [] : (picked.choice ? [picked.choice] : picked.ask.filter((c) => !c.projection));
-    const accepted = candidates.some((c) => accepts(() => layoutOf(grids[c.i].rows, { sheet: grids[c.i].sheet }).monthCols.length >= 3));
-    const roll = grids.some((g) => accepts(() => headerAndRows(g.rows.map((r) => r.cells), g.sheet)));
+    // the T-12 import's own test, sheet by sheet: a sheet it would read as an actual statement (not a budget or projection), with month columns
+    const choices = sheetChoices(grids, { file: name });
+    const t12 = choices.filter((c) => !c.error && !c.projection).flatMap((c) => { try { const n = layoutOf(grids[c.i].rows, { sheet: grids[c.i].sheet }).monthCols.length; return n >= 3 ? [{ i: c.i, sheet: c.sheet, hidden: c.hidden, score: n }] : []; } catch { return []; } });
+    // the rent roll import's own test, sheet by sheet: a row of three or more recognised headings (its score is how many)
+    const roll = grids.flatMap((g, i) => { try { const t = headerAndRows(g.rows.map((r) => r.cells), g.sheet); return t ? [{ i, sheet: g.sheet, hidden: !!g.hidden, score: Math.floor(t.score / 100) }] : []; } catch { return []; } });
+    // a sheet both readers accept is never routed by score (recognised headings and month columns are not comparable): it is one question
+    const both = roll.filter((r) => t12.some((t) => t.i === r.i)).map((r) => r.i);
+    const ambiguous = both.map((i) => grids[i].sheet);
+    for (const list of [roll, t12]) for (const i of both) list.splice(list.findIndex((x) => x.i === i), 1);
+    // the rent roll import skips hidden sheets: a rent roll found only on hidden sheets is said, not offered as read (the T-12 import takes hidden sheets)
+    const hiddenRoll = roll.length && roll.every((x) => x.hidden) ? roll.splice(0).map((x) => x.sheet) : [];
+    // hidden sheets count only when no visible sheet reads as that kind, and the part says so
+    const part = (type, reader, list) => {
+      const seen = list.filter((x) => !x.hidden);
+      const use = seen.length ? seen : list;
+      return { type, reader, sheets: use.map((x) => x.sheet), hiddenOnly: !seen.length };
+    };
+    const parts = [...(t12.length ? [part('t12', 't12', t12)] : []), ...(roll.length ? [part('rentroll', 'rrsheet', roll)] : [])];
+    const more = { ...(ambiguous.length ? { ambiguous } : {}), ...(hiddenRoll.length ? { hiddenRoll } : {}) };
     // both readers accept it (one workbook holding a rent roll sheet and a statement sheet): no reader is chosen, so
-    // `readers` names both and the screen offers a Use for each; each import then picks its own sheet by its own tests
-    if (accepted && roll) return { ...out, ask: ['t12', 'rentroll'], readers: ['t12', 'rrsheet'] };
-    if (accepted) return { ...out, type: 't12', typeBy: 'reader', reader: 't12' };
-    if (roll) return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrsheet' };
+    // `readers` names both and the screen offers a Use for each, each on its own sheet; each import then picks its own sheet by its own tests
+    if (t12.length && roll.length) return { ...out, ask: ['t12', 'rentroll'], readers: ['t12', 'rrsheet'], parts, ...more };
+    if (t12.length) return { ...out, type: 't12', typeBy: 'reader', reader: 't12', parts, ...more };
+    if (roll.length) return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrsheet', parts, ...more };
+    if (ambiguous.length) return { ...out, ask: ['rentroll', 't12'], ...more };
+    if (hiddenRoll.length) return { ...out, ask: ['rentroll'], ...more };
     out.text = cellText(grids);
   }
   const c = classify(out.text, name);
   const top = c.scores.slice(0, 3).map((x) => x.id);
+  // the text names one type that has a reader (the classifier is sure of it, or it is the only type the text scores), the file has
+  // no title the readers know, and that reader accepts the content: show its preview, never ask. A statement title keeps the
+  // statement route (nothing is sent to the rent roll reader because a rent roll is also in the file).
+  if (pages && dk && !omRead && !out.scanned && dk.kind !== 'om') {
+    const named = c.type && READER_TYPES.includes(c.type) ? c.type : c.scores.length === 1 && READER_TYPES.includes(c.scores[0].id) ? c.scores[0].id : null;
+    // a statement is in the file (the text scores a statement, a budget or prior-year type, or the PDF statement reader finds a table) when the
+    // text names a rent roll: never read the whole file as a rent roll then; its roll pages are offered by page where a title says so
+    const statementHere = named === 'rentroll' && (c.scores.some((x) => ['t12', 'priorStmt', 'budget'].includes(x.id)) || accepts(() => pdfStatementChoices(pages, { layouts }).length > 0));
+    if (named && !statementHere && (named === 't12' || dk.kind === 'unknown')) {
+      const r = readerAccepts(named, dk, pages, layouts);
+      if (r) return { ...out, type: named, typeBy: 'reader', reader: r.reader, route: r.why };
+    }
+  }
   if (omRead) return { ...out, ask: [...new Set([...top.filter((x) => x !== 'om'), 'om', 'appraisal'])].slice(0, 3) };
   if (c.type && READER_TYPES.includes(c.type)) return { ...out, ask: c.type === 't12' ? ['t12', 'priorStmt', 'budget'] : c.ask.length ? c.ask : top };
   if (c.type) return { ...out, looks: c.type, ask: [c.type] };
