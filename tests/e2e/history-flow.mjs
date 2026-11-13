@@ -29,7 +29,7 @@ check('an edit made right after reading an OM can be undone', /^Undo: Loan: Clos
 await page.click('#deal-undo');
 await settle();
 check('a deal just read has nothing to undo', (await page.isDisabled('#deal-undo')) && (await undoLabel()) === 'Nothing to undo', await undoLabel());
-check('the database is at version 2', (await page.evaluate(() => new Promise((res) => { const r = indexedDB.open('zlatura'); r.onsuccess = () => { res(r.result.version); r.result.close(); }; }))) === 2);
+check('the database is at version 3', (await page.evaluate(() => new Promise((res) => { const r = indexedDB.open('zlatura'); r.onsuccess = () => { res(r.result.version); r.result.close(); }; }))) === 3);
 
 // an edit, named on the Undo button
 const noi0 = await noi();
