@@ -33,7 +33,7 @@
  * keeps what this returns as `deal.omRead` (dealui.js), the checks in the
  * Data QC shape (dataqc.js). Design: docs/proposals/om-statement.md. */
 
-import { pageLines } from './omroll.js';
+import { pageLines, spanOf } from './omroll.js';
 import { scaleOf } from './scale.js';
 import { toCents } from './engine/money.js';
 import { readStatement, normalizeSigns, statementChecks, statementTotals, matchLabel, amountOf, CATEGORY } from './t12.js';
@@ -48,7 +48,7 @@ const SUFFIX = /^(\(?)\s*[-–]?\s*\$\s?(\d+(?:\.\d+)?)\s*(k|m|mm)\s*(\)?)$/i;
 /** A table cell as a figure: { value, pct?, dash?, dp } or null when it isn't one. */
 export function readCell(text) {
   const t = String(text ?? '').trim();
-  if (!t) return null;
+  if (!t || (t.match(/\$/g) || []).length > 1) return null;
   if (DASH.test(t)) return { value: 0, dash: true, dp: 0 };
   let m = PCT.exec(t);
   if (m) return { value: (/^\(|^[-–]/.test(t) ? -1 : 1) * Number(m[1].replace(/,/g, '') + (m[2] || '')), pct: true, dp: m[2] ? m[2].length - 1 : 0 };
@@ -62,15 +62,32 @@ export function readCell(text) {
 }
 
 /* Two figures set closer than a double space read as one cell ("$1,118,900 $1,071,400"): split them where they sit. */
-function splitFigures(cells) {
+function splitFigures(cells, frags = null, cw = 1) {
   const out = [];
   for (const c of cells) {
-    const parts = c.text.split(' ');
+    let parts = c.text.split(' ');
+    // PDF.js can combine adjacent complete currency values into one text item
+    // without a space. Repeated dollar signs delimit positive amounts; ranges,
+    // signs, labels and partial numbers must not be inferred as extra cells.
+    parts = parts.flatMap((part) => { const tight = part.match(/\$\d[\d,.]*/g); return tight?.length > 1 && tight.join('') === part ? tight : [part]; });
     if (parts.length > 1 && parts.every((p) => { const r = readCell(p); return r && !r.dash; })) {
       const per = (c.x1 - c.x0) / Math.max(1, c.end - c.start);
       let off = 0;
-      for (const p of parts) { out.push({ ...c, text: p, start: c.start + off, end: c.start + off + p.length, x0: c.x0 + off * per, x1: c.x0 + (off + p.length) * per }); off += p.length + 1; }
-    } else out.push(c);
+      for (const p of parts) {
+        const at = c.text.indexOf(p, off); const xy = frags ? spanOf(frags, c.start + at, c.start + at + p.length) : null;
+        out.push({ ...c, text: p, start: c.start + at, end: c.start + at + p.length, x0: xy ? xy[0] / cw : c.x0 + at * per, x1: xy ? xy[1] / cw : c.x0 + (at + p.length) * per }); off = at + p.length;
+      }
+    } else {
+      // Tight numeric columns can have less than one text-space between them.
+      // Keep complete currency amounts that PDF.js supplied as separate text
+      // fragments, using their real positions. Never split digit fragments or
+      // a range/label into invented numbers.
+      const money = (frags || []).filter((f) => f.s >= c.start && f.e <= c.end).map((f) => ({ f, text: c.text.slice(f.s - c.start, f.e - c.start).trim() }));
+      const complete = money.length >= 2 && money.every((p) => /^\$\d[\d,.]*$/.test(p.text) && readCell(p.text) && !readCell(p.text).pct)
+        && money.map((p) => p.text.replace(/\s/g, '')).join('') === c.text.replace(/\s/g, '');
+      if (complete) for (const { f, text } of money) out.push({ ...c, text, start: f.s, end: f.e, x0: f.x0 / cw, x1: f.x1 / cw });
+      else out.push(c);
+    }
   }
   return out;
 }
@@ -161,7 +178,8 @@ export function statementTables(pages, { layouts = null, isStatementRow = () => 
   const out = [];
   pages.forEach((text, pi) => {
     const P = pageLines(text, layouts && layouts[pi] ? layouts[pi] : null);
-    for (const L of P) L.cells = splitFigures(L.cells);
+    const geom = layouts && layouts[pi];
+    for (const L of P) L.cells = splitFigures(L.cells, geom?.lines?.[L.i]?.frags, geom?.cw > 0 ? geom.cw : 1);
     let cur = null;
     let n = 0;
     const close = () => {
