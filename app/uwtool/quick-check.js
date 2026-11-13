@@ -37,8 +37,9 @@ function build(){
   const acts=make('div','row qc-acts');
   const use=make('button','ghost','Use this tool’s figures');use.type='button';use.id='qcRefill';use.addEventListener('click',()=>{touched.clear();snapshot(true);});
   const save=make('button',null,'Save as deal');save.type='button';save.id='qcSave';save.disabled=true;els.save=save;
-  save.addEventListener('click',async()=>{const m=model();try{await app.save(text(),tool,m&&m.name);}catch{}});
-  acts.append(save,use);
+  els.saveMsg=make('p','small qc-err');els.saveMsg.id='qcSaveMsg';els.saveMsg.setAttribute('role','alert');els.saveMsg.hidden=true;
+  save.addEventListener('click',async()=>{const m=model();els.saveMsg.hidden=true;try{await app.save(text(),tool,m&&m.name);}catch(e){els.saveMsg.textContent='The deal could not be saved'+(e&&e.message?' ('+e.message+')':'')+'. Nothing was created; try again.';els.saveMsg.hidden=false;}});
+  acts.append(save,use,els.saveMsg);
   const calcs=make('details','optional-panel qc-calcs');calcs.id='qcCalcs';calcs.append(make('summary',null,'Calculators'));
   const note=make('p','small','Quick value, loan sizing, offer and seller net, net effective rent, WALT and more. They open over this page and start from the figures above where they share one.');
   els.calcs=make('div','qc-calc-list');calcs.append(note,els.calcs);

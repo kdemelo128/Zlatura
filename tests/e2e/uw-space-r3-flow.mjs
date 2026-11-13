@@ -69,11 +69,11 @@ async function run(label, opts) {
   const noiField = await val(f, 'noi');
   check(L('the example gives the NOI field the tool\'s own first-year NOI'), Math.abs(parseFloat(noiField.replace(/,/g, '')) - Math.round(toolNoi * 100) / 100) < 0.005, `${noiField} vs ${toolNoi}`);
   check(L('with no price typed in the tool the price and loan fields stay blank'), (await val(f, 'price')) === '' && (await val(f, 'ltv')) === '');
-  await setTool(f, { price: 4000000, loan: 2600000, rate: 0.065, amortization: 25, holdYears: 7, exitCap: 0.07, saleCost: 0.025, closing: 40000 });
+  await setTool(f, { price: 12000000, loan: 7800000, rate: 0.065, amortization: 25, holdYears: 7, exitCap: 0.07, saleCost: 0.025, closing: 120000 });
   await f.waitForFunction(() => document.querySelector('#qc_price').value !== '');
   const got = {}; for (const id of ['price', 'ltv', 'rate', 'amort', 'closing', 'hold', 'exitCap', 'saleCost']) got[id] = await val(f, id);
   check(L('the panel starts from the tool: price, loan as 65 % of price, rate 6.5 %, 25 years, closing 1 %, hold 7, exit cap 7 %, sale costs 2.5 %'),
-    JSON.stringify(got) === JSON.stringify({ price: '4,000,000', ltv: '65', rate: '6.5', amort: '25', closing: '1', hold: '7', exitCap: '7', saleCost: '2.5' }), JSON.stringify(got));
+    JSON.stringify(got) === JSON.stringify({ price: '12,000,000', ltv: '65', rate: '6.5', amort: '25', closing: '1', hold: '7', exitCap: '7', saleCost: '2.5' }), JSON.stringify(got));
   check(L('the example\'s no-flag state: the tool\'s loan and equity equal the engine\'s, so no flag shows'), await f.isHidden('#qcFlag'));
   await page.screenshot({ path: `${SHOTS}/after-${label}-model.png` }).catch(() => {});
   await f.locator('#quickCheck').scrollIntoViewIfNeeded();
@@ -87,12 +87,12 @@ async function run(label, opts) {
   /* ---- a planted difference: a loan percent that is not the tool's loan */
   await type(f, 'ltv', '60');
   const flagText = await f.textContent('#qcFlag');
-  check(L('planted difference: both loans are shown (the app $2,400,000.00, the tool $2,600,000.00) and the deal keeps the app\'s'), !(await f.isHidden('#qcFlag')) && /Loan: the app works out \$2,400,000\.00; this tool has \$2,600,000\.00/.test(flagText) && /keeps the app/.test(flagText), flagText);
+  check(L('planted difference: both loans are shown (the app $7,200,000.00, the tool $7,800,000.00) and the deal keeps the app\'s'), !(await f.isHidden('#qcFlag')) && /Loan: the app works out \$7,200,000\.00; this tool has \$7,800,000\.00/.test(flagText) && /keeps the app/.test(flagText), flagText);
   check(L('the tool\'s own return calculation is incomplete for the example, so there is no tool equity to compare: only the loan is flagged'), !/Equity/.test(flagText), flagText);
   const lend = await lines(f);
-  check(L('the results are the engine\'s for the typed 60 %, not the tool\'s loan'), lend.some((t) => /^Loan.*\$2,400,000/.test(t)), lend.join(' | ').slice(0, 200));
+  check(L('the results are the engine\'s for the typed 60 %, not the tool\'s loan'), lend.some((t) => /^Loan.*\$7,200,000/.test(t)), lend.join(' | ').slice(0, 200));
   const before = await f.evaluate(() => JSON.stringify(UWEditor.model().finance));
-  check(L('the tool\'s own model is untouched by the panel'), JSON.parse(before).loan === 2600000);
+  check(L('the tool\'s own model is untouched by the panel'), JSON.parse(before).loan === 7800000);
   await type(f, 'ltv', '65');
   check(L('back at 65 % the flag clears'), await f.isHidden('#qcFlag'));
   await type(f, 'ltv', '60');
@@ -123,10 +123,20 @@ async function run(label, opts) {
   check(L('Loan sizing opens over the tool (the tool stays on screen) with the check\'s price, NOI, loan percent, rate and years'), sheet.title === 'Loan sizing' && sheet.full && sheet.inputs[0] === '4,000,000' && sheet.inputs[2] === '65' && sheet.inputs[3] === '6.5' && sheet.inputs[4] === '25', JSON.stringify(sheet.inputs));
   check(L('and it computes: Maximum loan and the binding test'), /Maximum loan.*\$[\d,]+/.test(sheet.res) && /limited by/.test(sheet.res), sheet.res.slice(0, 160));
   await page.click('#sheet-close');
+  check(L('opening a calculator from the tool does not overwrite what the calculator remembers: the check\'s figures are not stored'), await page.evaluate(() => !/4000000|4,000,000/.test(localStorage.getItem('zlatura.tools.v1') || '')));
   await f.click('#qcCalcs [data-calc="offer"]');
   await page.waitForSelector('#sheet[open]');
   check(L('Offer and seller net opens too, and its sale-price field is not filled from the check'), (await page.textContent('#sheet-title')) === 'Offer and seller net');
   await page.click('#sheet-close');
+
+  /* ---- Save as deal that fails says so, in plain words */
+  // the host's sheet is taken out for a moment, so opening the Save sheet throws; the panel must say so instead of staying silent
+  await page.evaluate(() => { const e = document.getElementById('sheet-body'); window.__sb = [e, e.parentNode, e.nextSibling]; e.remove(); });
+  await f.click('#qcSave');
+  await f.waitForSelector('#qcSaveMsg:not([hidden])');
+  const saveMsg = await f.textContent('#qcSaveMsg');
+  check(L('a failed Save as deal says so: it could not be saved, and that nothing was created'), /could not be saved.*Nothing was created/.test(saveMsg), saveMsg);
+  await page.evaluate(() => { const [e, p, n] = window.__sb; p.insertBefore(e, n); });
 
   /* ---- Save as deal: cancel, create, undo */
   const n0 = await dealCount(page);
@@ -185,7 +195,9 @@ async function run(label, opts) {
   await page.click('#sheet-foot button:has-text("Cancel")');
 
   check(L('not one request to another host'), outside.length === 0, outside.join(' '));
-  check(L('no console error or warning'), errors.length === 0, errors.join(' | ').slice(0, 300));
+  // the one error the test causes itself (it takes the host's sheet away to make Save fail) is not counted
+  const stray = errors.filter((e) => !/Cannot set properties of null \(setting 'textContent'\)/.test(e));
+  check(L('no console error or warning'), stray.length === 0, stray.join(' | ').slice(0, 300));
   await browser.close();
   return texts;
 }
@@ -199,7 +211,7 @@ async function compareWithQuick(label, opts) {
   await f.waitForSelector('#exampleLoad');
   await f.click('#exampleLoad');
   await f.waitForFunction(() => /example/i.test(UWEditor.model().name));
-  await setTool(f, { price: 4000000, loan: 2600000, rate: 0.065, amortization: 25, holdYears: 7, exitCap: 0.07, saleCost: 0.025, closing: 40000 });
+  await setTool(f, { price: 12000000, loan: 7800000, rate: 0.065, amortization: 25, holdYears: 7, exitCap: 0.07, saleCost: 0.025, closing: 120000 });
   await f.waitForFunction(() => document.querySelector('#qc_price').value !== '');
   const ids = ['price', 'noi', 'ltv', 'rate', 'amort', 'closing', 'hold', 'exitCap', 'saleCost'];
   const t = {}; for (const id of ids) t[id] = await val(f, id);
