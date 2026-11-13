@@ -2196,3 +2196,14 @@ dialog.assist-page .sheet-card { height: min(640px, calc(100dvh - 24px)); }
   :root:not([data-motion="off"]) .conn-row:hover { transform: translateY(-2px); border-color: var(--line-strong); box-shadow: var(--shadow-lift, var(--shadow-md)); }
   :root:not([data-motion="off"]) .conn-row:hover .conn-mono { border-radius: 50%; }
 }
+
+/* My data (connectui.js, mydata.js): counts by kind, space, the last backup and the two backup buttons */
+.md-kinds { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 720px) { .md-kinds { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.md-kind { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); min-width: 0; }
+.md-count { font: 650 var(--t-24)/1 var(--display); font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+.md-storage { display: grid; gap: var(--s2); margin: var(--s5) 0 var(--s3); padding: var(--s4); border-radius: var(--r); background: var(--wash-1, var(--accent-soft)); border: 1px solid var(--line); }
+.md-meter { width: 100%; height: 10px; accent-color: var(--accent); }
+.md-last { margin: 0 0 var(--s3); }
+.md-acts { display: flex; flex-wrap: wrap; gap: var(--s3); }
+@media (prefers-reduced-motion: no-preference) { :root:not([data-motion="off"]) .md-kind { animation: conn-rise 320ms var(--ease) both; } }

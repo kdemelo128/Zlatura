@@ -1,6 +1,7 @@
 # Changelog
 
-## 4.7.155: An OM's rent roll is read when it has no tenant column, runs over many pages, or is typeset tightly (on the development branch; not merged or deployed)
+
+## 4.7.158: An OM's rent roll is read when it has no tenant column, runs over many pages, or is typeset tightly (on the development branch; not merged or deployed)
 
 An OM's rent roll reader (`app/omroll.js`) refused or cut short rolls of several kinds, found by the OM diagnostic on a set of 41 real OMs (counts only). Each now reads, with every earlier guard kept: only a labelled rent fills the rent (a market rent never does), a blank is never zero, monthly or annual is never guessed (a column that does not say is flagged and asked), SF and units are not mixed, and a summary or Total row is never a unit.
 
@@ -11,6 +12,25 @@ An OM's rent roll reader (`app/omroll.js`) refused or cut short rolls of several
 - **The diagnostic** (`tests/tools/om-diag.mjs`) now lists, for a header the reader refused, which column kinds it found, from a fixed vocabulary only (unit, suite, tenant, type, beds, baths, sf, rent, market-rent, rent-psf, lease-start, lease-end, term, status, deposit, charges, other), never the header text; `tests/tools/om-roll-corpus.mjs` writes the invented OMs for before/after runs.
 - **Designer review fixes.** Figures are no longer placed by order when an unknown column (a balance, a budget) lies between them, so a balance is never read as rent; the unit-keyed reading needs a Unit, Suite, Ste, Apt or Space key, a lease end or status, and a contract rent (lease comparables and availability lists are refused); a "continued" header joins only when the table ran to the page end and none of its tenants repeat (a Lease Expiration Schedule is not more of the roll); SF figures printed just left of a left-aligned rent label stay SF. On the deal page, pages read by OCR no longer merge into the rent roll: their rows wait on the Data QC record and are added, marked OCR, only on Accept (`tests/e2e/rrstated-flow.mjs`).
 - **Tested.** `tests/om-roll.test.js` (39 tests on invented OMs typeset as PDFs and read through pdf.js; 22 fail on the old code, the rest are guards, each mutated once), `tests/om-diag.test.js`, and the browser flow `tests/e2e/om-roll-flow.mjs` (a unit roll and a six-page roll through the deal page's OM upload, with Use and Undo, at phone and desktop size). On an invented corpus of 22 OMs the rows read go from 56 to 235 (on the deal 32 to 235). Real OMs were not re-run here. Saved deal results and golden figures unchanged.
+
+## 4.7.157: A new Monal: a hand-drawn vector bird replaces the voxel bird in the underwriting tool (on the development branch; not merged or deployed)
+
+- The tool's bird (the guide, Monal's nest, the wardrobe, the flight) is now a hand-drawn SVG Himalayan monal: a metallic green crest with feathered tips, a copper-to-violet neck, an iridescent blue-violet wing with the white rump patch, a rust tail and a black body. It replaces the voxel model (`monal-3d.js`, `monal-natural.js`) with `app/uwtool/monal-vector.js` and `monal-vector.css`.
+- Same poses as before (standing, blink, hop, doze, flight seen from above with flapping wings) and all eight shop items as layers or palettes; crisp from 24 px to 240 px, in light and dark; motion stops under reduced motion. Coins and accessories still never touch the model.
+- Tested: `uwtool-bird-flow` (24 checks, phone and desktop); the tool's other flows pass. Not tried on a real phone.
+
+## 4.7.156: My data tab (K2) (on the development branch; not merged or deployed)
+
+The Connect page's My data tab shows what is stored on this device as counts by kind (deals, contacts, tasks, comps, documents, templates, scenarios, tool projects, activity, research briefs, settings), the space used and the browser's allowance (a plain sentence when the browser gives no estimate), the last backup date, and buttons for the existing backup and restore. A test fails if a stored key has no kind. Nothing leaves the device. Tested by `tests/mydata.test.js` and `tests/e2e/connect-flow.mjs`.
+
+## 4.7.155: The Underwrite tab opens at once, never flashes the old bird, and its look is fixed (on the development branch; not merged or deployed)
+
+- Opening the Underwrite tab is a reveal, not a load: the tool loads on its own once the app is idle and stays in the page (hidden) when you leave it or switch to Quick underwrite, so reopening and closing take a fraction of a second.
+- The old cartoon bird no longer flashes for half a second when a deal is open: the tool's reload after it is filled from the deal is now covered like the first load.
+- The small glass design element in the tool's top-right corner is back (a script hid it), and it stands still under reduced motion.
+- The "A little help, right here" panel is easy to read: its text, its Ask Monal button and its close button pass 4.5:1 in light and dark.
+- The tool's Display & feel has accent swatches that recolour the tool's controls at once and are kept; the tool follows the app's accent until you pick its own ("Same as the app" goes back). The tool's dark theme is now the app's near-black New look palette.
+
 ## 4.7.154: Connect page (K1) (on the development branch; not merged or deployed)
 
 A new Connect page, in the navigation (sidebar on a desktop, the top bar on a phone) and the command palette. It lists, from one static list (`app/connectors.js`), what Monal takes in or sends out, in nine categories: assistants, CRM and contacts, deal management, property management, market and property data, public data, files and productivity, automation and API. Each row has a plain-text name, a one-line description, a neutral initials tile (no logos) and one of four states: Built in, Import file, Coming soon, Needs your approval. Built in and Import file open the real feature (the assistant, the comps importer, the OM reader, the rent roll and T-12 cards); the other two say what they wait for. A search box filters rows. The page makes no network request. Tabs: Connectors and My data (the latter filled in the next release). Tested by `tests/connectors.test.js` and `tests/e2e/connect-flow.mjs`.

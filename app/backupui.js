@@ -124,7 +124,7 @@ export async function makeBackup({ withHistory = true } = {}) {
   }
 }
 
-async function restore(file, api) {
+export async function restore(file, api) {
   let backup;
   let note = null;
   const bad = await checkReader(file, 'json');
