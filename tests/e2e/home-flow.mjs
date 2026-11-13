@@ -22,7 +22,7 @@ await page.selectOption('#deal-stage', 'offer');
 await page.fill('#deal-task-title', 'Send LOI to listing broker');
 await page.fill('#deal-task-due', today);
 await page.press('#deal-task-title', 'Enter');
-await page.waitForFunction(() => /Send LOI/.test(document.querySelector('#deal-crm').textContent));
+await page.waitForFunction(() => /Send LOI/.test((document.querySelector('#deal-crm')?.textContent || '')));
 check('the next step shows on the deal', /Send LOI to listing broker/.test(await page.textContent('#deal-crm')) && /due today/.test(await page.textContent('#deal-crm')));
 check('adding a next step empties the field', (await page.inputValue('#deal-task-title')) === '');
 // a change elsewhere (here: a task saved on Home or another tab) refreshes the card; what is being typed stays
@@ -39,14 +39,14 @@ await page.selectOption('#contact-role', 'Seller’s broker');
 await page.fill('#contact-phone', '(202) 555-0147');
 await page.fill('#contact-email', 'dana@example.com');
 await page.click('#contact-save');
-await page.waitForFunction(() => /Dana Whitlock/.test(document.querySelector('#deal-crm').textContent));
+await page.waitForFunction(() => /Dana Whitlock/.test((document.querySelector('#deal-crm')?.textContent || '')));
 check('the contact is linked to the deal, with call and email links', await page.locator('#deal-crm a[href="tel:2025550147"]').count() === 1 && await page.locator('#deal-crm a[href="mailto:dana@example.com"]').count() === 1);
 // a key date three days out
 const soon = await page.evaluate(() => { const d = new Date(Date.now() + 3 * 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
 await page.selectOption('#deal-date-label', 'Due diligence expires');
 await page.fill('#deal-date', soon);
 await page.locator('#deal-crm form').filter({ has: page.locator('#deal-date') }).locator('button[type=submit]').click();
-await page.waitForFunction(() => /Key dates \(1\)/.test(document.querySelector('#deal-crm').textContent));
+await page.waitForFunction(() => /Key dates \(1\)/.test((document.querySelector('#deal-crm')?.textContent || '')));
 check('a key date is kept on the deal', /Key dates \(1\)/.test(await page.textContent('#deal-crm')));
 // a deliverable from the Deal tab
 await page.evaluate(() => { window.print = () => {}; });
@@ -96,7 +96,7 @@ check('a hidden stage is left out of the stage menus', !(await page.$$eval('#hom
 await page.fill('#task-title', 'Renew CoStar subscription');
 await page.fill('#task-due', '2020-01-15');
 await page.click('#home-tasks button[type=submit]');
-await page.waitForFunction(() => /Overdue \(1\)/.test(document.querySelector('#home-tasks').textContent));
+await page.waitForFunction(() => /Overdue \(1\)/.test((document.querySelector('#home-tasks')?.textContent || '')));
 check('an overdue task is flagged, and named in Needs attention', /1 task is overdue/.test(await page.textContent('#home-attention')) && /was due/.test(await page.textContent('#home-tasks')));
 await page.check('#home-tasks input[aria-label="Done: Send LOI to listing broker"]');
 await page.waitForTimeout(400);
