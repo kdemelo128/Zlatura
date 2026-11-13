@@ -36,7 +36,7 @@ const LOCAL_MAX = 262144;
 /** The settings key that never travels in a backup. */
 const NEVER = 'ai.settings';
 /** The kv keys the app writes and a backup may carry (tests/backup.test.js checks this list against every kvSet in app/). */
-export const KV_KEYS = ['tpl.library', 'crm.tasks', 'crm.contacts', 'crm.activity', 'crm.stages', 'tools.scenarios', 't12.labels', 'rr.layouts', 'conventions', 'template', 'output', 'backup.last', 'research.briefs', 'uw.scratch', 'comps.mappings', 'ui.prefs'];
+export const KV_KEYS = ['tpl.library', 'crm.tasks', 'crm.contacts', 'crm.activity', 'crm.stages', 'tools.scenarios', 't12.labels', 'rr.layouts', 'conventions', 'template', 'output', 'backup.last', 'research.briefs', 'uw.scratch', 'comps.mappings', 'ui.prefs', 'inbox.items', 'inbox.prefs'];
 const KV_SET = new Set(KV_KEYS);
 
 /**
@@ -221,6 +221,7 @@ export function planRestore(backup, current, mode = 'merge', now = Date.now()) {
   merge('crm.tasks', 'Tasks', { stamp: false });
   merge('crm.contacts', 'Contacts');
   merge('crm.activity', 'Activity entries', { stamp: false });
+  merge('inbox.items', 'To file items', { stamp: false });
   // research briefs: the newer updatedAt wins; a brief past its retainUntil is not brought back
   if (backup.kv['research.briefs'] !== undefined) {
     const m = mergeById(briefObjects(current.kv['research.briefs']), liveBriefs(backup.kv['research.briefs'], now));

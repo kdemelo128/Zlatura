@@ -18,6 +18,21 @@ def render(name, texts, encrypt=None):
         c.showPage()
     c.save()
 render("om-retail", pages["om_retail"])
+# an OM with a contacts page, for the To file inbox: invented people and companies only
+CONTACTS = "\n".join([
+    "Contacts and key dates", "",
+    "Listing Broker: Jane Roe, Senior Vice President",
+    "Roe & Partners Realty",
+    "jane.roe@example.test",
+    "(555) 010-2000", "",
+    "Property Manager: Pat Quill",
+    "pat@quill.example.test",
+    "(555) 010-9999", "",
+    "Owner: Example Holdings LLC",
+    "Offers Due: December 18, 2026",
+    "Closing Date: 01/15/2027",
+])
+render("om-inbox", pages["om_retail"] + [CONTACTS])
 render("om-netlease", pages["om_netlease"])
 render("om-multifamily", pages["om_multifamily"])
 render("costar-comps", pages["costar_set"])

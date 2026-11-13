@@ -17,6 +17,7 @@ export const KINDS = Object.freeze([
   { id: 'scenarios', label: 'Scenarios', noun: ['scenario', 'scenarios'], where: 'This browser’s database (Tools)', backup: true },
   { id: 'projects', label: 'Tool projects', noun: ['project', 'projects'], where: 'This browser (quick underwritings and the Underwrite tool)', backup: true },
   { id: 'activity', label: 'Activity', noun: ['entry', 'entries'], where: 'This browser’s database', backup: true },
+  { id: 'inbox', label: 'To file', noun: ['item', 'items'], where: 'This browser’s database (proposed records, waiting and finished)', backup: true },
   { id: 'briefs', label: 'Research briefs', noun: ['brief', 'briefs'], where: 'This browser’s database', backup: true },
   { id: 'settings', label: 'Settings', noun: ['setting', 'settings'], where: 'This browser’s database', backup: true },
 ]);
@@ -25,9 +26,9 @@ export const KINDS = Object.freeze([
 export const KEY_KIND = Object.freeze({
   'tpl.library': 'templates', template: 'templates',
   'crm.tasks': 'tasks', 'crm.contacts': 'contacts', 'crm.activity': 'activity',
-  'tools.scenarios': 'scenarios', 'uw.scratch': 'projects', 'research.briefs': 'briefs',
+  'tools.scenarios': 'scenarios', 'uw.scratch': 'projects', 'research.briefs': 'briefs', 'inbox.items': 'inbox',
   'crm.stages': 'settings', conventions: 'settings', output: 'settings', 't12.labels': 'settings', 'rr.layouts': 'settings',
-  'comps.mappings': 'settings', 'ui.prefs': 'settings', 'ai.settings': 'settings',
+  'comps.mappings': 'settings', 'ui.prefs': 'settings', 'inbox.prefs': 'settings', 'ai.settings': 'settings',
   'backup.last': '', // the date of the last backup, shown on its own line
 });
 
@@ -46,6 +47,7 @@ export function countKinds({ deals = [], kv = /** @type {Record<string, any>} */
   n.tasks = len(kv['crm.tasks']);
   n.activity = len(kv['crm.activity']);
   n.briefs = len(kv['research.briefs']);
+  n.inbox = len(kv['inbox.items']);
   n.templates = len(kv['tpl.library']) + present(kv['template']);
   const sc = kv['tools.scenarios'];
   n.scenarios = sc && typeof sc === 'object' && !Array.isArray(sc) ? Object.values(sc).reduce((a, l) => a + len(l), 0) : 0;
