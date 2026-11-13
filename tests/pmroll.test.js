@@ -202,3 +202,38 @@ test('the fixtures themselves: six rows, one wrapped name, one month-to-month, o
   assert.equal(PM_ROWS.filter((r) => r[1].length === 2).length, 1);
   assert.equal(PM_ROWS.filter((r) => /month-to-month/i.test(r[7])).length, 1);
 });
+
+/* A tenant name wrapped over two lines is a table cell, not a filter heading; every real filter wording is still caught. */
+test('filterNotes keeps every wording: header filter beside a Property field, footer status, partial roll, not all units', () => {
+  const rowLines = new Map([[{}, [{ page: 1, line: 9 }]]]); // a table's lines are skipped; these others are not in it
+  for (const m of [undefined, rowLines]) {
+    const hit = (t) => filterNotes(t, m).length;
+    assert.equal(hit(['Property: Sample Plaza   Unit Filter: All   Status Filter: Current']), 1);
+    assert.equal(hit(['Rent Roll\n\nA1   Maple Leaf Bakery   2,000\n\nStatus: Current']), 1, 'a footer status filter');
+    assert.equal(hit(['Status Filter: All\nA1  Maple Leaf Bakery\nThis is a partial rent roll of the property.']), 1);
+    assert.equal(hit(['Rent Roll\nNot all units are shown.']), 1);
+    assert.equal(hit(['Property: Sample Plaza   Unit Filter: All   Status Filter: All']), 0);
+  }
+});
+test('filterNotes skips only the lines a row was read from', () => {
+  const pages = ['Unit Filter: Occupied\nA1  Maple Leaf Bakery'];
+  assert.equal(filterNotes(pages).length, 1);
+  assert.equal(filterNotes(pages, new Map([[{}, [{ page: 1, line: 1 }]]])).length, 0, 'line 1 is a row line');
+  assert.equal(filterNotes(pages, new Map([[{}, [{ page: 1, line: 2 }]]])).length, 1, 'line 2 is the row line: line 1 still counts');
+  assert.equal(filterNotes(pages, new Map([[{}, [{ page: 2, line: 1 }]]])).length, 1, 'another page');
+});
+test('a wrapped tenant name that reads like a filter is a name, and the report is not held; a real filter still is', async () => {
+  const pdfjs = await import('../vendor/pdf-4.7.76-legacy.min.js');
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdf-4.7.76-legacy.worker.min.js', import.meta.url).href;
+  const { pdfPages } = await import('../app/pdftext.js');
+  const { pmWrapPdf } = await import('./pmwrap-fixtures.js');
+  const run = async (o) => { const layouts = []; const pages = await pdfPages(pdfjs, pmWrapPdf(o), { layouts, verbosity: 0 }); const doc = docKind(pages, layouts); return { doc, rec: pdfRollRecord(doc, { asOf: '2026-10-01', file: 'pm.pdf' }) }; };
+  for (const name of ['Unit Filter: Occupied', 'This report lists only a subset of units', 'Status: Current']) {
+    const { doc, rec } = await run({ tenantAbove: name });
+    assert.equal(doc.roll.rows.length, 3, name);
+    assert.equal(doc.roll.rows[0].tenant, name);
+    assert.equal(rec.subset, false, name); assert.equal(rec.qc.checks.filter((c) => c.kind === 'subset').length, 0, name);
+  }
+  assert.equal((await run({ filterText: 'Unit Filter: All   Status Filter: Current' })).rec.subset, true, 'a header filter still holds it');
+  assert.equal((await run({ footer: 'Status: Current' })).rec.subset, true, 'a footer filter still holds it');
+});
