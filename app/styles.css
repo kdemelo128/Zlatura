@@ -2443,3 +2443,9 @@ dialog.assist-page .sheet-card { height: min(640px, calc(100dvh - 24px)); }
 @keyframes pulse-beat { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.07); } }
 @keyframes pulse-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
 @keyframes pulse-blink { 0%, 100% { transform: scaleY(0); } 50% { transform: scaleY(1); } }
+
+/* "Open in…" (maplinksui.js): one 44 px button, and a sheet of real links */
+.openin-btn { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.deal-head > .openin-btn { margin-left: auto; align-self: flex-start; }
+a.action-item { text-decoration: none; }
+a.action-item:focus-visible { outline: 2px solid var(--accent, currentColor); outline-offset: -2px; }

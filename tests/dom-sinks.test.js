@@ -137,6 +137,7 @@ const ALLOW = [
   { file: 'app/abstractui.js', re: INS, n: 1, why: ICON },
   { file: 'app/command.js', re: INS, n: 1, why: ICON },
   { file: 'app/connectui.js', re: INS, n: 1, why: ICON },
+  { file: 'app/maplinksui.js', re: INS, n: 2, why: ICON },
   { file: 'app/underwrite.js', re: INS, n: 1, why: ICON },
   { file: 'app/home.js', re: INS, n: 1, why: ICON },
   { file: 'app/workspaceui.js', re: INS, n: 3, why: ICON },
@@ -176,8 +177,7 @@ const ALLOW = [
   { file: 'app/template.js', re: /setAttributeNS\('http:\/\/www\.w3\.org\/XML\/1998\/namespace', 'xml:space', 'preserve'\)/, n: 1, why: 'a fixed XML attribute on an Office XML part' },
   { file: 'app/template.js', re: /setAttributeNS\(REL, 'r:id', `rId\$\{k\}`\)/, n: 1, why: 'REL is a constant namespace; the id is a counter' },
   // ---- links and navigation: every one has a constant scheme and host, or goes through app/links.js
-  { file: 'app/dealui.js', re: /window\.open\(`https:\/\/www\.google\.com\/maps/, n: 1, why: 'fixed https host; the address is encodeURIComponent-ed; noopener' },
-  { file: 'app/ui.js', re: /a\.href = `https:\/\/www\.google\.com\/maps/, n: 1, why: 'fixed https host; the address is encodeURIComponent-ed' },
+  { file: 'app/maplinksui.js', re: /^a\.href = l\.url;$/, n: 1, why: 'l.url comes from maplinks.js openInLinks: a fixed https host (Google or Apple maps and search), every part encodeURIComponent-ed, and passed through safeHref' },
   { file: 'app/dealcrm.js', re: /a\.href = (tel|mail);/, n: 2, why: 'telHref / mailtoHref (app/links.js): a fixed tel:/mailto: scheme through the safeHref allowlist, or no link' },
   { file: 'app/kit.js', re: /Object\.assign\(a, \{ href: url, download: filename \}\)/, n: 1, why: 'url is a blob: URL from URL.createObjectURL, made on the line above' },
   { file: 'app/kit.js', re: /^s\.src = src;/, n: 1, why: 'loadScript: every caller passes a fixed ../vendor/ path built with new URL(..., import.meta.url)' },

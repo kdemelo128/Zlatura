@@ -31,6 +31,7 @@ import { zoningLookup, zoningInfo } from './zoning.js';
 import { sampleSet } from './sample.js';
 import * as store from './store.js';
 import { renderKpis, renderRank, renderTime } from './glance.js';
+import { openInButton } from './maplinksui.js';
 import { VERSION, compsCsv, tsvCell, renderCompSheet, fullAddress } from './exporters.js';
 import { compBasis } from './deal.js';
 import { blankComp, originOf } from './compmodel.js';
@@ -1050,11 +1051,8 @@ function openDetail(c) {
   if (x.costar_notes) section('CoStar notes', el('p', 'detail-notes', x.costar_notes));
   if (x.address || x.name) {
     const links = el('div', 'detail-links');
-    const a = el('a', 'btn btn-sm', 'Open in Maps');
-    a.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress(x))}`;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    links.appendChild(a);
+    links.appendChild(openInButton(() => ({ address: fullAddress(x), name: x.name || '' }), { cls: 'btn btn-sm openin-btn', label: 'Open in…' }));
+    links.lastChild.append(' Open in…');
     section('Location', links);
   }
 }

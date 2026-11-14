@@ -57,6 +57,7 @@ import { crossChecks } from './reconcile.js';
 import { STAGE_LABEL, stageOf } from './pipeline.js';
 import { renderDealsList } from './dealslist.js';
 import { renderDealCrm } from './dealcrm.js';
+import { openInButton, openInMenu } from './maplinksui.js';
 import * as crm from './crm.js';
 import { sweepResearch } from './research.js';
 import {
@@ -948,6 +949,8 @@ function renderDeal(r) {
   const where = [f.ptype, [f.city, f.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
   t.appendChild(el('div', 'sub', [where, deal.source ? `${deal.source} · ${deal.pages} page${deal.pages === 1 ? '' : 's'}` : 'entered by hand'].filter(Boolean).join(' — ')));
   dh.appendChild(t);
+  const named0 = deal;
+  dh.appendChild(openInButton(() => dealPlace(named0)));
   head.appendChild(dh);
   const tiles = el('div', 'tiles');
   tiles.id = 'deal-tiles';
@@ -3052,6 +3055,9 @@ async function openConfidential() {
   });
 }
 
+/** What "Open in…" is given for a deal: its one-line address and its name (a name that is only the address is dropped by the links). */
+const dealPlace = (d) => ({ address: placeLine(d.figures), name: d.name || '' });
+
 async function dealMenu() {
   const v = await actionSheet(deal.name || 'Deal', [
     { label: 'Copy summary', sub: 'five lines for a text or an email', value: 'copy', icon: 'copy' },
@@ -3065,7 +3071,7 @@ async function dealMenu() {
     { label: 'Read documents with AI…', sub: deal.confidential ? 'Off: this deal is confidential' : 'OM, rent roll, T-12 or lease: figures to check, page by page', disabled: !!deal.confidential, value: 'ai-read', icon: 'sparkle' },
     { label: 'Ask about this deal…', sub: deal.confidential ? 'Off: this deal is confidential' : 'answers from this deal’s figures, with sources', disabled: !!deal.confidential, value: 'ai-ask', icon: 'chat' },
     { label: 'AI settings…', value: 'ai-settings', icon: 'settings' },
-    { label: 'Open in Maps', value: 'map', disabled: !deal.figures.address, icon: 'pin' },
+    { label: 'Open in…', sub: 'Google Maps, Apple Maps, Street View, search', value: 'map', icon: 'pin' },
     '-',
     { label: 'Scan another OM…', value: 'new', icon: 'plus' },
     { label: 'All deals', value: 'close', icon: 'menu' },
@@ -3085,7 +3091,7 @@ async function dealMenu() {
   else if (v === 'ai-ask') openAssistant(aiHost());
   else if (v === 'confidential') openConfidential();
   else if (v === 'ai-settings') openAiSettings(api);
-  else if (v === 'map') window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeLine(deal.figures))}`, '_blank', 'noopener');
+  else if (v === 'map') { if (!openInMenu(dealPlace(deal))) toast('Enter an address or a name first.'); }
   else if (v === 'new') $('om-file').click();
   else if (v === 'close') closeDeal();
   else if (v === 'delete') {

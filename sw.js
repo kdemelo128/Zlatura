@@ -183,6 +183,8 @@ const ASSETS = [
   'app/emlread.js',
   'app/mailitems.js',
   'app/mailui.js',
+  'app/maplinks.js',
+  'app/maplinksui.js',
   'app/assistant.js',
   'app/assistantact.js',
   'app/assistanttips.js',

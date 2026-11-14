@@ -1,0 +1,105 @@
+[
+ {
+  "county_name_mdp_field_cntyname": "Montgomery",
+  "account_id_mdp_field_acctid": "161301042248",
+  "mdp_street_address_mdp_field_address": "8101 GEORGIA AVE",
+  "mdp_street_address_city_mdp_field_city": "SILVER SPRING",
+  "mdp_street_address_zip_code_mdp_field_zipcode": "20910",
+  "mappable_latitude_and_longitude": {
+   "latitude": "38.990637",
+   "longitude": "-77.026093"
+  },
+  "land_use_code_mdp_field_lu_desclu_sdat_field_50": "Commercial (C)",
+  "c_a_m_a_system_data_year_built_yyyy_mdp_field_yearblt_sdat_field_235": "1946",
+  "c_a_m_a_system_data_structure_area_sq_ft_mdp_field_sqftstrc_sdat_field_241": "14270",
+  "c_a_m_a_system_data_land_area_mdp_field_landarea_sdat_field_242": "18407.000",
+  "c_a_m_a_system_data_land_unit_of_measure_mdp_field_luom_sdat_field_243": "S",
+  "current_assessment_year_total_assessment_sdat_field_172": "2478200",
+  "current_cycle_data_land_value_mdp_field_names_nfmlndvl_curlndvl_and_sallndvl_sdat_field_164": "1578500",
+  "current_cycle_data_improvements_value_mdp_field_names_nfmimpvl_curimpvl_and_salimpvl_sdat_field_165": "899700",
+  "current_cycle_data_date_assessed_yyyy_mm_mdp_field_lastassd_sdat_field_169": "2025.01",
+  "assessment_cycle_year_sdat_field_399": "2027",
+  "real_property_search_link": {
+   "url": "https://sdat.dat.maryland.gov/RealPropertyAdmin/Pages/view.aspx?County=16&SearchType=ACCT&District=13&AccountNumber=01042248"
+  },
+  "sales_segment_1_transfer_date_yyyy_mm_dd_mdp_field_tradate_sdat_field_89": "2002.03.07",
+  "sales_segment_1_consideration_mdp_field_considr1_sdat_field_90": "2400000"
+ },
+ {
+  "county_name_mdp_field_cntyname": "Montgomery",
+  "account_id_mdp_field_acctid": "161303853597",
+  "mdp_street_address_city_mdp_field_city": "SILVER SPRING",
+  "mdp_street_address_zip_code_mdp_field_zipcode": "20910",
+  "mappable_latitude_and_longitude": {
+   "latitude": "38.990801",
+   "longitude": "-77.026324"
+  },
+  "land_use_code_mdp_field_lu_desclu_sdat_field_50": "Exempt Commercial (EC)",
+  "c_a_m_a_system_data_year_built_yyyy_mdp_field_yearblt_sdat_field_235": "0000",
+  "c_a_m_a_system_data_structure_area_sq_ft_mdp_field_sqftstrc_sdat_field_241": "0",
+  "c_a_m_a_system_data_land_area_mdp_field_landarea_sdat_field_242": "980.000",
+  "c_a_m_a_system_data_land_unit_of_measure_mdp_field_luom_sdat_field_243": "S",
+  "current_assessment_year_total_assessment_sdat_field_172": "100",
+  "current_cycle_data_land_value_mdp_field_names_nfmlndvl_curlndvl_and_sallndvl_sdat_field_164": "100",
+  "current_cycle_data_improvements_value_mdp_field_names_nfmimpvl_curimpvl_and_salimpvl_sdat_field_165": "0",
+  "current_cycle_data_date_assessed_yyyy_mm_mdp_field_lastassd_sdat_field_169": "2025.01",
+  "assessment_cycle_year_sdat_field_399": "2027",
+  "real_property_search_link": {
+   "url": "https://sdat.dat.maryland.gov/RealPropertyAdmin/Pages/view.aspx?County=16&SearchType=ACCT&District=13&AccountNumber=03853597"
+  },
+  "sales_segment_1_transfer_date_yyyy_mm_dd_mdp_field_tradate_sdat_field_89": "2022.05.31",
+  "sales_segment_1_consideration_mdp_field_considr1_sdat_field_90": "0"
+ },
+ {
+  "county_name_mdp_field_cntyname": "Montgomery",
+  "account_id_mdp_field_acctid": "161301039434",
+  "mdp_street_address_mdp_field_address": "8113 GEORGIA AVE",
+  "mdp_street_address_city_mdp_field_city": "SILVER SPRING",
+  "mdp_street_address_zip_code_mdp_field_zipcode": "20910",
+  "mappable_latitude_and_longitude": {
+   "latitude": "38.990925",
+   "longitude": "-77.026058"
+  },
+  "land_use_code_mdp_field_lu_desclu_sdat_field_50": "Commercial (C)",
+  "c_a_m_a_system_data_year_built_yyyy_mdp_field_yearblt_sdat_field_235": "1964",
+  "c_a_m_a_system_data_structure_area_sq_ft_mdp_field_sqftstrc_sdat_field_241": "2624",
+  "c_a_m_a_system_data_land_area_mdp_field_landarea_sdat_field_242": "7100.000",
+  "c_a_m_a_system_data_land_unit_of_measure_mdp_field_luom_sdat_field_243": "S",
+  "current_assessment_year_total_assessment_sdat_field_172": "1660600",
+  "current_cycle_data_land_value_mdp_field_names_nfmlndvl_curlndvl_and_sallndvl_sdat_field_164": "1194000",
+  "current_cycle_data_improvements_value_mdp_field_names_nfmimpvl_curimpvl_and_salimpvl_sdat_field_165": "466600",
+  "current_cycle_data_date_assessed_yyyy_mm_mdp_field_lastassd_sdat_field_169": "2025.01",
+  "assessment_cycle_year_sdat_field_399": "2027",
+  "real_property_search_link": {
+   "url": "https://sdat.dat.maryland.gov/RealPropertyAdmin/Pages/view.aspx?County=16&SearchType=ACCT&District=13&AccountNumber=01039434"
+  },
+  "sales_segment_1_transfer_date_yyyy_mm_dd_mdp_field_tradate_sdat_field_89": "2005.06.06",
+  "sales_segment_1_consideration_mdp_field_considr1_sdat_field_90": "1500000"
+ },
+ {
+  "county_name_mdp_field_cntyname": "Montgomery",
+  "account_id_mdp_field_acctid": "161301045652",
+  "mdp_street_address_mdp_field_address": "8121 GEORGIA AVE",
+  "mdp_street_address_city_mdp_field_city": "SILVER SPRING",
+  "mdp_street_address_zip_code_mdp_field_zipcode": "20910",
+  "mappable_latitude_and_longitude": {
+   "latitude": "38.991045",
+   "longitude": "-77.026102"
+  },
+  "land_use_code_mdp_field_lu_desclu_sdat_field_50": "Commercial (C)",
+  "c_a_m_a_system_data_year_built_yyyy_mdp_field_yearblt_sdat_field_235": "1965",
+  "c_a_m_a_system_data_structure_area_sq_ft_mdp_field_sqftstrc_sdat_field_241": "59520",
+  "c_a_m_a_system_data_land_area_mdp_field_landarea_sdat_field_242": "6787.000",
+  "c_a_m_a_system_data_land_unit_of_measure_mdp_field_luom_sdat_field_243": "S",
+  "current_assessment_year_total_assessment_sdat_field_172": "7068300",
+  "current_cycle_data_land_value_mdp_field_names_nfmlndvl_curlndvl_and_sallndvl_sdat_field_164": "570700",
+  "current_cycle_data_improvements_value_mdp_field_names_nfmimpvl_curimpvl_and_salimpvl_sdat_field_165": "6497600",
+  "current_cycle_data_date_assessed_yyyy_mm_mdp_field_lastassd_sdat_field_169": "2025.01",
+  "assessment_cycle_year_sdat_field_399": "2027",
+  "real_property_search_link": {
+   "url": "https://sdat.dat.maryland.gov/RealPropertyAdmin/Pages/view.aspx?County=16&SearchType=ACCT&District=13&AccountNumber=01045652"
+  },
+  "sales_segment_1_transfer_date_yyyy_mm_dd_mdp_field_tradate_sdat_field_89": "2001.11.21",
+  "sales_segment_1_consideration_mdp_field_considr1_sdat_field_90": "0"
+ }
+]

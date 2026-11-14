@@ -10,6 +10,7 @@ import { VERSION } from './exporters.js';
 import { dateInput } from './dateinput.js';
 import { mailtoHref, telHref } from './links.js';
 import { startResearch } from './researchui.js';
+import { openInButton } from './maplinksui.js';
 
 /**
  * box: the card; d: the open deal; touch(): save it. Draws, then redraws
@@ -280,6 +281,13 @@ export function editContact(api, c = {}, deals = []) {
   rs.hidden = !company.value.trim();
   company.addEventListener('input', () => { rs.hidden = !company.value.trim(); });
   body.appendChild(rs);
+  // the company on a map or a web search: only the company name goes in the link, and only when the broker opens it
+  const oi = openInButton(() => ({ name: company.value }), { cls: 'btn btn-gray btn-sm openin-btn', label: 'Open company in…' });
+  oi.id = 'contact-openin';
+  oi.append(' Open company in…');
+  oi.hidden = !company.value.trim();
+  company.addEventListener('input', () => { oi.hidden = !company.value.trim(); });
+  body.appendChild(oi);
   const linked = new Set(c.dealIds || []);
   // research from a contact on a confidential deal is refused; the button stays focusable and a tap says why
   const gate = async () => { const why = await ai.blocked({ research: { company: company.value.trim(), dealIds: [...linked] } }); if (why) rs.setAttribute('aria-disabled', 'true'); else rs.removeAttribute('aria-disabled'); };
