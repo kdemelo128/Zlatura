@@ -16,6 +16,8 @@ const S = await import('../app/docsession.js');
 const X = await import('../app/docindex.js');
 const { buildBackup, readBackup, planRestore } = await import('../app/backup.js');
 const { OM_PAGES, LEASE_PAGES } = await import('./doc-fixtures.js');
+const { docTextLimitLine } = await import('../app/mydata.js');
+const DT_SUMMARY = (bytes, full) => docTextLimitLine({ docs: 3, bytes }, T.DOCTEXT_LIMIT) + (full ? '' : '');
 
 const SHA = (c) => c.repeat(64);
 const idOf = (d) => ({ id: d });
@@ -241,4 +243,56 @@ test('the store: version 3 adds doctext; deleting a deal forgets its text; the c
   assert.match(src, /export const DB_VERSION = 3;/);
   assert.match(src, /const DOC_STORES = \['doctext'\]/);
   assert.match(src, /db\.transaction\(\['deals', 'trash', 'doctext'\], 'readwrite'\);[\s\S]{0,200}objectStore\('doctext'\)\.delete\(docRange\(id\)\)/);
+});
+
+/* ------------------------------------------------ designer review fixes */
+
+test('a document removed while its text is still being packed is not stored afterwards', async () => {
+  S.forgetAll();
+  const be = backend(); M.useBackend(be);
+  const saving = M.saveDocText(idOf('d'), { name: 'wrong.pdf', sha256: SHA('1') }, OM_PAGES);   // not awaited: still compressing
+  await M.forgetDealText('d', SHA('1'));                                                          // the broker removes it at once
+  const r = await saving;
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'removed');
+  assert.equal(be.rows.size, 0, 'nothing is quoted next session');
+  // adding the same file again afterwards is kept
+  assert.deepEqual(await M.saveDocText(idOf('d'), { name: 'wrong.pdf', sha256: SHA('1') }, OM_PAGES), { ok: true });
+  assert.equal(be.rows.size, 1);
+});
+
+test('only documents still listed on the deal are read back; the others are deleted', async () => {
+  S.forgetAll();
+  const be = backend(); M.useBackend(be);
+  await M.saveDocText(idOf('d'), { name: 'keep.pdf', sha256: SHA('1') }, OM_PAGES.slice(0, 5));
+  await M.saveDocText(idOf('d'), { name: 'removed.pdf', sha256: SHA('2') }, ['The seller is Quietholm Holdings.']);
+  S.forgetAll();
+  assert.equal(await M.warmDeal('d', { listed: [SHA('1')] }), 1);
+  assert.deepEqual(S.indexFor('d').docs.map((x) => x.name), ['keep.pdf']);
+  assert.equal(X.search(S.indexFor('d'), 'Quietholm').hits.length, 0);
+  assert.equal(be.rows.has(`d|${SHA('2')}`), false, 'the unlisted record is deleted, not just skipped');
+  assert.equal(be.rows.has(`d|${SHA('1')}`), true);
+  // no list given (a caller that does not know): nothing is filtered or deleted
+  await M.saveDocText(idOf('d'), { name: 'removed.pdf', sha256: SHA('2') }, ['again']);
+  S.forgetAll();
+  assert.equal(await M.warmDeal('d'), 2);
+});
+
+test('document text has a total size limit: past it nothing more is kept, and it says so', async () => {
+  S.forgetAll();
+  assert.equal(T.DOCTEXT_LIMIT, 50 * 1024 * 1024);
+  const be = backend(); M.useBackend(be);
+  be.docTextStats = async () => ({ docs: 9, bytes: T.DOCTEXT_LIMIT - 10, deals: {} });
+  const r = await M.saveDocText(idOf('d'), { name: 'a.pdf', sha256: SHA('1') }, OM_PAGES);
+  assert.deepEqual(r, { ok: false, reason: 'quota' });
+  assert.equal(be.rows.size, 0);
+  be.docTextStats = async () => ({ docs: 9, bytes: 1000, deals: {} });
+  assert.deepEqual(await M.saveDocText(idOf('d'), { name: 'a.pdf', sha256: SHA('1') }, OM_PAGES), { ok: true });
+  assert.match(DT_SUMMARY(T.DOCTEXT_LIMIT, true), /limit/);
+});
+
+test('the store sweeps text left under deals that no longer exist, and the version note says to keep version 3', () => {
+  const src = fs.readFileSync(new URL('../app/store.js', import.meta.url), 'utf8');
+  assert.match(src, /sweepDocText/);
+  assert.match(src, /rollback[\s\S]{0,300}version 3[\s\S]{0,200}doctext|version 3[\s\S]{0,300}rollback/i);
 });

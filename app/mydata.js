@@ -81,5 +81,10 @@ export function storageLine({ usage = null, quota = null, persisted = null } = {
 /** "3 deals", "1 deal". */
 export const countText = (kind, n) => `${n} ${kind.noun[n === 1 ? 0 : 1]}`;
 
+/** The space line for document text: what share of the limit is used, and plainly when it is full. `limit` is doctext.js DOCTEXT_LIMIT. */
+export const docTextLimitLine = ({ bytes = 0 } = {}, limit = 50 * 1048576) => (bytes >= limit
+  ? `Document text has reached its ${mb(limit)} limit, so no more is kept until you forget some. Documents you add are still searchable until you leave.`
+  : `Document text may take up to ${mb(limit)} on this device.`);
+
 /** What document text is kept: "3 documents, 1.2 MB", or none. `stats` is { docs, bytes } (docmem.js). */
 export const docTextLine = ({ docs = 0, bytes = 0 } = {}) => (docs ? `${docs} ${docs === 1 ? 'document' : 'documents'}, ${mb(bytes)}` : 'none kept');

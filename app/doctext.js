@@ -13,6 +13,8 @@ export const MAX_PAGES = 600;
 export const DOCTEXT_VERSION = 1;
 /** Most characters of text one document and one deal may hold (the same cap docsession.js keeps in memory). */
 export const MAX_DOC_CHARS = 8e6;
+/** Most bytes all stored document text may take together, on this device (like the history budget in store.js); past it nothing more is kept. */
+export const DOCTEXT_LIMIT = 50 * 1024 * 1024;
 const SHA = /^[0-9a-f]{64}$/;
 const READ_BY = ['text', 'ocr', 'docx'];
 

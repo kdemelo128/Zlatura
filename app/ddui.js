@@ -260,7 +260,7 @@ export function renderDocsCard(box, h) {
       h.touch({ label: `Documents: removed ${doc.name}` });
       if (h.forgetText && doc.sha256) h.forgetText(doc.sha256).catch(() => {});   // its kept text goes with it
       draw();
-      toast(`${doc.name} removed from the list.`, { label: 'Undo', run: () => { restoreDoc(dd, gone); h.touch({ label: `Documents: restored ${doc.name}` }); draw(); } });
+      toast(`${doc.name} removed. Its kept text is forgotten; Undo puts it back on the list, but add the file again to search it.`, { label: 'Undo', run: () => { restoreDoc(dd, gone); h.touch({ label: `Documents: restored ${doc.name}` }); draw(); } });
     }
   }
   function asOfSheet(doc) {

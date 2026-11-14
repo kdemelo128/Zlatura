@@ -4,7 +4,8 @@
 
 import { el, icon, toast, niceDate, actionSheet } from './kit.js';
 import * as store from './store.js';
-import { KINDS, countKinds, storageLine, countText, docTextLine } from './mydata.js';
+import { KINDS, countKinds, storageLine, countText, docTextLine, docTextLimitLine } from './mydata.js';
+import { DOCTEXT_LIMIT } from './doctext.js';
 import { docTextSummary, forgetDealText, forgetAllText } from './docmem.js';
 import { makeBackup, restore } from './backupui.js';
 import { renderInbox, waitingCount } from './inboxui.js';
@@ -199,7 +200,7 @@ function docTextBox(deals) {
     list.textContent = '';
     box.querySelector('#md-forget-all')?.remove();
     const status = box.querySelector('.md-doctext-total') || note.insertAdjacentElement('afterend', el('p', 'md-doctext-total'));
-    status.textContent = `Kept now: ${docTextLine(sum)}.`;
+    status.textContent = `Kept now: ${docTextLine(sum)}. ${docTextLimitLine(sum, DOCTEXT_LIMIT)}`;
     for (const [id, t] of Object.entries(sum.deals)) {
       const li = el('li', 'md-kind md-doctext-row');
       const name = names.get(id);

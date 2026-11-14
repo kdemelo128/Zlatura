@@ -42,6 +42,9 @@ export const KEEP_OLD_MS = 30 * 86400000;
  * and a save made as the app leaves the screen (pagehide) has to start its
  * transaction straight away, before the page is frozen, or it is lost. */
 let dbP = null;
+/* Any rollback of this app to a release older than document memory must keep the database at version 3 and keep the `doctext`
+ * store: an older app opening version 3 gets a VersionError, and says the app is out of date and needs a reload (below). Never
+ * lower DB_VERSION or drop the store to roll back; ship the older behaviour at version 3 instead. */
 export const DB_VERSION = 3;
 const HISTORY_STORES = ['history', 'snapshots', 'trash'];
 /** Version 3 (document memory) adds `doctext`: the compressed page text of documents attached to a deal, keyed
@@ -655,8 +658,20 @@ export async function sweepTrash(now = Date.now()) {
     }
     if (usage) ms.put(usage, 'usage');
     await doneP(t);
+    await sweepDocText();
     return n;
   } catch { return 0; }
+}
+/** Delete document text left under deal ids that are no longer stored (a save that landed after its deal was deleted). Run at launch, with the trash sweep. */
+async function sweepDocText() {
+  try {
+    const db = await open();
+    const t = db.transaction(['doctext', 'deals'], 'readwrite');
+    const [have, keys] = await Promise.all([reqP(t.objectStore('deals').getAllKeys()), reqP(t.objectStore('doctext').getAllKeys())]);
+    const live = new Set(have);
+    for (const k of keys) if (!live.has(k[0])) t.objectStore('doctext').delete(k);
+    await doneP(t);
+  } catch { /* tried again at the next start */ }
 }
 /** The same, but a read error throws: the AI guard must not read "could not look" as "not confidential". */
 export async function loadDealStrict(id) { return (await tx('readonly', (s) => s.get(id), 'deals')) || null; }

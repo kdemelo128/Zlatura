@@ -307,7 +307,7 @@ export async function discardDeal(id) {
 /** A PDF's text, then OCR on this device when it has none (ocrpdf.js): the readPdf of Start from documents and of the Documents card. */
 const readPdfWithOcr = async (bytes) => { const pdfjs = await getPdfjs(); return readPdfOcr(pdfjs, bytes, async (b) => { const layouts = []; const pages = await pdfPagesText(pdfjs, b.slice(), { layouts }); return { pages, layouts }; }, startOcrProgress); };
 /** Bring the open deal's stored document text into this session for Ask Monal (docmem.js); `onReading(on)` brackets the work. Resolves how many documents were read. */
-export const warmDealDocs = (onReading) => (deal ? warmDeal(deal.id, { onReading }) : Promise.resolve(0));
+export const warmDealDocs = (onReading) => (deal ? warmDeal(deal.id, { onReading, listed: ddOf(deal).docs.map((x) => x.sha256).filter(Boolean) }) : Promise.resolve(0));
 /** What the Start from documents card (intake.js) needs to look at a file: the same readers the Documents card uses. */
 export const intakeDeps = () => ({
   getFflate, getXlsx,
@@ -328,7 +328,7 @@ const remember = (d, doc, pages) => {
   if (kept && doc.sha256) {
     const o = ocrOf(doc.sha256);
     saveDocText(d, doc, pages, { readBy: o && o.read && o.read.length ? 'ocr' : 'text', ocrPages: o && o.read ? o.read : [] })
-      .then((r) => { if (!r.ok && r.reason === 'quota') toast(`This device is full, so ${doc.name}’s text was not kept for next time. You can still ask about it until you leave.`, null, 8000); });
+      .then((r) => { if (!r.ok && r.reason === 'quota') toast(`${doc.name}’s text was not kept for next time: this device is full, or the document text kept has reached its limit (see My data). You can still ask about it until you leave.`, null, 8000); });
   }
   return kept;
 };
