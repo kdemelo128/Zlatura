@@ -158,3 +158,15 @@ The owner answered "yes to all" in the session chat:
 | 2 | Document text is left out of backups (backups stay small and carry no document contents) |
 | 3 | Correction lessons are kept until deleted, capped at 2,000, structure only (fixed vocabulary, error type, no names or figures), and included in backups; a learned mapping is offered after 3 matching corrections and saved only on the broker's yes; a rule ships only after held-out invented fixtures and the owner's answer files pass |
 | 4 | A structure-only export of lessons is allowed |
+
+## 2026-11-14: Monal's own AI on the device (`docs/proposals/on-device-brain.md`)
+
+The owner said "just make it free for now … keep building the bot within itself, something that is smart enough without a server … no pushback":
+
+| # | Decision |
+|---|---|
+| 1 | Assistant release 5 goes ahead: WebLLM 0.2.87 (Apache-2.0) vendored, with Qwen3 0.6B, 1.7B and 4B models (Apache-2.0), downloaded only when the broker turns it on |
+| 2 | No server and no cost for now; the firm server's `/api/ask` route ships as dormant code and the bird shows nothing about it until the AI settings are on |
+| 3 | The model never produces a figure: figures come from the engine through the front desk's tasks; any other figure in an answer is marked "not from your data" |
+
+To reverse: turn the brain off by default and remove `vendor/web-llm-0.2.87/` and `app/brain*.js`; the front desk is unchanged.
