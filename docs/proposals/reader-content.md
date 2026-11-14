@@ -287,3 +287,64 @@ logic):
   7 are caught. The other 2 are equivalent: making the header wrapper
   unconditional, and dropping the vacancy filter (vacancies are also refused by
   the name test). Golden: 646 figures, 0 changed.
+
+## 10. Slice 3 money note (income statements by content)
+
+This note comes before any money change (CLAUDE.md, routing). It holds for every
+step below:
+- every amount stays as the file prints it, to whole cents (`t12.js cents`);
+- nothing is scaled, annualised or turned into months;
+- a blank cell is never read as zero on a new path;
+- the sign rules (`normalizeSigns`) are not touched;
+- the engine (`app/engine/`, `deal.js`) is not touched;
+- a file that is read today is read exactly as before, so golden stays at 0
+  changed.
+
+The steps, in the owner's order:
+
+1. **"Total Revenue" taken for the heading row** (`layoutOf`). When no row has
+   three months, the reader takes the first row with a Total-like cell as the
+   heading. A body row such as "Total Revenue | 114,000" matches, so it became
+   the heading and the error was the misleading "No statement lines were found".
+   A heading row holds no amount. Any number other than a year (1900 to 2100)
+   makes a row a body row, never the heading. The file still is not read, but
+   the message is now the true one ("No months or total column were found").
+2. **A single annual column.** When there are no months and no Total heading,
+   the heading row (no amounts, years allowed) may have one column headed as a
+   year, "FY 2025", "Year Ended …", "12 Months Ended …", "Actual", "Amount" or
+   "2025 Actual", with figures under it. It is read exactly as a Total column
+   is read today, but kept only **when the arithmetic agrees**:
+   - at least one stated row (EGI, total expenses, NOI) or subtotal is checked
+     against the lines it covers (`statementChecks`, the same tolerance);
+   - none of those checks fails.
+
+   Otherwise the file is refused, and the message says why. Refusing is today's
+   behaviour, so nothing is guessed. The period is `annual` when the heading
+   names a year or "ended"; for "Actual" or "Amount" it is `other`, with a note
+   that nothing says the column is a full year. No new stored field: the note
+   is worked out from the column heading already kept in `period.columns`.
+3. **Quarters with no Total column.** The heading row has four quarter columns
+   (`QUARTER_HEAD`), dated, consecutive and different (Q1 to Q4 2025, or Q3
+   2024 to Q2 2025).
+   - Each line's total is the sum of its four printed quarters, in whole cents.
+     The quarters are summed to a year only when they are four in a row; no
+     month or monthly figure is made.
+   - A line with a blank quarter refuses the file, naming the line: a blank is
+     never a zero here.
+   - Kept only when the arithmetic agrees, as in step 2.
+   - Stored as an annual-only statement is today: `months: []`, the existing
+     `period.nonMonthly` naming the quarters, and its info text saying the year
+     is the sum of the four quarters.
+4. **Actual and Budget pairs in one heading row** ("Jan 2025 Actual", "Jan 2025
+   Budget"). A side word (Actual, Budget, Variance, Forecast, Prior Year, %)
+   after or before a month is read.
+   - Actual, or no side word: a month column. Every other side word: left out,
+     never a month. A budget is never read as actuals.
+   - A Total column is the Total Actual one; a Total Budget never is.
+   - What was left out is kept in a new optional field,
+     `period.leftOut = { heads: [...] }`, and an info check says so. The field is
+     additive: an older version ignores it, and nothing migrates. To reverse it,
+     drop the field and its check.
+
+Tests for each step fail on main first, and each part is mutation-checked.
+The six `todo` tests in `tests/reader-content.test.js` become plain tests.
