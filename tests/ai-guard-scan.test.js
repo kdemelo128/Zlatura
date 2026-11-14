@@ -11,21 +11,31 @@ const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) =
 const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
 const FILES = walk(APP).map((f) => [path.relative(APP, f), code(fs.readFileSync(f, 'utf8'))]);
 
-test('the word fetch appears once in all of app/, inside request(), after the guard', () => {
+test('the word fetch appears twice in all of app/: in ai.js inside request() after the guard, and in publicdata.js inside getJson() after the host list', () => {
   // any spelling counts: window.fetch(, globalThis.fetch(, fetch.call(, const f = fetch
   const hits = FILES.flatMap(([f, s]) => [...s.matchAll(/\bfetch\b/g)].map((m) => [f, s, m.index]));
-  assert.deepEqual(hits.map(([f]) => f), ['ai.js'], 'one fetch token in app/, in ai.js');
+  assert.deepEqual(hits.map(([f]) => f), ['ai.js', 'publicdata.js'], 'one fetch token in ai.js and one in publicdata.js');
   const [, s, at] = hits[0];
   assert.match(s.slice(at), /^fetch\(`\$\{s\.url\}\$\{path\}`/, 'it is a plain call to the guarded path');
   const req = s.indexOf('async function request(');
   assert.ok(req >= 0 && req < at, 'the fetch is inside request()');
   const g = s.indexOf('await guard(', req);
   assert.ok(g > req && g < at, 'guard( runs before the fetch');
+  // the public-data one: inside getJson(), after the host-list check, and it is the late-bound global (a test may pass its own)
+  const [, p, pat] = hits[1];
+  const fn = p.indexOf('export async function getJson(');
+  const check = p.indexOf('HOSTS.includes(u.hostname)', fn);
+  assert.ok(fn >= 0 && check > fn && check < pat, 'the host-list check runs before the fetch, inside getJson()');
+  assert.match(p.slice(pat - 12, pat + 8), /globalThis\.fetch\(/);
+  // and every web address written in publicdata.js is on the list
+  const hosts = [...p.matchAll(/https:\/\/([a-z0-9.-]+)\//g)].map((m) => m[1]);
+  const list = /HOSTS = Object\.freeze\(\[([^\]]*)\]\)/.exec(p)[1].match(/'([^']+)'/g).map((x) => x.slice(1, -1));
+  for (const h of hosts) assert.ok(list.includes(h), `${h} is written in publicdata.js but not on its host list`);
 });
 
 test("'/api/' appears only in ai.js, and no other way out of the page is used", () => {
   for (const [f, s] of FILES) {
-    if (f !== 'ai.js') assert.ok(!/\/api\//.test(s), `${f} names an /api/ path`);
+    if (!['ai.js', 'publicdata.js', 'publiclookup.js'].includes(f)) assert.ok(!/\/api\//.test(s), `${f} names an /api/ path`);
     assert.ok(!/XMLHttpRequest|sendBeacon|new\s+WebSocket|EventSource/.test(s), `${f} uses another network API`);
     assert.ok(!/\.src\s*=\s*['"`]https?:/.test(s) && !/import\(\s*['"`]https?:/.test(s), `${f} loads a remote script or image`);
   }

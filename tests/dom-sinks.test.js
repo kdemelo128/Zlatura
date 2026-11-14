@@ -177,6 +177,7 @@ const ALLOW = [
   { file: 'app/template.js', re: /setAttributeNS\('http:\/\/www\.w3\.org\/XML\/1998\/namespace', 'xml:space', 'preserve'\)/, n: 1, why: 'a fixed XML attribute on an Office XML part' },
   { file: 'app/template.js', re: /setAttributeNS\(REL, 'r:id', `rId\$\{k\}`\)/, n: 1, why: 'REL is a constant namespace; the id is a counter' },
   // ---- links and navigation: every one has a constant scheme and host, or goes through app/links.js
+  { file: 'app/publicdataui.js', re: /^a\.href = h;$/, n: 1, why: 'h is safeHref(source link): http or https only, or no link at all' },
   { file: 'app/maplinksui.js', re: /^a\.href = l\.url;$/, n: 1, why: 'l.url comes from maplinks.js openInLinks: a fixed https host (Google or Apple maps and search), every part encodeURIComponent-ed, and passed through safeHref' },
   { file: 'app/dealcrm.js', re: /a\.href = (tel|mail);/, n: 2, why: 'telHref / mailtoHref (app/links.js): a fixed tel:/mailto: scheme through the safeHref allowlist, or no link' },
   { file: 'app/kit.js', re: /Object\.assign\(a, \{ href: url, download: filename \}\)/, n: 1, why: 'url is a blob: URL from URL.createObjectURL, made on the line above' },

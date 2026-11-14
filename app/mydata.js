@@ -28,7 +28,7 @@ export const KEY_KIND = Object.freeze({
   'crm.tasks': 'tasks', 'crm.contacts': 'contacts', 'crm.activity': 'activity',
   'tools.scenarios': 'scenarios', 'uw.scratch': 'projects', 'research.briefs': 'briefs', 'inbox.items': 'inbox',
   'crm.stages': 'settings', conventions: 'settings', output: 'settings', 't12.labels': 'settings', 'rr.layouts': 'settings',
-  'comps.mappings': 'settings', 'import.mappings': 'settings', 'ui.prefs': 'settings', 'inbox.prefs': 'settings', 'ai.settings': 'settings',
+  'comps.mappings': 'settings', 'import.mappings': 'settings', 'ui.prefs': 'settings', 'inbox.prefs': 'settings', 'ai.settings': 'settings', 'publicdata.key': 'settings',
   'backup.last': '', // the date of the last backup, shown on its own line
 });
 

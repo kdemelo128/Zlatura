@@ -2449,3 +2449,18 @@ dialog.assist-page .sheet-card { height: min(640px, calc(100dvh - 24px)); }
 .deal-head > .openin-btn { margin-left: auto; align-self: flex-start; }
 a.action-item { text-decoration: none; }
 a.action-item:focus-visible { outline: 2px solid var(--accent, currentColor); outline-offset: -2px; }
+
+/* Public data card and lookup sheet (publicdataui.js) */
+.action-info .action-sub { white-space: pre-line; }
+.pd-acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+.pd-group h3 { font-size: var(--t-14); margin: 14px 0 4px; }
+.pd-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.pd-row { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); }
+.pd-text { display: grid; gap: 2px; min-width: 0; }
+.pd-value { overflow-wrap: anywhere; }
+.pd-note, .pd-meta, .pd-have { font-size: var(--t-12); color: var(--muted); }
+.pd-warn .pd-value { color: var(--ink); font-weight: 600; }
+.pd-error .pd-value { color: var(--danger, #b3261e); }
+.pd-act { display: grid; gap: 4px; justify-items: end; flex: none; }
+.pd-use { min-width: 44px; min-height: 44px; }
+.pd-meta a { color: inherit; text-decoration: underline; }

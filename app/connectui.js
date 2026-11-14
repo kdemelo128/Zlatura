@@ -1,6 +1,7 @@
 /* connectui.js -- the Connect page: what Monal can take in or send out, in categories (connectors.js is the one list),
  * and "My data", what is stored on this device (mydata.js). Nothing here makes a network request: a row opens
- * something Monal already has, or says plainly what it waits for. */
+ * something Monal already has, or says plainly what it waits for. The public-data rows open publicdataui.js, whose
+ * lookups start only from the broker's own button, after a consent sheet. */
 
 import { el, icon, toast, niceDate } from './kit.js';
 import * as store from './store.js';
@@ -8,11 +9,13 @@ import { KINDS, countKinds, storageLine, countText } from './mydata.js';
 import { makeBackup, restore } from './backupui.js';
 import { renderInbox, waitingCount } from './inboxui.js';
 import { PRODUCT } from './brand.js';
-import { filterCategories, monogram } from './connectors.js';
+import { filterCategories, monogram, LIVE_STATES } from './connectors.js';
 import { openAssistant } from './assistantui.js';
 import { openTemplates } from './dealui.js';
 import { openImport, openExport } from './importui.js';
 import { openMailFiles } from './mailui.js';
+import { openPublicLookup, openCensusKey } from './publicdataui.js';
+import { openMapsSheet } from './maplinksui.js';
 
 let api = null;
 let tab = 'connectors';
@@ -40,6 +43,10 @@ const OPEN = {
   'tenant-file': () => chooseImport('tenants'),
   'crm-export': () => openExport(api),
   'mail-file': () => chooseMail(),
+  // public data (K6): these reach the internet only after the consent sheet, and only for a lookup the broker started
+  'public-lookup': () => openPublicLookup(api),
+  'public-key': () => openCensusKey(api),
+  maps: () => openMapsSheet(api),
   // these two import into a deal: the deal's own card does the work, so the page takes you to it
   'rent-roll': () => toDealCard('deal-rentroll', 'Rent roll', 'choose More, then Import from Excel, CSV or PDF'),
   t12: () => toDealCard('deal-t12', 'Operating statement', 'choose its import button'),
@@ -94,12 +101,12 @@ export function openConnect(which = 'connectors') {
 function waitSheet(row) {
   const body = api.sheetOpen({ eyebrow: row.state, title: row.name, sub: row.desc });
   body.appendChild(el('p', null, row.wait || ''));
-  body.appendChild(el('p', 'hint', 'Nothing is connected, and nothing about this service leaves your device. Today, bring a file of its own through the importers that are built in.'));
+  body.appendChild(el('p', 'hint', row.state === 'Not available from a browser' ? 'Nothing is looked up from this source. The Open in menu on a deal reaches the county’s own site in a new tab.' : 'Nothing is connected, and nothing about this service leaves your device. Today, bring a file of its own through the importers that are built in.'));
 }
 
 function stateButton(row) {
-  const live = row.state === 'Built in' || row.state === 'Import file';
-  const b = el('button', `btn btn-sm conn-btn ${row.state === 'Built in' ? 'btn-primary' : live ? 'btn-gray' : 'btn-plain'}`, row.state);
+  const live = LIVE_STATES.includes(row.state);
+  const b = el('button', `btn btn-sm conn-btn ${row.state === 'Built in' || row.state === 'Ready' ? 'btn-primary' : live ? 'btn-gray' : 'btn-plain'}`, row.state);
   b.type = 'button';
   b.dataset.state = row.state;
   b.setAttribute('aria-label', live ? `${row.state}: open ${row.name}` : `${row.state}: ${row.name}, what it waits for`);
@@ -146,7 +153,7 @@ function connectorsPanel() {
   const p = el('div', 'conn-panel');
   const banner = el('div', 'conn-banner');
   const bt = el('div', 'conn-banner-text');
-  bt.append(el('b', null, 'Your work stays on this device'), el('span', null, 'Nothing on this page reaches the internet. Bring a file in from any service below, or see what is stored.'));
+  bt.append(el('b', null, 'Your work stays on this device'), el('span', null, 'Nothing on this page reaches the internet unless you ask for a public-data lookup, and then only the address goes. Bring a file in from any service below, or see what is stored.'));
   const see = el('button', 'btn btn-sm conn-btn', 'See my data');
   see.type = 'button';
   see.addEventListener('click', () => openConnect('mydata'));

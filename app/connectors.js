@@ -6,6 +6,9 @@
  *   Import file          your own export file goes into a Monal importer that exists; `opens` names it
  *   Coming soon          not built; `wait` says what it waits for (no date is promised)
  *   Needs your approval  not built, and the owner has to say yes first (cost, hosting, security or a licence); `wait` says which
+ *   Ready                a free public source the browser reads when you ask (publicdata.js); `opens` names what it opens
+ *   Needs a key          the same, once you give it your own free key (kept on this device, never in a backup)
+ *   Not available from a browser   looked at and refused: `wait` says why
  * A row has no image or logo: the page draws a neutral monogram from the name (monogram()). Service names are
  * plain text, as docs/working-rules.md allows on this page. A row names a service only to say what file of
  * its own the broker may bring in, or that nothing is connected yet; it never says Monal reads a vendor's
@@ -13,10 +16,12 @@
 
 import { PRODUCT } from './brand.js';
 
-export const STATES = Object.freeze(['Built in', 'Import file', 'Coming soon', 'Needs your approval']);
+export const STATES = Object.freeze(['Built in', 'Import file', 'Coming soon', 'Needs your approval', 'Ready', 'Needs a key', 'Not available from a browser']);
+/** The states in which the button opens something (the rest open a sheet that says what the row waits for). */
+export const LIVE_STATES = Object.freeze(['Built in', 'Import file', 'Ready', 'Needs a key']);
 
 /** What `opens` may be: connectui.js answers each one. */
-export const OPENS = Object.freeze(['assistant', 'deals', 'home', 'comps-file', 'om-file', 'rent-roll', 't12', 'templates', 'my-data', 'tools', 'crm-file', 'deal-file', 'tenant-file', 'crm-export', 'mail-file']);
+export const OPENS = Object.freeze(['assistant', 'deals', 'home', 'comps-file', 'om-file', 'rent-roll', 't12', 'templates', 'my-data', 'tools', 'crm-file', 'deal-file', 'tenant-file', 'crm-export', 'mail-file', 'public-lookup', 'public-key', 'maps']);
 
 const NEEDS_SERVER = 'It needs a server of ours to receive from outside, and nothing is hosted yet.';
 const FILE_FIRST = 'Planned: bring its export file in first. A direct sign-in comes only after a security review.';
@@ -58,12 +63,16 @@ export const CATEGORIES = Object.freeze([
       { id: 'comps-sheet', name: 'Any comps spreadsheet', desc: `Excel or CSV with a header row; you map each column once and ${PRODUCT} remembers it.`, state: 'Import file', module: 'compimport.js', opens: 'comps-file' },
       { id: 'licensed-api', name: 'Licensed data (ATTOM, Regrid, Reonomy, CompStak)', desc: 'Parcels, tax and sales, owners and comps by key.', state: 'Needs your approval', wait: 'Each is a paid contract with its own licence terms: a money and licence decision, one source at a time.' },
     ] },
-  { id: 'public', title: 'Public data', sub: 'Free government figures, shown with their source and date',
+  { id: 'public', title: 'Public data (DC, Maryland, Virginia)', sub: 'Free government figures and maps, shown with their source and date. Looked up only when you ask.',
     rows: [
-      { id: 'census', name: 'Census American Community Survey', desc: 'Population, households and income for a tract or county.', state: 'Needs your approval', wait: 'It reaches the internet, so a security decision on the allowed addresses comes first.' },
-      { id: 'rates', name: 'Treasury and NY Fed rates', desc: 'Treasury yields and SOFR, shown with the date.', state: 'Needs your approval', wait: 'It reaches the internet, so a security decision on the allowed addresses comes first.' },
-      { id: 'fema', name: 'FEMA flood maps', desc: 'The flood zone of an address and the date of the map.', state: 'Needs your approval', wait: 'It reaches the internet, so a security decision on the allowed addresses comes first.' },
-      { id: 'county', name: 'County parcel and zoning data', desc: 'Parcel, assessment, zoning and permits, one county at a time.', state: 'Needs your approval', wait: 'It reaches the internet, so a security decision on the allowed addresses comes first.' },
+      { id: 'maps-search', name: 'Maps and search', desc: 'Open any address in Google Maps, Apple Maps or Street View, or search Google for the address, the property or the owner. No key.', state: 'Ready', module: 'maplinksui.js', opens: 'maps' },
+      { id: 'public-lookup', name: 'Public data for an address', desc: 'Flood zone, census tract, parcel and assessed value, zoning and permits, and rates, for one address. Nothing is filled until you press Use.', state: 'Ready', module: 'publicdataui.js', opens: 'public-lookup' },
+      { id: 'fema', name: 'FEMA flood maps', desc: 'The flood zone of an address and the date of the map. Any US address.', state: 'Ready', module: 'publicdataui.js', opens: 'public-lookup' },
+      { id: 'dc-records', name: 'DC property, zoning and permits', desc: 'Tax lot, assessed value, zoning and building permits from DC GIS, with the District’s own address finder.', state: 'Ready', module: 'publicdataui.js', opens: 'public-lookup' },
+      { id: 'md-records', name: 'Maryland real property and Montgomery County permits', desc: 'Parcel, year built and assessed value from the state assessor, and building permits in Montgomery County.', state: 'Ready', module: 'publicdataui.js', opens: 'public-lookup' },
+      { id: 'rates', name: 'Treasury and NY Fed rates', desc: '5- and 10-year Treasury note yields (latest auction) and SOFR, with the date.', state: 'Ready', module: 'publicdataui.js', opens: 'public-lookup' },
+      { id: 'census', name: 'Census American Community Survey', desc: 'Population, households and income for a tract and county, with margins of error. Needs your own free Census key.', state: 'Needs a key', module: 'publicdataui.js', opens: 'public-key' },
+      { id: 'va-parcel', name: 'Virginia county parcel data (Fairfax, Arlington)', desc: 'Parcel and assessment for Virginia addresses.', state: 'Not available from a browser', wait: 'No county service that a web page is allowed to read was found: the official addresses do not answer a browser, and the one that did is marked deprecated by the county. Use Open in to reach the county’s own site.' },
     ] },
   { id: 'files', title: 'Files and productivity', sub: 'Read files, fill templates, keep the work on your device',
     rows: [

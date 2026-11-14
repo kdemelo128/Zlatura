@@ -3,20 +3,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { CATEGORIES, STATES, OPENS, allRows, filterCategories, monogram } from '../app/connectors.js';
+import { CATEGORIES, STATES, LIVE_STATES, OPENS, allRows, filterCategories, monogram } from '../app/connectors.js';
 
 const APP = new URL('../app/', import.meta.url);
 const KEYS = new Set(['id', 'name', 'desc', 'state', 'module', 'opens', 'wait']);
 
-test('every row uses one of the four allowed states', () => {
-  assert.deepEqual([...STATES], ['Built in', 'Import file', 'Coming soon', 'Needs your approval']);
+test('every row uses one of the allowed states', () => {
+  assert.deepEqual([...STATES], ['Built in', 'Import file', 'Coming soon', 'Needs your approval', 'Ready', 'Needs a key', 'Not available from a browser']);
   for (const r of allRows()) assert.ok(STATES.includes(r.state), `${r.id}: “${r.state}”`);
 });
 
 test('every row that opens something names a module that exists and an action the page answers', () => {
   const ui = fs.readFileSync(new URL('connectui.js', APP), 'utf8');
   for (const r of allRows()) {
-    if (r.state === 'Built in' || r.state === 'Import file') {
+    if (LIVE_STATES.includes(r.state)) {
       assert.ok(r.module && fs.existsSync(new URL(r.module, APP)), `${r.id}: module ${r.module}`);
       assert.ok(OPENS.includes(r.opens), `${r.id}: opens ${r.opens}`);
     } else {
@@ -39,7 +39,7 @@ test('ids are unique and the nine categories the owner asked for are all there',
   assert.equal(new Set(ids).size, ids.length);
   assert.deepEqual(CATEGORIES.map((c) => c.id), ['assistants', 'crm', 'deals', 'property', 'market', 'public', 'files', 'automation', 'api']);
   const has = (id, state) => assert.equal(allRows().find((r) => r.id === id)?.state, state, id);
-  has('monal-assistant', 'Built in'); has('ai-link', 'Coming soon'); has('zapier', 'Needs your approval'); has('api-keys', 'Coming soon');
+  has('monal-assistant', 'Built in'); has('fema', 'Ready'); has('census', 'Needs a key'); has('va-parcel', 'Not available from a browser'); has('maps-search', 'Ready'); has('ai-link', 'Coming soon'); has('zapier', 'Needs your approval'); has('api-keys', 'Coming soon');
   for (const n of ['Zapier', 'Make', 'Webhooks']) assert.ok(allRows().some((r) => r.name === n), n);
 });
 
@@ -52,6 +52,14 @@ test('search: every word must match; an empty query keeps everything; a miss ret
   assert.ok(filterCategories('IMPORT FILE').flatMap((c) => c.rows).every((r) => r.state === 'Import file'));
   assert.equal(filterCategories('zapier costar').length, 0);
   assert.equal(filterCategories('qqqqq').length, 0);
+});
+
+test('K6: the Public data category lists each source with its state, and a refused one says why', () => {
+  const pub = CATEGORIES.find((c) => c.id === 'public');
+  assert.equal(pub.title, 'Public data (DC, Maryland, Virginia)');
+  assert.ok(pub.rows.some((r) => r.id === 'maps-search') && pub.rows.some((r) => r.id === 'census' && r.state === 'Needs a key'));
+  const refused = pub.rows.filter((r) => r.state === 'Not available from a browser');
+  assert.ok(refused.length >= 1 && refused.every((r) => r.wait.length > 40));
 });
 
 test('monogram: initials, a stable tone from 1 to 4, never an image', () => {

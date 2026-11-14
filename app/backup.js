@@ -4,7 +4,7 @@
  * layouts and settings. Restoring merges it in: whatever is newer wins, and
  * nothing on the device is lost unless the broker chooses to replace it all.
  *
- * The AI settings (server address, access token, on/off) are never in a
+ * The AI settings (server address, access token, on/off) and the Census key (publicdata.key) are never in a
  * backup, going in or coming out: a backup is a file that gets copied and
  * sent, the token is a credential, and a server address read from a file
  * would be one the broker then types the token next to. Reading a backup
@@ -35,6 +35,9 @@ export const LOCAL_KEYS = ['zlatura.tools.v1', 'zlatura.subject.v1', 'zlatura.lo
 const LOCAL_MAX = 262144;
 /** The settings key that never travels in a backup. */
 const NEVER = 'ai.settings';
+/** Every settings key that never travels: the AI settings, and the broker's own Census key (publicdataui.js). */
+export const NEVER_KEYS = Object.freeze([NEVER, 'publicdata.key']);
+const NEVER_SET = new Set(NEVER_KEYS);
 /** The kv keys the app writes and a backup may carry (tests/backup.test.js checks this list against every kvSet in app/). */
 export const KV_KEYS = ['tpl.library', 'crm.tasks', 'crm.contacts', 'crm.activity', 'crm.stages', 'tools.scenarios', 't12.labels', 'rr.layouts', 'conventions', 'template', 'output', 'backup.last', 'research.briefs', 'uw.scratch', 'comps.mappings', 'ui.prefs', 'inbox.items', 'inbox.prefs', 'import.mappings'];
 const KV_SET = new Set(KV_KEYS);
@@ -47,6 +50,7 @@ export function cleanKv(kv) {
   const out = {}; let droppedAi = false; let droppedOther = 0;
   for (const k of Object.keys(kv || {})) {
     if (k === NEVER) droppedAi = true;
+    else if (NEVER_SET.has(k)) continue;   // a credential in a hand-made file is ignored, not counted as an unknown setting
     else if (KV_SET.has(k)) out[k] = kv[k];
     else droppedOther += 1;
   }
@@ -93,7 +97,7 @@ export function decodeValue(v) {
  */
 export async function buildBackup({ deals = [], kv = {}, session = null, local = {}, appVersion = '', history = null, snapshots = null }) {
   const keptKv = {};
-  for (const [k, v] of Object.entries(kv)) if (k !== NEVER) keptKv[k] = v;
+  for (const [k, v] of Object.entries(kv)) if (!NEVER_SET.has(k)) keptKv[k] = v;
   return {
     format: BACKUP_FORMAT, version: BACKUP_VERSION, app: appVersion, createdAt: new Date().toISOString(),
     counts: {
@@ -206,7 +210,7 @@ export function planRestore(backup, current, mode = 'merge', now = Date.now()) {
     if (hs.line) summary.push(hs.line);
     const up = upgradeLine(backup.deals);
     if (up) summary.push(up);
-    return { deals: { put: backup.deals, added: backup.deals.length, updated: 0, kept: 0 }, removeDeals, kv, removeKv: Object.keys(current.kv).filter((k) => !(k in kv) && k !== NEVER), session: backup.session, local: backup.local, summary, history: hs.history, snapshots: hs.snapshots };
+    return { deals: { put: backup.deals, added: backup.deals.length, updated: 0, kept: 0 }, removeDeals, kv, removeKv: Object.keys(current.kv).filter((k) => !(k in kv) && !NEVER_SET.has(k)), session: backup.session, local: backup.local, summary, history: hs.history, snapshots: hs.snapshots };
   }
   const d = mergeById(current.deals, backup.deals);
   const put = backup.deals.filter((x) => { const h = current.deals.find((c) => c.id === x.id); return !h || newer(x, h); });

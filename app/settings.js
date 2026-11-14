@@ -10,6 +10,7 @@ import * as ai from './ai.js';
 import { renderDataCard } from './backupui.js';
 import { autoSwitch } from './inboxui.js';
 import { openAiSettings } from './aiui.js';
+import { openCensusKey } from './publicdataui.js';
 import { openTemplates } from './dealui.js';
 import { editStages } from './home.js';
 import { listTemplates } from './library.js';
@@ -253,6 +254,13 @@ export async function renderSettings() {
   aic.appendChild(al);
   cards.ai = aic;
 
+  // public data: the broker's own free Census key, kept on this device and left out of every backup
+  const pdc = section('Public data', 'settings-public');
+  const pdl = el('ul', 'set-list');
+  pdl.appendChild(row('Census key', 'Switches on population, households and income in a deal’s Public data card. Your own free key; kept on this device only, never in a backup.', [btn('Census key…', () => openCensusKey(api))]));
+  pdc.appendChild(pdl);
+  cards.pub = pdc;
+
   // calculation conventions: the two that are settings, and every other one stated
   const cv = section('Calculation rules', 'settings-conventions');
   const cl = el('ul', 'set-list');
@@ -326,7 +334,7 @@ export async function renderSettings() {
     group('work', 'Workspace and templates', 'Workspace, pipeline stages, template library', [cards.ws, cards.pipe, cards.tpl]),
     group('calc', 'Calculations', 'Calculation rules and the T-12 labels you filed', [cards.cv, cards.t12]),
     group('ai', 'Documents and AI', 'The AI connection and what is sent', [cards.ai], { solo: true }),
-    group('data', 'Data and backup', 'Backups, restore, storage, To file', [data, tofile], { solo: true }),
+    group('data', 'Data and backup', 'Backups, restore, storage, To file', [data, tofile, cards.pub], { solo: true }),
     group('about', 'About', 'Version, name, shortcuts', [about], { solo: true }),
   ];
   for (const g of groups) {

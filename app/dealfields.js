@@ -48,6 +48,7 @@ export function sourceOf(deal, key, m) {
   if (!s) return deal.figures && deal.figures[key] !== undefined ? 'entered' : '';
   if (s.tool === ROLL_TOOL) return 'taken from the rent roll by the broker';
   if (s.hand) return 'typed by the broker';
+  if (s.pub) return `public data: ${s.pub.name}, ${s.pub.date}`;
   if (s.t12) return s.line || 'the T-12';
   if (s.page) return `OM page ${s.page}`;
   return 'read from the OM';

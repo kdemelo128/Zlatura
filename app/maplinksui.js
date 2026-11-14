@@ -57,3 +57,25 @@ export function openInButton(parts, { label = 'Open in…', cls = 'btn btn-sm bt
   b.addEventListener('click', () => { if (!openInMenu(get(), { returnTo: b })) toast('Enter an address or a name first.'); });
   return b;
 }
+
+/** The Connect page's "Maps and search" row: type an address, a name or an owner, then open the menu. `api` is the app's sheet host. */
+export function openMapsSheet(api) {
+  const body = api.sheetOpen({ eyebrow: 'Ready', title: 'Maps and search', sub: 'Links only: nothing is sent until you open one, and no key is used.' });
+  const form = el('div', 'form-grid');
+  const inputs = {};
+  for (const [id, label] of [['address', 'Address'], ['name', 'Property or company name'], ['owner', 'Owner name']]) {
+    const f = el('div', 'field');
+    const l = el('label', null, label);
+    const i = el('input', 'input');
+    i.type = 'text'; i.id = `maps-${id}`; i.autocomplete = 'off'; i.spellcheck = false;
+    l.htmlFor = i.id;
+    f.append(l, i);
+    form.appendChild(f);
+    inputs[id] = i;
+  }
+  const go = el('button', 'btn btn-primary', 'Open in…');
+  go.type = 'button';
+  go.id = 'maps-go';
+  go.addEventListener('click', () => { if (!openInMenu({ address: inputs.address.value, name: inputs.name.value, owner: inputs.owner.value }, { returnTo: go })) toast('Enter an address or a name first.'); });
+  body.append(form, go);
+}

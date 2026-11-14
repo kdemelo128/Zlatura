@@ -23,6 +23,7 @@ function show(kind, v) {
 export function sourceLabel(s) {
   if (!s) return 'unknown source';
   if (s.ai) return `read by AI from ${s.doc || 'a document'}${s.page ? ` p.${s.page}` : ''}${s.verified ? ', passage checked' : ', passage not checked'}${s.hand ? ', then edited' : ''}`;
+  if (s.pub && !s.hand) return `public data: ${s.pub.name}, ${s.pub.date}`;
   if (s.tool === ROLL_TOOL) return 'taken from the rent roll by the broker';
   if (s.tool) return `typed (from the ${s.tool} tool)`;
   if (s.hand && !s.page) return 'typed by the broker';

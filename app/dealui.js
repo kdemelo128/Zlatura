@@ -58,6 +58,7 @@ import { STAGE_LABEL, stageOf } from './pipeline.js';
 import { renderDealsList } from './dealslist.js';
 import { renderDealCrm } from './dealcrm.js';
 import { openInButton, openInMenu } from './maplinksui.js';
+import { renderPublicCard } from './publicdataui.js';
 import * as crm from './crm.js';
 import { sweepResearch } from './research.js';
 import {
@@ -1030,6 +1031,8 @@ function renderDeal(r) {
   const checks = card('deal-checks');
   dsec(gbody.overview, 'checks', 'What doesn’t add up', checks, { open: true, summary: (m) => `${plural(m.checks.length, 'thing')} to look at` });
   dsec(gbody.overview, 'figures', 'Key figures', figuresCard(), { open: true, summary: (m) => [ok(m.price) ? `${short(m.price)} asking` : null, ok(m.cap) ? `${pct(m.cap)} cap` : null, ok(m.noi) ? `${short(m.noi)} NOI` : null].filter(Boolean).join(' · ') || 'Nothing entered yet' });
+  const pub = card('deal-public');
+  dsec(gbody.overview, 'public', 'Public data', pub, { summary: () => 'Flood, parcel, zoning, rates' });
   const t12 = card('deal-t12', 't12-card');
   dsec(gbody.income, 'statement', 'Operating statement', t12, { summary: () => (deal.t12 ? 'Statement imported' : 'Nothing imported yet') });
   const rs = card('deal-rentsched');
@@ -1055,6 +1058,7 @@ function renderDeal(r) {
   dsec(gbody.activity, 'questions', 'Questions to ask', qs, { summary: (m) => { const n = activeQuestions(m).length; return n ? `${n} open` : 'None open'; } });
   const d0 = deal;
   renderDealCrm(cr, d0, { touch: () => touch(d0), api });
+  renderPublicCard(pub, d0, { use: (key, value, src) => usePublic(d0, key, value, src), labels: LABEL });
   const rrw = el('section', 'card rr-card');
   rrw.id = 'deal-rentroll';
   panes.rentroll.appendChild(rrw);
@@ -1559,6 +1563,27 @@ function figRow(key, label, kind) {
   return li;
 }
 
+/**
+ * Use on a public-data row (publicdataui.js): the figure, with its source (the site, its link and the date) recorded as the
+ * figure's source, on the broker's tap and only on the deal the card belongs to. Undo puts back what was there.
+ */
+function usePublic(d, key, value, src) {
+  if (deal !== d || value === null || value === undefined || value === '') return;
+  const was = { fig: d.figures[key], src: d.sources[key] ? { ...d.sources[key] } : undefined };
+  d.figures[key] = value;
+  d.sources[key] = { ...src, orig: value, hand: false };
+  touch(d, { label: `${LABEL[key] || key} from public data` });
+  render();
+  toast(`${LABEL[key] || key} set from ${src.pub.name}.`, {
+    label: 'Undo', run: () => {
+      if (was.fig === undefined) delete d.figures[key]; else d.figures[key] = was.fig;
+      if (was.src) d.sources[key] = was.src; else delete d.sources[key];
+      touch(d, { label: `Undid ${LABEL[key] || key} from public data` });
+      if (deal === d) render();
+    },
+  });
+}
+
 /** Put a figure on the deal and save it; `redraw` false leaves the redraw to the caller. */
 function setFigure(key, v, redraw = true) {
   const before = deal.figures[key];
@@ -1592,6 +1617,7 @@ function sourceTag(key) {
     b.addEventListener('click', () => showSource(key));
     return b;
   }
+  if (s.pub && !s.hand) { const t = el('span', 'src hand', 'public'); t.title = `${s.pub.name}, ${s.pub.date}`; t.setAttribute('aria-label', `${LABEL[key]}: from public data, ${s.pub.name}, ${s.pub.date}`); return t; }
   if (s.tool === ROLL_TOOL) { const t = el('span', 'src hand', 'rent roll'); t.title = 'Taken from the rent roll by the broker'; return t; }
   if (s.hand && !s.page) return el('span', 'src hand', 'typed');
   if (!s.page && !s.hand) {

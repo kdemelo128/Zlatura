@@ -178,7 +178,7 @@ test('F1: every settings key the app writes is on the backup allow-list', () => 
   }
   found.delete(undefined);
   assert.ok(found.size >= 8, `only found ${[...found]}`);
-  for (const k of found) assert.ok(k === 'ai.settings' || KV_KEYS.includes(k), `${k} is written by the app but dropped by a restore`);
+  for (const k of found) assert.ok(k === 'ai.settings' || k === 'publicdata.key' || KV_KEYS.includes(k), `${k} is written by the app but dropped by a restore`);
 });
 
 test('F2: a restore writes only the three known local keys, as short text', () => {
@@ -448,4 +448,21 @@ test('a fee record that was edited by hand or damaged is read without an error, 
   assert.deepEqual(rows[2].slice(5, 12), ['', '', '', '', '', '', ''], 'a price with no rate that can be read is not a fee of 0');
   assert.deepEqual(rows[1].slice(4), ['', '', '', '', '', '', '', '', '', '', '', '', '', ''], 'a list of unreadable payments is not 0 paid');
   assert.equal(feeSummary(plan.deals.put[2].fee).expected, null, 'no price a number, no expected fee');
+});
+
+test('K6: the broker\'s Census key is never in a backup, never restored, and never removed by a restore', async () => {
+  const SECRET = 'abcdef0123456789abcdef0123456789abcdef01';
+  const b = await buildBackup({ kv: { 'publicdata.key': SECRET, 'crm.tasks': [] }, appVersion: '4.7.172' });
+  assert.ok(!('publicdata.key' in b.kv));
+  assert.ok(!JSON.stringify(b).includes(SECRET), 'the key text is nowhere in the file');
+  // a hand-made file that carries one is ignored
+  const r = readBackup(JSON.stringify({ format: 'zlatura-backup', version: 2, deals: [], kv: { 'publicdata.key': 'attacker', 'crm.tasks': [] }, local: {} }));
+  assert.ok(!('publicdata.key' in r.kv));
+  // restoring (merge or replace) leaves the device's own key alone
+  const current = { deals: [], kv: { 'publicdata.key': SECRET, 'crm.tasks': [{ id: 1 }] }, session: null, local: {} };
+  for (const mode of ['merge', 'replace']) {
+    const p = planRestore(readBackup(JSON.stringify({ format: 'zlatura-backup', version: 2, deals: [], kv: { 'publicdata.key': 'attacker' }, local: {} })), current, mode);
+    assert.ok(!('publicdata.key' in p.kv), mode);
+    assert.ok(!p.removeKv.includes('publicdata.key'), mode);
+  }
 });
