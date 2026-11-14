@@ -26,7 +26,7 @@ test('an ask scope fits only /api/ask, and the other scope rules are unchanged',
 
 test('planAsk: no deal open sends the question alone, in an ask scope', () => {
   const p = planAsk(null, 'What are cap rates doing?', () => { throw new Error('no facts without a deal'); });
-  assert.deepEqual(p, { scope: { ask: true }, facts: [], note: '' });
+  assert.deepEqual(p, { scope: { ask: { question: p.scope.ask.question } }, facts: [], note: '' });
 });
 
 test('planAsk: an open deal sends its facts, in a deal scope', () => {
@@ -38,7 +38,7 @@ test('planAsk: an open deal sends its facts, in a deal scope', () => {
 
 test('planAsk: a confidential deal sends no facts, says so, and a question that names it is refused', () => {
   const p = planAsk(secret, 'How are office rents trending?', () => { throw new Error('facts must not be read'); });
-  assert.deepEqual(p, { scope: { ask: true }, facts: [], note: CONFIDENTIAL_NOTE });
+  assert.deepEqual(p, { scope: { ask: { question: p.scope.ask.question } }, facts: [], note: CONFIDENTIAL_NOTE });
   assert.equal(CONFIDENTIAL_NOTE, 'This deal is confidential, so only your question was sent.');
   assert.match(planAsk(secret, 'Tell me about INVENTED PLAZA', () => []).refuse, /confidential/);
   assert.match(planAsk({ ...secret, name: 'Invented Plaza (draft)' }, 'what about invented plaza?', () => []).refuse, /confidential/, 'a note in brackets is not part of what is said');
@@ -67,4 +67,17 @@ test('errorText shows the message and the code plainly', () => {
   assert.equal(errorText(Object.assign(new Error('This device has used today’s allowance.'), { code: 'daily_limit' })), 'This device has used today’s allowance. (daily_limit)');
   assert.equal(errorText(new Error('Plain.')), 'Plain.');
   assert.match(errorText(null), /did not answer/);
+});
+
+test('an ask with no deal open is refused when the question names any confidential deal, by name or address', async () => {
+  const { namesConfidential } = await import('../app/ai.js');
+  const deals = [
+    { id: 'a', name: 'Willow Court (draft)', confidential: true, figures: { address: '12 Harbor Lane' } },
+    { id: 'b', name: 'Open Plaza', confidential: false, figures: { address: '9 Elm St' } },
+  ];
+  assert.match(blockReason('/api/ask', { ask: { question: 'What cap rate for WILLOW   court?' } }, { deals }), /confidential deal/);
+  assert.match(blockReason('/api/ask', { ask: { question: 'flood zone at 12 harbor lane' } }, { deals }), /confidential deal/);
+  assert.equal(blockReason('/api/ask', { ask: { question: 'What is a cap rate at Open Plaza?' } }, { deals }), null);
+  assert.equal(blockReason('/api/ask', { ask: { question: 'Ten-year Treasury today?' } }, { deals }), null);
+  assert.equal(namesConfidential('anything', [{ name: 'ab', confidential: true }]), false, 'names under 3 characters never match');
 });

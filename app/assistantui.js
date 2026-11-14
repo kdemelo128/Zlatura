@@ -32,6 +32,7 @@ let subEl = null;
 const SUB = 'From your deal, its documents read this session, and the app’s own calculations. Nothing leaves this device.';
 /** The web questions and answers of this session, for the server's context (at most 8 turns). */
 let webHistory = [];
+let webDeal = null;
 /** The Underwrite tool's step and nest tips while the tool's bird has the panel open: { step, tips, run } (assistanttips.js); null otherwise. */
 let toolCtx = null;
 
@@ -312,6 +313,9 @@ async function webAnswer(q) {
     live.textContent = `Asking ${PRODUCT} AI. This can take a minute.`;
     let node;
     try {
+      // the web conversation belongs to one deal: moving to a different deal starts it again (general turns carry no deal data)
+      const dealKey = plan.scope.deal ? plan.scope.deal.id : null;
+      if (dealKey !== null) { if (webDeal !== null && webDeal !== dealKey) webHistory = []; webDeal = dealKey; }
       const r = await ai.ask(plan.scope, q, plan.facts, webHistory.slice(-8));
       const blocks = safeBlocks(r);
       if (!blocks.length) throw new Error('The AI server sent no answer.');

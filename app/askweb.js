@@ -12,14 +12,14 @@ export const FROM_AI = `From ${PRODUCT} AI. Figures from the web are not checked
  * Returns { scope, facts, note } or { refuse } when the question names a confidential deal.
  */
 export function planAsk(deal, question, facts) {
-  if (!deal) return { scope: { ask: true }, facts: [], note: '' };
+  if (!deal) return { scope: { ask: { question } }, facts: [], note: '' };
   if (deal.confidential) {
     const q = String(question || '').toLowerCase();
     const full = String(deal.name || '').trim().toLowerCase();
     // the whole name, or the name without a trailing note in brackets, as the broker would say it
     const names = [full, full.replace(/\s*[([].*$/, '').trim()].filter((n) => n.length >= 3);
     if (names.some((n) => q.includes(n))) return { refuse: 'That question names a confidential deal, so it was not sent.' };
-    return { scope: { ask: true }, facts: [], note: CONFIDENTIAL_NOTE };
+    return { scope: { ask: { question } }, facts: [], note: CONFIDENTIAL_NOTE };
   }
   return { scope: { deal: { id: deal.id, confidential: false } }, facts: facts(), note: '' };
 }

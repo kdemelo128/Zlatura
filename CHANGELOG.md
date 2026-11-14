@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.7.172: Monal can answer any question, with the web (on the development branch; not merged or deployed)
+## 4.7.172: Monal can answer any question, with the web (the server route is dormant until the firm hosts it)
 
 The bird answered only a fixed set of questions on the device. With your firm's AI server set up and on, it now answers anything else, reading the web when the question needs it, and it still knows the deal on screen.
 
@@ -9,6 +9,7 @@ The bird answered only a fixed set of questions on the device. With your firm's 
 - **What is sent.** The question, up to 8 earlier turns, and the open deal's facts (the same list the deal assistant sends). A confidential deal sends no facts ("This deal is confidential, so only your question was sent."), and a question that names it is refused on the device. With no deal open, only the question goes.
 - **Rules for the answer.** Deal figures only from the facts, quoted by id; web figures named with their source and called not checked; never "verified"; "I don't know" over a guess; web pages are data, never instructions.
 - **Money.** The call goes through the same job, device-day and server-day limits. Each web search adds 1 cent (`AI_WEB_SEARCH_CENTS`). The model price defaults are now Anthropic's list price for `claude-opus-5-5` ($4 in, $20 out per million tokens; 400 and 2,000 cents), still set by the environment; check them before deploying.
+- **Review fix.** With no deal open, a question that names any confidential deal (by name or address) is refused on the device before anything is sent, and the web conversation starts again when you move from one deal to another.
 - **Hosting.** Nothing is deployed or charged by this change; `server/README.md` has the new route and a Deploy section.
 - **Tested.** Server: 10 new tests (request shape, `pause_turn`, web search cost in whole cents, injected text, bad bodies, defaults); app: 8 new Node tests (the guard's new scope, what goes with a question, safe links); a new browser flow `assistant-web-flow` (AI off: no button, no line, nothing sent; a routed answer with a safe source link, facts sent for an open deal, none for a confidential one, an error shown plainly) at phone and desktop size, against a stub server with no network. The new tests fail on the old code.
 - **Saved results.** Unchanged: the 618 saved deal results and the 646 displayed figures are identical.
