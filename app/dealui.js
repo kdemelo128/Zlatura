@@ -52,6 +52,7 @@ import { docxText } from './convert.js';
 import { dropLeaseSessions } from './leasereadui.js';
 import { openLibrary } from './libraryui.js';
 import { getSettings as getAiSettings, isReady } from './ai.js';
+import { buildFacts } from './aifacts.js';
 import { openAiSettings, readWithAi, openAssistant, transcribeNote, openTranscript } from './aiui.js';
 import { crossChecks } from './reconcile.js';
 import { STAGE_LABEL, stageOf } from './pipeline.js';
@@ -2895,6 +2896,16 @@ export function applyFromTools({ figures = {}, loan = {}, live = {} }, toolTitle
 }
 
 /* ------------------------------------------------------------------- AI */
+
+/**
+ * The open deal for the bird's web questions: null when none is open, else { id, name, confidential, facts() },
+ * facts() being the same list the deal assistant sends (aifacts.js, through aiHost()). Read only.
+ */
+export function dealForAsk() {
+  if (!deal || !hasFigures()) return null;
+  const d = deal;
+  return { id: d.id, name: d.name || '', confidential: !!d.confidential, facts: () => { const h = aiHost(); return buildFacts({ deal: d, fields: h.fields, ...h.context() }); } };
+}
 
 /** What the AI screens need from the open deal. */
 function aiHost() {

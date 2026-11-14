@@ -4,13 +4,14 @@
  * README, "Spending limits"). Nothing here sees a document, a question or a
  * transcript: only token counts and cents. */
 
-/** Whole cents for a call: ceil((in*Pin + out*Pout) / 1,000,000), all integers. Cache tokens count at the input price. */
-export function costCents(usage, prices) {
+/** Whole cents for a call: ceil((in*Pin + out*Pout) / 1,000,000), all integers, plus `webCents` for each web search
+ * (usage.server_tool_use.web_search_requests; Anthropic bills those apart from tokens). Cache tokens count at the input price. */
+export function costCents(usage, prices, webCents = 0) {
   const int = (n) => (Number.isInteger(n) && n > 0 ? n : 0);
   const inTok = int(usage?.input_tokens) + int(usage?.cache_creation_input_tokens) + int(usage?.cache_read_input_tokens);
   const outTok = int(usage?.output_tokens);
   const micro = inTok * prices.inCentsPerMTok + outTok * prices.outCentsPerMTok;
-  return Math.floor((micro + 999999) / 1000000);
+  return Math.floor((micro + 999999) / 1000000) + int(usage?.server_tool_use?.web_search_requests) * int(webCents);
 }
 
 const DAY = 86400000;

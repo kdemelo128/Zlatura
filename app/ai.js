@@ -19,8 +19,20 @@ export class AiConfidential extends AiUnavailable {}
 
 const CONFIDENTIAL = 'This deal is marked confidential, so nothing from it is sent to the AI server.';
 // which scope each server path accepts; a path or scope not listed here is refused
-const SCOPE_OF = { '/api/health': 'health', '/api/research': 'research' };
-const scopeKind = (scope) => (scope && typeof scope === 'object' ? ['deal', 'research', 'health'].filter((k) => scope[k]) : []);
+// (/api/ask takes a deal scope, confidential deals refused as for any deal call, or an ask scope that carries no deal data)
+const SCOPE_OF = { '/api/health': ['health'], '/api/research': ['research'], '/api/ask': ['deal', 'ask'] };
+const scopeKind = (scope) => (scope && typeof scope === 'object' ? ['deal', 'research', 'health', 'ask'].filter((k) => scope[k]) : []);
+
+const ASK_NAMES_CONFIDENTIAL = 'That question names a confidential deal, so it was not sent.';
+/** Does this question name a confidential deal: its name (with or without a note in brackets) or its address, 3+ characters, any case? */
+export function namesConfidential(question, deals) {
+  const q = String(question || '').toLowerCase().replace(/\s+/g, ' ');
+  const names = (d) => {
+    const raw = [d.name, d.figures && d.figures.address].map((x) => String(x || '').toLowerCase().replace(/\s+/g, ' ').trim());
+    return raw.flatMap((n) => [n, n.replace(/\s*[([].*$/, '').trim()]).filter((n) => n.length >= 3);
+  };
+  return (deals || []).some((d) => d && d.confidential && names(d).some((n) => q.includes(n)));
+}
 
 /**
  * The one decision on whether a call may leave this device. Pure: stored = the saved copy of scope.deal,
@@ -30,10 +42,11 @@ const scopeKind = (scope) => (scope && typeof scope === 'object' ? ['deal', 'res
 export function blockReason(path, scope, { stored = null, deals = [], contacts = [] } = {}) {
   const kinds = scopeKind(scope);
   if (kinds.length !== 1) return 'This AI call has no scope, so it was not sent.';
-  const want = SCOPE_OF[path] || 'deal';
-  if (kinds[0] !== want) return 'This AI call does not match its scope, so it was not sent.';
-  if (want === 'health') return null;
-  if (want === 'deal') return (!!scope.deal.confidential || !!(stored && stored.confidential)) ? CONFIDENTIAL : null;
+  const want = SCOPE_OF[path] || ['deal'];
+  if (!want.includes(kinds[0])) return 'This AI call does not match its scope, so it was not sent.';
+  if (kinds[0] === 'health') return null;
+  if (kinds[0] === 'ask') return namesConfidential(scope.ask && scope.ask.question, deals) ? ASK_NAMES_CONFIDENTIAL : null;
+  if (kinds[0] === 'deal') return (!!scope.deal.confidential || !!(stored && stored.confidential)) ? CONFIDENTIAL : null;
   const { company = '', dealIds = [] } = scope.research;
   const secret = new Set(deals.filter((d) => d && d.confidential).map((d) => d.id));
   if ((dealIds || []).some((id) => secret.has(id))) return 'This research starts from a contact on a confidential deal, so nothing is sent.';
@@ -50,7 +63,7 @@ async function guard(path, scope) {
   try {
     const stored = kinds[0] === 'deal' && scope.deal.id !== undefined ? await loadDealStrict(scope.deal.id) : null;
     const research = kinds[0] === 'research';
-    why = blockReason(path, scope, { stored, deals: research ? await listDealsStrict() : [], contacts: research ? await listContacts() : [] });
+    why = blockReason(path, scope, { stored, deals: research || kinds[0] === 'ask' ? await listDealsStrict() : [], contacts: research ? await listContacts() : [] });
   } catch { why = 'This device could not check whether the deal is confidential, so nothing was sent.'; }
   if (why) throw new AiConfidential(why);
 }
@@ -91,6 +104,8 @@ async function request(path, scope, body, { timeoutMs = 240000, method = 'POST' 
 export const health = (scope) => request('/api/health', scope, null, { method: 'GET', timeoutMs: 15000 });
 export const extract = (scope, documents, fields) => request('/api/extract', scope, { documents, fields });
 export const assist = (scope, question, facts, history) => request('/api/assist', scope, { question, facts, history }, { timeoutMs: 120000 });
+/** Any question, with the web. scope: { deal } (its facts go too) or { ask: { question } } (the question only; refused when it names a confidential deal). */
+export const ask = (scope, question, facts, history) => request('/api/ask', scope, { question, facts, history }, { timeoutMs: 180000 });
 export const transcribe = (scope, audio) => request('/api/transcribe', scope, audio, { timeoutMs: 600000 });
 /** body: research.js requestBody(): the subject and the documents, nothing else. */
 export const research = (scope, body) => request('/api/research', scope, body);
