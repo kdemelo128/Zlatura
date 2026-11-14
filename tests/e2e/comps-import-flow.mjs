@@ -103,6 +103,7 @@ async function scenario(label, opts) {
   n = await counts();
   c('Undo takes the imported comps out again', n.sales === 0 && n.market === 0, JSON.stringify(n));
   // 3. the layout is remembered and recognised
+  await page.waitForFunction(() => !document.querySelector('#sheet')?.open); // the previous sheet first (see step 4)
   await page.setInputFiles('#file', MAPPED);
   await page.waitForFunction(() => /Mapped as Firm sheet, used 1 time/.test(document.querySelector('#sheet-body')?.textContent || ''));
   c('the same layout is recognised: "Mapped as Firm sheet, used 1 time"', true);
@@ -110,6 +111,8 @@ async function scenario(label, opts) {
   await page.locator('#sheet-foot .btn-primary').click();
   await page.waitForFunction(() => document.querySelectorAll('#sales-table tbody tr').length === 2);
   // 4. a duplicate defaults to Skip, and can be added anyway
+  // the last import's sheet must be gone first, or the status read below can still be the previous file's (it raced)
+  await page.waitForFunction(() => !document.querySelector('#sheet')?.open);
   await page.setInputFiles('#file', DUPE);
   await page.waitForFunction(() => /rows:/.test(document.querySelector('#sheet-body [role=status]')?.textContent || ''));
   const t2 = await status();
@@ -122,6 +125,7 @@ async function scenario(label, opts) {
   await page.waitForFunction(() => document.querySelectorAll('#sales-table tbody tr').length === 3);
   c('only the new comp joined', (await counts()).sales === 3);
   // 5. a mixed cap column cannot go on
+  await page.waitForFunction(() => !document.querySelector('#sheet')?.open); // the previous sheet first (see step 4)
   await page.setInputFiles('#file', MIXED);
   await page.waitForSelector('#sheet-foot');
   await page.waitForTimeout(400);
@@ -148,6 +152,7 @@ async function scenario(label, opts) {
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.locator('.action-item', { hasText: 'Save project file' }).click()]);
   const saved = fs.readFileSync(await dl.path(), 'utf8');
   c('a saved project says "version":2 and keeps each comp\'s origin', /"version":2/.test(saved) && /"kind":"import"/.test(saved));
+  await page.waitForFunction(() => !document.querySelector('#sheet')?.open); // the previous sheet first (see step 4)
   await page.setInputFiles('#file', V1);
   await page.waitForFunction(() => document.querySelectorAll('#market-table tbody tr').length === 1 && document.querySelectorAll('#sales-table tbody tr').length === 2, null, { timeout: 15000 });
   c('a version 1 project opens with its comps', true);
@@ -159,6 +164,7 @@ async function scenario(label, opts) {
   await page.locator('#comps-more').click();
   await page.locator('.action-item', { hasText: 'Clear all comps' }).click();
   await page.waitForFunction(() => document.querySelectorAll('#sales-table tbody tr').length === 0);
+  await page.waitForFunction(() => !document.querySelector('#sheet')?.open); // the previous sheet first (see step 4)
   await page.setInputFiles('#file', BIG);
   await page.waitForSelector('#sheet-body #ci-label', { timeout: 30000 });
   await page.locator('#sheet-foot .btn-primary').click();
