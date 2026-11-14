@@ -133,6 +133,7 @@ const ALLOW = [
   { file: 'app/uwfiller/ui.js', re: /^window\.open\(FRAME_SRC\(\), '_blank', 'noopener'\);$/, n: 1, why: 'FRAME_SRC is new URL("uw-filler/index.html", document.baseURI): a fixed same-origin path, opened with noopener' },
   { file: 'app/uwfiller/ui.js', re: /^f\.src = FRAME_SRC\(\);$/, n: 1, why: 'the same fixed same-origin address; the page is the broker\'s approved package under a script-src \'self\' policy' },
   { file: 'app/uwfiller/tool.js', re: /f\.src = TOOL_SRC\(\);/, n: 1, why: 'TOOL_SRC is new URL("app/uwtool/index.html", document.baseURI): a fixed same-origin path; the page is the built-in tool under a script-src \'self\' policy' },
+  { file: 'app/assistantui.js', re: /^a\.href = src\.url;$/, n: 1, why: 'src.url comes from askweb.js safeBlocks, which keeps only http(s) addresses (safeUrl); the link is target _blank with rel noopener noreferrer' },
   // ---- fixed icon markup (class: fixed icon)
   { file: 'app/abstractui.js', re: INS, n: 1, why: ICON },
   { file: 'app/command.js', re: INS, n: 1, why: ICON },

@@ -158,3 +158,27 @@ The owner answered "yes to all" in the session chat:
 | 2 | Document text is left out of backups (backups stay small and carry no document contents) |
 | 3 | Correction lessons are kept until deleted, capped at 2,000, structure only (fixed vocabulary, error type, no names or figures), and included in backups; a learned mapping is offered after 3 matching corrections and saved only on the broker's yes; a rule ships only after held-out invented fixtures and the owner's answer files pass |
 | 4 | A structure-only export of lessons is allowed |
+
+## 2026-11-14: Monal answers anything, with the web; UI direction (`docs/proposals/assistant-web.md`)
+
+The owner asked for the bird to work like a general AI that can read the web ("I want you to actually implement this"), and then said "approve all for now" without being able to view the design canvas:
+
+| # | Decision |
+|---|---|
+| 1 | Assistant release 4 as `docs/proposals/assistant-web.md`: a `/api/ask` route on the firm AI server with Claude's web search and web fetch; the bird uses it for questions the device cannot answer, only when AI is on; confidential deals send no facts. This un-parks the firm server for the AI only (decision 5 of 2026-11-13 is otherwise unchanged) |
+| 2 | Hosting the server and its API key are the owner's step; nothing is deployed or charged by this change |
+| 3 | UI direction: Claude chose, the owner having approved without viewing. Direction A (Calm Ledger, today's New look refined) with B's "Ask Monal first" Home: the ask bar at the top of Home, a four-figure strip, and "Monal noticed" cards. The canvas with all four directions (A Calm Ledger, B Bento Desk, C Night Desk, D Plumage) stays for a later look |
+| 4 | Document reading: recognise a rent roll or an income statement by its content (columns of figures, dates and per-unit patterns) when its headings are not the usual ones; it still asks rather than guesses, and the golden outputs stay identical |
+
+To reverse 1: remove the `/api/ask` route and the bird's server path; the on-device answers are unchanged.
+
+## 2026-11-14: reading by content (`docs/proposals/reader-content.md`, section 8)
+
+Under the owner's "approve all for now" and "no pushback" (2026-11-14), the designer's four recommendations are taken:
+
+| # | Decision |
+|---|---|
+| 1 | A PDF rent roll found only by its contents is held behind one failed check (the existing hold-and-accept) |
+| 2 | The spreadsheet offer does not pre-select Tenant: a button keeps today's reading |
+| 3 | Slice 2 (rolls read today whose names are lost) goes ahead as a question: a warn check and a re-read, never a silent change |
+| 4 | Slice 3 order: the "Total Revenue taken as the heading" bug, then a single annual column (accepted only when the arithmetic agrees), quarters, then Actual/Budget pairs; a money design note comes first |

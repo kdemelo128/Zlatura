@@ -102,6 +102,20 @@ await page.reload({ waitUntil: 'load' });
 await page.click('#tab-rentroll');
 await page.waitForSelector('#deal-rentroll .rr-grid tbody tr');
 check('rent roll persists after reload (8 units, custom value)', (await page.locator('#deal-rentroll .rr-grid tbody tr').count()) === 8 && (await page.locator('input[aria-label^="Tenant contact"]').first().inputValue()) === 'Jo at 555-0100');
+// a CSV whose tenant column has a heading the reader does not know (and only two it does): the column is offered, not chosen (invented names)
+fs.writeFileSync(F + 'import-rr-content.csv', 'Business,Sq Ft,Annual Rent\nMaple Leaf Bakery,1500,45000\nQuillfeather Books,800,24000\nCopperline Yoga,1200,38400\n');
+await page.locator('#deal-rentroll button[aria-label="More rent roll actions"]').click();
+const [chooser2] = await Promise.all([page.waitForEvent('filechooser'), page.locator('.action-sheet .action-item', { hasText: 'Import from Excel or CSV' }).click()]);
+await chooser2.setFiles(F + 'import-rr-content.csv');
+await page.waitForSelector('#sheet-body #rr-content-offer');
+const bizSel = page.locator('#sheet-body select[aria-label="Read column Business as"]');
+const offerText = await page.textContent('#rr-content-offer');
+check('a tenant column told by its contents is offered, not chosen', /“Business” column holds 3 different names/.test(offerText) && (await bizSel.inputValue()) === '', offerText);
+await page.click('#rr-content-use');
+check('tapping the offer reads the column as the tenant', (await bizSel.inputValue()) === 'tenant' && /is read as the tenant/.test(await page.textContent('#rr-content-offer')));
+await page.click('#sheet-close');
+await page.waitForTimeout(200);
+check('closing the dialog imports nothing', (await page.locator('#deal-rentroll .rr-grid tbody tr').count()) === 8);
 // a second deal starts with its own rent roll
 await page.evaluate(() => [...document.querySelectorAll('#deal-root button')].find((b) => b.textContent.includes('All deals')).click());
 await page.waitForTimeout(300);

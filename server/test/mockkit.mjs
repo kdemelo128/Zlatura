@@ -35,7 +35,8 @@ export async function rig({ env = {}, deps = {}, tweak } = {}) {
   await new Promise((r) => up.listen(0, '127.0.0.1', r));
   const upUrl = `http://127.0.0.1:${up.address().port}`;
   const client = new Anthropic({ apiKey: 'sk-test-not-real', baseURL: upUrl, maxRetries: 0 });
-  const cfg = config({ APP_TOKEN: 'test-token-0123456789', ANTHROPIC_API_KEY: 'sk-test-not-real', ...env });
+  // the limit tests were written against these prices (the old placeholders); the defaults are tested apart in ask.test.mjs
+  const cfg = config({ APP_TOKEN: 'test-token-0123456789', ANTHROPIC_API_KEY: 'sk-test-not-real', AI_PRICE_IN_CENTS_PER_MTOK: '1500', AI_PRICE_OUT_CENTS_PER_MTOK: '7500', ...env });
   cfg.stt = { url: `${upUrl}/stt`, key: '', model: 'whisper-1' };
   if (tweak) tweak(cfg);
   const app = handler(cfg, client, deps);
