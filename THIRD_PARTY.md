@@ -28,6 +28,7 @@ compared byte for byte on 2026-10-15.
 | `vendor/ocr/tesseract-core-7.0.0-simd-lstm.wasm.js` | [tesseract.js-core](https://github.com/naptha/tesseract.js-core) (`tesseract-core-simd-lstm.wasm.js`: Tesseract and Leptonica built to WebAssembly) | 7.0.0 | Apache-2.0 (Tesseract); Leptonica, BSD-2-Clause | the OCR engine | identical |
 | `vendor/ocr/eng-4.0.0-best-int/eng.traineddata.gz` | [@tesseract.js-data/eng](https://www.npmjs.com/package/@tesseract.js-data/eng) (`4.0.0_best_int/eng.traineddata.gz`, from tesseract-ocr/tessdata_best) | 1.0.0 | package MIT; the trained data Apache-2.0 (the package ships no license file) | the OCR language model | identical |
 | `vendor/pdf-lib-cantoo-2.11.1.min.js` | [@cantoo/pdf-lib](https://github.com/cantoo-scribe/pdf-lib) (`dist/pdf-lib.min.js`, the UMD build; its dependencies culori, fflate, node-html-better-parser and tslib are bundled inside: MIT, MIT, MIT and 0BSD) | 2.11.1 | MIT | writes PDFs: merge, split, reorder, turn and extract pages (Documents > PDF pages), in a Web Worker | edited: map comment removed, one control byte escaped |
+| `vendor/web-llm-0.2.87/web-llm.js` | [WebLLM](https://github.com/mlc-ai/web-llm) (`@mlc-ai/web-llm`, `lib/index.js`, the ES module) | 0.2.87 | Apache-2.0 | runs Monal's own language model on the device's graphics chip, in a Web Worker (`app/brainworker.js`); loaded only when the broker turns "Monal's brain on this device" on (Settings > Documents and AI); not in the install set (6.8 MB), kept by the service worker on first use. The model files (Qwen3 0.6B, 1.7B, 4B, Apache-2.0) are downloaded by it from huggingface.co and raw.githubusercontent.com on request and are not in this repository | identical |
 | `fonts/public-sans-latin-{400,600,700}-normal.woff2` | [Public Sans](https://public-sans.digital.gov/) via `@fontsource/public-sans` | 5.1.0 | OFL-1.1 (a font license; it lets the fonts ship inside any app, proprietary included) | the app's type | identical |
 | `fonts/source-serif-4-latin-{400,600}-normal.woff2` | [Source Serif 4](https://github.com/adobe-fonts/source-serif) (Adobe) via `@fontsource/source-serif-4` (tarball SHA-256 `54b7898afa20cf4b2d807bbf2b5a2f865e28a83db8a5fcc563dafce5ecb5e7c8`) | 5.3.1 | OFL-1.1 | titles and headline figures in the New look only (loaded as "Zlatura Serif") | identical (the package's latin subset, 20,088 and 21,532 bytes) |
 | `fonts/ibm-plex-sans-latin-{400,500,600}-normal.woff2` | [IBM Plex Sans](https://github.com/IBM/plex) via `@fontsource/ibm-plex-sans` (tarball SHA-256 `232592af20ae413026cc705fc9c104135fb760432fd710f06a02c39e062d3213`) | 5.3.0 | OFL-1.1 | the New look's type (loaded as "IBM Plex Sans") | identical (the package's latin subset, 22,588, 24,184 and 24,252 bytes) |
@@ -35,7 +36,7 @@ compared byte for byte on 2026-10-15.
 
 The license texts in `vendor/licenses/`, taken from the published packages:
 `exceljs-4.4.0.LICENSE`, `fflate-0.8.3.LICENSE`, `pdf-lib-cantoo-2.11.1.LICENSE.md`, `pdfjs-4.7.76.LICENSE`,
-`tesseract.js-7.0.0.LICENSE.md`, `tesseract.js-core-7.0.0.LICENSE` and
+`tesseract.js-7.0.0.LICENSE.md`, `tesseract.js-core-7.0.0.LICENSE`, `web-llm-0.2.87.LICENSE` and
 `public-sans-5.1.0.OFL-1.1.LICENSE`, `source-serif-4-5.3.1.OFL-1.1.LICENSE`, `ibm-plex-sans-5.3.0.OFL-1.1.LICENSE` and `ibm-plex-mono-5.3.0.OFL-1.1.LICENSE`. None of these packages ships a NOTICE
 file.
 
@@ -61,6 +62,7 @@ f2b7e1cf1d277b7608231868135648f8ad8e2b58d8e97ca088bee15dc357bee7  fonts/source-s
 08949f728dc52d528e69b1667d15c89a5686a4ee9a296ff90983985f99c380f7  fonts/ibm-plex-mono-latin-400-normal.woff2
 01d285447409c8a588692162439a038b8cbd7871309ee20267b0d2d91c6e8e22  fonts/ibm-plex-mono-latin-500-normal.woff2
 a492ff478806a19b0dd2b106ad8e636ae5c4fabbffeb0de1cf67dc548ea50d00  vendor/pdf-lib-cantoo-2.11.1.min.js
+3bff4c55cd2f0200711517341babcebe7a91a8ef85b983420439fcf26835a674  vendor/web-llm-0.2.87/web-llm.js
 ```
 
 ## The built-in underwriting tool (`app/uwtool/`): not MIT
