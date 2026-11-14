@@ -3,7 +3,8 @@
  * One bird button on every screen (hidden inside the full-screen Underwrite tool, whose own bird opens it with the tool's step and its nest tips as suggested questions), opening a calm dialog: a bottom sheet on a phone, a panel in the corner on a desk.
  * A question is understood (assistant.js) and answered (assistantanswer.js) on this device; this file only
  * draws the result. Everything is drawn as text nodes: no HTML from a question, a deal or a document ever
- * reaches the page. The assistant makes no network request. Anything that changes something (a task) is
+ * reaches the page. The assistant makes no network request of its own: only when the firm's AI is on, and the question
+ * has no on-device answer or the broker taps "Ask with the web", does it send the question (askweb.js decides what goes with it). Anything that changes something (a task) is
  * shown first, as a before and after list, waits for a yes of its own and offers Undo. A task, next step or contact
  * goes through crm.js (the path Home and the deal's Pipeline card use); a figure, stage, note, scenario or export
  * through dealui.js assistantApply, which uses the deal screen's own functions. */
@@ -12,7 +13,9 @@ import { el, openSheet, closeSheet, backdropCloses } from './kit.js';
 import { PRODUCT, installBrand } from './brand.js';
 import { understand, suggestions } from './assistant.js';
 import { answer } from './assistantanswer.js';
-import { dealForAssistant, assistantGo, assistantApply } from './dealui.js';
+import { dealForAssistant, dealForAsk, openAiSettingsFromBird, assistantGo, assistantApply } from './dealui.js';
+import * as ai from './ai.js';
+import { planAsk, safeBlocks, errorText, FROM_AI, AI_OFF } from './askweb.js';
 import { pageText } from './docsession.js';
 import { splitTips } from './assistanttips.js';
 import { addTask, deleteTask, updateTask, saveContact, deleteContact, listTasks, listContacts, log as crmLog } from './crm.js';
@@ -24,19 +27,22 @@ let log = null;
 let input = null;
 let chips = null;
 let live = null;
+let webBtn = null;
+/** The web questions and answers of this session, for the server's context (at most 8 turns). */
+let webHistory = [];
 /** The Underwrite tool's step and nest tips while the tool's bird has the panel open: { step, tips, run } (assistanttips.js); null otherwise. */
 let toolCtx = null;
 
 const btn = (cls, text, fn) => { const b = el('button', `btn ${cls}`.trim(), text); b.type = 'button'; if (fn) b.addEventListener('click', fn); return b; };
 
 /** Close the panel, let the history settle, then go (the same wait as the deal's section jump). */
-async function leaveAndGo(go) {
+async function leave() {
   const hadEntry = !!(history.state && history.state.sheet);
   closeSheet(dlg);
   if (hadEntry) await new Promise((resolve) => { const t = setTimeout(() => resolve(undefined), 400); window.addEventListener('popstate', () => { clearTimeout(t); resolve(undefined); }, { once: true }); });
   await new Promise((resolve) => setTimeout(() => resolve(undefined), 0));
-  assistantGo(go);
 }
+async function leaveAndGo(go) { await leave(); assistantGo(go); }
 
 function goButton(label, go, aria) {
   const b = btn('btn-sm btn-gray assist-go', label, () => leaveAndGo(go));
@@ -242,12 +248,15 @@ export async function ask(text) {
   say(el('div', 'assist-msg assist-me', q));
   input.value = '';
   let r;
+  let noMatch = false;
   try {
     const snap = dealForAssistant();
     /** @type {any} */
     const ctx = snap || { deal: null, input: null, m: {}, rrSum: null, comps: null, today: new Date(), hasDeal: false };
     if (snap) ctx.tasks = await listTasks().catch(() => []);   // the deal's open next steps, for "move the next step"
-    r = answer(understand(q, { today: ctx.today }), ctx);
+    const u = understand(q, { today: ctx.today });
+    r = answer(u, ctx);
+    noMatch = u.id === 'unknown' && r.kind === 'refuse';
   } catch (e) {
     r = { kind: 'refuse', lines: [`I couldn’t work that out: ${e && e.message ? e.message : e}. Nothing was changed.`], items: [], cites: [], blanks: [], suggest: [] };
   }
@@ -255,7 +264,88 @@ export async function ask(text) {
   say(node);
   live.textContent = r.lines[0] || '';
   if (r.kind === 'open') leaveAndGo(r.go);
+  if (noMatch) await webAnswer(q);
   return r;
+}
+
+/** "Monal AI is off": one line and a button to AI settings. */
+function offNote() {
+  const box = el('div', 'assist-msg assist-answer assist-off');
+  box.appendChild(el('p', null, AI_OFF));
+  box.appendChild(btn('btn-sm btn-gray assist-go', 'AI settings…', async () => { await leave(); openAiSettingsFromBird(); }));
+  return box;
+}
+
+/** A reply from the server as text nodes and links: nothing from it is ever read as HTML. */
+function webNode(blocks, note) {
+  const box = el('div', 'assist-msg assist-answer assist-web');
+  for (const b of blocks) {
+    box.appendChild(el('p', null, b.text));
+    if (b.sources.length) {
+      const ul = el('ul', 'assist-list assist-sources');
+      for (const src of b.sources) {
+        const li = el('li', null);
+        const a = el('a', 'assist-source', src.text);
+        a.href = src.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.setAttribute('aria-label', `${src.text} (opens in a new tab)`);
+        li.appendChild(a);
+        ul.appendChild(li);
+      }
+      box.appendChild(ul);
+    }
+  }
+  if (note) box.appendChild(el('p', 'assist-note', note));
+  box.appendChild(el('p', 'assist-note', FROM_AI));
+  return box;
+}
+
+/**
+ * Ask the firm's AI server (with the web). Only when AI is set up and on; otherwise one line and a button to set it up.
+ * The open deal's facts go along unless it is confidential (then only the question, and the answer says so).
+ */
+async function webAnswer(q) {
+  if (webBtn) webBtn.disabled = true;
+  try {
+    if (!ai.isReady(await ai.getSettings())) {
+      say(offNote());
+      live.textContent = AI_OFF;
+      return;
+    }
+    let plan;
+    try { plan = planAsk(dealForAsk(), q, () => (dealForAsk() ? dealForAsk().facts() : [])); } catch { plan = { refuse: 'I could not read the open deal, so nothing was sent.' }; }
+    if (plan.refuse) { say(el('div', 'assist-msg assist-answer assist-refuse', plan.refuse)); live.textContent = plan.refuse; return; }
+    const wait = el('div', 'assist-msg assist-answer assist-wait', 'Asking Monal AI. This can take a minute…');
+    say(wait);
+    live.textContent = 'Asking Monal AI. This can take a minute.';
+    let node;
+    try {
+      const r = await ai.ask(plan.scope, q, plan.facts, webHistory.slice(-8));
+      const blocks = safeBlocks(r);
+      if (!blocks.length) throw new Error('The AI server sent no answer.');
+      node = webNode(blocks, plan.note);
+      webHistory.push({ role: 'user', content: q }, { role: 'assistant', content: blocks.map((b) => b.text).join('\n') });
+      webHistory = webHistory.slice(-8);
+      live.textContent = blocks[0].text.slice(0, 200);
+    } catch (e) {
+      node = el('div', 'assist-msg assist-answer assist-refuse');
+      node.appendChild(el('p', 'warn-text', errorText(e)));
+      live.textContent = errorText(e);
+    }
+    wait.replaceWith(node);
+    node.scrollIntoView({ block: 'nearest' });
+  } finally { if (webBtn) webBtn.disabled = false; }
+}
+
+/** The "Ask with the web" button: always the server (when AI is on), whatever the device could answer. */
+async function askWithWeb() {
+  const q = input.value.trim();
+  if (!q) { live.textContent = 'Type a question first.'; input.focus(); return; }
+  say(el('div', 'assist-msg assist-me', q));
+  input.value = '';
+  await webAnswer(q);
+  input.focus();
 }
 
 /** The nest's tips as suggested questions: this step's first, then a chip that adds every other tip. */
@@ -295,7 +385,7 @@ function build() {
   const h = el('h2', null, `Ask ${PRODUCT}`);
   h.id = 'assist-h';
   hd.appendChild(h);
-  hd.appendChild(el('p', 'sub', 'From your deal, its documents read this session, and the app’s own calculations. Nothing leaves this device.'));
+  hd.appendChild(el('p', 'sub', 'From your deal, its documents read this session, and the app’s own calculations. Nothing leaves this device unless you tap Ask with the web, with your firm’s AI on.'));
   const close = btn('btn-plain', 'Close', () => closeSheet(dlg));
   close.setAttribute('aria-label', `Close Ask ${PRODUCT}`);
   head.append(hd, close);
@@ -327,7 +417,8 @@ function build() {
   input.spellcheck = false;
   const go = el('button', 'btn btn-primary', 'Ask');
   go.type = 'submit';
-  foot.append(lab, input, go);
+  webBtn = btn('btn-gray assist-web-btn', 'Ask with the web', askWithWeb);
+  foot.append(lab, input, go, webBtn);
   foot.addEventListener('submit', (e) => { e.preventDefault(); ask(input.value); input.focus(); });
   card.append(head, body, tray, foot);
   dlg.appendChild(card);
