@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.7.170: Email reader: HTML entities decoded once (CodeQL alert 27) (on the development branch; not merged or deployed)
+
+- **Security:** an email's HTML body is turned into text with its entities decoded in a single pass, so `&amp;lt;` stays the text `&lt;` instead of becoming `<`, and tag stripping repeats until no tag is left, so a nested `<scr<x>ipt>` cannot rebuild a tag. Fixes CodeQL alert 27 (double unescaping) in `app/emlread.js`.
+- **Tests:** a new unit test in `tests/emlread.test.js` fails on 4.7.169 and passes now.
+
 ## 4.7.169: The Ask Monal bird steps aside while another sheet is open (on the development branch; not merged or deployed)
 
 - On a phone the bird button sat over the bottom-left controls of any open sheet; it covered the comps import's "remember this mapping" checkbox, which `comps-import-flow` reported as an accessibility failure on main. The bird now hides while another sheet or dialog is open and comes back when it closes (Ask Monal's own panel keeps it, so focus returns to it).
