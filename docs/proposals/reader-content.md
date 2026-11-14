@@ -101,12 +101,13 @@ These hold for every slice.
     words are skipped, not counted);
   - at least 90% of the names are different.
 
-  A name is made of words: three letters or more, letters at least half its
-  characters, at most 60 characters and 8 words. It is not a figure, a date, a
-  dash or n/a, and not a street address.
+  A name is made of words: three letters in a row somewhere, letters at least
+  half its characters, at most 60 characters and 8 words. It is not a figure,
+  a date, a code such as "1BR/1BA", a dash or n/a, a street address, an
+  e-mail or a web address.
 - **What is not a tenant column even if it holds names.** A heading that names
-  something else: Property, Address, City, Buyer, Seller, Notes, Description,
-  Type, Status and the like (`NOT_TENANT_HEADING`).
+  something else: Property, Address, City, Buyer, Seller, Contact, E-mail,
+  Notes, Description, Type, Status and the like (`NOT_TENANT_HEADING`).
 - **What is not a rent roll even with a name column:**
   - in a PDF: no suite and no lease date (a list of sales or properties); a
     unit mix or a lease comparable table (`tableshape.js`); comparables or
@@ -147,22 +148,26 @@ The engine, `deal.js` and the money code are untouched.
 
 ## 5. Tests and cost
 
-- `tests/reader-content.test.js` holds 16 tests and 8 todo:
+- `tests/reader-content.test.js` holds 17 tests and 8 todo:
   - 10 fail on main: the four PDF shapes, the PDF document kind (titled and
     untitled), the three spreadsheet shapes, and the name rules;
-  - 6 are guards that pass on both, and hold the "never guesses" rules: a sales
+  - 7 are guards that pass on both, and hold the "never guesses" rules: a sales
     list, names with no suite or date, two name columns, a repeated category,
-    an availability list headed "Description", comparables wording, and a file
-    with a headed roll read exactly as before;
+    an availability list headed "Description", a unit mix with a blank first
+    heading, comparables wording, and a file with a headed roll read exactly
+    as before;
   - the 8 todo are the slice 2 and slice 3 shapes.
-- **Mutation checks.** 13 mutations; 12 are caught by the unit tests. The one
+- **Mutation checks.** 16 mutations; 15 are caught by the unit tests. The one
   they can't reach (the CSV fallback in `parseCsv`) is caught by the new
   browser checks in `rentroll-flow`: the offer is shown and not chosen,
   tapping it chooses Tenant, and closing imports nothing.
 - **Golden.** 646 figures, 0 changed; `analyze-golden` 618 unchanged.
 - **Cost.** One small new module (`app/colcontent.js`, about 60 lines) and
   about 120 lines in `omroll.js`, `rentrollui.js` and `rrdoc.js`. The second
-  PDF pass runs only when the first finds nothing.
+  PDF pass runs only when the first finds nothing, and it stops at a header
+  line before looking at any rows unless the line has two known columns, one
+  of them a size or a rent. Timed on an invented 60-page document with no
+  rent roll: 67 ms before, 79 ms after (one run each, this machine).
 
 ## 6. Prior art (capped check: two web searches, package pages only)
 

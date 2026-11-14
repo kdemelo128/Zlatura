@@ -20,11 +20,11 @@ const ADDRESS = /^\d{1,6}[a-z]?\s+.*\b(?:st|street|rd|road|ave|avenue|blvd|boule
 
 const text = (v) => (v === null || v === undefined ? '' : v instanceof Date ? '' : String(v).replace(/\s+/g, ' ').trim());
 
-/** Whether one cell reads as a name: words (three letters or more, letters at least half the characters), not a figure, date or address. */
+/** Whether one cell reads as a name: words (three letters in a row somewhere, letters at least half the characters), not a figure, date, code ("1BR/1BA"), address, e-mail or web address. */
 export function nameLike(v) {
   if (typeof v === 'number' || v instanceof Date) return false;
   const s = text(v);
-  if (!s || s.length > 60 || BLANK.test(s) || FIGURE.test(s) || DATE.test(s) || ADDRESS.test(s)) return false;
+  if (!s || s.length > 60 || BLANK.test(s) || FIGURE.test(s) || DATE.test(s) || ADDRESS.test(s) || /@|https?:|www\./i.test(s) || !/[a-z]{3}/i.test(s)) return false;
   const letters = (s.match(/[a-z]/gi) || []).length;
   const chars = s.replace(/\s/g, '').length;
   return letters >= 3 && letters * 2 >= chars && s.split(' ').length <= 8;
@@ -46,5 +46,5 @@ export function nameColumn(values) {
   return { names: names.length, of: filled.length, distinct };
 }
 
-/** A heading that names something other than a tenant, though its column holds names: a property, a place, a party to a sale, notes. */
-export const NOT_TENANT_HEADING = /\b(?:property|properties|address|building|center|centre|project|city|town|market|submarket|county|state|zip|buyer|seller|broker|lender|landlord|owner|developer|manager|notes?|comments?|remarks?|options?|guarant\w*|description|type|use|class|status)\b/i;
+/** A heading that names something other than a tenant, though its column holds names: a property, a place, a party to a sale, a contact person, notes. */
+export const NOT_TENANT_HEADING = /\b(?:property|properties|address|building|center|centre|project|city|town|market|submarket|county|state|zip|buyer|seller|broker|lender|landlord|owner|developer|manager|contacts?|e-?mail|phone|agent|leasing|notes?|comments?|remarks?|options?|guarant\w*|description|type|use|class|status)\b/i;

@@ -560,14 +560,17 @@ export function headerAt(lines, i) {
 export function contentHeaderAt(lines, i) {
   const L0 = lines[i];
   if (!L0 || L0.cells.length < 3 || hasFigure(L0)) return null;
-  if (L0.cells.some((c) => kindScores(c.text).tenant)) return null;          // a tenant heading the header test refused for some other reason
+  const ks = L0.cells.map((c) => kindScores(c.text));
+  if (ks.some((k) => k.tenant)) return null;                                  // a tenant heading the header test refused for some other reason
+  // before the rows are looked at: two known columns or more, one of them a size or a rent (the header test needs them, with the tenant)
+  if (ks.filter((k) => Object.keys(k).length).length < 2 || !ks.some((k) => ['sf', ...RENT_KINDS].some((x) => x in k))) return null;
   // the rows under it: lines with a figure, until three blank lines or another header
   const body = []; let blank = 0;
   for (let j = i + 1; j < lines.length && body.length < 60; j++) {
     const L = lines[j];
     if (!L.cells.length) { if (++blank > 2 && body.length) break; continue; }
     blank = 0;
-    if (headerAt(lines, j) || (!hasFigure(L) && L.cells.length >= 3 && j > i + 2 && body.length)) break;
+    if (!hasFigure(L) && L.cells.length >= 3 && ((body.length && j > i + 2) || headerAt(lines, j))) break;   // another header (only a figure-free line of three cells can be one)
     if (hasFigure(L) && L.cells.length >= 2) body.push(L);
   }
   if (body.length < 3) return null;
@@ -595,7 +598,7 @@ export function contentHeaderAt(lines, i) {
   if (!cols) return null;
   const kinds = new Set(cols.map((c) => c.kind));
   if (!['suite', 'start', 'end', 'term'].some((x) => kinds.has(x))) return null;
-  if (tableShape(cols.map((c) => (c.idx === k ? 'Tenant' : c.label)))) return null;
+  if (tableShape(cols.map((c) => c.label))) return null;                     // the headings as printed: a unit mix's blank first heading stays a unit mix
   const nc = nameColumn(vals[k]);
   return { cols, n: 1, score: cols.reduce((s, c) => s + c.score, 0), inferred: { idx: k, label: h.text, names: nc.names, of: nc.of } };
 }

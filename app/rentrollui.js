@@ -917,7 +917,7 @@ const SIZE_OR_RENT = new Set(['sf', 'annual', 'monthly', 'rent', 'psf', 'mpsf'])
 export function contentOffers(table, guess) {
   if (guess.includes('tenant')) return [];
   const heads = table.headers || [];
-  const width = Math.max(heads.length, ...table.rows.map((r) => (r ? r.length : 0)));
+  const width = table.rows.reduce((w, r) => Math.max(w, r ? r.length : 0), heads.length);
   const cand = [];
   for (let i = 0; i < width; i++) {
     if (guess[i] || NOT_TENANT_HEADING.test(heads[i] || '')) continue;
@@ -1200,11 +1200,12 @@ function mapImport(rr, table, fileLabel, changed) {
       const sel = selects.get(o.col); if (sel) { sel.value = o.field; sel.dispatchEvent(new Event('change')); }
       offerBox.textContent = '';
       offerBox.appendChild(el('p', 'hint-sm', `${table.headers[o.col] ? `“${table.headers[o.col]}”` : `Column ${o.col + 1}`} is read as the tenant. Change it in the list below if that is wrong.`));
+      if (sel) sel.focus();   // the button is gone: focus goes to the choice it made
     });
     offerBox.appendChild(b);
   }
   if (offers.length) body.appendChild(offerBox);
-  const width = Math.max(table.headers.length, ...table.rows.map((x) => (x ? x.length : 0)));
+  const width = table.rows.reduce((w, x) => Math.max(w, x ? x.length : 0), table.headers.length);
   Array.from({ length: width }, (_, i) => table.headers[i] || '').forEach((h0, i) => {
     // a column with no heading is listed when it holds anything, so it can be read (as before, an empty one is not)
     if (!h0 && !table.rows.some((x) => x && has(x[i]))) return;

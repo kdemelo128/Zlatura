@@ -101,6 +101,12 @@ test('PDF: a list of spaces to let, its words under "Description", is not a rent
   assert.equal(rentRoll([page(cols, (i) => [`10${i}`, words[i - 1], '2,000', '$30.00'], 'Spaces')]), null);
 });
 
+test('PDF: a unit mix with a blank first heading is still a unit mix, not a rent roll', () => {
+  const cols = [{ h: '', w: 14 }, { h: '# Units', w: 7, r: 1 }, { h: 'Avg SF', w: 6, r: 1 }, { h: 'Avg Rent', w: 9, r: 1 }];
+  const types = ['Studio Flat', 'One Bedroom', 'Two Bedroom', 'Three Bedroom'];
+  assert.equal(rentRoll([page(cols, (i) => [types[i - 1], '12', '750', '$1,400'], 'Units')]), null);
+});
+
 test('PDF: a comparables table with an unknown name heading is not offered (its wording says what it is)', () => {
   const [cols, row] = PDF_SHAPES['an unknown tenant heading, and no lease date'];
   assert.equal(rentRoll([page(cols, row, 'Lease Comparables')]), null);
@@ -153,6 +159,8 @@ test('spreadsheet: nothing is offered when a tenant heading exists, for notes or
   assert.deepEqual(contentOffers(withTenant, withTenant.headers.map(guessField)), []);
   const notes = headerAndRows([['Suite', 'Notes', 'SF', 'Lease End', 'Annual Rent'], ...NAMES.map((n, i) => [`10${i}`, `Renewal option for ${n}`, 1500, '2029-12-31', 45000])], 'S');
   assert.deepEqual(contentOffers(notes, notes.headers.map(guessField)), []);
+  const contact = headerAndRows([['Suite', 'Contact', 'SF', 'Lease End', 'Annual Rent'], ...['Ana Ruiz', 'Ben Okafor', 'Cleo Marsh', 'Dev Patel'].map((n, i) => [`10${i}`, n, 1500, '2029-12-31', 45000])], 'S');
+  assert.deepEqual(contentOffers(contact, contact.headers.map(guessField)), [], 'a contact person is not the tenant');
   const two = headerAndRows([['Suite', 'Business', 'Parent Co', 'SF', 'Annual Rent'], ...NAMES.map((n, i) => [`10${i}`, n, `${n} Holdings`, 1500, 45000])], 'S');
   assert.deepEqual(contentOffers(two, two.headers.map(guessField)), [], 'two columns of names: nothing is guessed');
   assert.equal(contentTable([['Property', 'Sq Ft', 'Sale Price'], ...NAMES.map((n) => [n, 1500, 900000])], 'S'), null, 'no rent, no lease field: not a roll');
@@ -161,7 +169,7 @@ test('spreadsheet: nothing is offered when a tenant heading exists, for notes or
 
 test('names are words, not figures, dates, codes or addresses; a column of them is distinct', () => {
   for (const v of ['Maple Leaf Bakery', 'Starbucks', '7-Eleven Store', 'Dr. Ana Ruiz, DDS']) assert.ok(nameLike(v), v);
-  for (const v of ['$45,000', '1,500', '12/31/2030', '2030', 'Dec 2030', '101', 'B-12', '12 Sample Road', 'n/a', '-', 45000, null]) assert.ok(!nameLike(v), String(v));
+  for (const v of ['$45,000', '1,500', '12/31/2030', '2030', 'Dec 2030', '101', 'B-12', '1BR/1BA', '12 Sample Road', 'leasing@example.com', 'n/a', '-', 45000, null]) assert.ok(!nameLike(v), String(v));
   assert.ok(nameColumn(['Maple Leaf Bakery', 'Vacant', 'Copperline Yoga', 'Bluefin Sushi Bar', 'Total']), 'a vacancy and a total are skipped');
   assert.equal(nameColumn(['Retail', 'Retail', 'Office', 'Retail']), null, 'repeats: a type, not tenants');
   assert.equal(nameColumn(['Maple Leaf Bakery', 'Copperline Yoga']), null, 'two rows are too few');
