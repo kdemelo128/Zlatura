@@ -186,10 +186,7 @@ const LINES = [['Gross Potential Rent', 120000], ['Vacancy Loss', -6000], ['Tota
 
 // slice 3, a single annual column: tests/reader-content-3.test.js
 
-test('slice 3 (T-12): quarter columns are read as quarters, never as months', { todo: 'slice 3: an income statement by its content' }, () => {
-  const s = t12.readStatement(R([['Account', 'Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025'], ...LINES.map(([l, v]) => [l, v / 4, v / 4, v / 4, v / 4])]));
-  assert.equal(s.stated.noi.value, 98000);
-});
+// slice 3, quarter columns: tests/reader-content-3.test.js
 
 test('slice 3 (T-12): Actual and Budget pairs in one heading row read the Actual columns only, asked', { todo: 'slice 3: an income statement by its content' }, () => {
   const ms = ['Jan 2025', 'Feb 2025', 'Mar 2025'];

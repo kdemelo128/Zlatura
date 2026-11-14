@@ -232,7 +232,7 @@ const HEADING = [
  */
 export function layoutOf(rows, { sheet = '', byContent = false } = {}) {
   // 1. the heading row: the first, in the top 40, with three or more months
-  let head = null;
+  /** @type {any} */ let head = null;
   for (const row of rows.slice(0, 40)) {
     const ms = row.cells.map(monthOf);
     const n = ms.filter(Boolean).length;
@@ -246,7 +246,7 @@ export function layoutOf(rows, { sheet = '', byContent = false } = {}) {
     }
   }
   // the import only (byContent): one amounts column headed as a year, "Actual" or "Amount" (kept only if the arithmetic agrees: importStatement)
-  if (!head && byContent) head = annualHead(rows);
+  if (!head && byContent) head = annualHead(rows) || quarterHead(rows);
   if (!head) throw new Error(`No months or total column were found${sheet ? ` on “${sheet}”` : ''}: a T-12 needs a row of month headings (Jan 2025, 01/2025 …) or a Total column.`);
   const monthCols = [];
   head.ms.forEach((m, c) => { if (m) monthCols.push({ c, ...m }); });
@@ -254,7 +254,7 @@ export function layoutOf(rows, { sheet = '', byContent = false } = {}) {
   if (totalCol < 0) totalCol = head.row.cells.findIndex((c) => typeof c === 'string' && TOTAL_HEAD.test(c.trim()));
   if (totalCol < 0 && head.annual !== undefined) totalCol = head.annual;
   if (totalCol < 0) totalCol = null;
-  const numCols = [...monthCols.map((m) => m.c), ...(totalCol !== null ? [totalCol] : [])];
+  const numCols = [...monthCols.map((m) => m.c), ...(totalCol !== null ? [totalCol] : []), ...(head.quarters || [])];
   const firstNum = Math.min(...numCols);
 
   // 2. the label column: left of the numbers, the one with the most words; an account-number column beside it is kept
@@ -271,7 +271,35 @@ export function layoutOf(rows, { sheet = '', byContent = false } = {}) {
     if (codes > body.length / 3) accountCol = c;
   }
   if (accountCol === labelCol) accountCol = null;
-  return { head, monthCols, totalCol, labelCol, accountCol, ...(head.annual !== undefined ? { byContent: 'annual' } : {}) };
+  return { head, monthCols, totalCol, labelCol, accountCol, ...(head.annual !== undefined ? { byContent: 'annual' } : {}), ...(head.quarters ? { byContent: 'quarters', quarterCols: head.quarters } : {}) };
+}
+
+/** A dated quarter heading: "Q1 2025", "Q1-25", "1Q25", "1Q 2025". { k } counts quarters from year 0, so four in a row are k, k+1, k+2, k+3. */
+const QUARTER_DATED = /^(?:q([1-4])|([1-4])q)[\s\-'/]*((?:19|20)\d\d|\d\d)$/i;
+const quarterOf = (c) => { const m = QUARTER_DATED.exec(String(c ?? '').trim()); if (!m) return null; const y = m[3].length === 2 ? 2000 + +m[3] : +m[3]; return y * 4 + (+(m[1] || m[2]) - 1); };
+
+/**
+ * The heading row of a statement laid out as four quarters with no Total column (the import only): the first row in the top
+ * 40 with no amount, four dated quarter headings in a row (Q1 to Q4 2025, or Q3 2024 to Q2 2025), each different, and no other
+ * column of amounts right of the labels. { row, ms, quarters: [four columns] } or null. Their sum is a year; no month is made.
+ */
+function quarterHead(rows) {
+  for (const row of rows.slice(0, 40)) {
+    if (row.cells.some(isAmountCell)) continue;
+    const qs = row.cells.map((c, i) => ({ i, k: i > 0 ? quarterOf(c) : null })).filter((x) => x.k !== null);
+    if (qs.length !== 4) continue;
+    const ks = qs.map((x) => x.k).sort((a, b) => a - b);
+    if (!ks.every((k, j) => j === 0 || k === ks[j - 1] + 1)) continue;
+    const body = rows.filter((x) => x.r > row.r);
+    const width = body.reduce((w, x) => Math.max(w, x.cells.length), row.cells.length);
+    const amounts = (c) => body.filter((x) => isAmountCell(x.cells[c])).length;
+    const cols = qs.map((x) => x.i);
+    const first = Math.min(...cols);
+    let other = false; for (let c = first; c < width; c++) if (!cols.includes(c) && amounts(c) >= 3) other = true;
+    if (other || cols.some((c) => amounts(c) < 3)) continue;
+    return { row, ms: row.cells.map(() => null), quarters: cols };
+  }
+  return null;
 }
 
 /** A heading for a statement's one amounts column that is not "Total": a year, a fiscal year, a year or twelve months ended, Actual, Amount. */
@@ -389,7 +417,7 @@ export const currencyRefusal = (sign) => (sign ? `Amounts in ${sign} can’t be 
  * isn't an amount (`unread`, also 0).
  */
 export function readStatement(rows, { corrections = {}, history = {}, suggest = true, sheet = '', numberFormat = 'us', paste = false, byContent = false } = {}) {
-  const { head, monthCols, totalCol, labelCol, accountCol, byContent: readBy } = layoutOf(rows, { sheet, byContent });
+  const { head, monthCols, totalCol, labelCol, accountCol, byContent: readBy, quarterCols = null } = layoutOf(rows, { sheet, byContent });
   // dated months in order; "Month 1…12" by their number
   const months = monthCols.map((m) => m.iso || `M${pad(m.index)}`);
   const body = rows.filter((x) => x.r > head.row.r);
@@ -403,7 +431,7 @@ export function readStatement(rows, { corrections = {}, history = {}, suggest = 
     const label = raw === null || raw === undefined ? '' : String(raw).trim();
     const account = accountCol !== null && x.cells[accountCol] !== null && x.cells[accountCol] !== undefined ? String(x.cells[accountCol]).trim() : '';
     const vals = monthCols.map((m) => amountOf(x.cells[m.c], numberFormat));
-    const tot = totalCol !== null ? amountOf(x.cells[totalCol], numberFormat) : NaN;
+    const tot = totalCol !== null ? amountOf(x.cells[totalCol], numberFormat) : quarterCols ? quarterSum(x, quarterCols, numberFormat) : NaN;
     const hasNum = vals.some(Number.isFinite) || Number.isFinite(tot);
     const key = normalizeLabel(label);
     if (!label && !hasNum) continue;
@@ -451,8 +479,19 @@ export function readStatement(rows, { corrections = {}, history = {}, suggest = 
     sinceMark.push(line);
   }
   if (!lines.length) throw new Error('No statement lines were found under the month headings.');
-  const period = periodOf({ head, monthCols, totalCol }, months, rows, lines);
+  const period = periodOf({ head, monthCols, totalCol, quarterCols }, months, rows, lines);
   return { sheet, months, labelCol, accountCol, totalCol, monthCols: monthCols.map((m) => m.c), lines, stated, subtotals, sections, headRow: head.row.r, period, ...(readBy ? { byContent: readBy } : {}) };
+}
+
+/**
+ * A line's four quarters added up, to whole cents: NaN when all four are blank (a heading); a line with some quarters
+ * printed and another blank is not read (a blank is never a zero here), and the error names it.
+ */
+function quarterSum(x, cols, fmt) {
+  const v = cols.map((c) => amountOf(x.cells[c], fmt));
+  if (v.every((a) => !Number.isFinite(a))) return NaN;
+  if (v.some((a) => !Number.isFinite(a))) throw new Error(`Row ${x.r} has a blank quarter: a quarter with no figure is not read as $0, so the four quarters can’t be added up to a year. Fill it in (a dash for zero), or import a statement with a Total column.`);
+  return cents(v.reduce((s, a) => s + a, 0));
 }
 
 /** A cell that isn't an amount, as short text (an Excel error such as #REF! included). */
@@ -466,7 +505,7 @@ const cellText = (v) => String(v && typeof v === 'object' ? (v.error ?? v.text ?
  * month heading two columns, `emptyCols` month columns blank on every line, `printed` the first line above the
  * headings that names a period (as text; no date is parsed from it).
  */
-function periodOf({ head, monthCols, totalCol }, months, rows, lines) {
+function periodOf({ head, monthCols, totalCol, quarterCols = null }, months, rows, lines) {
   const n = monthCols.length;
   const dated = n > 0 && monthCols.every((m) => m.iso);
   const key = (iso) => +iso.slice(0, 4) * 12 + +iso.slice(5) - 1;
@@ -487,6 +526,7 @@ function periodOf({ head, monthCols, totalCol }, months, rows, lines) {
   if (inARow && n === 12) basis = 'T-12';
   else if (inARow && n > 0 && n < 12) basis = `T-${n}`;
   else if (/ytd/i.test(totalHead)) basis = 'YTD';
+  else if (n === 0 && quarterCols) basis = 'annual';   // four quarters in a row (quarterHead): a year, summed line by line
   else if (n === 0 && totalCol !== null) basis = TOTAL_HEAD.test(totalHead.trim()) || YEARISH.test(totalHead) ? 'annual' : 'other';   // "Actual" or "Amount" alone: no period stated
   else if (n === 12 && indexes.every((v, i) => v === i + 1)) basis = 'T-12';
   const emptyCols = lines.length ? monthCols.map((_, i) => i).filter((i) => lines.every((l) => l.blank && l.blank.includes(i))).map((i) => months[i]) : [];
@@ -645,11 +685,13 @@ export function importStatement(rows, { file = '', sheet = '', corrections = {},
  */
 function agreesOrRefuse(st, sheet) {
   const where = sheet ? ` on “${sheet}”` : '';
-  const head = (st.period.columns.find((c) => c.kind === 'total') || {}).head || '';
+  const nm = st.period.nonMonthly;
+  const head = st.byContent === 'quarters' && nm ? `${nm.heads[0]} to ${nm.heads[nm.heads.length - 1]}` : (st.period.columns.find((c) => c.kind === 'total') || {}).head || '';
   const checked = st.subtotals.some((x) => x.covers.length) || (!statementTotals(st).unassigned && Object.keys(st.stated).length > 0);
   const bad = statementChecks(st).filter((c) => c.kind === 'stated');
-  if (!checked) throw new Error(`The amounts column${where} is headed “${head}”, not Total, and the statement has no total row its lines can be checked against, so it was not read. Rename the heading to Total if it is the year’s figures.`);
-  if (bad.length) throw new Error(`The amounts column${where} is headed “${head}”, not Total, and the statement’s own totals don’t add up with its lines (${bad[0].text}), so it was not read.`);
+  const what = st.byContent === 'quarters' ? `The statement${where} has quarter columns (${head}) and no Total column,` : `The amounts column${where} is headed “${head}”, not Total,`;
+  if (!checked) throw new Error(`${what} and the statement has no total row its lines can be checked against, so it was not read.${st.byContent === 'quarters' ? '' : ' Rename the heading to Total if it is the year’s figures.'}`);
+  if (bad.length) throw new Error(`${what} and the statement’s own totals don’t add up with its lines (${bad[0].text}), so it was not read.`);
 }
 
 const PROJECTION = /\b(budget|forecast|pro ?forma|projected|projection)\b/i;
@@ -1637,7 +1679,9 @@ export function valueChecks(t) {
   // columns headed as quarters or years: only the Total is read
   if (p.nonMonthly && p.nonMonthly.heads && p.nonMonthly.heads.length >= 2 && !t.months.length) {
     const h = p.nonMonthly.heads;
-    out.push({ id: 'period.quarters', kind: 'quarters', level: 'info', amount: 0, text: `The columns are ${p.nonMonthly.kind === 'years' ? 'fiscal years' : 'quarters'} (${h[0]} to ${h[h.length - 1]}); only the Total column is read, as one period.` });
+    out.push({ id: 'period.quarters', kind: 'quarters', level: 'info', amount: 0, text: (p.columns || []).some((c) => c.kind === 'total')
+      ? `The columns are ${p.nonMonthly.kind === 'years' ? 'fiscal years' : 'quarters'} (${h[0]} to ${h[h.length - 1]}); only the Total column is read, as one period.`
+      : `The columns are four quarters in a row (${h[0]} to ${h[h.length - 1]}) with no Total column: each line’s year is the sum of its four quarters, and the statement’s own totals agree with its lines. No month is made from them.` });
   }
   // one amounts column headed as a year, "Actual" or "Amount", read because the statement's totals agree with its lines (importStatement)
   const tc = !t.months.length && (p.columns || []).find((c) => c.kind === 'total');

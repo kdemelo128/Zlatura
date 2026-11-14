@@ -66,3 +66,42 @@ test('2: two amounts columns (2024 and 2025, or Budget and Actual) with no Total
 test('2: the OM statement reader (readStatement) is not changed: no content reading there', () => {
   assert.throws(() => T.readStatement(R([['Description', '2025'], ...LINES])), /No months or total column/);
 });
+
+/* ---- 3. four quarters with no Total column: summed to a year, line by line, only when the arithmetic agrees */
+
+const Q = ['Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025'];
+// uneven quarters, to the cent, so a sum is told from a copy of one quarter times four
+const quarters = (v) => [v * 0.24 + 0.01, v * 0.26 - 0.01, v * 0.25, v * 0.25].map((x) => Math.round(x * 100) / 100);
+
+test('3: four quarters in a row with no Total: each line is the sum of its quarters, to the cent; no month is made', () => {
+  const t = imp([['Account', ...Q], ...LINES.map(([l, v]) => [l, ...quarters(v)])]);
+  assert.deepEqual(lineTotals(t), { 'Gross Potential Rent': 120000, 'Vacancy Loss': -6000, 'Real Estate Taxes': 12000, Insurance: 4000 });
+  assert.deepEqual(t.months, []);
+  assert.equal(t.period.basis, 'annual');
+  assert.equal(t.stated.noi.value, 98000);
+  const note = T.valueChecks(t).find((c) => c.id === 'period.quarters');
+  assert.match(note.text, /sum of its four quarters/);
+});
+
+test('3: quarters that run over a year end (Q3 2024 to Q2 2025) are four in a row too', () => {
+  const t = imp([['Account', 'Q3 2024', 'Q4 2024', '1Q25', 'Q2-25'], ...LINES.map(([l, v]) => [l, ...quarters(v)])]);
+  assert.equal(t.stated.noi.value, 98000);
+});
+
+test('3: a blank quarter is never read as $0: the file is refused, naming the row', () => {
+  const rows = LINES.map(([l, v]) => [l, ...quarters(v)]);
+  rows[3][2] = null;   // Real Estate Taxes, Q2
+  assert.throws(() => imp([['Account', ...Q], ...rows]), /Row 5 has a blank quarter/);
+});
+
+test('3: quarters that are not four in a row, or whose totals disagree, are refused', () => {
+  assert.throws(() => imp([['Account', 'Q1 2025', 'Q2 2025', 'Q4 2025', 'Q1 2026'], ...LINES.map(([l, v]) => [l, ...quarters(v)])]), /No months or total column/);
+  assert.throws(() => imp([['Account', ...Q.slice(0, 3)], ...LINES.map(([l, v]) => [l, ...quarters(v).slice(0, 3)])]), /No months or total column/);
+  const off = LINES.map(([l, v]) => [l, ...quarters(l === 'Net Operating Income' ? v + 400 : v)]);
+  assert.throws(() => imp([['Account', ...Q], ...off]), /quarter columns .* don’t add up/);
+});
+
+test('3: quarters with a Total column are read as before (the Total only)', () => {
+  const t = imp([['Account', ...Q, 'Total'], ...LINES.map(([l, v]) => [l, ...quarters(v), v + 1])]);
+  assert.equal(lineTotals(t)['Gross Potential Rent'], 120001, 'the printed Total, not the sum');
+});
