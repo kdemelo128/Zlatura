@@ -186,6 +186,7 @@ async function reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridE
   else if (k === 'pdf' && !pages) out.push(`pdf-read-failed:${errClass(pdfErr)}`);
   else if ((k === 'xlsx' || k === 'text') && !grids && gridErr) out.push(`sheet-read-failed:${readWhy(gridErr)}`, ...(WHERE ? [`where:${gridErr.at || 'unknown'}`, `message-shape:${shape(gridErr.message)}`] : []));
   else if (v.scanned) out.push(`no-text-layer:${bucket((pages ? pages.pages.join('') : '').replace(/\s/g, '').length, CHAR_BUCKETS)}`);
+  else if (v.shape) out.push(`${v.shape}-not-a-rent-roll`);
   else if (outcome === 'identified') out.push(`no-reader-for-type:${v.looks}`);
   else if (v.ask.length) {
     const c = classify(v.text, info.name);
@@ -287,7 +288,7 @@ for (const u of units) {
       let facts = null;
       if (!lease && !v.scanned && v.looks && FACT_TYPES.includes(v.looks)) { const src = pages ? { pages: pages.pages } : grids ? { grids } : null; if (src) { try { facts = readFacts(v.looks, src); } catch { facts = null; } } }
       if (facts && (facts.fields.length || facts.asks.length)) { outcome = facts.fields.length ? 'accepted' : 'asked'; family = v.looks; factStats.files += 1; factStats.fields += facts.fields.length; factStats.asks += facts.asks.length; factsRead = true; }
-      else if (lease) { outcome = 'accepted'; family = 'lease'; } else if (v.scanned) { outcome = 'refused'; family = 'scan'; } else { outcome = 'asked'; family = v.ask.length ? `ask:${[...v.ask].sort().join('+')}` : 'unclassified'; if (!v.ask.length) outcome = 'refused'; }
+      else if (lease) { outcome = 'accepted'; family = 'lease'; } else if (v.scanned) { outcome = 'refused'; family = 'scan'; } else if (v.shape) { outcome = 'asked'; family = `shape:${v.shape}`; } else { outcome = 'asked'; family = v.ask.length ? `ask:${[...v.ask].sort().join('+')}` : 'unclassified'; if (!v.ask.length) outcome = 'refused'; }
     }
     if (REASONS && outcome === 'asked' && v.looks && !factsRead) outcome = 'identified'; // typed confidently, but the app has no reader for that type
     if (REASONS && outcome !== 'accepted') why = await reasonsFor({ file, upRes, info, v, pages, grids, intakeErr, gridErr, pdfErr, outcome });

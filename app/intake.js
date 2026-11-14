@@ -62,7 +62,7 @@ export function stage(plan, info, file, dd = null) {
     id: `f${++plan.seq}`, name: String(info.name ?? ''), file, kind: info.kind || 'other', size: info.size | 0, sha256: info.sha256 || null, pages: info.pages || null, textPages: /** @type {string[] | null} */ (info.textPages || null),
     type, typeBy: type ? 'reader' : null,
     confidence: type ? (ocrRead ? 'Read by OCR' : 'Read') : looks ? 'Looks like' : 'Not sure',
-    reason: type ? (v.route || REASONS[v.reader] || 'A reader on this device recognised it.') : looks ? `Its text reads like a ${typeLabel(looks).toLowerCase()}. Confirm it, or choose another type.` : v.scanned ? NO_TEXT : 'Nothing in it says what it is. Choose a type, or skip it.',
+    reason: type ? (v.route || REASONS[v.reader] || 'A reader on this device recognised it.') : looks ? `Its text reads like a ${typeLabel(looks).toLowerCase()}. Confirm it, or choose another type.` : v.scanned ? NO_TEXT : v.why ? v.why : 'Nothing in it says what it is. Choose a type, or skip it.',
     // a PDF with almost no text keeps its bytes in memory so the broker can ask for OCR (readScan); they are never stored
     scanned: !type && !!v.scanned && !!info.bytes, bytes: /** @type {Uint8Array | null} */ (!type && v.scanned && info.bytes ? info.bytes : null), ocr: false,
     ask: type ? [] : [...new Set([...(looks ? [looks] : []), ...(v.ask || []).filter(isType)])],
@@ -112,7 +112,8 @@ export function stage(plan, info, file, dd = null) {
   // pages a specific reader accepts apart from the file's own route: offered by page range. The import reads the whole file; the broker picks those pages there.
   for (const pg of parts.filter((x) => x.pages && isType(x.type) && x.type !== type)) {
     const range = pg.pages[0] === pg.pages[1] ? `Page ${pg.pages[0]}` : `Pages ${pg.pages[0]}-${pg.pages[1]}`;
-    another({ type: pg.type, typeBy: 'reader', confidence: 'Read', reason: `${range} read as ${typeLabel(pg.type).toLowerCase()}, apart from the rest of the file (${typeLabel(type).toLowerCase()}). The ${typeLabel(pg.type).toLowerCase()} import reads the whole file; you pick those pages there. Use this or the file’s own reading of them, not both.`, use: useLabel(pg.type), span: pg.pages });
+    const rest = type ? `apart from the rest of the file (${typeLabel(type).toLowerCase()})` : 'apart from the rest of the file, which is not typed yet';
+    another({ type: pg.type, typeBy: 'reader', confidence: 'Read', reason: `${range} read as ${typeLabel(pg.type).toLowerCase()}, ${rest}. The ${typeLabel(pg.type).toLowerCase()} import reads the whole file; you pick those pages there. Use this or the file’s own reading of them, not both.`, use: useLabel(pg.type), span: pg.pages });
   }
   return item;
 }
@@ -144,7 +145,7 @@ export async function readScan(plan, id, ocrText, onProgress) {
   const chars = text.replace(/\s/g, '').length;
   it.ocr = true; it.scanned = false; it.bytes = null; // asked once; the bytes are let go
   if (chars < 20) { it.confidence = 'Not sure'; it.reason = 'OCR found no readable text on its first page. Choose a type, or skip it.'; it.ask = []; return { ok: true, chars }; }
-  const v = identify({ name: it.name, pages: [text] });
+  const v = identify({ name: it.name, pages: [text], ocr: true });
   const looks = isType(v.type) ? v.type : isType(v.looks) ? v.looks : null; // OCR text never types a file by itself
   it.ask = [...new Set([...(looks ? [looks] : []), ...(v.ask || []).filter(isType)])];
   it.confidence = looks ? 'Looks like' : 'Not sure';

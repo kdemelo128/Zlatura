@@ -14,6 +14,7 @@ import { waltMethod } from './engine/walt.js';
 import { toCents } from './engine/money.js';
 import { scaleOf } from './scale.js';
 import { rentReading, psfPeriod, cellKind, median, plausible, READING_NAME } from './units.js';
+import { nameColumn, NOT_TENANT_HEADING } from './colcontent.js';
 import {
   project, rentRollSummary, validateRentRoll, validateLease, generateSteps, monthlyAmount, inPlace, rollover,
   dayOf, isoOf, addDays, addMonths, UNITS, DEFAULT_SETTINGS, fromOmRows,
@@ -859,6 +860,7 @@ async function readTable(file) {
   }
   const wb = await loadXlsx(file, getXlsx); // size, kind and the zip's real sizes are checked before ExcelJS sees the bytes
   let best = null;
+  const grids = [];
   wb.eachSheet((ws) => {
     if (ws.state && ws.state !== 'visible') return;
     const grid = [];
@@ -869,15 +871,19 @@ async function readTable(file) {
       row.eachCell({ includeEmpty: true }, (cell, c) => { if (badDate(cell.value)) bad++; vals[c - 1] = cellValue(cell.value); });
       grid.push(vals);
     });
+    grids.push({ grid, name: ws.name, bad });
     const t = headerAndRows(grid, ws.name);
     // a date cell that could not be read is blank (sheetread.js): the sheet says how many, once
     if (t && (!best || t.score > best.score)) best = bad ? { ...t, note: badDateNote(bad) } : t;
   });
+  // no sheet's headings pass: a sheet whose tenant column is told by its contents, offered in the dialog (contentTable)
+  if (!best) for (const g of grids) { const t = contentTable(g.grid, g.name); if (t && (!best || t.score > best.score)) best = g.bad ? { ...t, note: badDateNote(g.bad) } : t; }
   if (!best) throw new Error('No rent roll was found: it needs a row of headings such as Unit, Tenant, SF and Rent.');
   return best;
 }
 function parseCsv(text) {
-  const t = headerAndRows(csvRows(text).filter((r) => r.some((x) => String(x).trim())), 'CSV');
+  const grid = csvRows(text).filter((r) => r.some((x) => String(x).trim()));
+  const t = headerAndRows(grid, 'CSV') || contentTable(grid, 'CSV');
   if (!t) throw new Error('No rent roll was found: it needs a row of headings such as Unit, Tenant, SF and Rent.');
   return t;
 }
@@ -891,6 +897,55 @@ export function headerAndRows(grid, sheet) {
         .filter((x) => !/^(total|totals|grand total|subtotal)/i.test(String(x.find((v) => v !== null && v !== '') ?? '')));
       return { sheet, headers: hs, rows, score: hits * 100 + rows.length };
     }
+  }
+  return null;
+}
+
+const has = (v) => v !== null && v !== undefined && v !== '';
+/** Fields a heading names that make a table a rent roll's, beside its tenant: a size, a rent, a lease date or a unit. */
+const ROLL_FIELDS = new Set(['unit', 'sf', 'leaseStart', 'leaseEnd', 'annual', 'monthly', 'rent', 'psf', 'mpsf']);
+const SIZE_OR_RENT = new Set(['sf', 'annual', 'monthly', 'rent', 'psf', 'mpsf']);
+
+/**
+ * Columns whose values read as tenant names when no heading names the tenant (a "Business", "Customer" or "Store"
+ * column, or one with no heading): [{ col, field: 'tenant', text }], at most one. Offered, never chosen: the import
+ * dialog shows it with a button, and the column is read as the tenant only when the broker taps it. None when a
+ * column is already read as the tenant, or when two columns both read as names (nothing is guessed between them).
+ * @param {{ headers: string[], rows: any[][] }} table @param {(string|null)[]} guess the field each column is read as
+ * @returns {{ col: number, field: 'tenant', text: string }[]}
+ */
+export function contentOffers(table, guess) {
+  if (guess.includes('tenant')) return [];
+  const heads = table.headers || [];
+  const width = table.rows.reduce((w, r) => Math.max(w, r ? r.length : 0), heads.length);
+  const cand = [];
+  for (let i = 0; i < width; i++) {
+    if (guess[i] || NOT_TENANT_HEADING.test(heads[i] || '')) continue;
+    const n = nameColumn(table.rows.map((r) => (r ? r[i] : null)));
+    if (n) cand.push({ i, n });
+  }
+  if (cand.length !== 1) return [];
+  const { i, n } = cand[0];
+  const named = heads[i] ? `The “${heads[i]}” column` : `Column ${i + 1}, which has no heading,`;
+  return [{ col: i, field: 'tenant', text: `No heading names the tenant. ${named} holds ${n.distinct} different names (words, not figures or dates), so it looks like the tenant column. Read it as the tenant?` }];
+}
+
+/**
+ * A rent roll told by its contents, for a sheet whose headings alone do not pass (headerAndRows): the first row in the top
+ * twenty with two recognised headings, one of them a size or a rent, and a column under it whose values read as tenant
+ * names (contentOffers). The same shape headerAndRows returns, with `byContent` set; null when there is none. Only the
+ * rent roll import reads it: what a file is routed as is decided by its headings alone (ddintake.js).
+ */
+export function contentTable(grid, sheet) {
+  for (let r = 0; r < Math.min(20, grid.length); r++) {
+    const hs = (grid[r] || []).map((x) => (x === null || x === undefined ? '' : String(x)));
+    const guess = hs.map(guessField);
+    const known = guess.filter((g) => g && ROLL_FIELDS.has(g));
+    if (known.length < 2 || !known.some((g) => SIZE_OR_RENT.has(g))) continue;
+    const rows = grid.slice(r + 1).filter((x) => x && x.some(has))
+      .filter((x) => !/^(total|totals|grand total|subtotal)/i.test(String(x.find((v) => v !== null && v !== '') ?? '')));
+    const table = { sheet, headers: hs, rows };
+    if (contentOffers(table, guess).length) return { ...table, score: known.length * 100 + rows.length, byContent: true };
   }
   return null;
 }
@@ -1132,8 +1187,29 @@ function mapImport(rr, table, fileLabel, changed) {
   const fields = [['', '— skip —'], ['unit', 'Unit / suite'], ['tenant', 'Tenant'], ['unitType', 'Unit type'], ['sf', 'SF'], ['status', 'Status'], ['leaseStart', 'Lease start'], ['leaseEnd', 'Lease end'], ['monthly', 'Monthly rent'], ['annual', 'Annual rent'], ['rent', 'Rent (month or year not stated)'], ['psf', 'Rent / SF / yr'], ['mpsf', 'Rent / SF / month'], ['marketRent', 'Market rent'], ['deposit', 'Security deposit']];
   const asksBox = el('div'); asksBox.id = 'rr-asks';
   const rows = [];
-  table.headers.forEach((h, i) => {
-    if (!h) return;
+  const selects = new Map();
+  // a tenant column told by its contents: offered here, read as the tenant only when the broker taps it
+  const offers = contentOffers(table, guess);
+  const offerBox = el('div', 'map-offer'); offerBox.id = 'rr-content-offer';
+  for (const o of offers) {
+    offerBox.appendChild(el('p', 'hint-sm', o.text));
+    const b = el('button', 'btn btn-gray', `Read ${table.headers[o.col] ? `“${table.headers[o.col]}”` : `column ${o.col + 1}`} as the tenant`);
+    b.type = 'button'; b.id = 'rr-content-use';
+    b.addEventListener('click', () => {
+      guess[o.col] = o.field; chosen.add(o.col);
+      const sel = selects.get(o.col); if (sel) { sel.value = o.field; sel.dispatchEvent(new Event('change')); }
+      offerBox.textContent = '';
+      offerBox.appendChild(el('p', 'hint-sm', `${table.headers[o.col] ? `“${table.headers[o.col]}”` : `Column ${o.col + 1}`} is read as the tenant. Change it in the list below if that is wrong.`));
+      if (sel) sel.focus();   // the button is gone: focus goes to the choice it made
+    });
+    offerBox.appendChild(b);
+  }
+  if (offers.length) body.appendChild(offerBox);
+  const width = table.rows.reduce((w, x) => Math.max(w, x ? x.length : 0), table.headers.length);
+  Array.from({ length: width }, (_, i) => table.headers[i] || '').forEach((h0, i) => {
+    // a column with no heading is listed when it holds anything, so it can be read (as before, an empty one is not)
+    if (!h0 && !table.rows.some((x) => x && has(x[i]))) return;
+    const h = h0 || `Column ${i + 1} (no heading)`;
     const r = el('div', 'map-row');
     const hh = el('div', 'h', h);
     const sample = table.rows.slice(0, 2).map((x) => x[i]).filter((x) => x !== null && x !== undefined && x !== '').join(', ');
@@ -1144,6 +1220,7 @@ function mapImport(rr, table, fileLabel, changed) {
     sel.setAttribute('aria-label', `Read column ${h} as`);
     for (const [v, l] of fields) { const o = el('option', null, l); o.value = v; sel.appendChild(o); }
     sel.value = guess[i] || '';
+    selects.set(i, sel);
     const sc = el('select', 'compact');
     sc.setAttribute('aria-label', `Figures in column ${h} are`);
     for (const [v, l] of [['', 'Scale not stated'], ['1', SCALE_WORD[1]], ['1000', SCALE_WORD[1000]]]) { const o = el('option', null, l); o.value = v; sc.appendChild(o); }

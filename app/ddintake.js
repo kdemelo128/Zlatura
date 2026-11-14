@@ -13,6 +13,7 @@ import { docKind, ROLL_TITLE, T12_TITLE } from './rrdoc.js';
 import { pdfStatementChoices } from './pdfstatement.js';
 import { layoutOf, sheetChoices } from './t12.js';
 import { headerAndRows } from './rentrollui.js';
+import { sheetShape, tableShape, isRentSchedule } from './tableshape.js';
 import { classify, scoreText, suggestFromName } from './ddtypes.js';
 import { kindOf } from './dd.js';
 import { sha256Hex } from './filehash.js';
@@ -25,6 +26,38 @@ const READER_TYPES = ['om', 'rentroll', 't12'];
 
 /** The first lines of a page: where a title sits. */
 const topOf = (page) => String(page).split('\n').filter((l) => l.trim()).slice(0, 8).join('\n');
+
+/** Whether the first page of a PDF that is not itself titled as a rent roll says the document is an appraisal or a broker opinion of value: 'appraisal', 'bov' or null. */
+function appraisalFirst(pages) {
+  const first = String(pages[0] || '');
+  if (ROLL_TITLE.test(topOf(first))) return null;
+  if (/broker'?s?\s+opinion\s+of\s+value|\bBOV\b/i.test(first)) return 'bov';
+  const sc = scoreText(first).find((x) => x.id === 'appraisal');
+  return sc && sc.score >= 2 ? 'appraisal' : null;
+}
+
+/**
+ * The rent roll table of a sheet, or the shape that keeps it from being one: { t, sh }. The rent roll import's own header test
+ * (headerAndRows) comes first; a header row that is a unit mix or a lease comp table is passed over, so a unit mix summary above
+ * a real rent roll does not hide the roll. Only when every table found is such a shape is the sheet that shape.
+ * @param {{ sheet: string, rows: { cells: any[] }[] }} g
+ */
+function rollTable(g) {
+  const grid = g.rows.map((r) => r.cells);
+  let at = 0; let first = null;
+  for (let k = 0; k < 4 && at < grid.length; k++) {
+    const t = headerAndRows(grid.slice(at), g.sheet);
+    if (!t) break;
+    const sh = tableShape(t.headers);
+    if (!sh) return { t, sh: null };
+    first = first || sh;
+    const same = (row) => (row || []).map((x) => (x === null || x === undefined ? '' : String(x))).join('\u0001') === t.headers.join('\u0001');
+    const h = grid.findIndex((row, j) => j >= at && same(row));
+    if (h < 0) break;
+    at = h + 1;
+  }
+  return { t: null, sh: first || sheetShape(g.rows) };
+}
 
 /**
  * Does the reader of `type` accept this PDF's own content? Only a rent roll's table or an operating statement's
@@ -84,18 +117,29 @@ function pageParts(pages, layouts, kinds) {
  * or CSV's sheets: [{ sheet, rows: [{ r, cells }] }]) }. Output: { type, typeBy ('reader'|null), reader, looks (a type
  * the text clearly reads as, to be confirmed with a tap: never set by itself), readers (only when two readers both accept a workbook: ['t12', 'rrsheet']), ask (the types to offer, best first),
  * suggest (from the name), scanned, text }. Only a reader sets `type`. A budget, an annual-only statement, a T-12 or an
- * appraisal in a PDF, or text that reads as an OM, rent roll or T-12, is never typed by its text: it asks.
- * @param {{ name?: string, pages?: string[] | null, layouts?: any, grids?: any[] | null }} f
+ * appraisal in a PDF, or text that reads as an OM, rent roll or T-12, is never typed by its text: it asks. `ocr`: the pages' text was written by OCR, so a short text is never taken for real text (textlayer.js).
+ * @param {{ name?: string, pages?: string[] | null, layouts?: any, grids?: any[] | null, ocr?: boolean }} f
  */
-export function identify({ name = '', pages = null, layouts = null, grids = null }) {
+export function identify({ name = '', pages = null, layouts = null, grids = null, ocr = false }) {
   const out = { type: /** @type {string | null} */ (null), typeBy: /** @type {'reader'|null} */ (null), reader: /** @type {string | null} */ (null), looks: /** @type {string | null} */ (null), ask: /** @type {string[]} */ ([]), suggest: suggestFromName(name), scanned: false, text: '' };
   let omRead = false;
   let dk = /** @type {any} */ (null);
   if (pages) {
     out.text = pages.slice(0, 3).join('\n');
-    dk = docKind(pages, layouts);
+    dk = docKind(pages, layouts, { ocr });
     out.scanned = dk.kind === 'scanned';
-    if (dk.kind === 'rentroll') return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrpdf' };
+    // a table with a rent roll's columns that is a unit mix or a lease comparable table (rrdoc.js docKind says so): never read as a rent roll
+    if (dk.shape) {
+      const lc = dk.shape === 'leasecomp';
+      return { ...out, ...(lc ? {} : { looks: 'unitMix' }), ask: lc ? [] : ['unitMix'], why: lc ? 'This is a table of lease comparables (an address, a size, a rate, a term and a start date for each). It is not a rent roll, and there is no importer for lease comparables, so it is not read.' : 'This is a unit mix (a count of units for each type), not a rent roll. Confirm it, and its figures are read for you to check.', shape: dk.shape };
+    }
+    if (dk.kind === 'rentroll') {
+      // an appraisal or a broker opinion of value that carries a titled rent roll page is that document, not a rent roll: asked, with no reader, and its roll pages offered apart
+      const heldBy = appraisalFirst(pages);
+      if (!heldBy) return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrpdf' };
+      const parts = pageParts(pages, layouts, ['rentroll']);
+      return { ...out, ask: heldBy === 'bov' ? ['om', 'appraisal'] : ['appraisal'], why: `Its first page reads as ${heldBy === 'bov' ? 'a broker opinion of value' : 'an appraisal'}, and a rent roll is only one part of it, so the whole file is not read as a rent roll. Choose what it is${parts.length ? '; the rent roll pages are offered apart from it' : ''}.`, ...(parts.length ? { parts } : {}) };
+    }
     if (dk.kind === 't12' && pdfStatementChoices(pages, { layouts }).some((c) => c.eligible)) {
       // a title that says operating statement keeps the statement route; a rent roll on another page is offered by its pages, never read in its place
       const parts = pageParts(pages, layouts, ['rentroll']);
@@ -124,9 +168,12 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
   } else if (grids) {
     // the T-12 import's own test, sheet by sheet: a sheet it would read as an actual statement (not a budget or projection), with month columns
     const choices = sheetChoices(grids, { file: name });
-    const t12 = choices.filter((c) => !c.error && !c.projection).flatMap((c) => { try { const n = layoutOf(grids[c.i].rows, { sheet: grids[c.i].sheet }).monthCols.length; return n >= 3 ? [{ i: c.i, sheet: c.sheet, hidden: c.hidden, score: n }] : []; } catch { return []; } });
+    // a rent schedule (a tenant or suite beside month columns, and too few headings for the rent roll import: a rent roll with month columns is the one question below), a unit mix or a lease comparable table has the columns of a statement or a rent roll
+    // but is neither: it is set aside here and asked below, never read as one
+    const schedule = new Set(); const shaped = new Map();
+    const t12 = choices.filter((c) => !c.error && !c.projection).flatMap((c) => { try { const L = layoutOf(grids[c.i].rows, { sheet: grids[c.i].sheet }); const n = L.monthCols.length; if (n >= 3 && isRentSchedule(L.head.row.cells, L.head.ms) && !accepts(() => headerAndRows(grids[c.i].rows.map((r) => r.cells), grids[c.i].sheet))) { schedule.add(c.i); return []; } return n >= 3 ? [{ i: c.i, sheet: c.sheet, hidden: c.hidden, score: n }] : []; } catch { return []; } });
     // the rent roll import's own test, sheet by sheet: a row of three or more recognised headings (its score is how many)
-    const roll = grids.flatMap((g, i) => { try { const t = headerAndRows(g.rows.map((r) => r.cells), g.sheet); return t ? [{ i, sheet: g.sheet, hidden: !!g.hidden, score: Math.floor(t.score / 100) }] : []; } catch { return []; } });
+    const roll = grids.flatMap((g, i) => { try { const { t, sh } = rollTable(g); if (sh) { shaped.set(i, sh); return []; } if (schedule.has(i)) return []; return t ? [{ i, sheet: g.sheet, hidden: !!g.hidden, score: Math.floor(t.score / 100) }] : []; } catch { return []; } });
     // a sheet both readers accept is never routed by score (recognised headings and month columns are not comparable): it is one question
     const both = roll.filter((r) => t12.some((t) => t.i === r.i)).map((r) => r.i);
     const ambiguous = both.map((i) => grids[i].sheet);
@@ -148,6 +195,20 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
     if (roll.length) return { ...out, type: 'rentroll', typeBy: 'reader', reader: 'rrsheet', parts, ...more };
     if (ambiguous.length) return { ...out, ask: ['rentroll', 't12'], ...more };
     if (hiddenRoll.length) return { ...out, ask: ['rentroll'], ...more };
+    const sheetsOf = (pick) => [...pick].map((i) => `“${grids[i].sheet}”`).join(', ');
+    const comps = [...shaped].filter(([, v]) => v === 'leasecomp').map(([i]) => i);
+    const mixes = [...shaped].filter(([, v]) => v === 'unitmix').map(([i]) => i);
+    if (comps.length || mixes.length || schedule.size) {
+      out.text = cellText(grids);
+      const why = [
+        comps.length ? `Sheet ${sheetsOf(comps)} is a table of lease comparables (an address, a size, a rate, a term and a start date for each). It is not a rent roll, and there is no importer for lease comparables, so it is not read.` : '',
+        mixes.length ? `Sheet ${sheetsOf(mixes)} is a unit mix (a count of units for each type), not a rent roll. Confirm it, and its figures are read for you to check.` : '',
+        schedule.size ? `Sheet ${sheetsOf(schedule)} is a rent schedule by month for each tenant. It is not an operating statement, and its months are not added up into one rent, because nothing here says what period each figure covers. Import a rent roll with a stated rent, or enter the rents by hand.` : '',
+      ].filter(Boolean).join(' ');
+      // a unit mix alone is the unit mix reader's (its figures are checked and asked about); the others have no reader
+      if (mixes.length && !comps.length && !schedule.size) return { ...out, looks: 'unitMix', ask: ['unitMix'], why, shape: 'unitmix', ...more };
+      return { ...out, ask: schedule.size && !comps.length ? ['rentroll'] : [], why, shape: comps.length ? 'leasecomp' : 'schedule', ...more };
+    }
     out.text = cellText(grids);
   }
   const c = classify(out.text, name);
@@ -191,10 +252,10 @@ export async function intake(file, { getFflate, getXlsx, readPdf, problem = (e) 
   if (info.refuse && !(up.kind === 'pdf' || up.kind === 'image')) return info;
   try {
     if (up.kind === 'pdf' && bytes && !info.refuse) {
-      const { pages, layouts } = await readPdf(bytes.slice());
+      const { pages, layouts, ocr } = /** @type {any} */ (await readPdf(bytes.slice()));
       info.pages = pages.length || null;
       info.textPages = pages;   // held in memory for Ask Monal's document search (docsession.js); never stored
-      info.verdict = identify({ name: file.name, pages, layouts: layouts.length === pages.length ? layouts : null });
+      info.verdict = identify({ name: file.name, pages, layouts: layouts.length === pages.length ? layouts : null, ocr: !!ocr });
       // a scan keeps its bytes in memory for the broker's choice to read its first page; they are never stored
       if (info.verdict.scanned) info.bytes = bytes;
     } else if ((up.kind === 'xlsx' || up.kind === 'text') && !up.refuse) {

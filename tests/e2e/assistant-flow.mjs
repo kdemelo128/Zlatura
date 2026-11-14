@@ -77,7 +77,9 @@ for (const [size, opts] of SIZES) {
     check(`${size}: the bird is a labelled button, 44 px or more`, await page.evaluate(() => { const b = document.getElementById('assistant-fab'); const r = b.getBoundingClientRect(); return b.getAttribute('aria-label') === 'Ask Monal' && r.width >= 44 && r.height >= 44 && b.tagName === 'BUTTON'; }));
     for (const v of ['home', 'deal', 'comps', 'tools', 'review', 'settings']) {
       await page.evaluate((x) => { location.hash = `#${x}`; }, v); await page.waitForTimeout(250);
-      check(`${size}: the bird is on ${v}`, await page.locator('#assistant-fab').isVisible());
+      // the one exception: New look Home while its ask bar is on screen (the bar opens the same panel)
+      const askCase = await page.evaluate(() => document.documentElement.dataset.look === 'new' && !!document.querySelector('#view-home:not([hidden]) .home-ask') && document.body.classList.contains('home-ask-seen'));
+      check(`${size}: the bird is on ${v}${askCase ? ' (hidden: the ask bar is in view)' : ''}`, askCase ? !(await page.locator('#assistant-fab').isVisible()) && (await page.locator('.home-ask').isVisible()) : await page.locator('#assistant-fab').isVisible());
     }
     await page.evaluate(() => { location.hash = '#underwrite'; }); await page.waitForTimeout(900);
     const full = await page.evaluate(() => document.body.classList.contains('uw-full'));

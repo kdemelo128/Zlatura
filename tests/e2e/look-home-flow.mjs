@@ -68,7 +68,7 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
   const newEmpty = await actions(page);
   const lost = classicEmpty.filter((a) => !newEmpty.includes(a));
   check(`${size}: every Classic Home control is still there (no deals)`, lost.length === 0, `missing: ${lost.join(' | ')}`);
-  check(`${size}: the New look draws the summary as one line, not four tiles`, (await page.locator('.home-sumline').count()) === 1 && (await page.locator('#home-root .home-tiles .tile').count()) === 0 && /active deals?/.test(await page.textContent('.home-sumline')));
+  check(`${size}: the New look draws the summary as one line, not four tiles`, (await page.locator('.home-sumline').count()) === 1 && (await page.locator('#home-root .home-tiles .tile').count()) === 0 && /active deals?/i.test(await page.textContent('.home-sumline')));
   const empties = await page.locator('#view-home .notice').allTextContents();
   check(`${size}: empty states say what to do next, as buttons`, empties.some((t) => /No deals yet/.test(t) && /Read an OM/.test(t)) && empties.some((t) => /Nothing to do yet/.test(t) && /Add a task/.test(t)) && empties.some((t) => /No contacts yet/.test(t) && /Add a contact/.test(t)) && empties.some((t) => /fictional example/.test(t)), empties.join(' || '));
   for (const scheme of ['light', 'dark']) {
