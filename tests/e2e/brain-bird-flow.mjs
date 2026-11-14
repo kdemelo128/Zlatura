@@ -9,6 +9,8 @@ import { phone, BASE, finish } from './lib.mjs';
 const AXE = createRequire(import.meta.url).resolve('axe-core/axe.min.js');
 const R = []; const check = (n, c, d = '') => R.push([c ? 'PASS' : 'FAIL', n, d]);
 const SERVER = 'https://ai.example.test';
+/** The origin of a URL ('' when it has none): compared whole, never as a prefix (a prefix would also match ai.example.test.evil). */
+const originOf = (u) => { try { return new URL(u).origin; } catch { return ''; } };
 const SIZES = [['phone', {}], ['desktop', { viewport: { width: 1280, height: 900 }, isMobile: false, hasTouch: false, userAgent: undefined, deviceScaleFactor: 1 }]];
 
 const stub = () => {
@@ -71,7 +73,7 @@ for (const [size, opts] of SIZES) {
       return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ blocks: [{ text: 'From the firm server.', sources: [] }], searches: 0, model: 'x' }) });
     });
     const away = []; const origin = new URL(BASE).origin;
-    page.on('request', (r) => { if (!r.url().startsWith(origin) && !r.url().startsWith('data:') && !r.url().startsWith('blob:') && !r.url().startsWith(SERVER)) away.push(r.url()); });
+    page.on('request', (r) => { const u = r.url(); if (!/^(data|blob):/.test(u) && ![origin, SERVER].includes(originOf(u))) away.push(u); });
     const log = () => page.evaluate(() => window.__monalBrainTest.log);
     const open = async () => { await page.click('#assistant-fab'); await page.waitForSelector('dialog.assist[open]'); await page.waitForTimeout(150); };
     const close = async () => { await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('dialog.assist[open]')); };

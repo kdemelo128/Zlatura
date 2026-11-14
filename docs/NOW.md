@@ -9,7 +9,7 @@ Read this first in every session; update it on every PR. Everything else
 (`docs/PLAN_STATUS.md`, the master plan, the acceptance matrix) is read by
 section with grep, never in full.
 
-- **Version:** 4.7.178
+- **Version:** 4.7.179
 - **Current branch:** `codex/comps-new-look` (draft PR #160): Comps-only New look controls and phone layout. Synced main 4.7.167, preserving Claude’s tool, assistant and command-palette changes. Tested with synthetic fixtures only: 266 Chromium checks on main 4.7.165 plus this UI; quick/type pass, 646 displayed figures unchanged, three rendered UI guard mutations detected. Full regression on that snapshot is still running and has failures under investigation; final synchronized checks pending. Deals #159, Tools 4.7.161 and Documents 4.7.162 are already incorporated. The coordination README remains the sole ownership table. Nothing from this PR is merged or deployed.
 - **Merged:**
   - bugs C, A and B (4.7.3–4.7.5);

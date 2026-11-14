@@ -6,6 +6,8 @@
 import { phone, BASE, finish } from './lib.mjs';
 const R = []; const check = (n, c, d = '') => R.push([c ? 'PASS' : 'FAIL', n, d]);
 const SERVER = 'https://ai.example.test';
+/** The origin of a URL ('' when it has none): compared whole, never as a prefix (a prefix would also match ai.example.test.evil). */
+const originOf = (u) => { try { return new URL(u).origin; } catch { return ''; } };
 const SIZES = [['phone', {}], ['desktop', { viewport: { width: 1280, height: 900 }, isMobile: false, hasTouch: false, userAgent: undefined, deviceScaleFactor: 1 }]];
 const EVIL = 'Rates are near 6%. <img src=x onerror="window.__pwned=1"> <script>window.__pwned=2</script>';
 
@@ -36,7 +38,7 @@ for (const [size, opts] of SIZES) {
     const r = reply || { status: 200, json: { blocks: [{ text: EVIL, sources: [{ url: 'https://example.com/rates', title: 'Example Rates Survey' }, { url: 'javascript:alert(1)', title: 'bad' }] }], searches: 1, model: 'claude-opus-5-5' } };
     return route.fulfill({ status: r.status, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify(r.json) });
   });
-  const outside = []; page.on('request', (r) => { if (r.url().startsWith(SERVER) && r.method() !== 'OPTIONS') outside.push(r.url()); });
+  const outside = []; page.on('request', (r) => { if (originOf(r.url()) === SERVER && r.method() !== 'OPTIONS') outside.push(r.url()); });
   const open = async () => { await page.click('#assistant-fab'); await page.waitForSelector('dialog.assist[open]'); await page.waitForTimeout(150); };
   const close = async () => { await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('dialog.assist[open]')); };
   const typeAndAsk = async (q, web) => {

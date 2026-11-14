@@ -13,3 +13,7 @@ cbec77bbac6f5ec7a7c2dacf2665471813765098:tests/hub.test.js:generic-api-key:70
 
 # gitleaks false positive, per commit: a fake token in tests/hub-box.test.js (an earlier commit of this branch; the line now computes it). Not a credential.
 3ba268d23dd1ea4c549e8308add4a59b1db3130c:tests/hub-box.test.js:generic-api-key:12
+
+# gitleaks false positives, per commit: invented fake Census keys in tests (K6, 2026-11-14; the files now build them at run time). Not credentials.
+d4ebc7606a31c1abf3c9a934b6259a469df470d2:tests/e2e/publicdata-flow.mjs:generic-api-key:43
+52613d56cf100d810971f80f7028d3914c472ab5:tests/backup.test.js:generic-api-key:454

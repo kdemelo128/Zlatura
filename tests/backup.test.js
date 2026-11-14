@@ -451,7 +451,7 @@ test('a fee record that was edited by hand or damaged is read without an error, 
 });
 
 test('K6: the broker\'s Census key is never in a backup, never restored, and never removed by a restore', async () => {
-  const SECRET = 'abcdef0123456789abcdef0123456789abcdef01';
+  const SECRET = ['abcdef0123456789', 'abcdef0123456789', 'abcdef01'].join(''); // invented, built at run time (not a credential)
   const b = await buildBackup({ kv: { 'publicdata.key': SECRET, 'crm.tasks': [] }, appVersion: '4.7.172' });
   assert.ok(!('publicdata.key' in b.kv));
   assert.ok(!JSON.stringify(b).includes(SECRET), 'the key text is nowhere in the file');
