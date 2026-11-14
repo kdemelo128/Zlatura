@@ -64,8 +64,10 @@ async function targets(page, name) {
   check('the card is in Settings under Documents and AI', await page.$eval('#settings-brain', (c) => !!c.closest('#set-g-ai')));
   check('three sizes as labelled radios, Standard chosen', JSON.stringify(await page.$$eval('#settings-brain input[type=radio]', (r) => r.map((x) => [x.closest('label').querySelector('b').textContent, x.checked]))) === JSON.stringify([['Small', false], ['Standard', true], ['Large', false]]));
   check('the card says it is off', (await txt(page, '#settings-brain .count')) === 'off');
-  await page.waitForTimeout(200);
-  check('the device line already says WebGPU is missing', /WebGPU/.test(await txt(page, '.brain-status')) || (await txt(page, '.brain-status')).startsWith('Off'));
+  check('before anything is tapped the line says nothing was checked or downloaded', (await txt(page, '.brain-status')).startsWith('Off. Nothing is downloaded'));
+  await page.click('#brain-check');
+  await page.waitForFunction(() => /WebGPU/.test(document.querySelector('.brain-status').textContent));
+  check('Check this device says WebGPU is missing', /does not offer WebGPU/.test(await txt(page, '.brain-status')));
   await page.click('#brain-on');
   await page.waitForFunction(() => /WebGPU/.test(document.querySelector('.brain-status').textContent));
   const msg = await txt(page, '.brain-status');
@@ -82,6 +84,7 @@ for (const look of ['new', 'classic']) {
   const { browser, page, errors, requests } = await open(look, 'gpu');
   const L = await page.evaluate(() => document.documentElement.dataset.look);
   check(`[${look}] the look is applied`, L === look || (look === 'classic' && L !== 'new'), String(L));
+  await page.click('#brain-check');
   await page.waitForFunction(() => /can run/.test(document.querySelector('.brain-status').textContent));
   check(`[${look}] the device line says it can run the Standard size`, /can run the Standard size/.test(await txt(page, '.brain-status')));
   await page.evaluate(() => { window.__brainHold = true; });

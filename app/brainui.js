@@ -48,8 +48,10 @@ export function brainCard(section) {
   cancel.id = 'brain-cancel';
   const remove = mk('Remove the brain', () => { brain.remove(); }, 'btn-gray');
   remove.id = 'brain-remove';
+  const check = mk('Check this device', () => {}, 'btn-gray');
+  check.id = 'brain-check';
   const acts = el('div', 'set-ctl');
-  acts.append(on, cancel, remove);
+  acts.append(on, check, cancel, remove);
 
   /** Which sizes can run here, said once the device has been asked (not on every redraw). */
   let support = { ok: true, why: '', model: '' };
@@ -59,6 +61,7 @@ export function brainCard(section) {
     const busy = s.phase === 'downloading' || s.phase === 'checking';
     on.hidden = busy || s.phase === 'ready';
     on.textContent = s.phase === 'unsupported' ? 'Try again' : `Turn on (${m.label})`;
+    check.hidden = busy || s.phase === 'ready';
     cancel.hidden = !busy;
     remove.hidden = s.phase !== 'ready';
     bar.hidden = s.phase !== 'downloading';
@@ -72,7 +75,7 @@ export function brainCard(section) {
       : s.phase === 'ready' ? `Ready. The ${m.label} size is on this device, and ${PRODUCT} can use it. Nothing you type leaves the device.`
       : s.phase === 'unsupported' ? s.why
       : s.phase === 'removed' ? `Removed. The ${m.label} size’s files are deleted from this device.`
-      : s.why || (support.model === s.model && support.why) || 'Off. Nothing is downloaded until you turn it on.';
+      : s.why || (support.model === s.model && support.why) || 'Off. Nothing is downloaded until you turn it on, and the device is checked first.';
   };
   const made = Date.now();
   const unsub = brain.subscribe((s) => {
@@ -80,15 +83,16 @@ export function brainCard(section) {
     // attached, stops listening after a few seconds
     if (!body.isConnected && Date.now() - made > 5000) { unsub(); return; }
     draw(s);
-    if (s.phase === 'off' && support.model !== s.model) askDevice();
   });
   draw(brain.state);
-  // the device check for the chosen size, shown beside the sizes; it only asks the browser, it downloads nothing
+  // the device check for the chosen size: only when the broker asks (a probe of the graphics chip on every Settings draw would
+  // log a browser warning on machines without one); it asks the browser and downloads nothing
   const askDevice = () => {
     const model = brain.state.model;
-    brain.check().then((r) => { support = { ...r, model }; if (brain.state.model === model && (brain.state.phase === 'off' || brain.state.phase === 'removed')) draw(brain.state); }).catch(() => {});
+    check.disabled = true;
+    brain.check().then((r) => { support = { ...r, model }; check.disabled = false; if (brain.state.model === model && (brain.state.phase === 'off' || brain.state.phase === 'removed')) draw(brain.state); }).catch(() => { check.disabled = false; });
   };
-  askDevice();
+  check.addEventListener('click', askDevice);
 
   body.append(fs, status, bar, acts);
   card.appendChild(body);
