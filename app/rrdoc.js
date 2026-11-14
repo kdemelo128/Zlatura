@@ -48,7 +48,9 @@ export function docKind(pages, layouts = null, { ocr = false } = {}) {
   // a table with a rent roll's columns that is a unit mix or a lease comparable table is neither a rent roll nor asked about as one
   const shape = roll && !(roll.columns || []).some((c) => c.kind === 'suite') ? tableShape((roll.columns || []).map((c) => c.label)) : null;
   if (shape) return { ...out('unknown', [shape === 'unitmix' ? 'The table is a unit mix (a count of units for each type), not a rent roll.' : 'The table is a list of lease comparables (an address, a size, a rate, a term and a start date), not a rent roll.']), shape };
-  if (roll && titled) return out('rentroll', [`A rent roll table of ${roll.rows.length} rows${ROLL_TITLE.test(head) ? ', titled as one' : ', with an “As of” date'}.`]);
+  // a tenant column told by its contents (omroll.js contentHeaderAt) is said, and its rows are held behind that check until the broker accepts it
+  const byContent = roll && (roll.issues || []).some((i) => i.kind === 'tenant-content') ? ' No heading names the tenant: that column was told by what it holds, so check it before using the rows.' : '';
+  if (roll && titled) return out('rentroll', [`A rent roll table of ${roll.rows.length} rows${ROLL_TITLE.test(head) ? ', titled as one' : ', with an “As of” date'}.${byContent}`]);
   if (T12_TITLE.test(head) || monthLine(pages)) return out('t12', ['It reads like an operating statement (month columns or a statement title).']);
   return out('unknown', [roll ? 'There is a table that looks like a rent roll, but nothing on the first two pages says this is one.' : 'No rent roll table was found.']);
 }

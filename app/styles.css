@@ -2291,8 +2291,12 @@ dialog.assist-page .sheet-card { height: min(640px, calc(100dvh - 24px)); }
 .assist-go, .assist-chip, .assist-confirm .btn, .assist-foot .btn, dialog.assist .sheet-head .btn { min-height: 44px; min-width: 44px; }
 .assist-chip { white-space: normal; text-align: left; height: auto; padding-block: 8px; }
 .assist-confirm { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
-.assist-foot { flex-wrap: nowrap; align-items: center; }
-.assist-input { flex: 1; min-width: 0; min-height: 44px; font-size: 16px; }
+.assist-foot { flex-wrap: wrap; align-items: center; }
+.assist-input { flex: 1 1 9rem; min-width: 0; min-height: 44px; font-size: 16px; }
+.assist-web-btn { flex: 1 1 100%; }
+.assist-web-btn[hidden] { display: none; }
+.assist-answer .assist-note { font-size: var(--t-13); }
+.assist-source { overflow-wrap: anywhere; min-height: 44px; display: inline-flex; align-items: center; }
 .assist-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
 
 /* the line shown while a scanned PDF is read by OCR (ocrprogress.js): at the foot, takes no focus */

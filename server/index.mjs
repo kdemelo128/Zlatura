@@ -17,15 +17,15 @@
  *   MAX_BODY_MB        default 40
  *   RATE_PER_MIN       AI requests a minute per device, default 20
  *   AI_DAILY_REQUESTS, AI_JOB_CAP_CENTS, AI_DEVICE_DAY_CAP_CENTS, AI_SERVER_DAY_CAP_CENTS,
- *   AI_PRICE_IN_CENTS_PER_MTOK, AI_PRICE_OUT_CENTS_PER_MTOK, STT_PRICE_CENTS_PER_MIN
- *                      spending limits in whole cents (README: placeholders until the owner sets them)
+ *   AI_PRICE_IN_CENTS_PER_MTOK, AI_PRICE_OUT_CENTS_PER_MTOK, AI_WEB_SEARCH_CENTS, STT_PRICE_CENTS_PER_MIN
+ *                      spending limits in whole cents (README: the caps are placeholders until the owner sets them)
  *
  * No request body, document, token or transcript is logged or stored. */
 
 import http from 'node:http';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { extract, assist, meeting, research, AiError, MODEL } from './ai.mjs';
+import { extract, assist, ask, meeting, research, AiError, MODEL } from './ai.mjs';
 import { costCents, ledger, dollars, untilReset } from './budget.mjs';
 import { readTokensFile, parseHashList, matchDevice, hashToken, assertDistinct } from './tokens.mjs';
 
@@ -51,12 +51,13 @@ export function config(env = process.env) {
     maxBody: Math.max(1, Number(env.MAX_BODY_MB) || 40) * 1024 * 1024,
     ratePerMin: Math.max(1, Number(env.RATE_PER_MIN) || 20),
     port: Number(env.PORT) || 8787,
-    // PLACEHOLDER figures until the owner names them (server/README.md)
+    // the caps are PLACEHOLDER figures until the owner names them; the prices are Anthropic's list price as of 2026-11 (server/README.md)
     dailyRequests: whole(env, 'AI_DAILY_REQUESTS', 200),
     jobCents: whole(env, 'AI_JOB_CAP_CENTS', 300),
     deviceDayCents: whole(env, 'AI_DEVICE_DAY_CAP_CENTS', 1500),
     serverDayCents: whole(env, 'AI_SERVER_DAY_CAP_CENTS', 3000),
-    prices: { inCentsPerMTok: whole(env, 'AI_PRICE_IN_CENTS_PER_MTOK', 1500), outCentsPerMTok: whole(env, 'AI_PRICE_OUT_CENTS_PER_MTOK', 7500) },
+    prices: { inCentsPerMTok: whole(env, 'AI_PRICE_IN_CENTS_PER_MTOK', 400), outCentsPerMTok: whole(env, 'AI_PRICE_OUT_CENTS_PER_MTOK', 2000) },
+    webSearchCents: whole(env, 'AI_WEB_SEARCH_CENTS', 1),
     sttCentsPerMin: whole(env, 'STT_PRICE_CENTS_PER_MIN', 2),
   };
 }
@@ -137,7 +138,8 @@ export function handler(cfg, client, deps = {}) {
     get serverDayCents() { return cfg.serverDayCents ?? 3000; },
     get dailyRequests() { return cfg.dailyRequests ?? 200; },
   }, now);
-  const prices = () => cfg.prices || { inCentsPerMTok: 1500, outCentsPerMTok: 7500 };
+  const prices = () => cfg.prices || { inCentsPerMTok: 400, outCentsPerMTok: 2000 };
+  const webCents = () => cfg.webSearchCents ?? 1;
 
   // the tokens file: re-read when its size or modification time changes (looked at most every 10 s), and on SIGHUP.
   // A file that cannot be read or is malformed fails every request closed until it is fixed.
@@ -174,10 +176,10 @@ export function handler(cfg, client, deps = {}) {
     return {
       charged: null, // the cents settle() charged, for a route that reports them
       // wholeJob: the input size is unknown and not text (a PDF is charged per page), so hold the job cap
-      reserve: (inTokens, maxTokens, wholeJob) => { r = hold(label, wholeJob ? (cfg.jobCents ?? 300) : costCents({ input_tokens: inTokens, output_tokens: maxTokens }, prices())); },
+      reserve: (inTokens, maxTokens, wholeJob, searches = 0) => { r = hold(label, wholeJob ? (cfg.jobCents ?? 300) : costCents({ input_tokens: inTokens, output_tokens: maxTokens, server_tool_use: { web_search_requests: searches } }, prices(), webCents())); },
       // a missing or part-missing count is never read as zero: the hold is charged
       settle(usage) {
-        const cents = Number.isInteger(usage?.input_tokens) && Number.isInteger(usage?.output_tokens) ? costCents(usage, prices()) : r.worst;
+        const cents = Number.isInteger(usage?.input_tokens) && Number.isInteger(usage?.output_tokens) ? costCents(usage, prices(), webCents()) : r.worst;
         books.settle(r, cents);
         this.charged = cents;
       },
@@ -211,6 +213,7 @@ export function handler(cfg, client, deps = {}) {
       let out;
       if (path === '/api/extract') { needAi(); out = await extract(client, body, hookFor(device)); }
       else if (path === '/api/assist') { needAi(); out = await assist(client, body, hookFor(device)); }
+      else if (path === '/api/ask') { needAi(); out = await ask(client, body, hookFor(device)); }
       else if (path === '/api/meeting') { needAi(); out = await meeting(client, body, hookFor(device)); }
       else if (path === '/api/research') {
         needAi();
