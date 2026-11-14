@@ -13,8 +13,11 @@ export const AI_OFF = 'Monal AI is off. Set it up to ask anything, with the web.
 export function planAsk(deal, question, facts) {
   if (!deal) return { scope: { ask: true }, facts: [], note: '' };
   if (deal.confidential) {
-    const name = String(deal.name || '').trim().toLowerCase();
-    if (name.length >= 3 && String(question || '').toLowerCase().includes(name)) return { refuse: 'That question names a confidential deal, so it was not sent.' };
+    const q = String(question || '').toLowerCase();
+    const full = String(deal.name || '').trim().toLowerCase();
+    // the whole name, or the name without a trailing note in brackets, as the broker would say it
+    const names = [full, full.replace(/\s*[([].*$/, '').trim()].filter((n) => n.length >= 3);
+    if (names.some((n) => q.includes(n))) return { refuse: 'That question names a confidential deal, so it was not sent.' };
     return { scope: { ask: true }, facts: [], note: CONFIDENTIAL_NOTE };
   }
   return { scope: { deal: { id: deal.id, confidential: false } }, facts: facts(), note: '' };

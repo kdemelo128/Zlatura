@@ -41,6 +41,7 @@ test('planAsk: a confidential deal sends no facts, says so, and a question that 
   assert.deepEqual(p, { scope: { ask: true }, facts: [], note: CONFIDENTIAL_NOTE });
   assert.equal(CONFIDENTIAL_NOTE, 'This deal is confidential, so only your question was sent.');
   assert.match(planAsk(secret, 'Tell me about INVENTED PLAZA', () => []).refuse, /confidential/);
+  assert.match(planAsk({ ...secret, name: 'Invented Plaza (draft)' }, 'what about invented plaza?', () => []).refuse, /confidential/, 'a note in brackets is not part of what is said');
 });
 
 test('safeBlocks keeps text and http(s) sources only, deduped, and never builds HTML', () => {
