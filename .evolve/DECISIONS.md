@@ -158,3 +158,14 @@ The owner answered "yes to all" in the session chat:
 | 2 | Document text is left out of backups (backups stay small and carry no document contents) |
 | 3 | Correction lessons are kept until deleted, capped at 2,000, structure only (fixed vocabulary, error type, no names or figures), and included in backups; a learned mapping is offered after 3 matching corrections and saved only on the broker's yes; a rule ships only after held-out invented fixtures and the owner's answer files pass |
 | 4 | A structure-only export of lessons is allowed |
+
+## 2026-11-14: K6 public data across the DMV, maps and search links, K7 and K8 go ahead
+
+The owner asked to "continue building out the connect page … google search, google maps/apple maps direct connections, and more … direct access to various public data sources across the DMV", with no pushback and no server:
+
+| # | Decision |
+|---|---|
+| 1 | K6 approved (security and terms): free public data the browser may call directly (CORS checked live 2026-11-14), through one allow-listed fetch module; lookups are shown with source and date, never filled without *Use*; blocked for a confidential deal unless the broker confirms |
+| 2 | Maps and search: "Open in Google Maps", "Apple Maps", "Street View" and "Search Google" links for any address or name (no key, no cost). An in-app Google search API is not used (closed to new customers); an embedded map waits for a key the owner may add later |
+| 3 | Keys the broker supplies (a free Census API key) are kept on the device only, never in a backup or the repo |
+| 4 | K7 (Microsoft, Dropbox and Google sign-in with the firm's own app registrations) and K8 (read-only connector so Claude can read Monal data, confidential deals left out) go ahead after K6 |
