@@ -191,6 +191,8 @@ noted here but not changed. Question 1 asks the owner to decide both.
 
 ## 7. Market data
 
+**K6 host list (built; see `docs/proposals/k6-public-data.md` for each source, its terms and the refused ones):** nominatim.openstreetmap.org, maps2.dcgis.dc.gov, geo.fcc.gov, hazards.fema.gov, opendata.maryland.gov, data.montgomerycountymd.gov, api.fiscaldata.treasury.gov, markets.newyorkfed.org, api.census.gov. The list lives in `app/publicdata.js` (`HOSTS`); the page's content policy has no `connect-src`, so the list in code is the control.
+
 All lookups follow the C3 design (consent sheet; blocked for a confidential deal; a fixed host list in the CSP,
 approved in principle as all-in-one Q2 after the browser test). A result is **shown, never filled**. *Use* puts it into
 a field with its source and date.
