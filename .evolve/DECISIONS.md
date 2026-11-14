@@ -171,3 +171,14 @@ The owner asked for the bird to work like a general AI that can read the web ("I
 | 4 | Document reading: recognise a rent roll or an income statement by its content (columns of figures, dates and per-unit patterns) when its headings are not the usual ones; it still asks rather than guesses, and the golden outputs stay identical |
 
 To reverse 1: remove the `/api/ask` route and the bird's server path; the on-device answers are unchanged.
+
+## 2026-11-14: reading by content (`docs/proposals/reader-content.md`, section 8)
+
+Under the owner's "approve all for now" and "no pushback" (2026-11-14), the designer's four recommendations are taken:
+
+| # | Decision |
+|---|---|
+| 1 | A PDF rent roll found only by its contents is held behind one failed check (the existing hold-and-accept) |
+| 2 | The spreadsheet offer does not pre-select Tenant: a button keeps today's reading |
+| 3 | Slice 2 (rolls read today whose names are lost) goes ahead as a question: a warn check and a re-read, never a silent change |
+| 4 | Slice 3 order: the "Total Revenue taken as the heading" bug, then a single annual column (accepted only when the arithmetic agrees), quarters, then Actual/Budget pairs; a money design note comes first |
