@@ -1327,6 +1327,7 @@ dialog.sheet:has(.ab-editor) .sheet-card { height: calc(100dvh - 24px); }
 .brain-size input { margin: 3px 0 0; flex: none; width: 20px; height: 20px; }
 .brain-size-text b { display: block; font-weight: 600; font-size: var(--t-15); }
 .brain-size-text span { display: block; color: var(--muted); font-size: var(--t-13); line-height: 1.5; }
+.brain-body .set-ctl .btn { min-height: 44px; }
 .brain-status { margin: 0; font-size: var(--t-13); color: var(--muted); line-height: 1.5; }
 .brain-progress { margin: 0; max-width: none; }
 /* Settings groups: a native <details> per group, closed except Appearance; the cards inside are the ones that were

@@ -74,8 +74,11 @@ export function brainCard(section) {
       : s.phase === 'removed' ? `Removed. The ${m.label} size’s files are deleted from this device.`
       : s.why || (support.model === s.model && support.why) || 'Off. Nothing is downloaded until you turn it on.';
   };
+  const made = Date.now();
   const unsub = brain.subscribe((s) => {
-    if (!body.isConnected) { unsub(); return; }
+    // Settings draws its cards before it attaches them (and draws again when data changes): a card that is gone, or never
+    // attached, stops listening after a few seconds
+    if (!body.isConnected && Date.now() - made > 5000) { unsub(); return; }
     draw(s);
     if (s.phase === 'off' && support.model !== s.model) askDevice();
   });
@@ -83,7 +86,7 @@ export function brainCard(section) {
   // the device check for the chosen size, shown beside the sizes; it only asks the browser, it downloads nothing
   const askDevice = () => {
     const model = brain.state.model;
-    brain.check().then((r) => { support = { ...r, model }; if (body.isConnected && brain.state.model === model && (brain.state.phase === 'off' || brain.state.phase === 'removed')) draw(brain.state); }).catch(() => {});
+    brain.check().then((r) => { support = { ...r, model }; if (brain.state.model === model && (brain.state.phase === 'off' || brain.state.phase === 'removed')) draw(brain.state); }).catch(() => {});
   };
   askDevice();
 
