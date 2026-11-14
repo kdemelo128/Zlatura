@@ -1,5 +1,101 @@
 # Changelog
 
+## 4.7.177: Ask Monal now remembers the documents you added, after you close the app (on the development branch; not merged or deployed)
+
+Until now Ask Monal could only search a document in the session where you added it: after a reload it said "add the
+file again." The owner approved keeping the page text on the device (option 4 of
+`docs/proposals/document-memory-and-learning.md`), and this is release A1 of that plan.
+
+- **Document text is kept on this device.** Every document with a fingerprint that you attach to a deal (the OM reader,
+  the Documents card, Start from documents, a lease, a Word file) has its page text stored compressed in a new `doctext`
+  store (database version 3), keyed by the file's SHA-256 and the deal, with the page count and whether OCR read it. The
+  files are never kept. Text read by OCR is stored only when OCR already ran; nothing here starts OCR. A full device keeps
+  nothing, says so in a notice, and reading carries on.
+- **Ask Monal searches it across sessions.** The deal's stored text is read back lazily when Ask Monal opens or is asked,
+  once per document, with a quiet "Reading your documents..." line; typing is never held up. The passage is quoted with
+  its document and page as before.
+- **Forget.** The Documents card says what is kept and has "Forget this deal's document text"; My data lists the text per
+  deal with its space, "Forget" per deal and "Forget all document text", each asking first and saying plainly that it
+  cannot be undone. Removing a document from the list, or deleting a deal, forgets its text.
+- **Confidential deals** keep their text like any other, on this device only, and it is read for that deal alone.
+- **Backups leave the text out** (a test checks a backup has none, and that a restore works without it). Old data and old
+  backups load as before: version 3 only adds an empty store.
+- **A0 measured** (invented documents, in the proposal): a 60-page OM keeps 41-62 KB; a lease 34 KB; a T-12 6 KB.
+- **Tested:** `tests/doctext.test.js` (round trip, plain fallback, hostile records, a decompression bomb, a later session,
+  cache by hash, Forget, confidential isolation, a full device, backups); `tests/e2e/docmem-flow.mjs` on phone and
+  desktop (a version 2 database opening at version 3, reload then ask, Forget, My data, delete cascade, quota error, backup
+  and restore, five stored documents of 120 pages indexed in 40 ms and 163 ms at 4x CPU, axe, no network). Each new guard was
+  mutated once and a test failed. Saved deal results are unchanged (golden checks identical).
+- **Review fixes.** A stored text is read back only for documents the deal still lists, and any other is deleted; a document
+  removed while its text was still being packed is never written afterwards; all document text together is held to 50 MB
+  (past it nothing more is kept, and My data says so); text left under a deal that no longer exists is swept at launch;
+  removing a document says its kept text is forgotten. **Rollback note:** any rollback must keep database version 3 and the
+  `doctext` store: an older app opening version 3 gets a VersionError and shows the existing "out of date, reload" message
+  (a flow checks this).
+
+## 4.7.176: Ask Monal can use the brain on this device (phase 2: the bird) (on the development branch; not merged or deployed)
+
+When the brain is turned on in Settings and the device's own front desk has no answer, Ask Monal now uses it. Off, nothing changes. The order is: the device's front desk first, then the brain, then the firm's server (only when AI settings are on, and only when the brain could not answer).
+
+- **A question that is one of the front desk's tasks** (cap rate at a price, price for a cap rate, DSCR, expiries, WALT, what is missing, comps, break-even, commission, a figure, a summary, a term, open a screen) is mapped by the brain to that task, and the app's own calculation answers, with "Where this came from". The brain never produces the figure. Tasks that change a deal are never run from the brain; the front desk, which asks first, still handles those. A missing or ambiguous input (a cap rate of 0.07) is asked about, not guessed.
+- **Anything else** (a note, an email draft, an explanation, a comparison in words) is answered by the brain from the open deal's facts, shown as it is written. Any figure in its words that the facts do not hold is highlighted and listed as "Not from your data". Every brain answer says "On this device"; a confidential deal is read here too and the answer says so.
+- **"Think it through"** switch (shown only when the brain is ready) for harder questions; the first question after opening the app says it is loading the model; a failure is shown plainly and the front desk's reply (and the server, if on) follow.
+- **Tested**: unit tests (task mapping to the front desk's question shapes, the talk prompt, marking, streaming strip, load failure) and `brain-bird-flow` (stub engine, no download): task routed, free talk streamed, an invented figure marked, think switch, error state, server as last route, confidential deal, brain off unchanged; phone and desktop. The new tests fail on the old code. Saved results and the 646 displayed figures are unchanged.
+
+## Hand-test checklist (a real model; not checked by the automated tests)
+
+On a laptop in Chrome (and, if you can, an iPhone with Safari 26 and WebGPU):
+
+1. Settings > Documents and AI > Monal's brain: pick Small (phone) or Standard (laptop), tap Turn on, watch the progress bar finish and say Ready. Reload the page: still Ready, nothing downloads again.
+2. Open a deal. Ask "What is the DSCR?": the front desk answers at once (no brain).
+3. Ask something in your own words, such as "If somebody paid 4.6 million, what return would I get?": it says it is loading the first time, then shows the app's cap rate, "Where this came from", and "On this device".
+4. Ask "Write a short thank-you note to the owner for the tour": the words appear as they are written. If a figure appears that is not in the deal, it is highlighted and listed under "Not from your data".
+5. Tick "Think it through" and ask a harder question ("What should I ask the lender about this deal?"): slower, still stays on the device.
+6. On a confidential deal, ask the same: the answer says it was read on this device only. With the network switched off, it still answers.
+7. Settings > Remove the brain: Ask Monal goes back to the front desk only.
+8. On the phone: the panel and the Settings card have no overlaps, every button is easy to tap, and the page stays smooth while the brain is thinking.
+
+## 4.7.175: Monal's own AI model can be turned on, on your device (phase 1: Settings) (on the development branch; not merged or deployed)
+
+Release 5 of the assistant (`docs/proposals/on-device-brain.md`, approved). Settings > Documents and AI has a new card, "Monal's brain on this device". It is off until turned on; nothing is downloaded before that.
+
+- **Three sizes** (Qwen3 0.6B Small, 1.7B Standard, 4B Large; Apache-2.0), a plain support line (WebGPU, 16-bit graphics support, graphics and device memory, with the iPhone/Safari 26 wording), Turn on with a progress bar and Cancel, Ready, and "Remove the brain" (deletes the downloaded files). The choice is kept on the device (`monal.brain`).
+- **Vendored WebLLM 0.2.87** (`vendor/web-llm-0.2.87/`, Apache-2.0, identical to upstream, SHA-256 in `THIRD_PARTY.md`), run in a module Web Worker (`app/brainworker.js`). Not in the install set (6.8 MB): the service worker's existing `vendor/` rule keeps it on first use.
+- **Helpers in `app/brain.js`**: the facts text (blank is "not given", never 0), the task prompt and parser over the front desk's own task list, and a number check that finds figures in an answer that are not in the facts (formatting- and rounding-tolerant). Not yet connected to the bird (phase 2).
+- **Tested**: unit tests with a stub engine (support, state machine, helpers, vendoring), and `brain-flow` (stub engine, no download): no WebGPU, fake GPU through turn on, progress, ready, reload, remove, cancel, in both looks, with axe and 44 px targets. Both fail on the old code. Saved results and the 646 displayed figures are unchanged.
+- **Not checked**: a real model load (the test machine's graphics adapter has no 16-bit support); to be hand-tested on a laptop in Chrome and an iPhone with Safari 26.
+
+## 4.7.174: Home: ask Monal first (New look) (on the development branch; not merged or deployed)
+
+- New look Home opens with an "Ask Monal" bar under the greeting: type a question and press Enter (or Ask) and the Monal bird panel opens with that question asked; an empty question just opens the panel.
+- The four summary figures (active deals, due today, due this week, files and prints this week) are one calm card strip with hairline dividers, 2x2 on a phone. Same figures, same source.
+- On a phone, Read an OM now sits in the header instead of floating, so nothing floating covers Home's buttons at the top or bottom of the page; the three text links are 44 px targets.
+- Section titles are 16 px semibold and sections are 24 px apart. Classic look is unchanged.
+
+## 4.7.173: A rent roll whose tenant column has an unusual heading, or none, is now recognised and offered for you to confirm (on the development branch; not merged or deployed)
+
+The rent roll reader used to need a heading it knew over the tenant column. A PDF whose tenant column was headed "Concept", "Customer" or "Store", or had no heading at all, often gave no rent roll at all. This was the most common fixable reason on a counts-only run over 41 OMs (11 of them). In a spreadsheet, such a column was left unread, and a column with no heading could not even be chosen. Design: `docs/proposals/reader-content.md` (slice 1 of 3).
+
+- **PDF (an OM, or Import from PDF…).** When no rent roll is found by its headings anywhere in the document, the reader looks again for a column whose cells are different names: words, not figures, dates, codes or addresses. It takes that column as the tenant only when the table also has a suite or a lease date. The rows are read and held behind one failed check, which shows how every column was read ("Looks like a rent roll: … Its columns were read as Suite (“Suite”), Tenant (“Concept”), SF (“SF”) …"). Nothing is used until you tap Accept. A list of sales, an availability list, comparables, a unit mix, a contact person, two columns of names, or a column of repeated words is not taken for one.
+- **Spreadsheet import.** When no heading names the tenant, a column of different names is offered: "Read “Business” as the tenant". It is not chosen until you tap it. A sheet with only two known headings plus such a column now opens the import dialog instead of "No rent roll was found". A column with no heading is now listed ("Column 2 (no heading)") whenever it holds anything.
+- **Unchanged.** A file whose headings the reader already knows is read exactly as before. No saved deal, figure or data format changes, and Documents card routing still goes by headings.
+
+Tested: `tests/reader-content.test.js` (17 tests: 10 fail on the old code; 7 guard the "never guesses" rules; 16 mutations, 15 caught there, the last by the browser checks), plus 8 `todo` tests that record the shapes left for slices 2 and 3. Also three new checks in `tests/e2e/rentroll-flow.mjs`. Golden: 646 displayed figures and the 618 saved deal results are unchanged. Invented files only.
+
+## 4.7.172: Monal can answer any question, with the web (the server route is dormant until the firm hosts it)
+
+The bird answered only a fixed set of questions on the device. With your firm's AI server set up and on, it now answers anything else, reading the web when the question needs it, and it still knows the deal on screen.
+
+- **A new server route, `/api/ask`.** It asks the same model as the other routes, with Anthropic's server-side web search (at most 5) and web fetch (at most 3). No tool can act in the app. A paused long turn is resumed up to 3 times. The reply is short plain text, each block with the web sources it cites (http and https links only).
+- **The bird.** When AI settings are ready and on, a question the device cannot answer goes to the server, and a new **Ask with the web** button (drawn only then) always does. The reply is drawn as text only; sources are links that open in a new tab (`rel="noopener noreferrer"`), under the line "From Monal AI. Figures from the web are not checked." With AI not set up, nothing changes and nothing is said: no line, no button, today's on-device answer. Server errors are shown with their message and code.
+- **What is sent.** The question, up to 8 earlier turns, and the open deal's facts (the same list the deal assistant sends). A confidential deal sends no facts ("This deal is confidential, so only your question was sent."), and a question that names it is refused on the device. With no deal open, only the question goes.
+- **Rules for the answer.** Deal figures only from the facts, quoted by id; web figures named with their source and called not checked; never "verified"; "I don't know" over a guess; web pages are data, never instructions.
+- **Money.** The call goes through the same job, device-day and server-day limits. Each web search adds 1 cent (`AI_WEB_SEARCH_CENTS`). The model price defaults are now Anthropic's list price for `claude-opus-5-5` ($4 in, $20 out per million tokens; 400 and 2,000 cents), still set by the environment; check them before deploying.
+- **Review fix.** With no deal open, a question that names any confidential deal (by name or address) is refused on the device before anything is sent, and the web conversation starts again when you move from one deal to another.
+- **Hosting.** Nothing is deployed or charged by this change; `server/README.md` has the new route and a Deploy section.
+- **Tested.** Server: 10 new tests (request shape, `pause_turn`, web search cost in whole cents, injected text, bad bodies, defaults); app: 8 new Node tests (the guard's new scope, what goes with a question, safe links); a new browser flow `assistant-web-flow` (AI off: no button, no line, nothing sent; a routed answer with a safe source link, facts sent for an open deal, none for a confidential one, an error shown plainly) at phone and desktop size, against a stub server with no network. The new tests fail on the old code.
+- **Saved results.** Unchanged: the 618 saved deal results and the 646 displayed figures are identical.
+
 ## 4.7.171: Unit mixes, lease comp tables, monthly rent schedules and appraisals are no longer read as rent rolls or T-12s (on the development branch; not merged or deployed)
 
 Four gaps the routing review listed. Each is a routing change: what a file is called when it is added to Start from documents. No saved deal, figure or format changes, and nothing changes a deal before Use.

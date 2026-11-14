@@ -169,3 +169,37 @@ The owner asked to "continue building out the connect page … google search, go
 | 2 | Maps and search: "Open in Google Maps", "Apple Maps", "Street View" and "Search Google" links for any address or name (no key, no cost). An in-app Google search API is not used (closed to new customers); an embedded map waits for a key the owner may add later |
 | 3 | Keys the broker supplies (a free Census API key) are kept on the device only, never in a backup or the repo |
 | 4 | K7 (Microsoft, Dropbox and Google sign-in with the firm's own app registrations) and K8 (read-only connector so Claude can read Monal data, confidential deals left out) go ahead after K6 |
+## 2026-11-14: Monal's own AI on the device (`docs/proposals/on-device-brain.md`)
+
+The owner said "just make it free for now … keep building the bot within itself, something that is smart enough without a server … no pushback":
+
+| # | Decision |
+|---|---|
+| 1 | Assistant release 5 goes ahead: WebLLM 0.2.87 (Apache-2.0) vendored, with Qwen3 0.6B, 1.7B and 4B models (Apache-2.0), downloaded only when the broker turns it on |
+| 2 | No server and no cost for now; the firm server's `/api/ask` route ships as dormant code and the bird shows nothing about it until the AI settings are on |
+| 3 | The model never produces a figure: figures come from the engine through the front desk's tasks; any other figure in an answer is marked "not from your data" |
+
+To reverse: turn the brain off by default and remove `vendor/web-llm-0.2.87/` and `app/brain*.js`; the front desk is unchanged.
+## 2026-11-14: Monal answers anything, with the web; UI direction (`docs/proposals/assistant-web.md`)
+
+The owner asked for the bird to work like a general AI that can read the web ("I want you to actually implement this"), and then said "approve all for now" without being able to view the design canvas:
+
+| # | Decision |
+|---|---|
+| 1 | Assistant release 4 as `docs/proposals/assistant-web.md`: a `/api/ask` route on the firm AI server with Claude's web search and web fetch; the bird uses it for questions the device cannot answer, only when AI is on; confidential deals send no facts. This un-parks the firm server for the AI only (decision 5 of 2026-11-13 is otherwise unchanged) |
+| 2 | Hosting the server and its API key are the owner's step; nothing is deployed or charged by this change |
+| 3 | UI direction: Claude chose, the owner having approved without viewing. Direction A (Calm Ledger, today's New look refined) with B's "Ask Monal first" Home: the ask bar at the top of Home, a four-figure strip, and "Monal noticed" cards. The canvas with all four directions (A Calm Ledger, B Bento Desk, C Night Desk, D Plumage) stays for a later look |
+| 4 | Document reading: recognise a rent roll or an income statement by its content (columns of figures, dates and per-unit patterns) when its headings are not the usual ones; it still asks rather than guesses, and the golden outputs stay identical |
+
+To reverse 1: remove the `/api/ask` route and the bird's server path; the on-device answers are unchanged.
+
+## 2026-11-14: reading by content (`docs/proposals/reader-content.md`, section 8)
+
+Under the owner's "approve all for now" and "no pushback" (2026-11-14), the designer's four recommendations are taken:
+
+| # | Decision |
+|---|---|
+| 1 | A PDF rent roll found only by its contents is held behind one failed check (the existing hold-and-accept) |
+| 2 | The spreadsheet offer does not pre-select Tenant: a button keeps today's reading |
+| 3 | Slice 2 (rolls read today whose names are lost) goes ahead as a question: a warn check and a re-read, never a silent change |
+| 4 | Slice 3 order: the "Total Revenue taken as the heading" bug, then a single annual column (accepted only when the arithmetic agrees), quarters, then Actual/Budget pairs; a money design note comes first |

@@ -17,7 +17,8 @@ test('the service worker caches every file the app needs, and only files that ex
   const assets = [...sw.slice(sw.indexOf('const ASSETS'), sw.indexOf('];')).matchAll(/'([^']+)'/g)].map((m) => m[1]);
   // the scanned-page reader is fetched on request, not installed (sw.js keeps it in its own cache once fetched)
   // the built-in underwriting tool (app/uwtool/, 3.3 MB) is the same: cached on first open, not at install (sw.js UW_TOOL)
-  const onDemand = (f) => f.startsWith('vendor/ocr/') || f.startsWith('app/uwtool/');
+  // WebLLM (vendor/web-llm-*, 6.8 MB) too: loaded only when the brain is turned on; the vendor/ rule in sw.js (cache first, kept in this release's cache) keeps it after that
+  const onDemand = (f) => f.startsWith('vendor/ocr/') || f.startsWith('app/uwtool/') || f.startsWith('vendor/web-llm-');
   // the license texts ship beside the files for people (THIRD_PARTY.md), not for the app: never installed
   const isLicense = (f) => f.startsWith('vendor/licenses/');
   const shipped = ['index.html', 'manifest.webmanifest',

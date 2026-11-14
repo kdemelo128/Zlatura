@@ -41,6 +41,27 @@ originals would look like lost documents.
 **Recommendation: option 4.** Store page text for documents in a deal's Documents list. Never
 store the files.
 
+### A0: measured sizes (invented documents)
+
+Measured with `node tests/tools/doctext-size.mjs` (seeded, invented text; the same packing the app uses: the JSON page
+list, gzipped by the browser's `CompressionStream`). No real file was read.
+
+| Document | Pages | Characters | Stored | Ratio | Per page |
+|---|---|---|---|---|---|
+| OM | 20 | 51,470 | 13.8 KB | 3.7x | 0.69 KB |
+| OM | 60 | 159,674 | 40.7 KB | 3.8x | 0.68 KB |
+| OM | 120 | 297,307 | 74.8 KB | 3.9x | 0.62 KB |
+| OM, text-heavy (4 KB a page) | 60 | 246,730 | 62.2 KB | 3.9x | 1.04 KB |
+| Lease | 38 | 133,832 | 34.3 KB | 3.8x | 0.90 KB |
+| T-12 (mostly numbers) | 3 | 15,352 | 6.1 KB | 2.5x | 2.03 KB |
+| Scan, OCR text, noisy | 30 | 49,351 | 14.4 KB | 3.4x | 0.48 KB |
+
+So a 60-page OM keeps about 41-62 KB, inside the estimate of 35-80 KB; a number-heavy T-12 compresses least (2.5x). The
+generator's vocabulary is smaller than real prose, so real ratios may be a little lower: the owner's folder is measured
+the same way on the Mac with `tests/tools/doc-local.mjs` (counts only). Indexing five stored documents of 120 pages in
+all (read from the store, unpacked and searched) took 40 ms on a desktop and 163 ms at a 4x slower CPU in
+`tests/e2e/docmem-flow.mjs`, against budgets of 1.5 s and 4 s.
+
 ### How it works
 - **Data shape.** A new database store `doctext`, keyed `[dealId, sha256]`:
   `{ dealId, sha256, name, pages (compressed, empty pages kept so "page 14" stays page 14), chars,

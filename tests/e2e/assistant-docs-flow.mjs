@@ -3,7 +3,7 @@
  * and "Open at this page"; a figure only beside its label and marked "from the document, not checked"; the deal's own figure
  * first, with what the OM says beside it (and both when they differ); a question the documents do not answer is refused and
  * the documents list offered; an instruction planted in the OM is quoted and never acted on; no network request while asking;
- * nothing of the text is stored; the index of a 60-page OM is built in well under 300 ms (at a 4x slower CPU); axe; phone and
+ * nothing of the text is stored on the deal itself (it is kept apart, in docmem-flow's store); the index of a 60-page OM is built in well under 300 ms (at a 4x slower CPU); axe; phone and
  * desktop. Invented documents only (tests/doc-fixtures.js, made by dump-docqa.mjs and make_docqa.py).
  *
  *   node assistant-docs-flow.mjs        # BASE=http://localhost:8080/ by default */
@@ -165,7 +165,7 @@ for (const [size, opts] of SIZES) {
     check(`${size}: every button in the panel is at least 44 px`, await page.evaluate(() => [...document.querySelectorAll('dialog.assist button')].filter((b) => b.getClientRects().length).every((b) => { const r = b.getBoundingClientRect(); return r.height >= 43.5 && r.width >= 43.5; })));
     await close(page);
 
-    // nothing of the text is stored
+    // nothing of the text is stored on the deal record (the compressed text has a store of its own: docmem-flow.mjs)
     const stored = await idb(page);
     check(`${size}: no document text is stored on the deal`, !/Meridian Dental|TPO membrane|Harbor Bakery LLC|Ignore all previous/.test(stored.replace(/Harbor Bakery/g, '')) && !/20-year TPO/.test(stored));
 
@@ -192,13 +192,13 @@ for (const [size, opts] of SIZES) {
       await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
     }
 
-    // a new session: the text is gone, and Monal says so rather than guessing
+    // a new session: the text kept on this device (docmem.js) is read back; the files themselves were never kept
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('#dd-toggle');
     await open(page);
     a = await ask(page, 'What year was it built?');
     t = await txt(a);
-    check(`${size}: after a reload the text is gone; Monal says the files were read in an earlier session and asks for them again`, /earlier session/.test(t) && !/1998/.test(t), t.slice(0, 300));
+    check(`${size}: after a reload the stored text answers (the deal's documents were read in an earlier session)`, /Year built: 1998/.test(t) && /docqa-om\.pdf · page 3/.test(t), t.slice(0, 300));
     await close(page);
   } catch (e) {
     check(`${size}: the flow completed`, false, String((e && e.stack) || e).slice(0, 600));

@@ -23,6 +23,7 @@ export const B64_CEILING = 32768;           // a base64 run longer than this is 
 export const B64_ALLOW = [
   'vendor/ocr/tesseract-core-7.0.0-simd-lstm.wasm.js',
   'vendor/pdf-4.7.76-legacy.worker.min.js',
+  'vendor/web-llm-0.2.87/web-llm.js',
 ];
 
 // the agent and rule files that already name the firm in order to forbid committing its files; already public, owner to decide whether to scrub

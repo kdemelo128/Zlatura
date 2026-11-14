@@ -11,6 +11,7 @@ import { renderDataCard } from './backupui.js';
 import { autoSwitch } from './inboxui.js';
 import { openAiSettings } from './aiui.js';
 import { openCensusKey } from './publicdataui.js';
+import { brainCard } from './brainui.js';
 import { openTemplates } from './dealui.js';
 import { editStages } from './home.js';
 import { listTemplates } from './library.js';
@@ -253,6 +254,7 @@ export async function renderSettings() {
   al.appendChild(row('AI server', ai.isReady(aiSet) ? `On, through ${host}. Documents, questions and recordings are sent only when you confirm each one.` : 'Off. Reading documents with AI, the deal assistant and transcription need your firm’s AI server; with AI off nothing leaves this device.', [btn('AI settings…', () => openAiSettings(api))]));
   aic.appendChild(al);
   cards.ai = aic;
+  cards.brain = brainCard(section);
 
   // public data: the broker's own free Census key, kept on this device and left out of every backup
   const pdc = section('Public data', 'settings-public');
@@ -333,7 +335,7 @@ export async function renderSettings() {
     group('appearance', 'Appearance', 'Theme, look, accent colour, text size', [cards.look], { open: true, solo: true }),
     group('work', 'Workspace and templates', 'Workspace, pipeline stages, template library', [cards.ws, cards.pipe, cards.tpl]),
     group('calc', 'Calculations', 'Calculation rules and the T-12 labels you filed', [cards.cv, cards.t12]),
-    group('ai', 'Documents and AI', 'The AI connection and what is sent', [cards.ai], { solo: true }),
+    group('ai', 'Documents and AI', 'The AI connection, what is sent, and the brain on this device', [cards.ai, cards.brain]),
     group('data', 'Data and backup', 'Backups, restore, storage, To file', [data, tofile, cards.pub], { solo: true }),
     group('about', 'About', 'Version, name, shortcuts', [about], { solo: true }),
   ];

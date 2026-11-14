@@ -45,6 +45,8 @@ import { splitCells, parseDate } from './om.js';
 import { toCents, toRate } from './engine/money.js';
 import { scaleOf } from './scale.js';
 import { RENT_KINDS, plausible, median, readings, competing, READING_NAME as READING_WORD } from './units.js';
+import { nameColumn, NOT_TENANT_HEADING } from './colcontent.js';
+import { tableShape } from './tableshape.js';
 
 /* ------------------------------------------------------------ the lines */
 
@@ -180,10 +182,15 @@ function unitKeyed(cols, used) {
     && RENT_KINDS.some((k) => used.has(k)) && cols.filter((c) => c.kind !== 'other').length >= 4;
 }
 
-/** The best assignment of kinds to header cells, or null if it isn't a rent roll header. */
-export function assignKinds(cells) {
+/**
+ * The best assignment of kinds to header cells, or null if it isn't a rent roll header. `tenantAt`: the index of a
+ * cell to take as the tenant column whatever its heading says (contentHeaderAt: its values read as names); null for
+ * the headings alone, as every header is read first.
+ */
+export function assignKinds(cells, tenantAt = null) {
   const pairs = [];
-  cells.forEach((c, ci) => { for (const [k, v] of Object.entries(kindScores(c.text))) pairs.push({ ci, k, v }); });
+  if (tenantAt !== null) pairs.push({ ci: tenantAt, k: 'tenant', v: 10 });
+  cells.forEach((c, ci) => { if (ci !== tenantAt) for (const [k, v] of Object.entries(kindScores(c.text))) pairs.push({ ci, k, v }); });
   pairs.sort((a, b) => b.v - a.v || a.ci - b.ci);
   const byCell = new Map(); const used = new Set();
   for (const p of pairs) {
@@ -537,6 +544,63 @@ export function headerAt(lines, i) {
     if (!best || score > best.score + 0.5 || (finishes && score >= best.score)) best = { cols, n: k + 1, score };
   }
   return best;
+}
+
+/**
+ * A rent roll header whose tenant column is told by what it holds, not by its heading (a "Concept", "Customer" or
+ * "Store" column, or one with no heading at all): { cols, n, score, inferred: { idx, label, names, of } }, or null.
+ * Tried only where no header was found by its headings in the whole document (rentRoll), so a file read today is read
+ * exactly as before. The line looks like a header (three or more cells, no figure) and no cell names a tenant; the
+ * rows under it (lines with a figure, until the table ends) put names in exactly one column that has no kind of its
+ * own (colcontent.js nameColumn), or in a band of cells under no heading at all; the headings then pass the
+ * header test with that column as the tenant, and name a suite or a lease date (a list of sales or properties has
+ * names, a size and a price, and neither). A unit mix or a lease comparable table is still not one. Never decides
+ * alone: the table it starts is held behind a failed check (rentRoll) until the broker accepts it.
+ */
+export function contentHeaderAt(lines, i) {
+  const L0 = lines[i];
+  if (!L0 || L0.cells.length < 3 || hasFigure(L0)) return null;
+  const ks = L0.cells.map((c) => kindScores(c.text));
+  if (ks.some((k) => k.tenant)) return null;                                  // a tenant heading the header test refused for some other reason
+  // before the rows are looked at: two known columns or more, one of them a size or a rent (the header test needs them, with the tenant)
+  if (ks.filter((k) => Object.keys(k).length).length < 2 || !ks.some((k) => ['sf', ...RENT_KINDS].some((x) => x in k))) return null;
+  // the rows under it: lines with a figure, until three blank lines or another header
+  const body = []; let blank = 0;
+  for (let j = i + 1; j < lines.length && body.length < 60; j++) {
+    const L = lines[j];
+    if (!L.cells.length) { if (++blank > 2 && body.length) break; continue; }
+    blank = 0;
+    if (!hasFigure(L) && L.cells.length >= 3 && ((body.length && j > i + 2) || headerAt(lines, j))) break;   // another header (only a figure-free line of three cells can be one)
+    if (hasFigure(L) && L.cells.length >= 2) body.push(L);
+  }
+  if (body.length < 3) return null;
+  const heads = L0.cells.map((c) => ({ ...c }));
+  const near = (c, cs) => cs.map((h, k) => ({ k, d: gapOf(c, h) + 0.12 * Math.abs(midOf(c) - midOf(h)) })).sort((a, b) => a.d - b.d)[0];
+  // a band of word cells under no heading (a tenant column printed with a blank heading): one such cell on a line, on three lines or more
+  const loose = body.map((L) => L.cells.filter((c) => heads.every((h) => gapOf(c, h) > TOL) && /[a-z]{3}/i.test(c.text) && readNumber(c.text.trim()) === null));
+  const banded = loose.filter((cs) => cs.length === 1).map((cs) => cs[0]);
+  if (banded.length >= 3 && banded.length >= 0.6 * body.length) {
+    const x0 = Math.min(...banded.map((c) => c.x0)); const x1 = Math.max(...banded.map((c) => c.x1));
+    if (heads.every((h) => h.x1 < x0 - TOL || h.x0 > x1 + TOL)) heads.push({ text: '', start: x0, end: x1, x0, x1, blank: true });
+  }
+  heads.sort((a, b) => a.x0 - b.x0);
+  // each body cell goes to its nearest heading, as a row is read; a column's values are the texts it gets
+  const vals = heads.map(() => []);
+  for (const L of body) {
+    const got = heads.map(() => []);
+    for (const c of L.cells) { const n = near(c, heads); if (n && gapOf(c, heads[n.k]) <= FAR) got[n.k].push(c.text); }
+    got.forEach((t, k) => vals[k].push(t.join(' ')));
+  }
+  const cand = heads.map((h, k) => ({ h, k })).filter(({ h, k }) => (h.blank || !Object.keys(kindScores(h.text)).length) && !NOT_TENANT_HEADING.test(h.text) && nameColumn(vals[k]));
+  if (cand.length !== 1) return null;                                          // none, or two columns of names: nothing is guessed
+  const { h, k } = cand[0];
+  const cols = assignKinds(heads, k);
+  if (!cols) return null;
+  const kinds = new Set(cols.map((c) => c.kind));
+  if (!['suite', 'start', 'end', 'term'].some((x) => kinds.has(x))) return null;
+  if (tableShape(cols.map((c) => c.label))) return null;                     // the headings as printed: a unit mix's blank first heading stays a unit mix
+  const nc = nameColumn(vals[k]);
+  return { cols, n: 1, score: cols.reduce((s, c) => s + c.score, 0), inferred: { idx: k, label: h.text, names: nc.names, of: nc.of } };
 }
 
 /** Two headers with the same columns in the same order (a header repeated on the next page). */
@@ -1078,26 +1142,18 @@ function tableScore(t, P) {
   return s;
 }
 
-/**
- * The OM's rent roll, or null. `pages`: page text from layout.js; `layouts`:
- * each page's geometry from layout.js (optional); `periods`: { column kind: reading } the broker chose for a column
- * that does not say monthly or annual. Returns { rows, totals,
- * columns, units, pages, page, segments, confidence, issues }.
- * `onRowLines(row, [{ page, line }])` is told the exact lines each row was read from (its anchor and its wrapped lines),
- * so a caller can tell a table's own lines from the report's headings; it adds no saved field.
- * @param {string[]} pages
- * @param {{ layouts?: any, periods?: any, onRowLines?: ((row: any, lines: { page: number, line: number }[]) => void) | null }} [options]
- */
-export function rentRoll(pages, { layouts = null, periods = null, onRowLines = null } = {}) {
-  const P = documentLines(pages, layouts);
-  const geo = !!(layouts && layouts.some((g) => g && g.lines));
+/** A column kind in words, for a question that shows how a table's columns were read. */
+const KIND_WORD = { suite: 'Suite', tenant: 'Tenant', sf: 'SF', start: 'Lease start', end: 'Lease end', term: 'Term', annual: 'Annual rent', monthly: 'Monthly rent', rent: 'Rent', psf: 'Rent per SF', mpsf: 'Rent per SF a month', market: 'Market rent', recov: 'Recoveries', deposit: 'Deposit', status: 'Status', type: 'Type', bumps: 'Rent changes', share: 'Share' };
+
+/** Every table in the document whose header `find` accepts (headerAt: by its headings; contentHeaderAt: a tenant column by its contents), with its rows read. */
+function scanTables(P, find) {
   const tables = [];
   let pi = 0; let li = 0;
   while (pi < P.length) {
     if (li >= P[pi].length) { pi += 1; li = 0; continue; }
-    const h = headerAt(P[pi], li);
+    const h = find(P[pi], li);
     if (!h) { li += 1; continue; }
-    const t = { cols: h.cols, page: pi + 1, line: li + 1, rows: [], totals: [], segments: [], boundary: 0, lastGrand: 0, allCaps: false };
+    const t = { cols: h.cols, page: pi + 1, line: li + 1, rows: [], totals: [], segments: [], boundary: 0, lastGrand: 0, allCaps: false, inferred: h.inferred || null };
     const PT = P.map((lines) => lines.map((L) => unmerge(L, t.cols)));   // the table's lines, merged cells cut apart by its columns
     let at = { pi, li: li + h.n, how: 'header' };
     for (;;) {
@@ -1111,8 +1167,29 @@ export function rentRoll(pages, { layouts = null, periods = null, onRowLines = n
     }
     if (t.rows.length) tables.push(t);
   }
-  if (!tables.length) return null;
-  // the rent roll: the most rent-roll-like table, and any other whose header matches it
+  return tables;
+}
+
+/** A table with comparables or market survey wording above it or at the top of its page: not a rent roll told by its contents. */
+const notRollNear = (t, P) => NOT_ROLL_WORDS.test(P[t.page - 1].slice(Math.max(0, t.line - 9), t.line - 1).map((L) => L.text).join(' ')) || NOT_ROLL_WORDS.test(P[t.page - 1].slice(0, Math.min(6, t.line - 1)).map((L) => L.text).join(' '));
+
+/**
+ * The OM's rent roll, or null. `pages`: page text from layout.js; `layouts`:
+ * each page's geometry from layout.js (optional); `periods`: { column kind: reading } the broker chose for a column
+ * that does not say monthly or annual. Returns { rows, totals,
+ * columns, units, pages, page, segments, confidence, issues }.
+ * `onRowLines(row, [{ page, line }])` is told the exact lines each row was read from (its anchor and its wrapped lines),
+ * so a caller can tell a table's own lines from the report's headings; it adds no saved field.
+ * @param {string[]} pages
+ * @param {{ layouts?: any, periods?: any, onRowLines?: ((row: any, lines: { page: number, line: number }[]) => void) | null }} [options]
+ */
+export function rentRoll(pages, { layouts = null, periods = null, onRowLines = null } = {}) {
+  const P = documentLines(pages, layouts);
+  const geo = !!(layouts && layouts.some((g) => g && g.lines));
+  // the headings decide first; only when no table is found by its headings anywhere is a tenant column told by its contents
+  let tables = scanTables(P, headerAt);
+  if (!tables.length) tables = scanTables(P, contentHeaderAt).filter((t) => t.rows.length >= 3 && !notRollNear(t, P));
+  if (!tables.length) return null;  // the rent roll: the most rent-roll-like table, and any other whose header matches it
   const best = tables.reduce((a, b) => (tableScore(b, P) > tableScore(a, P) ? b : a));
   const lastPage = (t) => t.segments[t.segments.length - 1].page;
   const chosen = tables.filter((t) => t === best || sameHeader(t.cols, best.cols));
@@ -1156,6 +1233,13 @@ export function rentRoll(pages, { layouts = null, periods = null, onRowLines = n
       mine.push(row);
       if (onRowLines) onRowLines(row, [{ page: r.page, line: r.line }, ...[...r.parts.before, ...r.parts.after].map((x) => ({ page: r.page, line: x.L.i + 1 }))]);
       pageSet.add(r.page);
+    }
+    if (t.inferred) {
+      // the tenant column was told by what it holds: a question, never a reading on its own (rows are held until it is accepted)
+      const col = t.cols[t.inferred.idx]; const named = t.inferred.label ? `“${t.inferred.label}” column` : 'column with no heading';
+      const mapping = t.cols.filter((c) => KIND_WORD[c.kind]).map((c) => `${KIND_WORD[c.kind]} (${c.label ? `“${c.label}”` : 'no heading'})`).join(', ');
+      issues.push({ kind: 'tenant-content', level: 'fail', col: col.idx, page: t.page, line: t.line, row: null, cell: { page: t.page, line: t.line, col: col.idx, text: t.inferred.label }, lineText: t.inferred.label,
+        text: `Looks like a rent roll: no heading on page ${t.page} names the tenant, but the ${named} holds ${t.inferred.names} different names (words, not figures or dates). Its columns were read as ${mapping}. Check the rows against the page; accepting uses them with that column as the tenant.`, amount: 0 });
     }
     if (doubt) {
       const sc = t.scales.rent;

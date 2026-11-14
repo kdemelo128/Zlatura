@@ -3,7 +3,8 @@
  * One bird button on every screen (hidden inside the full-screen Underwrite tool, whose own bird opens it with the tool's step and its nest tips as suggested questions), opening a calm dialog: a bottom sheet on a phone, a panel in the corner on a desk.
  * A question is understood (assistant.js) and answered (assistantanswer.js) on this device; this file only
  * draws the result. Everything is drawn as text nodes: no HTML from a question, a deal or a document ever
- * reaches the page. The assistant makes no network request. Anything that changes something (a task) is
+ * reaches the page. The assistant makes no network request of its own: only when the firm's AI is on, and the question
+ * has no on-device answer or the broker taps "Ask with the web", does it send the question (askweb.js decides what goes with it). Anything that changes something (a task) is
  * shown first, as a before and after list, waits for a yes of its own and offers Undo. A task, next step or contact
  * goes through crm.js (the path Home and the deal's Pipeline card use); a figure, stage, note, scenario or export
  * through dealui.js assistantApply, which uses the deal screen's own functions. */
@@ -12,7 +13,10 @@ import { el, openSheet, closeSheet, backdropCloses } from './kit.js';
 import { PRODUCT, installBrand } from './brand.js';
 import { understand, suggestions } from './assistant.js';
 import { answer } from './assistantanswer.js';
-import { dealForAssistant, assistantGo, assistantApply } from './dealui.js';
+import { dealForAssistant, dealForAsk, assistantGo, assistantApply, warmDealDocs } from './dealui.js';
+import * as ai from './ai.js';
+import { brain, BRAIN_TASKS, taskPrompt, parseTask, taskToQuestion, talkPrompt, factsText, numberCheck, splitByFigures, visibleText } from './brain.js';
+import { planAsk, safeBlocks, errorText, FROM_AI } from './askweb.js';
 import { pageText } from './docsession.js';
 import { splitTips } from './assistanttips.js';
 import { addTask, deleteTask, updateTask, saveContact, deleteContact, listTasks, listContacts, log as crmLog } from './crm.js';
@@ -24,19 +28,31 @@ let log = null;
 let input = null;
 let chips = null;
 let live = null;
+let reading = null;   // the quiet "Reading your documents…" line
+let webBtn = null;
+let subEl = null;
+let thinkRow = null;
+let thinkBox = null;
+/** The brain's questions and answers of this session (the last six turns), so a follow-up makes sense. */
+let brainHistory = [];
+let brainBusy = false;
+const SUB = 'From your deal, its documents (their text is kept on this device), and the app’s own calculations. Nothing leaves this device.';
+/** The web questions and answers of this session, for the server's context (at most 8 turns). */
+let webHistory = [];
+let webDeal = null;
 /** The Underwrite tool's step and nest tips while the tool's bird has the panel open: { step, tips, run } (assistanttips.js); null otherwise. */
 let toolCtx = null;
 
 const btn = (cls, text, fn) => { const b = el('button', `btn ${cls}`.trim(), text); b.type = 'button'; if (fn) b.addEventListener('click', fn); return b; };
 
 /** Close the panel, let the history settle, then go (the same wait as the deal's section jump). */
-async function leaveAndGo(go) {
+async function leave() {
   const hadEntry = !!(history.state && history.state.sheet);
   closeSheet(dlg);
   if (hadEntry) await new Promise((resolve) => { const t = setTimeout(() => resolve(undefined), 400); window.addEventListener('popstate', () => { clearTimeout(t); resolve(undefined); }, { once: true }); });
   await new Promise((resolve) => setTimeout(() => resolve(undefined), 0));
-  assistantGo(go);
 }
+async function leaveAndGo(go) { await leave(); assistantGo(go); }
 
 function goButton(label, go, aria) {
   const b = btn('btn-sm btn-gray assist-go', label, () => leaveAndGo(go));
@@ -235,6 +251,11 @@ function say(node) {
   node.scrollIntoView({ block: 'nearest' });
 }
 
+/** Bring the open deal's stored document text into the search (docmem.js), saying so quietly while it is read. Never throws; typing carries on. */
+async function warmDocs() {
+  try { return await warmDealDocs((on) => { if (reading) { reading.hidden = !on; reading.textContent = on ? 'Reading your documents…' : ''; } }); } catch { return 0; }
+}
+
 /** Ask one question: show it, answer it, and act when the answer is an "open". */
 export async function ask(text) {
   const q = String(text || '').trim();
@@ -242,20 +263,207 @@ export async function ask(text) {
   say(el('div', 'assist-msg assist-me', q));
   input.value = '';
   let r;
+  let noMatch = false;
+  /** @type {any} */
+  let ctx = null;
   try {
+    await warmDocs();   // the deal's documents kept from an earlier session, read once and then held (docmem.js)
     const snap = dealForAssistant();
-    /** @type {any} */
-    const ctx = snap || { deal: null, input: null, m: {}, rrSum: null, comps: null, today: new Date(), hasDeal: false };
+    ctx = snap || { deal: null, input: null, m: {}, rrSum: null, comps: null, today: new Date(), hasDeal: false };
     if (snap) ctx.tasks = await listTasks().catch(() => []);   // the deal's open next steps, for "move the next step"
-    r = answer(understand(q, { today: ctx.today }), ctx);
+    const u = understand(q, { today: ctx.today });
+    r = answer(u, ctx);
+    noMatch = u.id === 'unknown' && r.kind === 'refuse';
   } catch (e) {
     r = { kind: 'refuse', lines: [`I couldn’t work that out: ${e && e.message ? e.message : e}. Nothing was changed.`], items: [], cites: [], blanks: [], suggest: [] };
+  }
+  // the routes, in order: the device's front desk (above), then the brain on this device when it is ready, then the firm's server when AI is on
+  if (noMatch && brainReady()) {
+    const done = await brainAnswer(q, ctx);
+    if (done) return done;
   }
   const node = draw(r);
   say(node);
   live.textContent = r.lines[0] || '';
   if (r.kind === 'open') leaveAndGo(r.go);
+  if (noMatch) await webAnswer(q);
   return r;
+}
+
+const brainReady = () => brain.state.phase === 'ready';
+const THIS_DEVICE = 'On this device. Nothing you typed left it.';
+
+/** An answer from the brain's own words: text nodes only, a figure the facts do not hold marked. */
+function brainNode(text, bad, confidential) {
+  const box = el('div', 'assist-msg assist-answer assist-brain');
+  const p = el('p', 'assist-brain-text');
+  fillMarked(p, text, bad);
+  box.appendChild(p);
+  if (bad && bad.length) {
+    const w = el('p', 'assist-note assist-ungrounded-note');
+    w.textContent = `Not from your data: ${[...new Set(bad)].join(', ')}. ${PRODUCT} did not calculate these and the deal does not hold them; check them before you use them.`;
+    box.appendChild(w);
+  }
+  box.appendChild(el('p', 'assist-note', `${THIS_DEVICE}${confidential ? ' This deal is confidential: it was read on this device only.' : ''} Written by the on-device model, not calculated by the app.`));
+  return box;
+}
+function fillMarked(p, text, bad) {
+  p.textContent = '';
+  for (const part of splitByFigures(text, bad)) {
+    if (!part.bad) { p.appendChild(document.createTextNode(part.text)); continue; }
+    const m = el('mark', 'assist-ungrounded', part.text);
+    m.title = 'Not from your data';
+    p.appendChild(m);
+    p.appendChild(el('span', 'assist-sr', ' (not from your data)'));
+  }
+}
+
+/**
+ * Answer with the brain on this device. First it maps the question to one of the front desk's tasks (JSON); a task runs on the
+ * app's own engine and its answer is the one shown, with where it came from. Otherwise it talks, from the open deal's facts, and
+ * any figure in its words that is not in the facts is marked. Returns the answer's result, or null when it could not (an error is shown
+ * and the front desk's reply and the server follow as before).
+ */
+async function brainAnswer(q, ctx) {
+  if (brainBusy) { live.textContent = 'Still working on the last question.'; return null; }
+  brainBusy = true;
+  const think = !!(thinkBox && thinkBox.checked);
+  const wait = el('div', 'assist-msg assist-answer assist-wait');
+  const waitText = el('p', null, brain.loaded ? `Working on this device…` : `Loading ${PRODUCT}’s brain on this device. The first question after opening the app takes longer…`);
+  wait.appendChild(waitText);
+  say(wait);
+  live.textContent = waitText.textContent;
+  try {
+    const map = await brain.chat([{ role: 'system', content: taskPrompt(BRAIN_TASKS) }, { role: 'user', content: q }], { think: false });
+    const t = /** @type {any} */ (parseTask(map, BRAIN_TASKS));
+    if (t.ok && t.task) {
+      const tq = /** @type {any} */ (taskToQuestion(t.task, t.inputs, (raw) => understand(raw, { today: ctx.today })));
+      if (!tq.ok) return finishAsk(wait, tq.ask);
+      const r = answer(tq.q, ctx);
+      const box = draw(r);
+      box.appendChild(el('p', 'assist-note', `${THIS_DEVICE} Your question was matched to “${BRAIN_TASKS.find((x) => x.id === t.task).title}” and answered by the app’s own calculation.`));
+      wait.replaceWith(box);
+      box.scrollIntoView({ block: 'nearest' });
+      live.textContent = r.lines[0] || '';
+      if (r.kind === 'open') leaveAndGo(r.go);
+      return r;
+    }
+    if (!t.ok && t.reason === 'missing-inputs') return finishAsk(wait, t.ask);
+    // free talk: the open deal's facts (a confidential deal is read here too: nothing leaves the device)
+    const d = dealForAsk();
+    let facts = 'No deal is open.';
+    try { facts = d ? factsText(d.facts()) : factsText(null); } catch { facts = 'The open deal could not be read.'; }
+    const msgs = [{ role: 'system', content: talkPrompt(facts) }, ...brainHistory.slice(-6), { role: 'user', content: q }];
+    const live1 = el('p', 'assist-brain-text');
+    const stream = el('div', 'assist-msg assist-answer assist-brain assist-streaming');
+    stream.appendChild(live1);
+    let shown = false;
+    const text = await brain.chat(msgs, { think, onToken: (sofar) => {
+      const v = visibleText(sofar);
+      if (!v) return;
+      if (!shown) { wait.replaceWith(stream); shown = true; }
+      live1.textContent = v;
+      stream.scrollIntoView({ block: 'nearest' });
+    } });
+    if (!text) throw new Error('The brain gave no answer.');
+    const bad = numberCheck(text, [facts, q]);
+    const node = brainNode(text, bad, !!(d && d.confidential));
+    if (shown) stream.replaceWith(node); else wait.replaceWith(node);
+    node.scrollIntoView({ block: 'nearest' });
+    brainHistory.push({ role: 'user', content: q }, { role: 'assistant', content: text });
+    brainHistory = brainHistory.slice(-6);
+    live.textContent = bad.length ? `${text.slice(0, 160)} Not from your data: ${bad.join(', ')}.` : text.slice(0, 200);
+    return { kind: 'answer', lines: [text], items: [], cites: [], blanks: [], suggest: [], brain: true };
+  } catch (e) {
+    const msg = `The brain on this device could not answer (${String(e && e.message ? e.message : e).slice(0, 140)}). ${brain.state.phase === 'ready' ? 'You can ask again.' : 'It is turned off; Settings > Documents and AI turns it back on.'}`;
+    const node = el('div', 'assist-msg assist-answer assist-refuse');
+    node.appendChild(el('p', 'warn-text', msg));
+    wait.replaceWith(node);
+    live.textContent = msg;
+    return null;
+  } finally { brainBusy = false; showBrainControls(); }
+}
+
+/** A plain question back (a task that lacks an input): shown as the answer. */
+function finishAsk(wait, text) {
+  const node = el('div', 'assist-msg assist-answer assist-refuse');
+  node.appendChild(el('p', null, text));
+  node.appendChild(el('p', 'assist-note', THIS_DEVICE));
+  wait.replaceWith(node);
+  live.textContent = text;
+  return { kind: 'refuse', lines: [text], items: [], cites: [], blanks: [], suggest: [] };
+}
+
+/** A reply from the server as text nodes and links: nothing from it is ever read as HTML. */
+function webNode(blocks, note) {
+  const box = el('div', 'assist-msg assist-answer assist-web');
+  for (const b of blocks) {
+    box.appendChild(el('p', null, b.text));
+    if (b.sources.length) {
+      const ul = el('ul', 'assist-list assist-sources');
+      for (const src of b.sources) {
+        const li = el('li', null);
+        const a = el('a', 'assist-source', src.text);
+        a.href = src.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.setAttribute('aria-label', `${src.text} (opens in a new tab)`);
+        li.appendChild(a);
+        ul.appendChild(li);
+      }
+      box.appendChild(ul);
+    }
+  }
+  if (note) box.appendChild(el('p', 'assist-note', note));
+  box.appendChild(el('p', 'assist-note', FROM_AI));
+  return box;
+}
+
+/**
+ * Ask the firm's AI server (with the web). Only when AI is set up and on; otherwise nothing happens and nothing is said
+ * (the on-device answer stands, and the web button is not drawn).
+ * The open deal's facts go along unless it is confidential (then only the question, and the answer says so).
+ */
+async function webAnswer(q) {
+  if (webBtn) webBtn.disabled = true;
+  try {
+    if (!ai.isReady(await ai.getSettings())) return;
+    let plan;
+    try { plan = planAsk(dealForAsk(), q, () => (dealForAsk() ? dealForAsk().facts() : [])); } catch { plan = { refuse: 'I could not read the open deal, so nothing was sent.' }; }
+    if (plan.refuse) { say(el('div', 'assist-msg assist-answer assist-refuse', plan.refuse)); live.textContent = plan.refuse; return; }
+    const wait = el('div', 'assist-msg assist-answer assist-wait', `Asking ${PRODUCT} AI. This can take a minute…`);
+    say(wait);
+    live.textContent = `Asking ${PRODUCT} AI. This can take a minute.`;
+    let node;
+    try {
+      // the web conversation belongs to one deal: moving to a different deal starts it again (general turns carry no deal data)
+      const dealKey = plan.scope.deal ? plan.scope.deal.id : null;
+      if (dealKey !== null) { if (webDeal !== null && webDeal !== dealKey) webHistory = []; webDeal = dealKey; }
+      const r = await ai.ask(plan.scope, q, plan.facts, webHistory.slice(-8));
+      const blocks = safeBlocks(r);
+      if (!blocks.length) throw new Error('The AI server sent no answer.');
+      node = webNode(blocks, plan.note);
+      webHistory.push({ role: 'user', content: q }, { role: 'assistant', content: blocks.map((b) => b.text).join('\n') });
+      webHistory = webHistory.slice(-8);
+      live.textContent = blocks[0].text.slice(0, 200);
+    } catch (e) {
+      node = el('div', 'assist-msg assist-answer assist-refuse');
+      node.appendChild(el('p', 'warn-text', errorText(e)));
+      live.textContent = errorText(e);
+    }
+    wait.replaceWith(node);
+    node.scrollIntoView({ block: 'nearest' });
+  } finally { if (webBtn) webBtn.disabled = false; }
+}
+
+/** The "Ask with the web" button: always the server (when AI is on), whatever the device could answer. */
+async function askWithWeb() {
+  const q = input.value.trim();
+  if (!q) { live.textContent = 'Type a question first.'; input.focus(); return; }
+  say(el('div', 'assist-msg assist-me', q));
+  input.value = '';
+  await webAnswer(q);
+  input.focus();
 }
 
 /** The nest's tips as suggested questions: this step's first, then a chip that adds every other tip. */
@@ -295,7 +503,8 @@ function build() {
   const h = el('h2', null, `Ask ${PRODUCT}`);
   h.id = 'assist-h';
   hd.appendChild(h);
-  hd.appendChild(el('p', 'sub', 'From your deal, its documents read this session, and the app’s own calculations. Nothing leaves this device.'));
+  subEl = el('p', 'sub', SUB);
+  hd.appendChild(subEl);
   const close = btn('btn-plain', 'Close', () => closeSheet(dlg));
   close.setAttribute('aria-label', `Close Ask ${PRODUCT}`);
   head.append(hd, close);
@@ -311,9 +520,20 @@ function build() {
   chips = el('div', 'assist-chips');
   chips.setAttribute('aria-label', 'Suggested questions');
   chips.setAttribute('role', 'group');
-  body.append(log, live);
+  reading = el('p', 'hint-sm assist-reading');
+  reading.setAttribute('role', 'status');
+  reading.hidden = true;
+  body.append(log, reading, live);
   const tray = el('div', 'assist-tray');
   tray.appendChild(chips);
+  // "Think it through": drawn only while the brain on this device is ready (showBrainControls)
+  thinkRow = el('label', 'assist-think');
+  thinkBox = el('input');
+  thinkBox.type = 'checkbox';
+  thinkBox.id = 'assist-think';
+  thinkRow.append(thinkBox, el('span', null, 'Think it through (slower, for harder questions)'));
+  thinkRow.hidden = true;
+  tray.appendChild(thinkRow);
   const foot = el('form', 'sheet-foot assist-foot');
   foot.setAttribute('autocomplete', 'off');
   const lab = el('label', 'assist-sr', 'Ask a question');
@@ -327,7 +547,9 @@ function build() {
   input.spellcheck = false;
   const go = el('button', 'btn btn-primary', 'Ask');
   go.type = 'submit';
-  foot.append(lab, input, go);
+  webBtn = btn('btn-gray assist-web-btn', 'Ask with the web', askWithWeb);
+  webBtn.hidden = true;   // drawn only while the firm's AI is set up and on (showWebButton)
+  foot.append(lab, input, go, webBtn);
   foot.addEventListener('submit', (e) => { e.preventDefault(); ask(input.value); input.focus(); });
   card.append(head, body, tray, foot);
   dlg.appendChild(card);
@@ -347,14 +569,30 @@ function build() {
 }
 
 /** @param {{ tool?: { step: string, tips: any[], run: (id: string) => void } | null }} [opts] `tool`: opened by the Underwrite tool's bird */
+/** The "Ask with the web" button exists only when AI settings are ready. */
+async function showWebButton() {
+  let on = false;
+  try { on = ai.isReady(await ai.getSettings()); } catch { /* unreadable settings: no button */ }
+  if (webBtn) webBtn.hidden = !on;
+  if (subEl) subEl.textContent = on ? `${SUB.replace('Nothing leaves this device.', '')}Nothing leaves this device unless the question has no answer here or you tap Ask with the web.` : SUB;
+}
+
+/** The think toggle and the line under the title, for whether the brain is on. */
+function showBrainControls() {
+  if (thinkRow) thinkRow.hidden = !brainReady();
+}
+
 export function openAssistant(opts) {
   if (!dlg) build();
+  showWebButton();
+  showBrainControls();
   toolCtx = opts && opts.tool && opts.tool.tips.length ? opts.tool : null;
   input.placeholder = toolCtx ? 'Ask about this step…' : 'Ask about this deal…';
   if (toolCtx) say(draw({ kind: 'answer', lines: [`You are on the ${toolCtx.step === 'files' ? 'Files' : toolCtx.step === 'review' ? 'Read & review' : toolCtx.step === 'model' ? 'Model' : 'Export'} step. Pick a tip from the nest below, or ask a question.`], items: [], cites: [], blanks: [], suggest: [] }));
   drawChips();
   openSheet(dlg);
   input.focus();
+  warmDocs().then((n) => { if (n && dlg && dlg.open) drawChips(); });   // the suggested questions then know the documents are there
 }
 
 export function initAssistant() {
@@ -368,5 +606,7 @@ export function initAssistant() {
   document.body.appendChild(fab);
   installBrand();   // draws the mark into every [data-brand-mark], this button included
   document.addEventListener('viewchange', (e) => { view = e.detail; if (dlg && dlg.open) drawChips(); });
+  // Home's "Ask Monal" bar: open the panel and ask what was typed (an empty question only opens it)
+  document.addEventListener('monal:ask', (e) => { openAssistant(); const q = e.detail && e.detail.question; if (q) ask(q); });
   return { ask, open: () => openAssistant() };
 }
