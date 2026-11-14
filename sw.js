@@ -63,6 +63,7 @@ const ASSETS = [
   'app/ocrpdf.js',
   'app/textlayer.js',
   'app/tableshape.js',
+  'app/colcontent.js',
   'app/docxread.js',
   'app/factsread.js',
   'app/factsfile.js',
