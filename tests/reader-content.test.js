@@ -184,13 +184,7 @@ const t12 = await import('../app/t12.js');
 const R = (arr) => arr.map((cells, r) => ({ r: r + 1, cells }));
 const LINES = [['Gross Potential Rent', 120000], ['Vacancy Loss', -6000], ['Total Revenue', 114000], ['Real Estate Taxes', 12000], ['Insurance', 4000], ['Total Operating Expenses', 16000], ['Net Operating Income', 98000]];
 
-for (const h of ['2025', 'Actual', 'FY 2025', 'Year Ended December 31, 2025']) {
-  test(`slice 3 (T-12): a single annual column headed “${h}” is read as the year's figures, asked`, { todo: 'slice 3: an income statement by its content' }, () => {
-    const s = t12.readStatement(R([['Description', h], ...LINES]));
-    assert.equal(s.lines.length, 3);
-    assert.equal(s.stated.noi.value, 98000);
-  });
-}
+// slice 3, a single annual column: tests/reader-content-3.test.js
 
 test('slice 3 (T-12): quarter columns are read as quarters, never as months', { todo: 'slice 3: an income statement by its content' }, () => {
   const s = t12.readStatement(R([['Account', 'Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025'], ...LINES.map(([l, v]) => [l, v / 4, v / 4, v / 4, v / 4])]));
