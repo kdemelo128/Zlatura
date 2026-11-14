@@ -145,7 +145,7 @@ export async function readScan(plan, id, ocrText, onProgress) {
   const chars = text.replace(/\s/g, '').length;
   it.ocr = true; it.scanned = false; it.bytes = null; // asked once; the bytes are let go
   if (chars < 20) { it.confidence = 'Not sure'; it.reason = 'OCR found no readable text on its first page. Choose a type, or skip it.'; it.ask = []; return { ok: true, chars }; }
-  const v = identify({ name: it.name, pages: [text] });
+  const v = identify({ name: it.name, pages: [text], ocr: true });
   const looks = isType(v.type) ? v.type : isType(v.looks) ? v.looks : null; // OCR text never types a file by itself
   it.ask = [...new Set([...(looks ? [looks] : []), ...(v.ask || []).filter(isType)])];
   it.confidence = looks ? 'Looks like' : 'Not sure';

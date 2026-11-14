@@ -37,6 +37,29 @@ function appraisalFirst(pages) {
 }
 
 /**
+ * The rent roll table of a sheet, or the shape that keeps it from being one: { t, sh }. The rent roll import's own header test
+ * (headerAndRows) comes first; a header row that is a unit mix or a lease comp table is passed over, so a unit mix summary above
+ * a real rent roll does not hide the roll. Only when every table found is such a shape is the sheet that shape.
+ * @param {{ sheet: string, rows: { cells: any[] }[] }} g
+ */
+function rollTable(g) {
+  const grid = g.rows.map((r) => r.cells);
+  let at = 0; let first = null;
+  for (let k = 0; k < 4 && at < grid.length; k++) {
+    const t = headerAndRows(grid.slice(at), g.sheet);
+    if (!t) break;
+    const sh = tableShape(t.headers);
+    if (!sh) return { t, sh: null };
+    first = first || sh;
+    const same = (row) => (row || []).map((x) => (x === null || x === undefined ? '' : String(x))).join('\u0001') === t.headers.join('\u0001');
+    const h = grid.findIndex((row, j) => j >= at && same(row));
+    if (h < 0) break;
+    at = h + 1;
+  }
+  return { t: null, sh: first || sheetShape(g.rows) };
+}
+
+/**
  * Does the reader of `type` accept this PDF's own content? Only a rent roll's table or an operating statement's
  * month or year columns count: the words alone never do. { reader, why } or null. A rent roll needs three rows, a rent column
  * and a suite or area column; a statement must be one the T-12 PDF import would offer (an actual, complete period). The OM
@@ -150,7 +173,7 @@ export function identify({ name = '', pages = null, layouts = null, grids = null
     const schedule = new Set(); const shaped = new Map();
     const t12 = choices.filter((c) => !c.error && !c.projection).flatMap((c) => { try { const L = layoutOf(grids[c.i].rows, { sheet: grids[c.i].sheet }); const n = L.monthCols.length; if (n >= 3 && isRentSchedule(L.head.row.cells, L.head.ms) && !accepts(() => headerAndRows(grids[c.i].rows.map((r) => r.cells), grids[c.i].sheet))) { schedule.add(c.i); return []; } return n >= 3 ? [{ i: c.i, sheet: c.sheet, hidden: c.hidden, score: n }] : []; } catch { return []; } });
     // the rent roll import's own test, sheet by sheet: a row of three or more recognised headings (its score is how many)
-    const roll = grids.flatMap((g, i) => { try { const sh = sheetShape(g.rows); if (sh) { shaped.set(i, sh); return []; } if (schedule.has(i)) return []; const t = headerAndRows(g.rows.map((r) => r.cells), g.sheet); return t ? [{ i, sheet: g.sheet, hidden: !!g.hidden, score: Math.floor(t.score / 100) }] : []; } catch { return []; } });
+    const roll = grids.flatMap((g, i) => { try { const { t, sh } = rollTable(g); if (sh) { shaped.set(i, sh); return []; } if (schedule.has(i)) return []; return t ? [{ i, sheet: g.sheet, hidden: !!g.hidden, score: Math.floor(t.score / 100) }] : []; } catch { return []; } });
     // a sheet both readers accept is never routed by score (recognised headings and month columns are not comparable): it is one question
     const both = roll.filter((r) => t12.some((t) => t.i === r.i)).map((r) => r.i);
     const ambiguous = both.map((i) => grids[i].sheet);

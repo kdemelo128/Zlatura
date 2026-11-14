@@ -6,9 +6,11 @@
  * operating statement (it has the month columns of one). Pure: headings in, a shape word or null out. */
 
 const norm = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
-const SUITE = /^(?:suite|space|premises|apt|apartment|unit)(?:\s*(?:#|no\.?|number|id))?$/i;
+const SUITE = /^(?:suite|ste|space|premises|apt|apartment|unit)(?:\s*[/&]\s*(?:suite|ste|space|apt|apartment|unit))?(?:\s*(?:#|no\.?|number|id))?\.?$/i;
 const TENANT = /^(?:tenant|occupant|lessee|resident|tenant name|name of tenant)(?:\s*name)?$/i;
-const LEASE_DATE = /\b(?:lease\s*(?:start|end|from|to|expir\w*)|expir\w*)\b/i;
+// an end date (a rent roll has one, a comparable does not)
+const LEASE_END = /\b(?:lease\s*(?:end|to|exp\w*)|expir\w*|exp\b|expires)\b/i;
+const LEASE_DATE = /\b(?:lease\s*(?:start|from)|expir\w*)\b|\blease\s*(?:end|to|exp\w*)\b|\bexp\b|\bexpires\b/i;
 const COUNT = /^(?:#\s*(?:of\s*)?(?:units?|apts?|apartments?)|(?:number|no\.?|count)\s+of\s+(?:units?|apts?)|units?\s*count|total\s+units|units|qty|quantity)$/i;
 const SIZE = /^(?:(?:avg\.?|average)\s*)?(?:sf|rsf|size|area|sq\.?\s*ft\.?|square\s*(?:feet|footage))(?:\s*\(.*\))?$|\bsize\b|\bsf\b|sq\.?\s*ft/i;
 const RENT = /\brent\b|\brate\b/i;
@@ -20,7 +22,7 @@ const LTYPE = /\blease\s*type\b|\btype\s+of\s+lease\b|\blease\s*structure\b|\bst
 
 /**
  * What a row of headings is: 'unitmix' (a count of units, a size or a rent, no tenant, suite or lease dates), 'leasecomp'
- * (a property or address, no suite, a commencement or a term, and three of size, rate per SF, term, commencement and lease
+ * (a property or address, no suite, no end date, a commencement or a term, and three of size, rate per SF, term, commencement and lease
  * type), or null.
  * @param {unknown[]} headings @returns {'unitmix' | 'leasecomp' | null}
  */
@@ -33,7 +35,7 @@ export function tableShape(headings) {
   const size = hs.some((h) => SIZE.test(h) && !RATE_SF.test(h));
   if (any(COUNT) && (size || any(RENT)) && !any(TENANT) && !any(LEASE_DATE)) return 'unitmix';
   const own = [size, any(RATE_SF), any(TERM), any(COMMENCE), any(LTYPE)].filter(Boolean).length;
-  if (any(PLACE) && (any(COMMENCE) || any(TERM)) && own >= 3) return 'leasecomp';
+  if (any(PLACE) && !any(LEASE_END) && (any(COMMENCE) || any(TERM)) && own >= 3) return 'leasecomp';
   return null;
 }
 

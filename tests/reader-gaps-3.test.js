@@ -230,3 +230,52 @@ test('gap 4: text OCR wrote, or a cover page beside a page with no text, does no
   const plain = (await intake(file(bytes, 'a.pdf'), deps)).verdict;
   assert.equal(plain.scanned, false);
 });
+
+/* ---- review fixes */
+
+test('review 1: real rent rolls with an expiration column, "Ste" or "Suite/Unit" are never lease comps or unit mixes', async () => {
+  const { tableShape } = await import('../app/tableshape.js');
+  for (const h of [
+    ['Property', 'Ste', 'Tenant', 'SF', 'Rate/SF', 'Term', 'Commencement', 'Expiration'],
+    ['Building', 'Tenant', 'SF', 'Rent PSF', 'Annual Rent', 'Commencement', 'Expiration'],
+    ['Property', 'Suite/Unit', 'Tenant', 'SF', 'Rate/SF', 'Term', 'Commencement', 'Lease Type'],
+    ['Building', 'Tenant', 'SF', 'Rate/SF', 'Term', 'Commencement', 'Lease Exp'],
+    ['Building', 'Tenant', 'SF', 'Rate/SF', 'Term', 'Commencement', 'Exp.'],
+    ['Building', 'Tenant', 'SF', 'Rate/SF', 'Term', 'Commencement', 'Expires'],
+    ['Property', 'Ste', 'Tenant', 'SF', 'Rate/SF', 'Term', 'Commencement'],
+    ['Units', 'SF', 'Rent', 'Exp.'], ['Units', 'Occupant', 'SF', 'Rent', 'Exp.'], ['Units', 'Tenant', 'SF', 'Monthly Rent'], ['Units', 'Occupant', 'SF', 'Rent', 'Lease Exp'],
+  ]) assert.equal(tableShape(h), null, h.join('|'));
+  const bytes = await book([['Property', 'Ste', 'Tenant', 'SF', 'Rate/SF', 'Term', 'Commencement', 'Expiration'], ['Sample Plaza', '101', 'Alder Foods', 2400, 28.5, 60, '2025-03-01', '2030-02-28'], ['Sample Plaza', '102', 'Birch Dental', 1800, 31, 84, '2025-06-01', '2032-05-31'], ['Sample Plaza', '103', 'Cedar Fitness', 5200, 22, 120, '2024-11-01', '2034-10-31']]);
+  const v = await verdictOf(bytes, 'a.xlsx');
+  assert.equal(v.shape, undefined); assert.equal(v.reader, 'rrsheet');
+  // the PDF: a roll with a suite column is never a comp, whatever else its headings say
+  const { gridPage } = await import('./facts-fixtures.js');
+  const head = ['Property', 'Ste', 'Tenant', 'SF', 'Rate/SF', 'Term', 'Commencement'];
+  const rows = COMP_ROWS.map((c, i) => ['Sample Plaza', String(101 + i), c[0], String(c[3]), String(c[4]), String(c[5]), c[6]]);
+  const pdf = pdfOf([[...gridPage('Rent Roll', head, rows, { widths: [70, 30, 85, 45, 50, 40, 90], size: 7 }), ...prose(['As of 10/01/2026. Rents are annual.'], { y: 200 })]]);
+  assert.notEqual((await verdictOf(pdf, 'b.pdf')).shape, 'leasecomp');
+});
+
+test('review 2: a unit mix summary above a rent roll does not hide the roll', async () => {
+  const bytes = await book([['Unit Mix'], MIX_HEAD, ...MIX_ROWS, [], ['Rent Roll'], ['Suite', 'Tenant', 'SF', 'Monthly Rent', 'Lease End'], ['101', 'Alder Foods', 2400, 5700, '2028-12-31'], ['102', 'Birch Dental', 1800, 4650, '2027-06-30'], ['103', 'Cedar Fitness', 5200, 9500, '2030-10-31']]);
+  const v = await verdictOf(bytes, 'a.xlsx');
+  assert.equal(v.type, 'rentroll'); assert.equal(v.reader, 'rrsheet');
+});
+
+test('review 3: a scan with a stamp line on every page is still a scan; the OCR text of readScan is never real text', async () => {
+  const { pagesAreScan } = await import('../app/textlayer.js');
+  const fax = (n) => `FAX 555-0100 Page ${n} of 3\nFrom: Invented Co`;
+  assert.equal(pagesAreScan([fax(1), fax(2), fax(3)]), true);
+  assert.equal(pagesAreScan([fax(1), COVER.join('\n'), fax(3)]), true, 'one real page does not make the rest text');
+  const stamp = (n) => prose([`Envelope ID ${n} 1111 2222`, 'Page of Docs'], { y: 20, size: 6 });
+  const v = await verdictOf(pdfOf([stamp(1), stamp(2), stamp(3)]), 'a.pdf');
+  assert.equal(v.scanned, true);
+  // readScan: OCR text that reads like a cover page does not decide what the file is
+  const p = I.newPlan();
+  const item = I.stage(p, { name: 'a.pdf', kind: 'pdf', size: 1, verdict: { scanned: true, ask: [] }, bytes: new Uint8Array(3) }, {});
+  assert.equal(item.scanned, true);
+  const r = await I.readScan(p, item.id, async () => 'Offering Memorandum\nExecutive Summary\nAsking Price $5,000,000 Cap Rate 6.5%');
+  assert.equal(r.ok, true);
+  assert.equal(item.type, null, 'nothing is typed from OCR text');
+  assert.equal(item.confidence, 'Not sure', 'a few OCR words that read like an OM are not offered as one: OCR text under 200 characters stays a scan');
+});
