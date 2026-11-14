@@ -1,7 +1,9 @@
 # Reading a rent roll or an income statement by its content
 
-Status: **slice 1 built on `claude/reader-content` (not merged)**. Slices 2 and 3
-are proposals and wait for the owner. Written 2026-11-14 against main 4.7.171.
+Status: slice 1 released in 4.7.173. The section 8 recommendations are recorded as
+approved in `.evolve/DECISIONS.md` (2026-11-14). Slices 2 and 3 are being built on
+`claude/reader-content-2` (not merged); section 9 records what slice 2 does, and
+section 10 is the money note for slice 3. Written 2026-11-14 against main 4.7.171.
 This follows owner decision 4 of 2026-11-14: "Document reading: recognise a rent
 roll or an income statement by its content (columns of figures, dates and
 per-unit patterns) when its headings are not the usual ones; it still asks
@@ -252,3 +254,130 @@ logic):
 4. **Slice 3 order.** Recommendation: the "Total Revenue taken as the heading"
    fix first (a bug), then the annual column, then quarters, then Actual and
    Budget pairs.
+
+## 9. Slice 2 as built
+
+- **Detection** (`omroll.js namesQuestions`). It runs on the table read by its
+  headings (never on one found by its contents), with no tenant column:
+  - a column with a heading the reader has no kind for, whose cells pass
+    `nameColumn` and whose heading is not `NOT_TENANT_HEADING`, gives a **warn**
+    `tenant-column` check;
+  - otherwise, a Suite column that prints a suite number and a name in at least
+    three rows and 80% of the occupied rows, the names passing `nameColumn` and
+    none a vacancy, gives a **warn** `suite-name` check.
+
+  The rows are exactly as read today, and nothing is held.
+- **The question** (`rrdoc.js pdfRollRecord`). The rent roll PDF preview gives
+  the check an `answer` (`{ tenantLabel }` or `{ splitSuite: true }`). It shows
+  two buttons: the yes (*Read "Concept" as the tenant*, or *Split each suite into
+  its number and the tenant*) and *Keep as read*. On the Deal screen the same warn
+  check appears with no re-read (the OM's pages are not kept), and its text points
+  to Import from PDF….
+- **The re-read.** `rentRoll(pages, { tenantLabel })` takes that column as the
+  tenant through `assignKinds(cells, tenantAt)`. `rentRoll(pages, { splitSuite:
+  true })` splits each matching suite. Neither overwrites a tenant already read
+  or names a vacancy. An info check records the choice. No figure, date or
+  stored field changes.
+- **Tests.** `tests/reader-content-2.test.js` has 8 tests; 5 fail on main 4.7.173.
+  The other 3 are guards: no tenant column question when a Tenant column exists,
+  when the words repeat, or when the heading is Owner; a `tenantLabel` that
+  matches nothing changes nothing; no split for plain suites, repeated words or a
+  vacancy. `tests/e2e/pmroll-flow.mjs` part F (invented `pm-roll-concept.pdf`)
+  has 3 checks at each of two sizes; they fail on the old code. Of 9 mutations,
+  7 are caught. The other 2 are equivalent: making the header wrapper
+  unconditional, and dropping the vacancy filter (vacancies are also refused by
+  the name test). Golden: 646 figures, 0 changed.
+
+## 10. Slice 3 money note (income statements by content)
+
+This note comes before any money change (CLAUDE.md, routing). It holds for every
+step below:
+- every amount stays as the file prints it, to whole cents (`t12.js cents`);
+- nothing is scaled, annualised or turned into months;
+- a blank cell is never read as zero on a new path;
+- the sign rules (`normalizeSigns`) are not touched;
+- the engine (`app/engine/`, `deal.js`) is not touched;
+- a file that is read today is read exactly as before, so golden stays at 0
+  changed.
+
+The steps, in the owner's order:
+
+1. **"Total Revenue" taken for the heading row** (`layoutOf`). When no row has
+   three months, the reader takes the first row with a Total-like cell as the
+   heading. A body row such as "Total Revenue | 114,000" matches, so it became
+   the heading and the error was the misleading "No statement lines were found".
+   A heading row holds no amount. Any number other than a year (1900 to 2100)
+   makes a row a body row, never the heading. The file still is not read, but
+   the message is now the true one ("No months or total column were found").
+2. **A single annual column.** When there are no months and no Total heading,
+   the heading row (no amounts, years allowed) may have one column headed as a
+   year, "FY 2025", "Year Ended …", "12 Months Ended …", "Actual", "Amount" or
+   "2025 Actual", with figures under it. It is read exactly as a Total column
+   is read today, but kept only **when the arithmetic agrees**:
+   - at least one stated row (EGI, total expenses, NOI) or subtotal is checked
+     against the lines it covers (`statementChecks`, the same tolerance);
+   - none of those checks fails.
+
+   Otherwise the file is refused, and the message says why. Refusing is today's
+   behaviour, so nothing is guessed. The period is `annual` when the heading
+   names a year or "ended"; for "Actual" or "Amount" it is `other`, with a note
+   that nothing says the column is a full year. No new stored field: the note
+   is worked out from the column heading already kept in `period.columns`.
+3. **Quarters with no Total column.** The heading row has four quarter columns
+   (`QUARTER_HEAD`), dated, consecutive and different (Q1 to Q4 2025, or Q3
+   2024 to Q2 2025).
+   - Each line's total is the sum of its four printed quarters, in whole cents.
+     The quarters are summed to a year only when they are four in a row; no
+     month or monthly figure is made.
+   - A line with a blank quarter refuses the file, naming the line: a blank is
+     never a zero here.
+   - Kept only when the arithmetic agrees, as in step 2.
+   - Stored as an annual-only statement is today: `months: []`, the existing
+     `period.nonMonthly` naming the quarters, and its info text saying the year
+     is the sum of the four quarters.
+4. **Actual and Budget pairs in one heading row** ("Jan 2025 Actual", "Jan 2025
+   Budget"). A side word (Actual, Budget, Variance, Forecast, Prior Year, %)
+   after or before a month is read.
+   - Actual, or no side word: a month column. Every other side word: left out,
+     never a month. A budget is never read as actuals.
+   - A Total column is the Total Actual one; a Total Budget never is.
+   - What was left out is kept in a new optional field,
+     `period.leftOut = { heads: [...] }`, and an info check says so. The field is
+     additive: an older version ignores it, and nothing migrates. To reverse it,
+     drop the field and its check.
+
+Tests for each step fail on main first, and each part is mutation-checked.
+The six `todo` tests in `tests/reader-content.test.js` become plain tests.
+
+### Slice 3 as built
+
+All four steps are in `app/t12.js`, through `importStatement` only.
+`readStatement` takes `byContent`, which is off by default, so the OM statement
+reader (`omstatement.js`) and Documents card routing (`ddintake.js layoutOf`) are
+unchanged.
+- **Step 1.** `isAmountCell` keeps a row with an amount out of the Total-heading
+  fallback.
+- **Step 2.** `annualHead`, then `agreesOrRefuse`. The period is `annual`, or
+  `other` with a Review warn for "Actual" or "Amount".
+- **Step 3.** `quarterHead` and `quarterSum`. A blank quarter refuses the file,
+  naming the row, and the existing `period.nonMonthly` note now says how the
+  year was made.
+- **Step 4.** `sidedMonth` and `sidedHead`. The new optional field is
+  `period.leftOut`, and an info note says what was left out. A sheet that also
+  has a Total column reads as before, from its Total column: today's file
+  reading is kept. A Total Budget column printed before the Total Actual one is
+  a separate, older gap, not touched here.
+- **One extra guard.** A heading with no figure column now refuses the file. The
+  label search would otherwise loop without end.
+
+**Tests.**
+- `tests/reader-content-3.test.js` has 23 tests; 21 fail on main 4.7.173. The
+  two that pass on both are guards: a heading row of years plus Total, and
+  quarters plus Total.
+- The six slice 3 `todo` tests in `tests/reader-content.test.js` are gone, now
+  covered here.
+- Of 21 mutations, 19 are caught. The other 2 are equivalent:
+  - quarters before the Total test (a Total column already stops the quarter
+    head);
+  - budget-only months (refused either way by the new guard).
+- Golden: 646 figures, 0 changed; `analyze-golden` unchanged.

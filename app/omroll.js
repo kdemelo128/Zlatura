@@ -697,9 +697,10 @@ const srcOf = (page, L, a) => ({ page, line: L.i + 1, col: a.col.idx, text: a.te
 function rawRow(x, page) {
   const raw = { vacant: x.vacant };
   const cells = {};
+  const others = {};   // the text of columns the reader has no kind for, by column: what a question about them reads (rentRoll), never a value
   for (const a of x.cells) {
     const k = a.col.kind;
-    if (k === 'other') continue;
+    if (k === 'other') { others[a.col.idx] = a.text; continue; }
     const v = valueOf(a);
     if (v === null) continue;
     cells[k] = { page, line: x.L.i + 1, col: a.col.idx, text: a.text };
@@ -714,7 +715,7 @@ function rawRow(x, page) {
     } else raw[k] = v;
   }
   const first = x.L.cells[0];
-  return { raw, cells, page, line: x.L.i + 1, y: x.L.y, h: x.L.h, unitLabel: !!x.unitLabel, ownTenant: !!(x.by.tenant && !BLANK_RE.test(x.by.tenant.text.trim())), parts: { before: [], after: [] }, lineText: x.L.text.trim(), ocr: x.L.ocr, conf: x.L.conf,
+  return { raw, cells, others, page, line: x.L.i + 1, y: x.L.y, h: x.L.h, unitLabel: !!x.unitLabel, ownTenant: !!(x.by.tenant && !BLANK_RE.test(x.by.tenant.text.trim())), parts: { before: [], after: [] }, lineText: x.L.text.trim(), ocr: x.L.ocr, conf: x.L.conf,
     firstText: first && !/^\$?\d/.test(first.text) && /[a-z]/i.test(first.text) ? first.text : null };
 }
 
@@ -1142,6 +1143,59 @@ function tableScore(t, P) {
   return s;
 }
 
+/** The header `h` with its column headed `label` (one the reader has no kind for) taken as the tenant, when it has no tenant column; else `h` as it is. */
+function withTenant(h, label) {
+  if (!h || h.cols.some((c) => c.kind === 'tenant')) return h;
+  const idx = h.cols.findIndex((c) => c.kind === 'other' && norm(c.label) === norm(label));
+  if (idx < 0) return h;
+  const cols = assignKinds(h.cols.map((c) => ({ text: c.label, x0: c.x0, x1: c.x1 })), idx);
+  return cols ? { ...h, cols } : h;
+}
+
+/** A suite printed with a name after it ("101 Maple Leaf Bakery"): the suite number and the rest. */
+const SUITE_NAME = /^([A-Z]?\d{1,4}[A-Z]?(?:-[A-Z0-9]{1,3})?)\s+(.+)$/i;
+
+/**
+ * A rent roll read with no tenant names, though its rows hold them: a column the reader has no kind for whose cells are
+ * different names (colcontent.js nameColumn), or a Suite column that prints a number and a name in each row. The table
+ * is read as it always was; a warn check says what was seen (the rent roll PDF preview asks it as a choice, rrdoc.js), and
+ * only the broker's yes re-reads the pages (`tenantLabel`, `splitSuite`). With `splitSuite`, each such suite is split
+ * here: never a vacancy, and never over a tenant already read.
+ */
+function namesQuestions(best, chosen, rows, issues, { chose, splitSuite }) {
+  if (best.inferred) return;                                                  // a table found by its contents already asks about its tenant column
+  const at = (c) => ({ col: c.idx, page: best.page, line: best.line, row: null, cell: { page: best.page, line: best.line, col: c.idx, text: c.label }, lineText: c.label, amount: 0 });
+  if (chose.tenant) {
+    const c = best.cols.find((x) => x.kind === 'tenant');
+    issues.push({ kind: 'tenant-column', level: 'info', ...at(c), text: `You chose to read the “${c.label}” column as the tenant: no heading on page ${best.page} says so.` });
+    return;
+  }
+  if (best.cols.some((c) => c.kind === 'tenant')) return;
+  const raws = chosen.flatMap((t) => t.rows.filter((r) => !r.dropped));
+  const cand = best.cols.filter((c) => c.kind === 'other' && c.label.trim() && !NOT_TENANT_HEADING.test(c.label) && nameColumn(raws.map((r) => r.others && r.others[c.idx])));
+  if (cand.length === 1) {
+    const c = cand[0]; const n = nameColumn(raws.map((r) => r.others && r.others[c.idx]));
+    issues.push({ kind: 'tenant-column', level: 'warn', ...at(c), label: c.label,
+      text: `The “${c.label}” column holds ${n.distinct} different names, and no column is headed Tenant, so the rows were read with no tenant names. The rest of the rent roll is read as printed. To read that column as the tenant, open the PDF with Import from PDF… on the rent roll, which asks.` });
+    return;
+  }
+  const suite = best.cols.find((c) => c.kind === 'suite');
+  if (!suite) return;
+  const live = rows.filter((r) => !r.vacant && r.suite);
+  const hits = live.map((r) => ({ r, m: SUITE_NAME.exec(r.suite) })).filter((x) => x.m && !r0(x.r.tenant) && !VACANT.test(x.m[2]));
+  if (hits.length < 3 || hits.length < 0.8 * live.length) return;
+  const n = nameColumn(hits.map((x) => x.m[2]));
+  if (!n) return;
+  if (splitSuite) {
+    for (const { r, m } of hits) { r.suite = m[1]; r.tenant = m[2].trim(); }
+    issues.push({ kind: 'suite-name', level: 'info', ...at(suite), text: `You chose to read the names in the “${suite.label}” column as the tenants: ${hits.length} suites were split into the suite number and the name.` });
+    return;
+  }
+  issues.push({ kind: 'suite-name', level: 'warn', ...at(suite),
+    text: `The “${suite.label}” column prints a suite number and a name in ${hits.length} rows, and no column is headed Tenant, so the rows were read with no tenant names (the name is part of the suite). To read the names as tenants, open the PDF with Import from PDF… on the rent roll, which asks.` });
+}
+const r0 = (t) => !!(t && String(t).trim());
+
 /** A column kind in words, for a question that shows how a table's columns were read. */
 const KIND_WORD = { suite: 'Suite', tenant: 'Tenant', sf: 'SF', start: 'Lease start', end: 'Lease end', term: 'Term', annual: 'Annual rent', monthly: 'Monthly rent', rent: 'Rent', psf: 'Rent per SF', mpsf: 'Rent per SF a month', market: 'Market rent', recov: 'Recoveries', deposit: 'Deposit', status: 'Status', type: 'Type', bumps: 'Rent changes', share: 'Share' };
 
@@ -1181,13 +1235,18 @@ const notRollNear = (t, P) => NOT_ROLL_WORDS.test(P[t.page - 1].slice(Math.max(0
  * `onRowLines(row, [{ page, line }])` is told the exact lines each row was read from (its anchor and its wrapped lines),
  * so a caller can tell a table's own lines from the report's headings; it adds no saved field.
  * @param {string[]} pages
- * @param {{ layouts?: any, periods?: any, onRowLines?: ((row: any, lines: { page: number, line: number }[]) => void) | null }} [options]
+ * `tenantLabel` and `splitSuite` are the broker's answers to the names questions (namesQuestions): read the column headed
+ * `tenantLabel` as the tenant; split a suite printed with a name into the suite number and the tenant.
+ * @param {{ layouts?: any, periods?: any, onRowLines?: ((row: any, lines: { page: number, line: number }[]) => void) | null, tenantLabel?: string | null, splitSuite?: boolean }} [options]
  */
-export function rentRoll(pages, { layouts = null, periods = null, onRowLines = null } = {}) {
+export function rentRoll(pages, { layouts = null, periods = null, onRowLines = null, tenantLabel = null, splitSuite = false } = {}) {
   const P = documentLines(pages, layouts);
   const geo = !!(layouts && layouts.some((g) => g && g.lines));
+  // the broker's answer to "read the 'Concept' column as the tenant?": a header with no tenant column takes that one
+  const chose = { tenant: null };
+  const byHeadings = tenantLabel ? (lines, k) => { const h = headerAt(lines, k); const w = withTenant(h, tenantLabel); if (w !== h) chose.tenant = tenantLabel; return w; } : headerAt;
   // the headings decide first; only when no table is found by its headings anywhere is a tenant column told by its contents
-  let tables = scanTables(P, headerAt);
+  let tables = scanTables(P, byHeadings);
   if (!tables.length) tables = scanTables(P, contentHeaderAt).filter((t) => t.rows.length >= 3 && !notRollNear(t, P));
   if (!tables.length) return null;  // the rent roll: the most rent-roll-like table, and any other whose header matches it
   const best = tables.reduce((a, b) => (tableScore(b, P) > tableScore(a, P) ? b : a));
@@ -1283,6 +1342,7 @@ export function rentRoll(pages, { layouts = null, periods = null, onRowLines = n
     issues.push({ kind: 'carried', level: covered ? 'pass' : 'warn', page: s.page, line: null, row: null, col: null, cell: null, lineText: '',
       text: `Page ${s.page} carries on the table with no header: its cells line up with the header's columns${covered ? ', and the Total row adds up with its rows in' : '. No Total row confirms it'}.`, amount: 0 });
   }
+  if (rows.length) namesQuestions(best, chosen, rows, issues, { chose, splitSuite });
   if (!totals.length) issues.push({ kind: 'nototal', level: 'info', page: null, line: null, row: null, col: null, cell: null, lineText: '', text: 'The rent roll prints no Total row, so its rows can’t be checked against one.', amount: 0 });
   if (!rows.length) return null;
   const pagesList = [...pageSet].sort((a, b) => a - b);

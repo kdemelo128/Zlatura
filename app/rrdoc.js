@@ -63,9 +63,9 @@ const SUMMARY_TITLE = /\b(?:summary|recap|statistics|totals?)\b/i;
  * read from it has a suite or a lease date, AND its table's columns differ from the rest of the roll's (the same
  * columns mean more of the roll). `summary` lists { page, rows } for each page left out.
  */
-function readRoll(pages, layouts, periods) {
+function readRoll(pages, layouts, periods, answers = {}) {
   const rowLines = new Map(); // each row's own lines (omroll.js onRowLines): filterNotes never reads a table's wrapped cell as a heading
-  const read = (pgs, lay) => { try { return rentRoll(pgs, { layouts: lay, ...(periods ? { periods } : {}), onRowLines: (row, lines) => rowLines.set(row, lines) }); } catch { return null; } };
+  const read = (pgs, lay) => { try { return rentRoll(pgs, { layouts: lay, ...(periods ? { periods } : {}), ...answers, onRowLines: (row, lines) => rowLines.set(row, lines) }); } catch { return null; } };
   const cand = [];
   pages.forEach((p, i) => {
     const top = String(p).split('\n').filter((l) => l.trim()).slice(0, 4).join('\n');
@@ -190,12 +190,14 @@ export function filterNotes(pages, rowLines = new Map()) {
  * The Data QC record for a rent roll PDF, in the shape an OM's is (rentroll.js omRollRecord), with no OM figures to
  * compare against (so the roll is never checked against itself) and the layout checks added. A failed check holds
  * the rows back: they stay in `qc.held` until the broker resolves or accepts every fail.
+ * @param {any} doc @param {{ asOf?: string|null, file?: string, scanned?: number[], periods?: any, answers?: { tenantLabel?: string, splitSuite?: boolean } }} [options]
  * @returns {{ qc: any, rows: any[], held: boolean, subset: boolean }} rows: those that may be used now; held: whether a fail holds
  * them; subset: the report says it is filtered (replacing a rent roll then needs a second confirmation)
  */
-export function pdfRollRecord(doc, { asOf = null, file = '', scanned = [], periods = {} } = {}) {
-  // the broker's answers re-read the same pages, so each row's rent follows the period chosen
-  const reread = Object.keys(periods).length && doc.src ? readRoll(doc.src.pages, doc.src.layouts, periods) : null;
+export function pdfRollRecord(doc, { asOf = null, file = '', scanned = [], periods = {}, answers = {} } = {}) {
+  // the broker's answers re-read the same pages, so each row's rent follows the period chosen, and the names the column chosen
+  const answered = { ...(answers.tenantLabel ? { tenantLabel: answers.tenantLabel } : {}), ...(answers.splitSuite ? { splitSuite: true } : {}) };
+  const reread = (Object.keys(periods).length || Object.keys(answered).length) && doc.src ? readRoll(doc.src.pages, doc.src.layouts, Object.keys(periods).length ? periods : null, answered) : null;
   const chosen = reread && reread.roll;
   const roll = chosen || doc.roll;
   const { qc, rows } = omRollRecord({ rentRoll: roll, scanned }, { figures: {}, sources: {}, asOf, file });
@@ -203,7 +205,13 @@ export function pdfRollRecord(doc, { asOf = null, file = '', scanned = [], perio
   const extra = layoutChecks(roll, { pages: doc.src ? doc.src.pages : [], summary: doc.summary || [], periods: chosen ? periods : {}, rowLines: chosen ? reread.rowLines : doc.rowLines });
   // a rent column that is asked about is answered by a choice, not accepted as a guess: its plain accept-as-read fail goes
   for (const q of extra.filter((c) => c.choices)) qc.checks = qc.checks.filter((c) => !(c.kind === 'unit' && c.level === 'fail' && c.col === q.col));
-  if (chosen) for (const r of [...rows, ...(qc.held || [])]) r.periodChosen = Object.values(periods)[0];
+  if (chosen && Object.keys(periods).length) for (const r of [...rows, ...(qc.held || [])]) r.periodChosen = Object.values(periods)[0];
+  // the names a roll was read without (omroll.js namesQuestions): asked here as a choice, since this preview can read the pages again
+  for (const c of qc.checks) {
+    if (c.level !== 'warn' || c.resolved) continue;
+    if (c.kind === 'tenant-column' && c.colLabel) Object.assign(c, { answer: { tenantLabel: c.colLabel }, choiceText: `Read “${c.colLabel}” as the tenant`, text: c.text.replace(/ To read that column as the tenant, .*$/, ' Read it as the tenant?') });
+    else if (c.kind === 'suite-name') Object.assign(c, { answer: { splitSuite: true }, choiceText: 'Split each suite into its number and the tenant', text: c.text.replace(/ To read the names as tenants, .*$/, ' Read the names as the tenants?') });
+  }
   const holds = extra.some((c) => c.level === 'fail');
   const subset = extra.some((c) => c.kind === 'subset');
   const all = rows.length ? rows : (qc.held || []);

@@ -8,7 +8,8 @@
  *   C. an untitled table (pm-roll-untitled.pdf) is only offered as a possible rent roll, and nothing is read until asked;
  *   D. a rent column whose period is not stated (pm-roll-period.pdf) asks Monthly or Annual, cannot be accepted as a guess,
  *      and the answer changes the rent read;
- *   E. axe on the open preview, no sideways scrolling, no request to another site. */
+ *   E. axe on the open preview, no sideways scrolling, no request to another site;
+ *   F. a tenant column headed "Concept" (pm-roll-concept.pdf) is read with no names and asked; a yes reads the names. */
 import { createRequire } from 'module';
 import { phone, BASE, SHOTS, finish } from './lib.mjs';
 const AXE = createRequire(import.meta.url).resolve('axe-core/axe.min.js');
@@ -133,6 +134,15 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
     await page.click('#rrpdf-use'); await page.waitForTimeout(800);
     const dd = await saved();
     check(N('D: the stored rent follows the answer (A1 5,000 a year)'), dd && dd.leases.find((L) => L.unit === 'A1').periods[0].rate === 5000, JSON.stringify(dd && dd.leases[0].periods));
+    // F. a tenant column headed "Concept" (reading by content, slice 2): read as before with no names, asked, and a yes reads them
+    await openPdf('pm-roll-concept.pdf');
+    const tq = page.locator('#rrpdf-qc .qc-item[data-check^="tenant-column"]');
+    check(N('F: a column of names headed “Concept” is asked about, not read as the tenant'), (await tq.count()) === 1 && /“Concept” column holds/.test(await tq.innerText()) && !/Maple Leaf Bakery/.test(await rowsText()), await text('#rrpdf-qc'));
+    check(N('F: the question offers Read as the tenant and Keep as read, and holds nothing'), (await tq.locator('button.qc-answer').count()) === 1 && (await tq.locator('button.qc-keep').count()) === 1 && (await tq.locator('button', { hasText: 'It’s right' }).count()) === 0);
+    await tq.locator('button.qc-answer').click();
+    await page.waitForTimeout(400);
+    check(N('F: yes reads the pages again with the names as tenants, and says so'), /Maple Leaf Bakery/.test(await rowsText()) && /You chose to read the “Concept” column as the tenant/.test(await text('#rrpdf-qc')), (await rowsText()).slice(0, 160));
+    await closeSheet();
     check(N('no request to another site'), requests.every((u) => u.startsWith(BASE) || u.startsWith('data:') || u.startsWith('blob:')), requests.filter((u) => !u.startsWith(BASE)).join(' '));
     check(N('no browser errors'), !errors.length, errors.join('\n'));
   } finally { await browser.close(); }

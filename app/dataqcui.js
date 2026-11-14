@@ -73,7 +73,7 @@ export function qcPanel({ id, title = 'Data QC', qc, intro = '', blockedText = '
     }
     const acts = el('div', 'qc-acts');
     if (c.resolved) acts.appendChild(el('span', 'qc-done', c.resolved.how === 'accepted' ? 'Accepted' : c.resolved.how === 'fixed' && c.resolved.note ? `Fixed: ${c.resolved.note}` : 'Resolved'));
-    else if (onResolve && !c.choices && (c.level === 'fail' || c.level === 'warn')) {   // a question with choices is answered by one of them, never accepted as a guess
+    else if (onResolve && !c.choices && !c.answer && (c.level === 'fail' || c.level === 'warn')) {   // a question with choices is answered by one of them, never accepted as a guess
       const b = el('button', `btn btn-sm ${c.level === 'fail' ? 'btn-primary' : 'btn-gray'}`, resolveLabel(c));
       b.type = 'button';
       b.addEventListener('click', () => onResolve(c));
