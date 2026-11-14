@@ -199,6 +199,13 @@ export function monthOf(v) {
 const QUARTER_HEAD = /^(q[1-4]|[1-4]q)\b|quarter|3 months ended|^fy\s?\d{2,4}$/i;
 const TOTAL_HEAD = /^(total|totals|t-?12|ttm|trailing( 12| twelve)?( months?)?|annual|year total|ytd|12 months?)\b/i;
 
+/** A cell that holds an amount, not a heading: a number or figure text, other than a year (1900 to 2100) or a dash. */
+const isAmountCell = (c) => {
+  if (c === null || c === undefined || (typeof c === 'string' && /^\s*[-–—]*\s*$/.test(c))) return false;
+  const a = amountOf(c);
+  return Number.isFinite(a) && !(/^\s*(?:19|20)\d\d\s*$/.test(String(c)));
+};
+
 /** "Jan 2025" for "2025-01". */
 export const monthLabel = (iso) => (/^\d{4}-\d{2}$/.test(iso || '') ? `${MONTHS[+iso.slice(5) - 1].replace(/^./, (c) => c.toUpperCase())} ${iso.slice(0, 4)}` : String(iso || ''));
 
@@ -231,9 +238,10 @@ export function layoutOf(rows, { sheet = '' } = {}) {
     const n = ms.filter(Boolean).length;
     if (n >= 3) { head = { row, ms }; break; }
   }
-  // a statement with only an annual column: the first row with a Total heading
+  // a statement with only an annual column: the first row with a Total heading (a row with an amount is a line, never the heading: "Total Revenue | 114,000")
   if (!head) {
     for (const row of rows.slice(0, 40)) {
+      if (row.cells.some(isAmountCell)) continue;
       if (row.cells.some((c) => typeof c === 'string' && TOTAL_HEAD.test(c.trim()))) { head = { row, ms: row.cells.map(() => null) }; break; }
     }
   }
