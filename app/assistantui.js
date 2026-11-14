@@ -13,9 +13,9 @@ import { el, openSheet, closeSheet, backdropCloses } from './kit.js';
 import { PRODUCT, installBrand } from './brand.js';
 import { understand, suggestions } from './assistant.js';
 import { answer } from './assistantanswer.js';
-import { dealForAssistant, dealForAsk, openAiSettingsFromBird, assistantGo, assistantApply } from './dealui.js';
+import { dealForAssistant, dealForAsk, assistantGo, assistantApply } from './dealui.js';
 import * as ai from './ai.js';
-import { planAsk, safeBlocks, errorText, FROM_AI, AI_OFF } from './askweb.js';
+import { planAsk, safeBlocks, errorText, FROM_AI } from './askweb.js';
 import { pageText } from './docsession.js';
 import { splitTips } from './assistanttips.js';
 import { addTask, deleteTask, updateTask, saveContact, deleteContact, listTasks, listContacts, log as crmLog } from './crm.js';
@@ -28,6 +28,8 @@ let input = null;
 let chips = null;
 let live = null;
 let webBtn = null;
+let subEl = null;
+const SUB = 'From your deal, its documents read this session, and the app’s own calculations. Nothing leaves this device.';
 /** The web questions and answers of this session, for the server's context (at most 8 turns). */
 let webHistory = [];
 /** The Underwrite tool's step and nest tips while the tool's bird has the panel open: { step, tips, run } (assistanttips.js); null otherwise. */
@@ -268,14 +270,6 @@ export async function ask(text) {
   return r;
 }
 
-/** "Monal AI is off": one line and a button to AI settings. */
-function offNote() {
-  const box = el('div', 'assist-msg assist-answer assist-off');
-  box.appendChild(el('p', null, AI_OFF));
-  box.appendChild(btn('btn-sm btn-gray assist-go', 'AI settings…', async () => { await leave(); openAiSettingsFromBird(); }));
-  return box;
-}
-
 /** A reply from the server as text nodes and links: nothing from it is ever read as HTML. */
 function webNode(blocks, note) {
   const box = el('div', 'assist-msg assist-answer assist-web');
@@ -302,23 +296,20 @@ function webNode(blocks, note) {
 }
 
 /**
- * Ask the firm's AI server (with the web). Only when AI is set up and on; otherwise one line and a button to set it up.
+ * Ask the firm's AI server (with the web). Only when AI is set up and on; otherwise nothing happens and nothing is said
+ * (the on-device answer stands, and the web button is not drawn).
  * The open deal's facts go along unless it is confidential (then only the question, and the answer says so).
  */
 async function webAnswer(q) {
   if (webBtn) webBtn.disabled = true;
   try {
-    if (!ai.isReady(await ai.getSettings())) {
-      say(offNote());
-      live.textContent = AI_OFF;
-      return;
-    }
+    if (!ai.isReady(await ai.getSettings())) return;
     let plan;
     try { plan = planAsk(dealForAsk(), q, () => (dealForAsk() ? dealForAsk().facts() : [])); } catch { plan = { refuse: 'I could not read the open deal, so nothing was sent.' }; }
     if (plan.refuse) { say(el('div', 'assist-msg assist-answer assist-refuse', plan.refuse)); live.textContent = plan.refuse; return; }
-    const wait = el('div', 'assist-msg assist-answer assist-wait', 'Asking Monal AI. This can take a minute…');
+    const wait = el('div', 'assist-msg assist-answer assist-wait', `Asking ${PRODUCT} AI. This can take a minute…`);
     say(wait);
-    live.textContent = 'Asking Monal AI. This can take a minute.';
+    live.textContent = `Asking ${PRODUCT} AI. This can take a minute.`;
     let node;
     try {
       const r = await ai.ask(plan.scope, q, plan.facts, webHistory.slice(-8));
@@ -385,7 +376,8 @@ function build() {
   const h = el('h2', null, `Ask ${PRODUCT}`);
   h.id = 'assist-h';
   hd.appendChild(h);
-  hd.appendChild(el('p', 'sub', 'From your deal, its documents read this session, and the app’s own calculations. Nothing leaves this device unless you tap Ask with the web, with your firm’s AI on.'));
+  subEl = el('p', 'sub', SUB);
+  hd.appendChild(subEl);
   const close = btn('btn-plain', 'Close', () => closeSheet(dlg));
   close.setAttribute('aria-label', `Close Ask ${PRODUCT}`);
   head.append(hd, close);
@@ -418,6 +410,7 @@ function build() {
   const go = el('button', 'btn btn-primary', 'Ask');
   go.type = 'submit';
   webBtn = btn('btn-gray assist-web-btn', 'Ask with the web', askWithWeb);
+  webBtn.hidden = true;   // drawn only while the firm's AI is set up and on (showWebButton)
   foot.append(lab, input, go, webBtn);
   foot.addEventListener('submit', (e) => { e.preventDefault(); ask(input.value); input.focus(); });
   card.append(head, body, tray, foot);
@@ -438,8 +431,17 @@ function build() {
 }
 
 /** @param {{ tool?: { step: string, tips: any[], run: (id: string) => void } | null }} [opts] `tool`: opened by the Underwrite tool's bird */
+/** The "Ask with the web" button exists only when AI settings are ready. */
+async function showWebButton() {
+  let on = false;
+  try { on = ai.isReady(await ai.getSettings()); } catch { /* unreadable settings: no button */ }
+  if (webBtn) webBtn.hidden = !on;
+  if (subEl) subEl.textContent = on ? `${SUB.replace('Nothing leaves this device.', '')}Nothing leaves this device unless the question has no answer here or you tap Ask with the web.` : SUB;
+}
+
 export function openAssistant(opts) {
   if (!dlg) build();
+  showWebButton();
   toolCtx = opts && opts.tool && opts.tool.tips.length ? opts.tool : null;
   input.placeholder = toolCtx ? 'Ask about this step…' : 'Ask about this deal…';
   if (toolCtx) say(draw({ kind: 'answer', lines: [`You are on the ${toolCtx.step === 'files' ? 'Files' : toolCtx.step === 'review' ? 'Read & review' : toolCtx.step === 'model' ? 'Model' : 'Export'} step. Pick a tip from the nest below, or ask a question.`], items: [], cites: [], blanks: [], suggest: [] }));

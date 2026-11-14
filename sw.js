@@ -188,6 +188,7 @@ const ASSETS = [
   'app/assistanttips.js',
   'app/assistantanswer.js',
   'app/assistantui.js',
+  'app/askweb.js',
   'app/docfacts.js',
   'app/docindex.js',
   'app/docsession.js',

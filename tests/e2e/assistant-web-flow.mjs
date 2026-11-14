@@ -1,5 +1,5 @@
-/* The bird asking with the web, against a stub server (page.route: no network). With AI off: one line and a button to
- * AI settings, and nothing sent. With AI on: a question the device cannot answer, or the "Ask with the web" button, goes
+/* The bird asking with the web, against a stub server (page.route: no network). With AI off: today's on-device answer only, no
+ * web button, no line about AI, and nothing sent. With AI on: a question the device cannot answer, or the "Ask with the web" button, goes
  * to /api/ask; the reply is drawn as text (an <img onerror> in it stays text), its source is a new-tab link with rel
  * noopener noreferrer; an open deal's facts go along; a confidential deal sends no facts and says so; a server error
  * is shown with its code. Phone and desktop size. Invented data only. */
@@ -50,23 +50,23 @@ for (const [size, opts] of SIZES) {
     await page.waitForSelector('#home-root h1');
     await setAi(page, false);
 
-    // AI off: one line, a button to AI settings, nothing sent
+    // AI off: today's on-device answer, nothing about Monal AI being off, no web button, nothing sent
     await open();
+    check(L('AI off: the "Ask with the web" button is not drawn'), !(await page.locator('.assist-web-btn').isVisible()));
     await typeAndAsk('What is the weather on Mars?');
-    await page.waitForSelector('.assist-off');
-    check(L('AI off: the line "Monal AI is off. Set it up to ask anything, with the web."'), (await page.locator('.assist-off p').innerText()) === 'Monal AI is off. Set it up to ask anything, with the web.');
-    check(L('AI off: a button opens AI settings'), (await page.locator('.assist-off button').innerText()) === 'AI settings…');
-    await typeAndAsk('Mortgage rates today?', true);
-    await page.waitForFunction(() => document.querySelectorAll('.assist-off').length === 2);
-    check(L('AI off: nothing was sent, from either path'), outside.length === 0, outside.join());
-    await page.click('.assist-off button >> nth=0');
-    await page.waitForSelector('dialog:has-text("AI settings")[open]');
-    check(L('the AI settings button leaves the bird and opens AI settings'), (await page.locator('dialog.assist[open]').count()) === 0 && (await page.locator('#ai-url').count()) === 1);
-    await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+    await page.waitForSelector('.assist-refuse');
+    await page.waitForTimeout(400);
+    const offText = await page.locator('#assist-log').innerText();
+    check(L('AI off: the on-device "can\u2019t answer that yet" stands'), /can’t answer that yet/.test(offText));
+    check(L('AI off: no line or button about Monal AI being off'), !/Monal AI/.test(offText) && (await page.locator('.assist-off').count()) === 0 && (await page.locator('dialog.assist button', { hasText: 'AI settings' }).count()) === 0);
+    check(L('AI off: nothing was sent'), outside.length === 0, outside.join());
+    await close();
 
     // AI on, no deal open: the question alone, in an ask scope; the answer as text with a safe source link
     await setAi(page, true);
     await open();
+    await page.waitForSelector('.assist-web-btn', { state: 'visible' });
+    check(L('AI on: the "Ask with the web" button is drawn'), true);
     await typeAndAsk('Where are cap rates for strip centers heading?');
     await page.waitForSelector('.assist-web');
     check(L('AI on: an unanswerable question went to /api/ask with the device token'), sent.length === 1 && sent[0].url === `${SERVER}/api/ask` && sent[0].auth === 'Bearer device-token-0123456789', JSON.stringify(sent[0]));

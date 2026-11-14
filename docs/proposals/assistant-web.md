@@ -37,12 +37,17 @@ has no web access and the bird does not use it.
    Anthropic's published price for `claude-opus-5-5` ($4 / $20 per million
    tokens, 400 / 2,000 cents), still overridable by the environment.
 5. **The bird (`app/assistantui.js`):** questions the on-device front desk
-   answers stay on the device, free and instant. Anything else, or any
-   question when the broker taps "Ask with the web", goes to `/api/ask` when
-   the firm AI is set up and on; the answer shows its sources as links (new
-   tab, `rel="noopener noreferrer"`) and the line "From Monal AI; web figures
-   are not checked". When the AI is not set up, the bird says so once, with a
-   button to AI settings. Nothing is sent without the AI switch on.
+   answers stay on the device, free and instant. When the firm AI is set up
+   and on, anything the device cannot answer, or any question when the broker
+   taps "Ask with the web", goes to `/api/ask`; the answer shows its sources
+   as links (new tab, `rel="noopener noreferrer"`) and the line "From Monal
+   AI. Figures from the web are not checked." When AI is not set up and on
+   (the state until the owner hosts the server), the bird shows nothing about
+   it: no line, no settings button, no "Ask with the web" button, and the
+   on-device answer is today's. Nothing is sent without the AI switch on.
+   (Changed 2026-11-14 at the owner's direction: no server and no cost for
+   now; the bird gets smarter on its own, with an on-device model on a later
+   branch. The server route stays as dormant code.)
 6. **Hosting:** the server is not deployed by this change. `server/README.md`
    gets the deploy steps; the owner sets `ANTHROPIC_API_KEY` where it runs.
    Until then the bird keeps its on-device answers.

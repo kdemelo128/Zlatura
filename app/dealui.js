@@ -2907,9 +2907,6 @@ export function dealForAsk() {
   return { id: d.id, name: d.name || '', confidential: !!d.confidential, facts: () => { const h = aiHost(); return buildFacts({ deal: d, fields: h.fields, ...h.context() }); } };
 }
 
-/** AI settings, for the bird's "set it up" button. */
-export function openAiSettingsFromBird() { return openAiSettings(api); }
-
 /** What the AI screens need from the open deal. */
 function aiHost() {
   const d = deal;

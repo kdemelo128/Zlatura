@@ -1,9 +1,10 @@
 /* askweb.js -- what the bird sends to the firm's AI server when it asks with the web, and how the reply is made
  * safe to show. Pure, no DOM: assistantui.js draws the result as text nodes and links. */
 
+import { PRODUCT } from './brand.js';
+
 export const CONFIDENTIAL_NOTE = 'This deal is confidential, so only your question was sent.';
-export const FROM_AI = 'From Monal AI. Figures from the web are not checked.';
-export const AI_OFF = 'Monal AI is off. Set it up to ask anything, with the web.';
+export const FROM_AI = `From ${PRODUCT} AI. Figures from the web are not checked.`;
 
 /**
  * What goes with a question. deal: null (none open) or { id, name, confidential }; facts: () => the deal's fact list
