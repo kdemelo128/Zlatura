@@ -200,6 +200,7 @@ test('numberCheck: figures not in the facts are found, whatever the formatting',
   assert.deepEqual(B.numberCheck('7.1%', ['7.04%']), ['7.1%']);
   assert.deepEqual(B.numberCheck('a cap of 7%', []), ['7%']);
   assert.deepEqual(B.numberCheck('', ['1']), []);
+  assert.deepEqual(B.numberCheck('The NOI is $330,000, so 8.5%, or 4,000, fine.', []), ['$330,000', '8.5%', '4,000'], 'a trailing comma is punctuation, not part of the figure');
 });
 
 test('stripThinking removes the model’s <think> block', () => {
@@ -226,4 +227,63 @@ test('the vendored WebLLM is the published file, licensed, listed, and kept by t
   assert.ok(IMMUTABLE.test('/vendor/web-llm-0.2.87/web-llm.js'));
   assert.match(sw, /IMMUTABLE\.test\(url\.pathname\) \? cacheFirst\(e\.request\)/);
   assert.match(sw, /function fromNetwork[\s\S]*caches\.open\(CACHE\)\.then\(\(c\) => c\.put\(request, copy\)\)/);
+});
+
+/* ------------------------------------------------------------- phase 2: the bird */
+const { understand } = await import('../app/assistant.js');
+const U = (raw) => understand(raw, { today: new Date(2026, 10, 12) });
+
+test('the brain may name only the tasks that answer from the deal, never one that changes it', () => {
+  const ids = B.BRAIN_TASKS.map((t) => t.id);
+  assert.deepEqual(ids.sort(), [...B.BRAIN_TASK_IDS].sort());
+  for (const bad of ['set_figure', 'set_stage', 'next_step', 'add_contact', 'add_note', 'make_scenario', 'start_export', 'task', 'open_doc', 'doc_ask']) assert.ok(!ids.includes(bad), bad);
+  const p = B.taskPrompt(B.BRAIN_TASKS);
+  assert.ok(!/set_figure/.test(p)); assert.match(p, /metric is one of noiPsf, ppsf/); assert.match(p, /cap is a percent number/);
+});
+
+test('taskToQuestion puts the model’s inputs where understand() puts them, and asks rather than choosing', () => {
+  const t = (task, inputs) => B.taskToQuestion(task, inputs, U);
+  assert.deepEqual(t('cap_at_price', { price: 4600000 }), { ok: true, q: { id: 'cap_at_price', price: 4600000, ambiguous: null } });
+  assert.deepEqual(t('cap_at_price', { price: '$4,600,000' }).q.price, 4600000);
+  assert.equal(t('cap_at_price', { price: 'cheap' }).ok, false);
+  assert.equal(t('cap_at_price', { price: 0 }).ok, false);
+  assert.deepEqual(t('commission', { price: 5e6 }).q, { id: 'commission', price: 5e6, ambiguous: null });
+  assert.deepEqual(t('price_for_cap', { cap: 7 }).q, { id: 'price_for_cap', cap: 7 });
+  const amb = t('price_for_cap', { cap: 0.07 });
+  assert.equal(amb.ok, false); assert.match(amb.ask, /7% cap rate, or 0\.07%/);
+  assert.deepEqual(t('metric', { metric: 'ppsf' }).q, { id: 'metric', metric: 'ppsf' });
+  assert.equal(t('metric', { metric: 'banana' }).ok, false);
+  assert.deepEqual(t('dscr', {}).q, { id: 'dscr', which: 'dscr' });
+  assert.deepEqual(t('dscr', { which: 'maxLoan' }).q, { id: 'dscr', which: 'maxLoan' });
+  assert.deepEqual(t('expiries', { year: 2027 }).q, { id: 'expiries', year: 2027 });
+  assert.deepEqual(t('expiries', { year: 'soon' }).q, { id: 'expiries', year: null });
+  assert.equal(t('glossary', { term: 'DSCR' }).q.id, 'glossary');
+  assert.equal(t('glossary', { term: 'zzyzx' }).ok, false);
+  assert.equal(t('open', { name: 'the rent roll' }).q.id, 'open');
+  assert.equal(t('walt', {}).q.id, 'walt');
+  assert.equal(t('set_figure', { field: 'price', value: 1 }).ok, false, 'a task that changes a deal is not run from the brain');
+});
+
+test('talkPrompt carries the facts and the rules; splitByFigures marks each bad figure; visibleText waits for a closed think block', () => {
+  const p = B.talkPrompt(B.factsText([{ id: 'f1', label: 'NOI', value: '' }]));
+  assert.match(p, /f1\. NOI: not given/); assert.match(p, /never guess/); assert.match(p, /do not make up any figure/);
+  assert.deepEqual(B.splitByFigures('Cap is 7.25% and NOI $330,000 or 7.25% again.', ['7.25%', '$330,000']).filter((x) => x.bad).map((x) => x.text), ['7.25%', '$330,000', '7.25%']);
+  assert.equal(B.splitByFigures('abc', []).map((x) => x.text).join(''), 'abc');
+  assert.equal(B.splitByFigures('a 5% b', ['5%']).map((x) => x.text).join(''), 'a 5% b');
+  assert.equal(B.visibleText('<think>\nhmm'), '');
+  assert.equal(B.visibleText('<think>\nhmm</think>\n\nHi'), 'Hi');
+  assert.equal(B.visibleText('Hi th'), 'Hi th');
+});
+
+test('chat passes the stream callback through; a load that fails turns the brain off with the reason', async () => {
+  const eng = stub(); let got = null;
+  eng.chat = async (m, o) => { got = o; o.onToken('par'); return 'full'; };
+  const b = B.createBrain({ factory: async () => eng, storage: mem({ model: B.MODELS[0].id, on: true }) });
+  const seen = [];
+  assert.equal(await b.chat([{ role: 'user', content: 'x' }], { think: true, onToken: (t) => seen.push(t) }), 'full');
+  assert.equal(got.think, true); assert.deepEqual(seen, ['par']); assert.equal(b.loaded, true);
+  const bad = stub(); bad.load = async () => { throw new Error('cache empty'); };
+  const c = B.createBrain({ factory: async () => bad, storage: mem({ model: B.MODELS[0].id, on: true }) });
+  await assert.rejects(() => c.chat([{ role: 'user', content: 'x' }]), /cache empty/);
+  assert.equal(c.state.phase, 'off'); assert.match(c.state.why, /could not start \(cache empty\)/);
 });
