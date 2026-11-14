@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.7.174: Home: ask Monal first (New look) (on the development branch; not merged or deployed)
+
+- New look Home opens with an "Ask Monal" bar under the greeting: type a question and press Enter (or Ask) and the Monal bird panel opens with that question asked; an empty question just opens the panel.
+- The four summary figures (active deals, due today, due this week, files and prints this week) are one calm card strip with hairline dividers, 2x2 on a phone. Same figures, same source.
+- On a phone, Read an OM now sits in the header instead of floating, so nothing floating covers Home's buttons at the top or bottom of the page; the three text links are 44 px targets.
+- Section titles are 16 px semibold and sections are 24 px apart. Classic look is unchanged.
+
 ## 4.7.173: A rent roll whose tenant column has an unusual heading, or none, is now recognised and offered for you to confirm (on the development branch; not merged or deployed)
 
 The rent roll reader used to need a heading it knew over the tenant column. A PDF whose tenant column was headed "Concept", "Customer" or "Store", or had no heading at all, often gave no rent roll at all. This was the most common fixable reason on a counts-only run over 41 OMs (11 of them). In a spreadsheet, such a column was left unread, and a column with no heading could not even be chosen. Design: `docs/proposals/reader-content.md` (slice 1 of 3).
