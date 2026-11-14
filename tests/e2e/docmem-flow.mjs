@@ -242,6 +242,7 @@ for (const [size, opts] of SIZES) {
     // removing a document from the list forgets its text
     await page.locator('#deal-dd button[aria-label="Actions for docqa-om.pdf"]').click();
     await page.locator('dialog.action-sheet .action-item', { hasText: 'Remove from list' }).click();
+    check(L('the removal says its kept text is forgotten and Undo does not bring it back'), await page.locator('.toast').filter({ hasText: /Its kept text is forgotten; Undo puts it back on the list, but add the file again to search it/ }).count() === 1);
     check(L('removing a document from the list forgets its text'), await until(page, async () => (await stored(page)).length === 0));
     await addDocs(page, [F + 'docqa-om.pdf']);
     await until(page, async () => ((await stored(page)) || []).length === 1);
@@ -302,6 +303,44 @@ for (const [size, opts] of SIZES) {
       await budget('4x slower CPU', 4000);
       await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
     }
+    // ---- 9. review fixes: a text for a document no longer listed is never read and is deleted; orphans are swept; the limit is said; an older app is told to reload
+    const idz = await seed(page, 'Stray Plaza (fictional)');
+    await page.waitForSelector('#dd-toggle');
+    await addDocs(page, [F + 'docqa-lease.pdf']);
+    await until(page, async () => ((await stored(page)) || []).some((x) => x.dealId === idz));
+    await page.evaluate(async (i) => {
+      const M = await import(new URL('app/docmem.js', location.href).href);
+      // a text under this deal for a file the deal does not list (as a removal that lost the race would leave)
+      await M.saveDocText({ id: i }, { name: 'wrong-om.pdf', sha256: 'c'.repeat(64) }, ['The seller is Quietholm Holdings and the roof is a green slate roof.']);
+      // and one under a deal that is not on this device at all
+      await M.saveDocText({ id: 'gone-deal' }, { name: 'orphan.pdf', sha256: 'd'.repeat(64) }, ['orphan text']);
+    }, idz);
+    await page.waitForTimeout(500);
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForSelector('#dd-toggle');
+    await open(page);
+    a = await ask(page, 'Who is the seller, Quietholm?');
+    check(L('a text for a document no longer listed is not quoted next session'), /found nothing/.test(await txt(a)) && (await a.locator('.assist-passage').count()) === 0 && !/Holdings/.test(await txt(a)), (await txt(a)).slice(0, 200));
+    await close(page);
+    check(L('and it was deleted, not just skipped'), !(await stored(page)).some((x) => x.sha256 === 'c'.repeat(64)) && (await stored(page)).some((x) => x.dealId === idz));
+    await page.evaluate(async () => (await import(new URL('app/store.js', location.href).href)).sweepTrash());
+    check(L('text left under a deal that no longer exists is swept'), await until(page, async () => !(await stored(page)).some((x) => x.dealId === 'gone-deal')));
+    check(L('the swept deal’s neighbours keep their text'), (await stored(page)).some((x) => x.dealId === idz));
+    // the limit is said plainly
+    await page.evaluate(async () => (await import(new URL('app/connectui.js', location.href).href)).openConnect('mydata'));
+    await page.waitForSelector('#md-doctext .md-doctext-total');
+    check(L('My data says how much document text is allowed'), /may take up to 50\.0 MB/.test(await page.locator('#md-doctext').innerText()), await page.locator('#md-doctext').innerText());
+    // an older app (one that opens the database at version 2) meets version 3: it says it is out of date and asks for a reload
+    const older = await page.evaluate(async (base) => {
+      const src = (await (await fetch(`${base}app/store.js`)).text()).replace('export const DB_VERSION = 3;', 'export const DB_VERSION = 2;').replace(/from '\.\//g, `from '${base}app/`);
+      const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+      const states = [];
+      globalThis.addEventListener('zlatura:storage', (e) => states.push(e.detail.state));
+      const m = await import(url);
+      await m.listDealsStrict().catch(() => null);
+      return { status: m.storageStatus(), states };
+    }, BASE).catch((e) => ({ error: String(e) }));
+    check(L('an older app opening the version 3 database is told it is out of date (the existing reload state)'), older.status === 'outdated' && older.states.includes('outdated'), JSON.stringify(older));
     check(L('no request left the page at all'), outside.length === 0, outside.join(', '));
   } catch (e) {
     check(L('the flow completed'), false, String((e && e.stack) || e).slice(0, 700));

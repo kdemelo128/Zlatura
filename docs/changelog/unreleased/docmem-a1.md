@@ -24,3 +24,9 @@ file again." The owner approved keeping the page text on the device (option 4 of
   desktop (a version 2 database opening at version 3, reload then ask, Forget, My data, delete cascade, quota error, backup
   and restore, five stored documents of 120 pages indexed in 40 ms and 163 ms at 4x CPU, axe, no network). Each new guard was
   mutated once and a test failed. Saved deal results are unchanged (golden checks identical).
+- **Review fixes.** A stored text is read back only for documents the deal still lists, and any other is deleted; a document
+  removed while its text was still being packed is never written afterwards; all document text together is held to 50 MB
+  (past it nothing more is kept, and My data says so); text left under a deal that no longer exists is swept at launch;
+  removing a document says its kept text is forgotten. **Rollback note:** any rollback must keep database version 3 and the
+  `doctext` store: an older app opening version 3 gets a VersionError and shows the existing "out of date, reload" message
+  (a flow checks this).
