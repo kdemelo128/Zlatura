@@ -9,6 +9,7 @@ app:
 | `POST /api/extract` | Reads figures out of PDFs or text (OM, rent roll, T-12, lease) with Claude. Each figure comes back with the verbatim passage it was read from, which the app checks against the document before showing it. |
 | `POST /api/research` | Writes a company brief from the PDFs and text the broker supplies (at most 10 documents and 60,000 characters of text), as claims that each carry the verbatim passage they rest on. It takes only `{subject, documents}`; any other key, such as a contacts list, is refused with 400. Names, section titles and kinds come from a closed list. A shared registered agent, address or surname is never taken as a relationship. The server never marks a claim verified: the app searches the broker's own text for each quote. Costs count against the same per-job and per-day limits as the other routes, and the reply says what it cost in whole cents (`chargedCents`). |
 | `POST /api/assist` | Answers a question about one deal from the facts the app sends (figures and their sources), citing the facts it used. |
+| `POST /api/ask` | Answers any question, with the web. Takes `{question, facts, history}`: the facts are the open deal's (none when no deal is open or it is confidential). Claude may search the web (at most 5 searches) and read pages (at most 3); the reply is `{blocks: [{text, sources: [{url, title}]}], searches, model}`, plain text with each block's web sources. Figures about the deal are quoted from the facts by id; figures from the web are named with their source and called not checked. No tool can act in the app. |
 | `POST /api/transcribe` | Sends a recording to a speech-to-text service and returns the transcript with timings. |
 | `POST /api/meeting` | Turns a transcript into a summary, decisions, action items and figures mentioned, each with the words that support it. |
 | `GET /api/health` | Says whether AI and transcription are set up (never the keys). |
@@ -18,6 +19,16 @@ The model is `claude-opus-5-5` (set `AI_MODEL` to change it), asked for
 structured JSON, with Anthropic's server-side fallback turned on
 (`fallbacks: "default"`) so a request the model declines on safety grounds is
 retried on the recommended fallback model rather than failing.
+
+## Deploy
+
+Any host that runs Node 20 or later will do (a small VM, a container, a
+platform-as-a-service). Set `ANTHROPIC_API_KEY`, the token settings
+(`APP_TOKENS_FILE`, see "Tokens, one per device") and `ALLOWED_ORIGINS` (the
+app's origin), then run `npm install` and `npm start` in this folder. The app
+refuses any address that is not `https://`, so the host must serve HTTPS
+(its own certificate, or a proxy in front). Nothing here is deployed by the
+repository itself.
 
 ## Running it
 
@@ -90,7 +101,7 @@ The worst case, `input * input price + max_tokens * output price`, is held; if
 it is over any limit the call is refused before the model is touched. After the
 call the hold is replaced by the real usage (output includes thinking tokens;
 cache tokens count at the input price; a fallback model is priced at the same
-rates). A call that fails with an HTTP status gives its hold back; one that
+rates; `/api/ask` adds `AI_WEB_SEARCH_CENTS` for each web search the reply reports, and holds a fixed allowance of 40,000 input tokens and five searches for what the web results add). A call that fails with an HTTP status gives its hold back; one that
 times out or drops (it may have been billed) is charged the hold, and so is a
 reply whose token counts are missing. Holding first is what stops two
 jobs started together from overshooting. Transcription holds the whole job cap
@@ -104,12 +115,12 @@ cost more than the job cap is charged the job cap, no more.
 | `AI_JOB_CAP_CENTS` | 300 | PLACEHOLDER |
 | `AI_DEVICE_DAY_CAP_CENTS` | 1500 | PLACEHOLDER |
 | `AI_SERVER_DAY_CAP_CENTS` | 3000 | everyone together, PLACEHOLDER |
-| `AI_PRICE_IN_CENTS_PER_MTOK` | 1500 | PLACEHOLDER, UNVERIFIED: set the model's real price |
-| `AI_PRICE_OUT_CENTS_PER_MTOK` | 7500 | PLACEHOLDER, UNVERIFIED: set the model's real price |
+| `AI_PRICE_IN_CENTS_PER_MTOK` | 400 | Anthropic's list price as of 2026-11; check before deploying |
+| `AI_PRICE_OUT_CENTS_PER_MTOK` | 2000 | Anthropic's list price as of 2026-11; check before deploying |
+| `AI_WEB_SEARCH_CENTS` | 1 | per web search (Anthropic's list price, $10 per 1,000, as of 2026-11; check before deploying) |
 | `STT_PRICE_CENTS_PER_MIN` | 2 | PLACEHOLDER |
 
-These are placeholders until the owner names the figures; the prices are
-deliberately high so the caps bite early. Each must be a whole number of cents
+The caps are placeholders until the owner names the figures. Each must be a whole number of cents
 (or a count); the server will not start on `1.5`, `-3` or `abc`.
 
 Answers: 422 `job_over_budget` (nothing was sent to the model), 429
