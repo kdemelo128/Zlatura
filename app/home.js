@@ -80,7 +80,11 @@ function askBar() {
   input.id = 'home-ask-input';
   input.type = 'text';
   input.maxLength = 300;
-  input.placeholder = 'Ask about a deal, a document, or the market';
+  // a short prompt on a phone, where the long one is cut off
+  const narrow = window.matchMedia('(max-width: 479px)');
+  const prompt = () => { input.placeholder = narrow.matches ? `Ask ${PRODUCT} anything` : 'Ask about a deal, a document, or the market'; };
+  prompt();
+  narrow.addEventListener('change', () => { if (input.isConnected) prompt(); });
   input.autocomplete = 'off';
   input.spellcheck = false;
   const go = el('button', 'btn home-ask-go', 'Ask');
@@ -93,6 +97,23 @@ function askBar() {
     document.dispatchEvent(new CustomEvent('monal:ask', { detail: { question } }));
   });
   return f;
+}
+
+/** While the ask bar is on screen the floating bird is hidden (the bar opens the same panel); it comes back when the bar
+ *  scrolls away, on another screen, or in Classic. CSS does the hiding (display: none), so focus can never sit on it. */
+let askWatch = null;
+function watchAskBar(bar) {
+  if (askWatch) askWatch.disconnect();
+  askWatch = null;
+  document.body.classList.remove('home-ask-seen');
+  if (!bar || typeof IntersectionObserver === 'undefined') return;
+  askWatch = new IntersectionObserver((entries) => {
+    const seen = entries[entries.length - 1].isIntersecting;
+    const fab = $('assistant-fab');
+    document.body.classList.toggle('home-ask-seen', seen);
+    if (seen && fab && document.activeElement === fab) bar.querySelector('input')?.focus({ preventScroll: true });
+  });
+  askWatch.observe(bar);
 }
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -216,6 +237,7 @@ async function render() {
   };
   root.appendChild(composeHome(ws, parts, prefs));
   if (isNew()) installBrand();   // fills the Ask bar's [data-brand-mark]
+  watchAskBar(isNew() ? root.querySelector('.home-ask') : null);
   window.scrollTo({ top: scrollY });
   restoreTabFocus();
 }

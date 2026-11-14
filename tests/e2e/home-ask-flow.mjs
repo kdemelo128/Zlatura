@@ -55,7 +55,7 @@ for (const [size, opts] of sizes) {
       const ib = i.getBoundingClientRect(), bb = b.getBoundingClientRect();
       return { label: lab && lab.textContent, ph: i.placeholder, mark: !!f.querySelector('[data-brand-mark] svg use'), ib: [ib.width, ib.height], bb: [bb.width, bb.height], below: r.top >= g.bottom, near: r.top - g.bottom < 260 };
     });
-    check(`${size}: the ask bar has a label "Ask Monal" and the placeholder`, bar.label === 'Ask Monal' && bar.ph === 'Ask about a deal, a document, or the market', JSON.stringify(bar));
+    check(`${size}: the ask bar has a label "Ask Monal" and the ${size === 'phone' ? 'short' : 'long'} placeholder`, bar.label === 'Ask Monal' && bar.ph === (size === 'phone' ? 'Ask Monal anything' : 'Ask about a deal, a document, or the market'), JSON.stringify(bar));
     check(`${size}: the ask bar shows the brand mark`, bar.mark);
     check(`${size}: the input and the button are 44 px targets`, bar.ib[1] >= 43.5 && bar.bb[0] >= 43.5 && bar.bb[1] >= 43.5, JSON.stringify(bar));
     check(`${size}: the ask bar sits under the greeting`, bar.below && bar.near, JSON.stringify(bar));
@@ -96,11 +96,25 @@ for (const [size, opts] of sizes) {
     await page.waitForSelector('#home-pipeline .pipe');
     // ---- phone: nothing floating covers a visible button or link in Home's content
     if (size === 'phone') {
-      for (const [what, y] of [['the bottom of the page (with a deal)', 999999]]) {
+      for (const [what, y] of [['the top of the page (with a deal)', 0], ['the bottom of the page (with a deal)', 999999]]) {
         await page.evaluate((v) => window.scrollTo(0, v), y); await page.waitForTimeout(500);
         const c = await covered();
         check(`phone: at ${what}, no floating control covers a button or link in Home`, c.hit.length === 0, JSON.stringify(c));
       }
+      // the bird is hidden (display: none, so it cannot take focus) while the ask bar is in view, and back once it scrolls away
+      await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(400);
+      const st = () => page.evaluate(() => { const f = document.getElementById('assistant-fab'); return { shown: getComputedStyle(f).display !== 'none', rect: f.getBoundingClientRect().width > 0, bar: (() => { const r = document.querySelector('.home-ask').getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight; })() }; });
+      const top = await st();
+      check('phone: with the ask bar in view the bird is hidden (display none)', top.bar && !top.shown && !top.rect, JSON.stringify(top));
+      await page.evaluate(() => window.scrollTo(0, 600)); await page.waitForTimeout(400);
+      const down = await st();
+      check('phone: after scrolling past the ask bar the bird is back', !down.bar && down.shown && down.rect, JSON.stringify(down));
+      await page.evaluate(() => document.getElementById('assistant-fab').focus());
+      await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(400);
+      check('phone: focus never stays on the hidden bird', await page.evaluate(() => document.activeElement && document.activeElement.id !== 'assistant-fab'));
+      await page.evaluate(() => { location.hash = '#comps'; }); await page.waitForTimeout(500);
+      check('phone: on another screen the bird is back', await page.locator('#assistant-fab').isVisible());
+      await go('home');
       // the floating Read an OM is gone from the screen, and still reachable in the header
       await page.evaluate(() => window.scrollTo(0, 0));
       check('phone: Read an OM stays reachable, in the header and not floating', await page.evaluate(() => { const e = document.querySelector('.home-primary'); return !!e && getComputedStyle(e).position !== 'fixed' && e.getBoundingClientRect().top < 700; }));
