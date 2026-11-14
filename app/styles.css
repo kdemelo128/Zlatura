@@ -2004,7 +2004,8 @@ body.uw-full .uwt { flex: 1 1 auto; min-height: 0; padding: 0 env(safe-area-inse
 :root[data-look="new"] .home-ask-mark { flex: none; display: grid; place-items: center; width: 28px; height: 28px; }
 :root[data-look="new"] .home-ask-input { flex: 1 1 auto; min-width: 0; min-height: 44px; border: 0; background: none; outline: 0; color: var(--ink); font: 400 var(--t-15)/1.4 var(--ui); }
 :root[data-look="new"] .home-ask-input::placeholder { color: var(--muted); opacity: 1; }
-:root[data-look="new"] .home-ask-go { flex: none; border-radius: var(--r-pill); min-width: 44px; min-height: 44px; }
+:root[data-look="new"] .home-ask-go { flex: none; border-radius: var(--r-pill); min-width: 44px; min-height: 44px; background: var(--primary); border-color: var(--primary); color: var(--primary-ink); }
+:root[data-look="new"] .home-ask-go:hover:not(:disabled) { background: color-mix(in srgb, var(--primary) 86%, var(--bg)); border-color: transparent; }
 :root[data-look="new"] .home-primary { min-height: 52px; padding: 0 var(--s6); border-radius: var(--r-pill); font-size: var(--t-15); box-shadow: 0 6px 16px color-mix(in srgb, var(--primary) 28%, transparent); }
 
 /* quiet chrome: the workspace switcher and its note are one slim row, not a second header */

@@ -83,7 +83,7 @@ function askBar() {
   input.placeholder = 'Ask about a deal, a document, or the market';
   input.autocomplete = 'off';
   input.spellcheck = false;
-  const go = el('button', 'btn btn-primary home-ask-go', 'Ask');
+  const go = el('button', 'btn home-ask-go', 'Ask');
   go.type = 'submit';
   f.append(mark, lab, input, go);
   f.addEventListener('submit', (e) => {
