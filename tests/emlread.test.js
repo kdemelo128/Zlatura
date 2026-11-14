@@ -45,6 +45,15 @@ test('bodies: quoted-printable in Latin-1, base64 in UTF-8, soft line breaks, ne
   assert.equal(html.text.replace(/\s+/g, ' ').trim(), 'Hello there Bye');
 });
 
+test('an HTML body: entities are decoded once (&amp;lt; stays text) and nested tags cannot rebuild a tag', () => {
+  const read = (body) => readEmail(enc(lines('From: a@example.test', 'Content-Type: text/html; charset=utf-8', '', body))).text.replace(/\s+/g, ' ').trim();
+  assert.equal(read('<p>Write &amp;lt;b&amp;gt; for bold &amp;amp; more</p>'), 'Write &lt;b&gt; for bold &amp; more');
+  assert.equal(read('<p>5 &lt; 6 &amp; &quot;ok&quot; &#39;yes&#39;</p>'), '5 < 6 & "ok" \'yes\'');
+  const nested = read('<p>Hi</p><scr<script>x</script>ipt>alert(1)</script><div>Bye</div>');
+  assert.ok(!/<|>/.test(nested), nested);
+  assert.ok(nested.startsWith('Hi') && nested.endsWith('Bye'), nested);
+});
+
 test('attachments: names in plain, encoded-word and RFC 2231 form; embedded pictures and calendar parts are not attachments', () => {
   const r = readEmail(enc(lines('From: a@example.test', 'Content-Type: multipart/mixed; boundary="B"', '',
     '--B', 'Content-Type: text/plain', '', 'see attached',

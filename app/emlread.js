@@ -106,7 +106,16 @@ export function addresses(v, fromBinary = false) {
   return out;
 }
 
-const textOf = (html) => html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<br\s*\/?>|<\/p>|<\/div>|<\/tr>/gi, '\n').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/[ \t]+/g, ' ');
+const ENTITY = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" };
+/** Plain text of an HTML body. Tags are stripped until none are left (a nested `<scr<x>ipt>` cannot survive), and the
+ * entities are decoded in one pass, so `&amp;lt;` stays the text `&lt;` rather than turning into `<`. */
+const textOf = (html) => {
+  let s = html, prev;
+  do { prev = s; s = s.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' '); } while (s !== prev);
+  s = s.replace(/<br\s*\/?>|<\/p>|<\/div>|<\/tr>/gi, '\n');
+  do { prev = s; s = s.replace(/<[^>]*>/g, ' '); } while (s !== prev);
+  return s.replace(/&(nbsp|amp|lt|gt|quot|#39);/g, (m, k) => ENTITY[k]).replace(/[ \t]+/g, ' ');
+};
 
 /**
  * Read an email file. Returns { subject, date (ISO text or ''), instant (ms or null), from, to, cc, replyTo, text (plain
