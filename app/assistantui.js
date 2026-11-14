@@ -368,5 +368,7 @@ export function initAssistant() {
   document.body.appendChild(fab);
   installBrand();   // draws the mark into every [data-brand-mark], this button included
   document.addEventListener('viewchange', (e) => { view = e.detail; if (dlg && dlg.open) drawChips(); });
+  // Home's "Ask Monal" bar: open the panel and ask what was typed (an empty question only opens it)
+  document.addEventListener('monal:ask', (e) => { openAssistant(); const q = e.detail && e.detail.question; if (q) ask(q); });
   return { ask, open: () => openAssistant() };
 }

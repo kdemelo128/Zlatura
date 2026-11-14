@@ -41,7 +41,7 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
   const fab = () => page.evaluate(() => { const e = document.querySelector('.home-primary'), r = e.getBoundingClientRect(), tb = document.querySelector('.tabbar'); return { pos: getComputedStyle(e).position, w: r.width, h: r.height, top: r.top, bottom: r.bottom, left: r.left, right: r.right, tabTop: tb && getComputedStyle(tb).display !== 'none' ? tb.getBoundingClientRect().top : null, vw: innerWidth }; });
   const f = await fab();
   if (size === 'phone') {
-    check('phone: the primary action floats (fixed), at least 44 x 44, inside the screen and above the tab bar', f.pos === 'fixed' && f.w >= 44 && f.h >= 44 && f.right <= f.vw && f.left >= 0 && f.tabTop !== null && f.bottom <= f.tabTop, JSON.stringify(f));
+    check('phone: the primary action sits in the header (not floating over the content), at least 44 x 44, inside the screen', f.pos !== 'fixed' && f.w >= 44 && f.h >= 44 && f.right <= f.vw && f.left >= 0, JSON.stringify(f));
   } else check('desktop: the primary action stays in the hero, not floating', f.pos !== 'fixed', f.pos);
 
   // a deal, so the cards under the hero are drawn
@@ -55,10 +55,10 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(300);
     const end = await page.evaluate(() => {
       const kids = [...document.querySelectorAll('#view-home .bento > *')].filter((e) => e.getBoundingClientRect().height > 0);
-      const last = kids[kids.length - 1].getBoundingClientRect(), r = document.querySelector('.home-primary').getBoundingClientRect();
+      const last = kids[kids.length - 1].getBoundingClientRect(), r = document.querySelector('.assist-fab').getBoundingClientRect();
       return { lastBottom: last.bottom, fabTop: r.top };
     });
-    check('phone: at the bottom of the page the floating button does not cover the last card', end.lastBottom <= end.fabTop, JSON.stringify(end));
+    check('phone: at the bottom of the page the bird button does not cover the last card', end.lastBottom <= end.fabTop, JSON.stringify(end));
     await page.evaluate(() => window.scrollTo(0, 0));
   }
 
@@ -105,9 +105,9 @@ for (const [size, opts] of [['phone', {}], ['desktop', { viewport: { width: 1280
     await page.waitForTimeout(400);
     check('320 px wide, text 130%: Home does not scroll sideways', (await sideways(page)) <= 0, `${await sideways(page)}px`);
     const g = await fab();
-    check('320 px wide, text 130%: the floating button stays inside the screen and above the tab bar', g.left >= 0 && g.right <= 320 && (g.tabTop === null || g.bottom <= g.tabTop), JSON.stringify(g));
+    check('320 px wide, text 130%: the primary button stays inside the screen', g.left >= 0 && g.right <= 320, JSON.stringify(g));
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(300);
-    const end2 = await page.evaluate(() => { const kids = [...document.querySelectorAll('#view-home .bento > *')].filter((e) => e.getBoundingClientRect().height > 0); return { lastBottom: kids[kids.length - 1].getBoundingClientRect().bottom, fabTop: document.querySelector('.home-primary').getBoundingClientRect().top }; });
+    const end2 = await page.evaluate(() => { const kids = [...document.querySelectorAll('#view-home .bento > *')].filter((e) => e.getBoundingClientRect().height > 0); return { lastBottom: kids[kids.length - 1].getBoundingClientRect().bottom, fabTop: document.querySelector('.assist-fab').getBoundingClientRect().top }; });
     check('320 px wide, text 130%: the end of the page is not covered', end2.lastBottom <= end2.fabTop, JSON.stringify(end2));
     await page.evaluate(async () => { const m = await import(new URL('app/look.js', location.href).href); m.setTextSize(100); });
   }

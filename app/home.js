@@ -2,7 +2,7 @@
  * tasks, contacts, recent activity and what was produced, and a pipeline
  * report to export or print. Everything here is kept on the device. */
 
-import { PRODUCT } from './brand.js';
+import { PRODUCT, installBrand } from './brand.js';
 import { icon } from './icons.js';
 import * as crm from './crm.js';
 import { kvGet } from './store.js';
@@ -66,6 +66,35 @@ const fold = (c, id, { open, summary }) => {
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; };
 /** The New look restyles Home's markup; Classic keeps today's, so the same data draws both. */
 const isNew = () => document.documentElement.dataset.look === 'new';
+/** The New look's "Ask Monal" bar: the question goes to the bird panel (assistantui.js) as a `monal:ask` event; an empty one just opens it. */
+function askBar() {
+  const f = el('form', 'home-ask');
+  f.setAttribute('role', 'search');
+  f.autocomplete = 'off';
+  const mark = el('span', 'home-ask-mark');
+  mark.setAttribute('data-brand-mark', '');
+  mark.setAttribute('aria-hidden', 'true');
+  const lab = el('label', 'sr-only', `Ask ${PRODUCT}`);
+  lab.htmlFor = 'home-ask-input';
+  const input = el('input', 'home-ask-input');
+  input.id = 'home-ask-input';
+  input.type = 'text';
+  input.maxLength = 300;
+  input.placeholder = 'Ask about a deal, a document, or the market';
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  const go = el('button', 'btn btn-primary home-ask-go', 'Ask');
+  go.type = 'submit';
+  f.append(mark, lab, input, go);
+  f.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const question = input.value.trim();
+    input.value = '';
+    document.dispatchEvent(new CustomEvent('monal:ask', { detail: { question } }));
+  });
+  return f;
+}
+
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 let enteredAt = 0;
@@ -95,6 +124,7 @@ async function render() {
   hl.appendChild(el('p', 'lede', deals.length
     ? `${plural(p.activeCount, 'active deal')}${p.activeValue ? `, ${short(p.activeValue)} asking` : ''}. ${due ? `${plural(due, 'task')} due today or overdue.` : 'Nothing due today.'}`
     : (ws.words.empty || 'Start with an offering memorandum or a set of comps. Everything you add stays on this device.')));
+  if (isNew()) hl.appendChild(askBar());
   head.appendChild(hl);
   const quick = el('div', 'view-actions quick');
   const om = el('label', 'btn btn-primary', 'Read an OM');
@@ -147,15 +177,14 @@ async function render() {
   const weekAgo = Date.now() - 7 * 86400000;
   const made = activity.filter((a) => a.type === 'deliverable');
   if (isNew()) {
-    // one line that reads at a glance, instead of four identical figure cards
+    // one calm card: four cells with a hairline between, the label above the figure (the same figures as Classic's tiles)
     const line = el('section', 'home-sumline');
     line.setAttribute('aria-label', 'Summary');
-    const item = (n, what) => { const x = el('span'); x.append(el('b', null, String(n)), document.createTextNode(what)); line.appendChild(x); return x; };
-    item(p.activeCount, ` active ${p.activeCount === 1 ? 'deal' : 'deals'}${p.activeValue ? `, ${short(p.activeValue)} asking${p.activeUnpriced ? `, ${p.activeUnpriced} unpriced` : ''}` : ''}`);
-    const dueItem = item(b.today.length, ' due today');
-    if (b.overdue.length) dueItem.appendChild(statusChip('warn', `${b.overdue.length} overdue`));
-    item(b.week.length, ' due this week');
-    item(made.filter((a) => a.at >= weekAgo).length, ' files and prints this week');
+    const item = (label, n, sub) => { const x = el('div', 'cell'); x.append(el('span', 'k', label), el('b', null, String(n))); if (sub) x.appendChild(sub); line.appendChild(x); return x; };
+    item('Active deals', p.activeCount, p.activeValue ? el('span', 's', `${short(p.activeValue)} asking${p.activeUnpriced ? `, ${p.activeUnpriced} unpriced` : ''}`) : null);
+    item('Due today', b.today.length, b.overdue.length ? statusChip('warn', `${b.overdue.length} overdue`) : null);
+    item('Due this week', b.week.length, null);
+    item('Files and prints this week', made.filter((a) => a.at >= weekAgo).length, null);
     root.appendChild(line);
   }
   const sum = el('section', 'card home-summary');
@@ -186,6 +215,7 @@ async function render() {
     'home-contacts': contactsCard(contacts, deals, nameOf),
   };
   root.appendChild(composeHome(ws, parts, prefs));
+  if (isNew()) installBrand();   // fills the Ask bar's [data-brand-mark]
   window.scrollTo({ top: scrollY });
   restoreTabFocus();
 }
