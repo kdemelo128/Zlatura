@@ -14,7 +14,7 @@ import { QUESTIONS } from './assistant.js';
 import { PRODUCT } from './brand.js';
 
 /** @typedef {{ id: string, label: string, size: string, licence: string, minMB: number, note: string }} BrainModel */
-/** @typedef {{ load: (modelId: string, onProgress: (p: number) => void) => Promise<void>, chat: (messages: {role: string, content: string}[], opts: { think: boolean }) => Promise<string>, has: (modelId: string) => Promise<boolean>, remove: (modelId: string) => Promise<void>, terminate: () => void }} BrainEngine */
+/** @typedef {{ load: (modelId: string, onProgress: (p: number) => void) => Promise<void>, chat: (messages: {role: string, content: string}[], opts: { think: boolean, onToken?: (textSoFar: string) => void }) => Promise<string>, has: (modelId: string) => Promise<boolean>, remove: (modelId: string) => Promise<void>, terminate: () => void }} BrainEngine */
 /** @typedef {{ phase: 'off' | 'checking' | 'unsupported' | 'downloading' | 'ready' | 'removed', model: string, progress: number, why: string }} BrainState */
 
 /** The three sizes. `minMB` is WebLLM's own figure for the graphics memory the model needs; `size` is the download, approximate. */
@@ -85,15 +85,32 @@ async function realFactory() {
       worker = new Worker(new URL('./brainworker.js', import.meta.url), { type: 'module' });
       engine = await lib.CreateWebWorkerMLCEngine(worker, modelId, { initProgressCallback: (r) => onProgress(Math.max(0, Math.min(1, Number(r && r.progress) || 0))) });
     },
-    async chat(messages, { think }) {
+    async chat(messages, { think, onToken }) {
       if (!engine) throw new Error('The brain is not loaded.');
-      const r = await engine.chat.completions.create({ messages, stream: false, temperature: 0.3, extra_body: { enable_thinking: !!think } });
-      return stripThinking((r.choices[0] && r.choices[0].message && r.choices[0].message.content) || '');
+      const body = { messages, temperature: 0.3, extra_body: { enable_thinking: !!think } };
+      if (!onToken) {
+        const r = await engine.chat.completions.create({ ...body, stream: false });
+        return stripThinking((r.choices[0] && r.choices[0].message && r.choices[0].message.content) || '');
+      }
+      // streamed: each chunk adds a piece of text; the caller is told the answer so far
+      let text = '';
+      for await (const chunk of await engine.chat.completions.create({ ...body, stream: true })) {
+        text += (chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) || '';
+        onToken(text);
+      }
+      return stripThinking(text);
     },
     has: (modelId) => lib.hasModelInCache(modelId),
     remove: (modelId) => lib.deleteModelAllInfoInCache(modelId),
     terminate() { if (worker) worker.terminate(); worker = null; engine = null; },
   };
+}
+
+/** The answer so far while it streams: nothing while an opened <think> is still unclosed. @param {string} text */
+export function visibleText(text) {
+  const t = String(text ?? '');
+  const i = t.lastIndexOf('<think>');
+  return i >= 0 && t.indexOf('</think>', i) < 0 ? '' : stripThinking(t);
 }
 
 /** Qwen3 writes its thinking inside <think>…</think>; only what follows is the answer. @param {string} text */
@@ -195,15 +212,25 @@ export function createBrain({ factory, env, storage } = {}) {
       set({ phase: 'removed', progress: 0, why: '' });
     },
     /**
-     * Ask the model. @param {{ role: string, content: string }[]} messages @param {{ think?: boolean }} [opts]
+     * Ask the model. @param {{ role: string, content: string }[]} messages @param {{ think?: boolean, onToken?: (textSoFar: string) => void }} [opts]
      * @returns {Promise<string>}
      */
-    async chat(messages, { think = false } = {}) {
+    async chat(messages, { think = false, onToken } = {}) {
       if (state.phase !== 'ready') throw new Error('The brain is not turned on.');
       const e = await ensureEngine();
-      if (!loaded) { await e.load(state.model, () => {}); loaded = true; }
-      return e.chat(messages, { think: !!think });
+      if (!loaded) {
+        try { await e.load(state.model, () => {}); } catch (err) {
+          // the files are gone from the browser's cache, or the graphics chip refused: back to off, with the reason
+          drop();
+          set({ phase: 'off', progress: 0, why: `The brain could not start (${String(err && /** @type {any} */ (err).message || err).slice(0, 120)}). Turn it on again in Settings.` });
+          throw err;
+        }
+        loaded = true;
+      }
+      return e.chat(messages, { think: !!think, onToken });
     },
+    /** True once the model is in the graphics chip (the first question after a page load takes longer). */
+    get loaded() { return loaded; },
   };
 }
 
@@ -251,7 +278,7 @@ export const TASK_INPUTS = {
 export function taskPrompt(tasks = QUESTIONS) {
   const lines = tasks.map((t) => {
     const need = TASK_INPUTS[t.id] ? ` Inputs: ${Object.keys(TASK_INPUTS[t.id]).join(', ')}.` : '';
-    return `- ${t.id}: ${t.title}.${need}${t.example ? ` Example: "${t.example}"` : ''}`;
+    return `- ${t.id}: ${t.title}.${need}${TASK_HINTS[t.id] ? ` ${TASK_HINTS[t.id]}` : ''}${t.example ? ` Example: "${t.example}"` : ''}`;
   });
   return [
     'You match a real estate broker’s question to one task. The tasks are calculated by the app, not by you.',
@@ -294,7 +321,7 @@ export function parseTask(text, tasks = QUESTIONS) {
 
 const SCALE = { k: 1e3, thousand: 1e3, m: 1e6, million: 1e6, b: 1e9, billion: 1e9 };
 // money, percents and plain numbers, with an optional $ and K/M/B or word suffix; (1,200) is a negative in the app's statements
-const NUM = /(^|[^A-Za-z0-9_.,])(\$)?\(?(\d[\d,]*(?:\.\d+)?)\)?\s?(%|percent\b|thousand\b|million\b|billion\b|[kKmMbB]\b)?/g;
+const NUM = /(^|[^A-Za-z0-9_.,])(\$)?\(?(\d(?:[\d,]*\d)?(?:\.\d+)?)\)?\s?(%|percent\b|thousand\b|million\b|billion\b|[kKmMbB]\b)?/g;
 
 /**
  * Every figure in `text`: { raw, value (absolute), decimals, scale, kind }. Years 1900-2100 and list numbering are not figures;
@@ -342,4 +369,106 @@ export function numberCheck(answer, allowed) {
     if (!hit) bad.push(f.raw);
   }
   return bad;
+}
+
+/* ------------------------------------------------------------- from the model's task to the front desk's question */
+
+/** The front desk's tasks the brain may name: the ones that answer from the deal. The tasks that change a deal, and the ones that
+ * need a document's text, are left out: the broker's own words already went to the front desk, which asks before it changes anything. */
+export const BRAIN_TASK_IDS = ['cap_at_price', 'price_for_cap', 'dscr', 'expiries', 'walt', 'missing', 'review', 'comps', 'breakeven', 'commission', 'metric', 'summary', 'notes', 'glossary', 'open', 'help'];
+export const BRAIN_TASKS = QUESTIONS.filter((q) => BRAIN_TASK_IDS.includes(q.id));
+/** The values the model may give, for the prompt. */
+export const METRIC_KEYS = ['noiPsf', 'ppsf', 'perUnit', 'expenseRatio', 'cashOnCash', 'cashFlow', 'equity', 'occ', 'cap', 'noi', 'price'];
+const DSCR_KEYS = ['dscr', 'debtService', 'debtYield', 'maxLoan', 'loan'];
+export const TASK_HINTS = {
+  price_for_cap: 'cap is a percent number, for example 7 for 7%.',
+  metric: `metric is one of ${METRIC_KEYS.join(', ')}.`,
+  dscr: `Optional which: ${DSCR_KEYS.join(', ')}.`,
+  expiries: 'Optional year, for example 2027.',
+  glossary: 'term is the word to explain, for example "DSCR".',
+  open: 'name is the screen to open, for example "the rent roll".',
+};
+
+/**
+ * The question the front desk's `answer()` takes (the shape `understand()` returns) for a task the model named, with the model's
+ * inputs put where `understand()` puts them. A figure the model gave outside what a broker would mean (a cap rate under 1, which could
+ * be 7% or 0.07) is asked about, never chosen. `understand` is the front desk's own parser, passed in for the words-only tasks.
+ * @param {string} task @param {Record<string, any>} inputs @param {(raw: string) => any} understand
+ * @returns {{ ok: true, q: any } | { ok: false, ask: string }}
+ */
+export function taskToQuestion(task, inputs, understand) {
+  const num = (v) => { const n = typeof v === 'number' ? v : Number(String(v ?? '').replace(/[$,\s]/g, '')); return Number.isFinite(n) ? n : null; };
+  const str = (v) => (typeof v === 'string' ? v.replace(/[\r\n]+/g, ' ').trim().slice(0, 80) : '');
+  switch (task) {
+    case 'cap_at_price': {
+      const price = num(inputs.price);
+      if (price === null || price <= 0) return { ok: false, ask: 'What price, in dollars? For example $4.6M.' };
+      return { ok: true, q: { id: 'cap_at_price', price, ambiguous: null } };
+    }
+    case 'commission': {
+      const price = num(inputs.price);
+      if (price === null || price <= 0) return { ok: false, ask: 'What price, in dollars? For example $4.6M.' };
+      return { ok: true, q: { id: 'commission', price, ambiguous: null } };
+    }
+    case 'price_for_cap': {
+      const cap = num(inputs.cap);
+      if (cap === null || cap <= 0) return { ok: false, ask: 'What cap rate? For example 7%.' };
+      if (cap < 1) return { ok: false, ask: `Do you mean a ${(cap * 100).toFixed(2).replace(/\.?0+$/, '')}% cap rate, or ${cap}%? Say it with a % sign, such as 7%.` };
+      return { ok: true, q: { id: 'price_for_cap', cap } };
+    }
+    case 'metric': {
+      const metric = str(inputs.metric);
+      if (!METRIC_KEYS.includes(metric)) return { ok: false, ask: 'Which figure: price, NOI, cap rate, price per SF, occupancy, equity or cash-on-cash?' };
+      return { ok: true, q: { id: 'metric', metric } };
+    }
+    case 'dscr': return { ok: true, q: { id: 'dscr', which: DSCR_KEYS.includes(str(inputs.which)) ? str(inputs.which) : 'dscr' } };
+    case 'expiries': {
+      const y = num(inputs.year);
+      return { ok: true, q: { id: 'expiries', year: y !== null && y >= 1900 && y <= 2100 ? Math.round(y) : null } };
+    }
+    case 'glossary': case 'open': {
+      const word = str(task === 'open' ? inputs.name : inputs.term);
+      if (!word) return { ok: false, ask: task === 'open' ? 'What should I open?' : 'Which term should I explain?' };
+      const q = understand(task === 'open' ? `open ${word}` : `explain ${word}`);
+      return q && q.id === task && (task !== 'glossary' || q.term) ? { ok: true, q } : { ok: false, ask: task === 'open' ? `I don’t have a screen called “${word}”.` : `I don’t have “${word}” in my glossary.` };
+    }
+    case 'walt': case 'missing': case 'review': case 'comps': case 'breakeven': case 'summary': case 'notes': case 'help': return { ok: true, q: { id: task } };
+    default: return { ok: false, ask: 'That is not something I can calculate here.' };
+  }
+}
+
+/* ------------------------------------------------------------- talking */
+
+/** The system prompt for a free answer: plain words, the deal's facts as the only source of deal figures. @param {string} facts factsText(...) */
+export function talkPrompt(facts) {
+  return [
+    'You are an assistant for a commercial real estate broker, running on the broker’s own device. Answer in short, plain English.',
+    'For anything about the open deal, use only the facts below. If a fact is not there, or says "not given", say you do not have it; never guess.',
+    'Do not calculate with the deal’s figures and do not make up any figure: the app calculates those. You may explain terms, draft emails and follow-up notes, and compare in words.',
+    'Facts about the open deal:', facts,
+  ].join('\n');
+}
+
+/**
+ * `text` cut into pieces, the ones that are `bad` figures (from numberCheck) marked, so the page can wrap them. Each bad figure is
+ * marked wherever it appears. @param {string} text @param {string[]} bad @returns {{ text: string, bad: boolean }[]}
+ */
+export function splitByFigures(text, bad) {
+  const t = String(text ?? '');
+  const hits = [];
+  for (const b of new Set(bad || [])) {
+    if (!b) continue;
+    for (let i = t.indexOf(b); i >= 0; i = t.indexOf(b, i + b.length)) hits.push([i, i + b.length]);
+  }
+  hits.sort((x, y) => x[0] - y[0]);
+  const out = [];
+  let at = 0;
+  for (const [a, z] of hits) {
+    if (a < at) continue;
+    if (a > at) out.push({ text: t.slice(at, a), bad: false });
+    out.push({ text: t.slice(a, z), bad: true });
+    at = z;
+  }
+  if (at < t.length) out.push({ text: t.slice(at), bad: false });
+  return out;
 }

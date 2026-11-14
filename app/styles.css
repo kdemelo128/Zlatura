@@ -2472,3 +2472,8 @@ dialog.assist-page .sheet-card { height: min(640px, calc(100dvh - 24px)); }
 @keyframes pulse-beat { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.07); } }
 @keyframes pulse-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
 @keyframes pulse-blink { 0%, 100% { transform: scaleY(0); } 50% { transform: scaleY(1); } }
+/* the bird's answers from the brain on this device, and its "Think it through" switch */
+.assist-think { display: flex; align-items: center; gap: var(--s3); min-height: 44px; padding: 0 var(--s4); font-size: var(--t-13); color: var(--muted); cursor: pointer; }
+.assist-think input { width: 20px; height: 20px; flex: none; }
+.assist-brain-text { white-space: pre-wrap; }
+.assist-ungrounded { background: var(--warn-soft); color: var(--ink); text-decoration: underline wavy; padding: 0 2px; border-radius: 3px; }
