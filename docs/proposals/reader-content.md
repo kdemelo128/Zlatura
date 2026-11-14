@@ -348,3 +348,36 @@ The steps, in the owner's order:
 
 Tests for each step fail on main first, and each part is mutation-checked.
 The six `todo` tests in `tests/reader-content.test.js` become plain tests.
+
+### Slice 3 as built
+
+All four steps are in `app/t12.js`, through `importStatement` only.
+`readStatement` takes `byContent`, which is off by default, so the OM statement
+reader (`omstatement.js`) and Documents card routing (`ddintake.js layoutOf`) are
+unchanged.
+- **Step 1.** `isAmountCell` keeps a row with an amount out of the Total-heading
+  fallback.
+- **Step 2.** `annualHead`, then `agreesOrRefuse`. The period is `annual`, or
+  `other` with a Review warn for "Actual" or "Amount".
+- **Step 3.** `quarterHead` and `quarterSum`. A blank quarter refuses the file,
+  naming the row, and the existing `period.nonMonthly` note now says how the
+  year was made.
+- **Step 4.** `sidedMonth` and `sidedHead`. The new optional field is
+  `period.leftOut`, and an info note says what was left out. A sheet that also
+  has a Total column reads as before, from its Total column: today's file
+  reading is kept. A Total Budget column printed before the Total Actual one is
+  a separate, older gap, not touched here.
+- **One extra guard.** A heading with no figure column now refuses the file. The
+  label search would otherwise loop without end.
+
+**Tests.**
+- `tests/reader-content-3.test.js` has 23 tests; 21 fail on main 4.7.173. The
+  two that pass on both are guards: a heading row of years plus Total, and
+  quarters plus Total.
+- The six slice 3 `todo` tests in `tests/reader-content.test.js` are gone, now
+  covered here.
+- Of 21 mutations, 19 are caught. The other 2 are equivalent:
+  - quarters before the Total test (a Total column already stops the quarter
+    head);
+  - budget-only months (refused either way by the new guard).
+- Golden: 646 figures, 0 changed; `analyze-golden` unchanged.
