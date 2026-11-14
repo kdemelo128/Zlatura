@@ -17,6 +17,8 @@ import { ocrNote } from './ocrpdf.js';
 import { factsOf } from './factsfile.js';
 import { factsLine } from './factsread.js';
 import { LIMITS } from './filekind.js';
+import { docTextLine } from './mydata.js';
+import { PRODUCT } from './brand.js';
 
 const OPEN_KEY = 'zl.dd.open';
 const isOpen = () => { try { return localStorage.getItem(OPEN_KEY) === '1'; } catch { return false; } };
@@ -119,6 +121,25 @@ export function renderDocsCard(box, h) {
   body.appendChild(group('dd-h-found', 'Found', list.found.length, list.found.map(foundRow), 'No documents added yet.'));
   if (list.preset) body.appendChild(group('dd-h-optional', 'Optional or not applicable', list.optional.length + list.na.length, [...list.optional.map(optionalRow), ...list.na.map(naRow)]));
   if (dd.docs.length) body.appendChild(el('p', 'hint-sm', 'Tap a file to open where it was read. Documents are not read automatically: use the Rent roll and T-12 imports, or the OM reader, and the file is marked as read.'));
+
+  // the text kept on this device for Ask Monal (docmem.js): said plainly, with a way to forget it
+  if (dd.docs.length && h.textInfo && h.forgetText) {
+    const mem = el('div', 'dd-mem');
+    body.appendChild(mem);
+    h.textInfo().then((t) => {
+      if (!mem.isConnected || !t.docs) return;
+      mem.appendChild(el('p', 'hint-sm', `Ask ${PRODUCT} can search the text of ${t.docs} ${t.docs === 1 ? 'document' : 'documents'} of this deal later, because that text is kept on this device (${docTextLine(t)}). The files themselves are never kept, and a backup does not carry the text.`));
+      const b = btn('btn-gray btn-sm', 'Forget this deal’s document text', async () => {
+        const v = await actionSheet('Forget this deal’s document text?', [{ label: 'Forget it', sub: `${PRODUCT} will no longer find anything in these documents until you add the files again. This cannot be undone.`, value: 'yes', danger: true }]);
+        if (v !== 'yes') return;
+        const ok = await h.forgetText(null);
+        toast(ok ? 'This deal’s document text was forgotten.' : 'The document text could not be forgotten. Try again.');
+        if (ok) mem.textContent = '';
+      });
+      b.id = 'dd-forget-text';
+      mem.appendChild(b);
+    }).catch(() => {});
+  }
 
   // drop zone: a drop here is documents for this deal, not an OM and not a CoStar report
   // wired once per card (a redraw keeps the same box), and always to the newest draw's addFiles
@@ -237,8 +258,9 @@ export function renderDocsCard(box, h) {
       const gone = removeDoc(dd, doc.id);
       if (!gone) return;
       h.touch({ label: `Documents: removed ${doc.name}` });
+      if (h.forgetText && doc.sha256) h.forgetText(doc.sha256).catch(() => {});   // its kept text goes with it
       draw();
-      toast(`${doc.name} removed from the list.`, { label: 'Undo', run: () => { restoreDoc(dd, gone); h.touch({ label: `Documents: restored ${doc.name}` }); draw(); } });
+      toast(`${doc.name} removed. Its kept text is forgotten; Undo puts it back on the list, but add the file again to search it.`, { label: 'Undo', run: () => { restoreDoc(dd, gone); h.touch({ label: `Documents: restored ${doc.name}` }); draw(); } });
     }
   }
   function asOfSheet(doc) {

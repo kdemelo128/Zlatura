@@ -341,7 +341,7 @@ function noText(ctx) {
   const docs = ctx.deal.docs || [];
   if (!docs.length) return refuse(['This deal has no documents attached, so there is nothing for me to read. Add the OM, a lease or a T-12 on the Documents card and I can search it.'], { blanks: [DOCS_BLANK(ctx, 'No documents are recorded on this deal.')] });
   return refuse([`${docs.length === 1 ? 'The document' : 'The documents'} of this deal ${docs.length === 1 ? 'was' : 'were'} read in an earlier session, and ${PRODUCT} keeps no document text or file on this device. Add ${docs.length === 1 ? 'it' : 'them'} again on the Documents card and I can search ${docs.length === 1 ? 'it' : 'them'}.`],
-    { blanks: [DOCS_BLANK(ctx, `${docs.length} document${docs.length === 1 ? '' : 's'} recorded on this deal; no text of ${docs.length === 1 ? 'it is' : 'them is'} held in this session.`)] });
+    { blanks: [DOCS_BLANK(ctx, `${docs.length} document${docs.length === 1 ? '' : 's'} recorded on this deal; no text of ${docs.length === 1 ? 'it is' : 'them is'} held.`)] });
 }
 
 /** What the rent roll holds for a tenant or a suite asked about: the deal's own record, shown before any document. */

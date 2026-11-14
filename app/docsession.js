@@ -1,11 +1,12 @@
-/* docsession.js -- the text of the documents read on this device, for Ask Monal (assistant release 3).
+/* docsession.js -- the text of the documents of the deals read in this session, for Ask Monal (assistant release 3).
  *
- * The app keeps no document bytes and no document text on a deal (dd.js), so nothing here is stored: each reader
- * that already had a file's text in hand (the OM reader, the Documents card, Start from documents, a Word file,
- * an OCR'd scan) hands it over, and it is held in this page's memory only, by deal, until the page is closed or
- * reloaded. The search index (docindex.js) is built from it the first time it is asked for, and again after a
- * document is added. A deal's documents added in an earlier session have no text here: Monal says so and asks
- * for the file to be added again. Pure, no DOM. */
+ * The app keeps no document bytes and no document text on a deal (dd.js). Each reader that already had a file's text
+ * in hand (the OM reader, the Documents card, Start from documents, a Word file, an OCR'd scan) hands it over, and it
+ * is held here in memory, by deal. Since document memory (docmem.js) the same text is also kept compressed in the
+ * `doctext` store, and brought back here when Ask Monal opens a deal in a later session; this file only holds it.
+ * The search index (docindex.js) is built from it the first time it is asked for, and again after a document is
+ * added. A document with no stored text (never read here, forgotten, or too large) is said so, and Monal asks for the
+ * file to be added again. Pure, no DOM. */
 
 import { buildIndex, MAX_PAGES } from './docindex.js';
 
@@ -50,6 +51,17 @@ export function pageText(dealId, docId, page) {
   const d = decks.get(dealId);
   const doc = d && d.docs.find((x) => x.id === docId);
   return doc && doc.pages[page - 1] !== undefined ? { name: doc.name, text: doc.pages[page - 1], pages: doc.pages.length } : null;
+}
+
+/** Whether a document (by its key: SHA-256 or name) is already held for a deal. */
+export const hasDoc = (dealId, key) => { const d = decks.get(dealId); return !!d && d.docs.some((x) => x.key === key); };
+
+/** Let go of one document's text (it was removed from the deal's list). */
+export function forgetDocKey(dealId, key) {
+  const d = decks.get(dealId);
+  if (!d) return;
+  d.docs = d.docs.filter((x) => x.key !== key);
+  d.index = null;
 }
 
 /** Let go of a deal's text (the deal was deleted). */
