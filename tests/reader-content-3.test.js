@@ -105,3 +105,35 @@ test('3: quarters with a Total column are read as before (the Total only)', () =
   const t = imp([['Account', ...Q, 'Total'], ...LINES.map(([l, v]) => [l, ...quarters(v), v + 1])]);
   assert.equal(lineTotals(t)['Gross Potential Rent'], 120001, 'the printed Total, not the sum');
 });
+
+/* ---- 4. Actual and Budget months side by side in one heading row: the Actual months only */
+
+const MS = ['Jan 2025', 'Feb 2025', 'Mar 2025'];
+const paired = (head) => [['Line', ...MS.flatMap(head)], ...LINES.map(([l, v]) => [l, ...MS.flatMap(() => [v / 12, v / 10, v / 12 - v / 10])])];
+
+test('4: "Jan 2025 Actual | Jan 2025 Budget | Variance": the Actual months are read, the rest left out and said', () => {
+  const t = imp(paired((m) => [`${m} Actual`, `${m} Budget`, `${m} Variance`]));
+  assert.deepEqual(t.months, ['2025-01', '2025-02', '2025-03']);
+  const gpr = t.lines.find((l) => l.label === 'Gross Potential Rent');
+  assert.deepEqual(gpr.months, [10000, 10000, 10000], 'the Actual figures, never the Budget ones (12,000)');
+  assert.deepEqual(t.period.leftOut.heads.length, 6);
+  const note = T.valueChecks(t).find((c) => c.id === 'period.leftout');
+  assert.match(note.text, /a budget or a variance is never read as actuals/);
+});
+
+test('4: the side word before the month ("Actual Jan 2025", "Budget Jan 2025") reads the same', () => {
+  const t = imp(paired((m) => [`Actual ${m}`, `Budget ${m}`, `Var ${m}`]));
+  assert.deepEqual(t.months, ['2025-01', '2025-02', '2025-03']);
+  assert.equal(t.lines[0].months[0], 10000);
+});
+
+test('4: Budget months alone are never read as actuals', () => {
+  assert.throws(() => imp([['Line', ...MS.map((m) => `${m} Budget`)], ...LINES.map(([l, v]) => [l, ...MS.map(() => v / 10)])]), /No months or total column/);
+});
+
+test('4: an Actual/Budget sheet with a Total column reads as before (the Total column only), and the OM reader is unchanged', () => {
+  const t = imp([['Line', ...MS.flatMap((m) => [`${m} Actual`, `${m} Budget`]), 'Total'], ...LINES.map(([l, v]) => [l, ...MS.flatMap(() => [v / 12, v / 10]), v])]);
+  assert.deepEqual(t.months, []);
+  assert.equal(t.period.leftOut, undefined);
+  assert.throws(() => T.readStatement(R(paired((m) => [`${m} Actual`, `${m} Budget`]))), /No months or total column/);
+});

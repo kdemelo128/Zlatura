@@ -1,8 +1,8 @@
 /* Reading a rent roll whose tenant column has a heading the reader does not know, told by what the column holds
  * (docs/proposals/reader-content.md, slice 1). A content reading is only ever OFFERED (a spreadsheet import shows a
  * button) or ASKED (a PDF's rows are held behind a failed check until the broker accepts): it never imports alone,
- * and a file whose headings the reader already knows is read exactly as before. The `todo` tests are the shapes
- * the later slices take on: they fail today and are kept so the gap stays visible. All names and figures invented. */
+ * and a file whose headings the reader already knows is read exactly as before. The shapes the later slices took on
+ * are tested in tests/reader-content-2.test.js and tests/reader-content-3.test.js. All names and figures invented. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -176,21 +176,6 @@ test('names are words, not figures, dates, codes or addresses; a column of them 
   assert.equal(nameColumn(['Maple Leaf Bakery', '$1,000', '$2,000', 'Copperline Yoga', 'Quillfeather Books']), null, 'mostly names is not enough');
 });
 
-/* ------------------------------------------------ later slices: these fail today */
+/* ------------------------------------------------ later slices */
 
-// slice 2 (a roll read today whose names are lost): tests/reader-content-2.test.js
-
-const t12 = await import('../app/t12.js');
-const R = (arr) => arr.map((cells, r) => ({ r: r + 1, cells }));
-const LINES = [['Gross Potential Rent', 120000], ['Vacancy Loss', -6000], ['Total Revenue', 114000], ['Real Estate Taxes', 12000], ['Insurance', 4000], ['Total Operating Expenses', 16000], ['Net Operating Income', 98000]];
-
-// slice 3, a single annual column: tests/reader-content-3.test.js
-
-// slice 3, quarter columns: tests/reader-content-3.test.js
-
-test('slice 3 (T-12): Actual and Budget pairs in one heading row read the Actual columns only, asked', { todo: 'slice 3: an income statement by its content' }, () => {
-  const ms = ['Jan 2025', 'Feb 2025', 'Mar 2025'];
-  const s = t12.readStatement(R([['Line', ...ms.flatMap((m) => [`${m} Actual`, `${m} Budget`])], ...LINES.map(([l, v]) => [l, ...ms.flatMap(() => [v / 12, v / 10])])]));
-  assert.deepEqual(s.months, ['2025-01', '2025-02', '2025-03']);
-  assert.equal(s.lines[0].months[0], 10000);
-});
+// slice 2 (rolls read with their names lost): tests/reader-content-2.test.js; slice 3 (income statements): tests/reader-content-3.test.js
