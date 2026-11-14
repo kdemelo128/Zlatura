@@ -1014,6 +1014,7 @@ function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
   let mode = rr.leases.length ? null : 'replace';
   let ocrStatus = '';
   const periods = {};                // the broker's answers: column kind -> 'monthly' | 'annual' | 'psf' | 'mpsf'
+  const answers = {};                // and to the names questions: { tenantLabel } or { splitSuite } (rrdoc.js pdfRollRecord)
   const accepted = new Map();        // check id -> its text when accepted: kept when the pages are read again, only if the text is unchanged
   let replaceSubset = false;         // a filtered report may replace a rent roll only after a second, explicit confirmation
   const use = el('button', 'btn btn-primary', 'Use this rent roll');
@@ -1029,7 +1030,7 @@ function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
   };
   const startRecord = () => {
     const was = record;
-    record = pdfRollRecord(doc, { asOf: rr.settings.asOf || localDate(), file: file.name, scanned: doc.kind === 'scanned' ? pages.map((_, i) => i + 1) : [], periods });
+    record = pdfRollRecord(doc, { asOf: rr.settings.asOf || localDate(), file: file.name, scanned: doc.kind === 'scanned' ? pages.map((_, i) => i + 1) : [], periods, answers });
     // pages already read by OCR keep their rows and their checks through a re-read
     if (was && was.qc.ocr) { record.qc.ocr = was.qc.ocr; record.qc.checks.push(...was.qc.checks.filter((c) => /^ocr:/.test(c.id))); for (const c of was.qc.checks) if (/^scanned:/.test(c.id) && c.resolved) { const n = record.qc.checks.find((x) => x.id === c.id); if (n) n.resolved = c.resolved; } }
     reapplyAccepted(record.qc, accepted);
@@ -1076,6 +1077,16 @@ function previewPdf(rr, changed, { file, pages, bytes, pdfjs, doc }) {
       // a question (monthly or annual?) and a filtered report each need their own answer, never a blanket accept
       onAcceptAll: () => { for (const c of record.qc.checks) if (c.level === 'fail' && !c.resolved && !c.choices && c.kind !== 'subset') { accepted.set(c.id, c.text); resolveCheck(record.qc, c.id, 'accepted'); } draw(); },
       extra: (c) => {
+        // "read the 'Concept' column as the tenant?": yes reads the pages again with the names; keep leaves the rows as read
+        if (c.answer && !c.resolved) {
+          const yes = el('button', 'btn btn-sm btn-primary qc-answer', c.choiceText || 'Yes');
+          yes.type = 'button';
+          yes.addEventListener('click', () => { Object.assign(answers, c.answer); startRecord(); draw(); });
+          const keep = el('button', 'btn btn-sm btn-gray qc-keep', 'Keep as read');
+          keep.type = 'button';
+          keep.addEventListener('click', () => { accepted.set(c.id, c.text); resolveCheck(record.qc, c.id, 'accepted'); draw(); });
+          return [yes, keep];
+        }
         if (c.choices && !c.resolved) {
           return c.choices.map((v) => {
             const b = el('button', 'btn btn-sm btn-primary qc-period', { annual: 'Annual', monthly: 'Monthly', psf: 'Per SF, a year', mpsf: 'Per SF, a month' }[v]);

@@ -1,7 +1,9 @@
 # Reading a rent roll or an income statement by its content
 
-Status: **slice 1 built on `claude/reader-content` (not merged)**. Slices 2 and 3
-are proposals and wait for the owner. Written 2026-11-14 against main 4.7.171.
+Status: slice 1 released in 4.7.173. The section 8 recommendations are recorded as
+approved in `.evolve/DECISIONS.md` (2026-11-14). Slices 2 and 3 are being built on
+`claude/reader-content-2` (not merged); section 9 records what slice 2 does, and
+section 10 is the money note for slice 3. Written 2026-11-14 against main 4.7.171.
 This follows owner decision 4 of 2026-11-14: "Document reading: recognise a rent
 roll or an income statement by its content (columns of figures, dates and
 per-unit patterns) when its headings are not the usual ones; it still asks
@@ -252,3 +254,36 @@ logic):
 4. **Slice 3 order.** Recommendation: the "Total Revenue taken as the heading"
    fix first (a bug), then the annual column, then quarters, then Actual and
    Budget pairs.
+
+## 9. Slice 2 as built
+
+- **Detection** (`omroll.js namesQuestions`). It runs on the table read by its
+  headings (never on one found by its contents), with no tenant column:
+  - a column with a heading the reader has no kind for, whose cells pass
+    `nameColumn` and whose heading is not `NOT_TENANT_HEADING`, gives a **warn**
+    `tenant-column` check;
+  - otherwise, a Suite column that prints a suite number and a name in at least
+    three rows and 80% of the occupied rows, the names passing `nameColumn` and
+    none a vacancy, gives a **warn** `suite-name` check.
+
+  The rows are exactly as read today, and nothing is held.
+- **The question** (`rrdoc.js pdfRollRecord`). The rent roll PDF preview gives
+  the check an `answer` (`{ tenantLabel }` or `{ splitSuite: true }`). It shows
+  two buttons: the yes (*Read "Concept" as the tenant*, or *Split each suite into
+  its number and the tenant*) and *Keep as read*. On the Deal screen the same warn
+  check appears with no re-read (the OM's pages are not kept), and its text points
+  to Import from PDF….
+- **The re-read.** `rentRoll(pages, { tenantLabel })` takes that column as the
+  tenant through `assignKinds(cells, tenantAt)`. `rentRoll(pages, { splitSuite:
+  true })` splits each matching suite. Neither overwrites a tenant already read
+  or names a vacancy. An info check records the choice. No figure, date or
+  stored field changes.
+- **Tests.** `tests/reader-content-2.test.js` has 8 tests; 5 fail on main 4.7.173.
+  The other 3 are guards: no tenant column question when a Tenant column exists,
+  when the words repeat, or when the heading is Owner; a `tenantLabel` that
+  matches nothing changes nothing; no split for plain suites, repeated words or a
+  vacancy. `tests/e2e/pmroll-flow.mjs` part F (invented `pm-roll-concept.pdf`)
+  has 3 checks at each of two sizes; they fail on the old code. Of 9 mutations,
+  7 are caught. The other 2 are equivalent: making the header wrapper
+  unconditional, and dropping the vacancy filter (vacancies are also refused by
+  the name test). Golden: 646 figures, 0 changed.

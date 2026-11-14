@@ -178,17 +178,7 @@ test('names are words, not figures, dates, codes or addresses; a column of them 
 
 /* ------------------------------------------------ later slices: these fail today */
 
-test('slice 2 (PDF, read today with the names lost): a unit-keyed roll with a "Concept" column keeps the names, asked', { todo: 'slice 2: a question for a table that reads today' }, () => {
-  const cols = [{ h: 'Suite', w: 5 }, { h: 'Concept', w: 22 }, { h: 'SF', w: 6, r: 1 }, { h: 'Lease End', w: 10 }, { h: 'Annual Rent', w: 11, r: 1 }];
-  const rr = rentRoll([page(cols, (i, n) => [`10${i}`, n, '2,000', '12/31/2030', '$60,000'])]);
-  assert.deepEqual(rr.rows.map((r) => r.tenant), NAMES);
-});
-
-test('slice 2 (PDF): a name printed in the suite column is split into suite and tenant, asked', { todo: 'slice 2: a question for a table that reads today' }, () => {
-  const cols = [{ h: 'Suite', w: 26 }, { h: 'SF', w: 6, r: 1 }, { h: 'Lease End', w: 10 }, { h: 'Annual Rent', w: 11, r: 1 }];
-  const rr = rentRoll([page(cols, (i, n) => [`10${i} ${n}`, '2,000', '12/31/2030', '$60,000'])]);
-  assert.deepEqual(rr.rows.map((r) => [r.suite, r.tenant]), NAMES.map((n, i) => [`10${i + 1}`, n]));
-});
+// slice 2 (a roll read today whose names are lost): tests/reader-content-2.test.js
 
 const t12 = await import('../app/t12.js');
 const R = (arr) => arr.map((cells, r) => ({ r: r + 1, cells }));

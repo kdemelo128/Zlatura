@@ -14,10 +14,12 @@ export const PM_ROWS = [
 ];
 /** What each unit's annual rent must be, by unit: a blank base rent stays blank (null), whatever the charges or market column holds. */
 export const PM_ANNUAL = { A1: 60000, A2: 42000, A3: null, B1: 36000, B2: null, B3: 22500 };
+/** The rows of the "Concept" report: the two-line name left out (a wrapped line in a column the reader has no kind for ends the table). */
+export const CONCEPT_ROWS = PM_ROWS.filter((r) => r[1].length === 1);
 export const PM_NOTE = 'Rent is the contractual monthly rent; charges are billed separately.';
 const FILLER = 'Prepared from the property management system for the buyer’s due diligence. Figures are unaudited and as of the date above.';
 
-const heads = (rentHead) => ['Unit', 'Tenant', 'Sq Ft', rentHead, 'Monthly Charges', 'Market Rent', 'Lease From', 'Lease To'];
+const heads = (rentHead, tenantHead = 'Tenant') => ['Unit', tenantHead, 'Sq Ft', rentHead, 'Monthly Charges', 'Market Rent', 'Lease From', 'Lease To'];
 const summaryLines = ['Rent Roll Summary', 'As of: 10/01/2026', '', 'Total Units          6', 'Occupied Units       5', 'Vacant Units         1', 'Total Sq Ft      7,600'];
 
 /**
@@ -25,8 +27,8 @@ const summaryLines = ['Rent Roll Summary', 'As of: 10/01/2026', '', 'Total Units
  * note (the footnote, PM_NOTE; '' = none), split (rows on page one; the rest on a page that repeats the header), summary (true).
  * Returns page texts as the reader sees them.
  */
-export function pmText({ title = 'Rent Roll', asOf = true, lines = [], rentHead = 'Base Rent', note = PM_NOTE, split = 3, summary = true, rows = PM_ROWS } = {}) {
-  const cols = [{ h: 'Unit', w: 5 }, { h: 'Tenant', w: 24 }, { h: 'Sq Ft', w: 6, r: 1 }, { h: rentHead, w: Math.max(9, rentHead.length), r: 1 }, { h: 'Monthly Charges', w: 15, r: 1 }, { h: 'Market Rent', w: 11, r: 1 }, { h: 'Lease From', w: 10 }, { h: 'Lease To', w: 14 }];
+export function pmText({ title = 'Rent Roll', asOf = true, lines = [], rentHead = 'Base Rent', note = PM_NOTE, split = 3, summary = true, rows = PM_ROWS, tenantHead = 'Tenant' } = {}) {
+  const cols = [{ h: 'Unit', w: 5 }, { h: tenantHead, w: 24 }, { h: 'Sq Ft', w: 6, r: 1 }, { h: rentHead, w: Math.max(9, rentHead.length), r: 1 }, { h: 'Monthly Charges', w: 15, r: 1 }, { h: 'Market Rent', w: 11, r: 1 }, { h: 'Lease From', w: 10 }, { h: 'Lease To', w: 14 }];
   // a name on two lines: the figures on the first line, the rest of the name alone on the next
   const flat = (rs) => rs.flatMap(([u, n, ...r]) => [[u, n[0], ...r], ...n.slice(1).map((x) => ['', x])]);
   const top = [title, asOf ? 'As of: 10/01/2026' : null, ...lines].filter((x) => x != null).join('\n');
@@ -40,7 +42,7 @@ export function pmText({ title = 'Rent Roll', asOf = true, lines = [], rentHead 
 
 /* ---- the same reports as positioned text for make_pdfs.py, so the browser reads real PDFs ---- */
 const X = { unit: 30, ten: 60, sf: 235, rent: 315, chg: 395, mkt: 470, from: 480, to: 535 };
-const headItems = (y, rentHead) => heads(rentHead).map((t, i) => ({ x: Object.values(X)[i], y, s: t, right: [2, 3, 4, 5].includes(i), bold: true, size: 7 }));
+const headItems = (y, rentHead, tenantHead) => heads(rentHead, tenantHead).map((t, i) => ({ x: Object.values(X)[i], y, s: t, right: [2, 3, 4, 5].includes(i), bold: true, size: 7 }));
 function rowItems(r, y) {
   const [u, names, sf, rent, chg, mkt, from, to] = r;
   const out = [];
@@ -49,13 +51,13 @@ function rowItems(r, y) {
   [[u, X.unit, 0], [sf, X.sf, 1], [rent, X.rent, 1], [chg, X.chg, 1], [mkt, X.mkt, 1], [from, X.from, 0], [to, X.to, 0]].forEach(([s, x, right]) => { if (s) out.push({ x, y, s, right: !!right, size: 7 }); });
   return { items: out, step: names.length === 2 ? 22 : 14 };
 }
-export function pmSpec({ title = 'Rent Roll', asOf = true, lines = [], rentHead = 'Base Rent', note = PM_NOTE, split = 3, summary = true, rows = PM_ROWS } = {}) {
+export function pmSpec({ title = 'Rent Roll', asOf = true, lines = [], rentHead = 'Base Rent', note = PM_NOTE, split = 3, summary = true, rows = PM_ROWS, tenantHead = 'Tenant' } = {}) {
   const page = (rs, heading, extra) => {
     const it = [];
     let y = 750;
     for (const t of [heading, ...(heading === title && asOf ? ['As of: 10/01/2026'] : []), ...(heading === title ? lines : [])]) { if (t) { it.push({ x: 30, y, s: t, size: t === heading ? 12 : 7, bold: t === heading }); y -= t === heading ? 14 : 11; } }
     y -= 14;
-    it.push(...headItems(y, rentHead));
+    it.push(...headItems(y, rentHead, tenantHead));
     y -= 20;
     for (const r of rs) { const { items, step } = rowItems(r, y); it.push(...items); y -= step; }
     if (extra) it.push({ x: 30, y: y - 20, s: extra, size: 6 }, { x: 30, y: y - 30, s: FILLER, size: 6 });
@@ -83,4 +85,6 @@ export const PM_SPECS = {
   'pm-roll-untitled': () => pmSpec({ title: null, asOf: false, rentHead: 'Monthly Base Rent', note: '' }),
   // the rent column's period is not stated anywhere
   'pm-roll-period': () => pmSpec({ note: '' }),
+  // the tenant column headed "Concept" (reading by content, slice 2): read with no tenants, and asked; no name over two lines
+  'pm-roll-concept': () => pmSpec({ tenantHead: 'Concept', rows: CONCEPT_ROWS }),
 };
