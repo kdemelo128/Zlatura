@@ -294,7 +294,7 @@ export function parseTask(text, tasks = QUESTIONS) {
 
 const SCALE = { k: 1e3, thousand: 1e3, m: 1e6, million: 1e6, b: 1e9, billion: 1e9 };
 // money, percents and plain numbers, with an optional $ and K/M/B or word suffix; (1,200) is a negative in the app's statements
-const NUM = /(?<![A-Za-z0-9_.,])(\$)?\(?(\d[\d,]*(?:\.\d+)?)\)?\s?(%|percent\b|thousand\b|million\b|billion\b|[kKmMbB]\b)?/g;
+const NUM = /(^|[^A-Za-z0-9_.,])(\$)?\(?(\d[\d,]*(?:\.\d+)?)\)?\s?(%|percent\b|thousand\b|million\b|billion\b|[kKmMbB]\b)?/g;
 
 /**
  * Every figure in `text`: { raw, value (absolute), decimals, scale, kind }. Years 1900-2100 and list numbering are not figures;
@@ -307,16 +307,16 @@ function figuresIn(text) {
     .replace(/\b\d{4}-\d{1,2}-\d{1,2}\b|\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g, ' ');
   const out = [];
   for (const m of t.matchAll(NUM)) {
-    const digits = m[2];
-    const unit = (m[3] || '').toLowerCase();
-    const money = !!m[1];
+    const digits = m[3];
+    const unit = (m[4] || '').toLowerCase();
+    const money = !!m[2];
     const [int, dec = ''] = digits.replace(/,/g, '').split('.');
     const plain = !money && !unit;
     if (plain && /^(19|20)\d\d$/.test(digits) && !dec && !digits.includes(',')) continue;
     if (plain && int.length < 2) continue;
     const kind = unit === '%' || unit === 'percent' ? 'pct' : money ? 'money' : 'plain';
     const scale = SCALE[unit] || 1;
-    out.push({ raw: m[0].trim(), value: Math.abs(Number(`${int}.${dec || '0'}`)), decimals: dec.length, scale, kind });
+    out.push({ raw: m[0].slice(m[1].length).trim(), value: Math.abs(Number(`${int}.${dec || '0'}`)), decimals: dec.length, scale, kind });
   }
   return out;
 }
